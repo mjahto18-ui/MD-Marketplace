@@ -15,7 +15,7 @@ export async function GET() {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Products!A2:F',
+      range: 'Sheet1!A2:F',
     });
 
     const rows = response.data.values || [];
