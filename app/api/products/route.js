@@ -11,7 +11,7 @@ export async function GET() {
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -25,11 +25,11 @@ export async function GET() {
       price: row[1] || '0',
       image: row[2] || 'https://via.placeholder.com/300',
       description: row[3] || '',
-      stock: row[4] || '0'
     }));
 
     return Response.json(products);
   } catch (error) {
+    console.error(error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
