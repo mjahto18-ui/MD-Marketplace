@@ -1,15 +1,12 @@
-import { google } from 'googleapis';
-
 export async function GET() {
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY,
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    console.log('ENV CHECK:', {
+      hasEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+      hasKey: !!process.env.GOOGLE_PRIVATE_KEY,
+      hasSheetId: !!process.env.GOOGLE_SHEETS_ID,
+      sheetIdValue: process.env.GOOGLE_SHEETS_ID
     });
-
+    
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
