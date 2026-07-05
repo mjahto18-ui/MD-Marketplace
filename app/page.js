@@ -109,8 +109,8 @@ function InfoBox() {
       </div>
 
       <p style={{ fontSize: 14, lineHeight: 1.7, opacity: 0.9, marginBottom: 18 }}>
-        واجهة موحّدة لإدارة الطلبات، الخدمات المميزة، الكوبونات، النقاط، المحفظة الرقمية،
-        وتتبع الخرائط لخدمات التوصيل الخاصة، مع تجربة موجهة للسوق السعودي.
+        واجهة موحّدة لإدارة الطلبات، والخدمات المميزة، الكوبونات، النقاط، المحفظة الرقمية،
+        وتتبع حركة الطلبات لخدمة التوصيل ، مع تجربة موجهة للسوق اللبناني.
       </p>
 
       <div
@@ -124,14 +124,14 @@ function InfoBox() {
         {[
           'طلبات من المتاجر',
           'خدمة مميزة',
-          'كوبونات وعروض',
+          'سهولة الدفع',
           'نقاط ولاء',
-          'محفظة رقمية',
+          'محفظة مالية',
           'تتبع على الخريطة',
-          'خدمات دليفري خاصة',
+          'خدمات دليفري ',
           'جميع المنتجات',
-          'جميع المتاجر',
-          'محلات وبراندات عالمية'
+          'امكانية تتبع الطلب عبر ماب',
+          'برندات عالمية'
         ].map((item, idx) => (
           <div
             key={idx}
@@ -185,7 +185,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
     >
       <h2 style={{ margin: 0, fontSize: 22 }}>تسجيل الدخول إلى MD‑Marketplace</h2>
       <p style={{ fontSize: 13, opacity: 0.8, margin: 0 }}>
-        أدخل رقم المستخدم وكلمة المرور للوصول إلى لوحة الطلبات والمتاجر والخدمات.
+        أدخل رقم المستخدم وكلمة المرور للوصول إلى المتاجر والخدمات.
       </p>
 
       <label style={{ fontSize: 13, marginTop: 12 }}>
@@ -194,7 +194,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
           type="text"
           value={userId}
           onChange={e => setUserId(e.target.value)}
-          placeholder="مثال: 0501234567 أو رقم حساب"
+          placeholder="مثال: 70000000 أو رقم هاتف"
           style={{
             marginTop: 6,
             width: '100%',
@@ -260,7 +260,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
             cursor: 'pointer'
           }}
         >
-          تسجيل جديد
+          مستخدم جديد
         </button>
         <button
           onClick={handleContact}
@@ -275,7 +275,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
             cursor: 'pointer'
           }}
         >
-          تواصل معنا
+          راسلنا
         </button>
       </div>
     </div>
