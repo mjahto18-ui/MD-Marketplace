@@ -6,33 +6,42 @@ export default function RegisterPage() {
   const [mobile, setMobile] = useState("");
   const [area, setArea] = useState("");
   const [address, setAddress] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleRegister() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/register", {
-      method: "POST",
-      body: JSON.stringify({
-        name,
-        mobile,
-        area,
-        address,
-      }),
-    });
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name,
+          mobile,
+          area,
+          address
+        }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
+      setLoading(false);
 
-    if (!data.success) {
-      setError(data.message);
-      return;
+      if (!data.success) {
+        setError(data.message);
+        return;
+      }
+
+      alert("تم التسجيل بنجاح… الرجاء انتظار التفعيل");
+      window.location.href = "/login";
+
+    } catch (err) {
+      setLoading(false);
+      setError("خطأ في الاتصال بالسيرفر");
     }
-
-    alert("تم إرسال طلب التسجيل… الرجاء انتظار التفعيل");
-    window.location.href = "/login";
   }
 
   return (
@@ -68,7 +77,7 @@ export default function RegisterPage() {
       />
 
       <button onClick={handleRegister} style={btnPrimary}>
-        {loading ? "جاري الإرسال…" : "تسجيل"}
+        {loading ? "جاري الإرسال.." : "تسجيل"}
       </button>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
