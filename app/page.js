@@ -14,7 +14,7 @@ export default function Home() {
       });
   }, []);
 
-  if (loading) return <div style={{padding: 40, textAlign: 'center'}}>عم نحمل المنتجات...</div>;
+  if (loading) return <div style={{padding: 40, textAlign: 'center'}}>تحميل...</div>;
 
   return (
     <main style={{padding: 20, fontFamily: 'sans-serif', direction: 'rtl'}}>
