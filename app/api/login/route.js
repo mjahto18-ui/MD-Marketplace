@@ -86,7 +86,7 @@ export async function POST(req) {
             "",              // Email
             new Date().toLocaleDateString("en-US"), // Join Date
             "Pending",       // Status
-            10               // Free Delivery Remaining
+            5               // Free Delivery Remaining
           ],
         ],
       },
