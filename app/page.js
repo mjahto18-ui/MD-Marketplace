@@ -101,7 +101,7 @@ function InfoBox() {
         </div>
 
         <div>
-          <div style={{ fontSize: 20, fontWeight: 'bold' }}>MD‑Marketplace</div>
+          <div style={{ fontSize: 23, fontWeight: 'bold' }}>MD‑Marketplace</div>
 
           {/* الجملة الجديدة هون */}
           <div
@@ -114,7 +114,7 @@ function InfoBox() {
               marginTop: 4
             }}
           >
-            <span style={{ fontSize: 15 }}>🛍️</span>
+            <span style={{ fontSize: 14 }}>🛍️</span>
             <span>One App For Everything</span>
           </div>
 
