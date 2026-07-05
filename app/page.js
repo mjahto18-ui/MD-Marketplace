@@ -114,7 +114,7 @@ function InfoBox() {
               marginTop: 4
             }}
           >
-            <span style={{ fontSize: 14 }}>🛍️</span>
+            <span style={{ fontSize: 13 }}>🛍️</span>
             <span>One App For Everything</span>
           </div>
 
