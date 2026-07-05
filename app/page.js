@@ -28,13 +28,17 @@ export default function Home() {
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        overflow: 'hidden',
+        width: '100%',
+        maxWidth: '100%'
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: 1200,
+          maxWidth: '100%',
+          overflow: 'hidden',
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
           gap: 20
@@ -83,7 +87,10 @@ function InfoBox() {
         borderRadius: 18,
         padding: 24,
         boxShadow: '0 18px 40px rgba(0,0,0,0.55)',
-        border: '1px solid rgba(255,255,255,0.06)'
+        border: '1px solid rgba(255,255,255,0.06)',
+        width: '100%',
+        maxWidth: '100%',
+        overflow: 'hidden'
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
@@ -109,8 +116,8 @@ function InfoBox() {
       </div>
 
       <p style={{ fontSize: 14, lineHeight: 1.7, opacity: 0.9, marginBottom: 18 }}>
-        واجهة موحّدة لإدارة الطلبات، الخدمات المميزة، الكوبونات، النقاط، المحفظة المالية،
-        وتتبع الطلبات لخدمات التوصيل الخاصة، مع تجربة جديدة موجهة للسوق اللبناني.
+        واجهة موحدة لإدارة الطلبات، الخدمات المميزة، الكوبونات، النقاط، الطلبات لخدمات التوصيل الخاصة،
+        مع تجربة جديدة موجهة للسوق اللبناني.
       </p>
 
       <div
@@ -118,7 +125,9 @@ function InfoBox() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: 10,
-          marginTop: 10
+          marginTop: 10,
+          width: '100%',
+          maxWidth: '100%'
         }}
       >
         {[
@@ -127,11 +136,11 @@ function InfoBox() {
           'كوبونات وعروض',
           'نقاط ولاء',
           'محفظة مالية رقمية',
-          'تتبع الطلب على ماب',
-          'خدمات دليفري ',
+          'تتبع الطلبات على ماب',
+          'خدمات دليفري',
           'جميع المنتجات',
-          'جميع المتاجر',
-          'محلات وبراندات عالمية'
+          'معدات وبراندات عالمية',
+          'جميع المتاجر'
         ].map((item, idx) => (
           <div
             key={idx}
@@ -143,7 +152,9 @@ function InfoBox() {
               fontSize: 13,
               display: 'flex',
               alignItems: 'center',
-              gap: 8
+              gap: 8,
+              width: '100%',
+              maxWidth: '100%'
             }}
           >
             <span
@@ -180,7 +191,10 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
         border: '1px solid rgba(255,255,255,0.08)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 16
+        gap: 16,
+        width: '100%',
+        maxWidth: '100%',
+        overflow: 'hidden'
       }}
     >
       <h2 style={{ margin: 0, fontSize: 22 }}>تسجيل الدخول إلى MD‑Marketplace</h2>
@@ -239,8 +253,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
           background: 'linear-gradient(135deg, #ff9800, #ff5722)',
           color: '#fff',
           fontWeight: 'bold',
-          fontSize: 14,
-          cursor: 'pointer'
+          fontSize: 14
         }}
       >
         تسجيل الدخول
@@ -256,8 +269,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
             border: '1px solid rgba(255,255,255,0.25)',
             background: 'transparent',
             color: '#fff',
-            fontSize: 13,
-            cursor: 'pointer'
+            fontSize: 13
           }}
         >
           مستخدم جديد
@@ -271,8 +283,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
             border: '1px solid rgba(76,175,80,0.7)',
             background: 'rgba(76,175,80,0.15)',
             color: '#a5ffb0',
-            fontSize: 13,
-            cursor: 'pointer'
+            fontSize: 13
           }}
         >
           راسلنا
