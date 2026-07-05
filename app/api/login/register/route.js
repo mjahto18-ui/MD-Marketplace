@@ -1,107 +1,62 @@
-"use client";
-import { useState } from "react";
+import { google } from "googleapis";
 
-export default function RegisterPage() {
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [area, setArea] = useState("");
-  const [address, setAddress] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+export async function POST(req) {
+  try {
+    const body = await req.json();
+    const { name, mobile, area, address } = body;
 
-  async function handleRegister() {
-    setLoading(true);
-    setError("");
+    const auth = new google.auth.JWT({
+      email: process.env.GOOGLE_CLIENT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-    try {
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          name,
-          mobile,
-          area,
-          address
-        }),
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const customersRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Customers!A2:Z",
+    });
+
+    const customers = customersRes.data.values || [];
+
+    const exists = customers.find((row) => row[2] == mobile);
+
+    if (exists) {
+      return Response.json({
+        success: false,
+        message: "هذا الرقم مسجل مسبقاً… الرجاء انتظار التفعيل",
       });
-
-      const data = await res.json();
-      setLoading(false);
-
-      if (!data.success) {
-        setError(data.message);
-        return;
-      }
-
-      alert("تم التسجيل بنجاح… الرجاء انتظار التفعيل");
-      window.location.href = "/login";
-
-    } catch (err) {
-      setLoading(false);
-      setError("خطأ في الاتصال بالسيرفر");
     }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Customers!A:Z",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [
+          [
+            Date.now(),
+            name,
+            mobile,
+            area,
+            address,
+            "",
+            new Date().toLocaleDateString("en-US"),
+            "Pending",
+            5
+          ],
+        ],
+      },
+    });
+
+    return Response.json({
+      success: true,
+      message: "تم التسجيل بنجاح… الرجاء انتظار التفعيل",
+    });
+
+  } catch (error) {
+    console.error("Register API Error:", error);
+    return Response.json({ error: error.message }, { status: 500 });
   }
-
-  return (
-    <main style={{ padding: 20, direction: "rtl" }}>
-      <h2>تسجيل جديد</h2>
-
-      <input
-        placeholder="الاسم الكامل"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={inputStyle}
-      />
-
-      <input
-        placeholder="رقم الهاتف"
-        value={mobile}
-        onChange={(e) => setMobile(e.target.value)}
-        style={inputStyle}
-      />
-
-      <input
-        placeholder="المنطقة"
-        value={area}
-        onChange={(e) => setArea(e.target.value)}
-        style={inputStyle}
-      />
-
-      <input
-        placeholder="العنوان"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-        style={inputStyle}
-      />
-
-      <button onClick={handleRegister} style={btnPrimary}>
-        {loading ? "جاري الإرسال.." : "تسجيل"}
-      </button>
-
-      {error && <p style={{ color: "red" }}>{error}</p>}
-    </main>
-  );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "12px",
-  marginBottom: "12px",
-  borderRadius: "10px",
-  border: "none",
-  background: "#eee",
-};
-
-const btnPrimary = {
-  width: "100%",
-  padding: "12px",
-  background: "#6a00ff",
-  border: "none",
-  borderRadius: "10px",
-  color: "#fff",
-  fontSize: "18px",
-  marginTop: "10px",
-  cursor: "pointer",
-};
