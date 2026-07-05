@@ -28,36 +28,47 @@ export default function Home() {
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        overflowX: 'hidden',
-        width: '100%',
-        maxWidth: '100%',
-        margin: 0
+        justifyContent: 'center'
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: 600,
-          margin: '0 auto',
-          marginRight: isMobile ? '10px' : '0px',   // ← مزاحة شوي لليمين
-          display: 'flex',
-          flexDirection: 'column',
+          maxWidth: 1200,
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
           gap: 20
         }}
       >
 
-        <LoginBox
-          userId={userId}
-          password={password}
-          setUserId={setUserId}
-          setPassword={setPassword}
-          handleLogin={handleLogin}
-          handleRegister={handleRegister}
-          handleContact={handleContact}
-        />
+        {/* على الجوال: الدخول فوق */}
+        {isMobile && (
+          <LoginBox
+            userId={userId}
+            password={password}
+            setUserId={setUserId}
+            setPassword={setPassword}
+            handleLogin={handleLogin}
+            handleRegister={handleRegister}
+            handleContact={handleContact}
+          />
+        )}
 
+        {/* صندوق المعلومات */}
         <InfoBox />
+
+        {/* على الكمبيوتر: الدخول على اليسار */}
+        {!isMobile && (
+          <LoginBox
+            userId={userId}
+            password={password}
+            setUserId={setUserId}
+            setPassword={setPassword}
+            handleLogin={handleLogin}
+            handleRegister={handleRegister}
+            handleContact={handleContact}
+          />
+        )}
       </div>
     </main>
   );
@@ -72,10 +83,7 @@ function InfoBox() {
         borderRadius: 18,
         padding: 24,
         boxShadow: '0 18px 40px rgba(0,0,0,0.55)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        width: '100%',
-        maxWidth: '100%',
-        overflow: 'hidden'
+        border: '1px solid rgba(255,255,255,0.06)'
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
@@ -96,32 +104,34 @@ function InfoBox() {
         </div>
         <div>
           <div style={{ fontSize: 20, fontWeight: 'bold' }}>MD‑Marketplace</div>
-          <div style={{ fontSize: 13, opacity: 0.8 }}>منصة رقمية للمتاجر والطلبات والخدمات</div>
+          <div style={{ fontSize: 13, opacity: 0.8 }}>منصة رقمية للمتاجر والخدمات</div>
         </div>
       </div>
 
       <p style={{ fontSize: 14, lineHeight: 1.7, opacity: 0.9, marginBottom: 18 }}>
-        واجهة موحدة لإدارة الطلبات، الخدمات المميزة، الكوبونات، النقاط، الطلبات لخدمات التوصيل الخاصة،
-        مع تجربة جديدة موجهة للسوق اللبناني.
+        واجهة موحّدة لإدارة الطلبات، الخدمات المميزة، الكوبونات، النقاط، المحفظة الرقمية،
+        وتتبع الخرائط لخدمات التوصيل الخاصة، مع تجربة موجهة للسوق السعودي.
       </p>
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: 10,
-          width: '100%',
-          maxWidth: '100%'
+          marginTop: 10
         }}
       >
         {[
           'طلبات من المتاجر',
           'خدمة مميزة',
+          'كوبونات وعروض',
           'نقاط ولاء',
-          'محفظة مالية رقمية',
+          'محفظة رقمية',
+          'تتبع على الخريطة',
+          'خدمات دليفري خاصة',
           'جميع المنتجات',
-          'خدمة دليفري',
-          'جميع المتاجر'
+          'جميع المتاجر',
+          'محلات وبراندات عالمية'
         ].map((item, idx) => (
           <div
             key={idx}
@@ -133,9 +143,7 @@ function InfoBox() {
               fontSize: 13,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              width: '100%',
-              maxWidth: '100%'
+              gap: 8
             }}
           >
             <span
@@ -172,17 +180,12 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
         border: '1px solid rgba(255,255,255,0.08)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
-        width: '100%',
-        maxWidth: '100%',
-        overflow: 'hidden',
-        transform: 'scale(0.9)',        // ← تصغير الخانات 10%
-        transformOrigin: 'center'       // ← يبقى بالنص
+        gap: 16
       }}
     >
       <h2 style={{ margin: 0, fontSize: 22 }}>تسجيل الدخول إلى MD‑Marketplace</h2>
       <p style={{ fontSize: 13, opacity: 0.8, margin: 0 }}>
-        أدخل رقم المستخدم وكلمة المرور للوصول إلى المتاجر والخدمات.
+        أدخل رقم المستخدم وكلمة المرور للوصول إلى لوحة الطلبات والمتاجر والخدمات.
       </p>
 
       <label style={{ fontSize: 13, marginTop: 12 }}>
@@ -191,7 +194,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
           type="text"
           value={userId}
           onChange={e => setUserId(e.target.value)}
-          placeholder="مثلاً رقم حسابك 0501234567"
+          placeholder="مثال: 0501234567 أو رقم حساب"
           style={{
             marginTop: 6,
             width: '100%',
@@ -236,28 +239,14 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
           background: 'linear-gradient(135deg, #ff9800, #ff5722)',
           color: '#fff',
           fontWeight: 'bold',
-          fontSize: 14
+          fontSize: 14,
+          cursor: 'pointer'
         }}
       >
         تسجيل الدخول
       </button>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-        <button
-          onClick={handleContact}
-          style={{
-            flex: 1,
-            padding: 10,
-            borderRadius: 10,
-            border: '1px solid rgba(76,175,80,0.7)',
-            background: 'rgba(76,175,80,0.15)',
-            color: '#a5ffb0',
-            fontSize: 13
-          }}
-        >
-          راسلنا
-        </button>
-
         <button
           onClick={handleRegister}
           style={{
@@ -267,10 +256,26 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
             border: '1px solid rgba(255,255,255,0.25)',
             background: 'transparent',
             color: '#fff',
-            fontSize: 13
+            fontSize: 13,
+            cursor: 'pointer'
           }}
         >
-          مستخدم جديد
+          تسجيل جديد
+        </button>
+        <button
+          onClick={handleContact}
+          style={{
+            flex: 1,
+            padding: 10,
+            borderRadius: 10,
+            border: '1px solid rgba(76,175,80,0.7)',
+            background: 'rgba(76,175,80,0.15)',
+            color: '#a5ffb0',
+            fontSize: 13,
+            cursor: 'pointer'
+          }}
+        >
+          تواصل معنا
         </button>
       </div>
     </div>
