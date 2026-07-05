@@ -87,21 +87,35 @@ function InfoBox() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, #ff9800, #ff5722)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            fontSize: 22
-          }}
-        >
-          🛒
-        </div>
+  <div
+    style={{
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      background: 'linear-gradient(135deg, #ff9800, #ff5722)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 'bold',
+      fontSize: 22
+    }}
+  >
+    🛒
+  </div>
+
+  <div>
+    <div style={{ fontSize: 20, fontWeight: 'bold' }}>MD‑Marketplace</div>
+
+    {/* الجملة الجديدة هون */}
+    <div style={{ fontSize: 13, opacity: 0.8, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: 15 }}>🛍️</span>
+      <span>One App For Everything</span>
+    </div>
+
+    <div style={{ fontSize: 13, opacity: 0.8 }}>منصة رقمية للمتاجر والخدمات</div>
+  </div>
+</div>
+
         <div>
           <div style={{ fontSize: 20, fontWeight: 'bold' }}>MD‑Marketplace</div>
           <div style={{ fontSize: 13, opacity: 0.8 }}>منصة رقمية للمتاجر والخدمات</div>
