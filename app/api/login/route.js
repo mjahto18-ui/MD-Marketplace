@@ -22,6 +22,7 @@ export async function POST(req) {
 
     const user = users.find((row) => row[4] == mobile); // عمود الموبايل بUsers
 
+    // إذا موجود بUsers → فحص PIN
     if (user) {
       const rowPin = user[10];   // PIN
       const rowStatus = user[9]; // Status
@@ -51,48 +52,10 @@ export async function POST(req) {
       });
     }
 
-    // 2) إذا مش موجود بUsers → فحص Customers
-    const customersRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!A2:Z",
-    });
-
-    const customers = customersRes.data.values || [];
-
-    const existsInCustomers = customers.find((row) => row[2] == mobile);
-
-    if (existsInCustomers) {
-      return Response.json({
-        success: false,
-        message: "تم إرسال طلب التسجيل… الرجاء انتظار التفعيل",
-      });
-    }
-
-    // 3) إذا مش موجود → إنشاء صف جديد بCustomers
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!A:Z",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [
-          [
-            Date.now(),      // Customer ID
-            "عميل جديد",     // Name
-            mobile,          // Mobile
-            "",              // Area
-            "",              // Address
-            "",              // Email
-            new Date().toLocaleDateString("en-US"), // Join Date
-            "Pending",       // Status
-            5               // Free Delivery Remaining
-          ],
-        ],
-      },
-    });
-
+    // 2) إذا الرقم غير موجود بUsers → ما نسجل جديد
     return Response.json({
       success: false,
-      message: "تم إرسال طلب التسجيل… الرجاء انتظار التفعيل",
+      message: "الرقم غير موجود… الرجاء التسجيل أولاً",
     });
 
   } catch (error) {
