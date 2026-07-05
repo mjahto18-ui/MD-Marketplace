@@ -29,7 +29,7 @@ export default function Home() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
+        overflowX: 'hidden',
         width: '100%',
         maxWidth: '100%'
       }}
@@ -38,9 +38,8 @@ export default function Home() {
         style={{
           width: '100%',
           maxWidth: '100%',
-          overflow: 'hidden',
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
           gap: 20
         }}
       >
@@ -123,9 +122,8 @@ function InfoBox() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
           gap: 10,
-          marginTop: 10,
           width: '100%',
           maxWidth: '100%'
         }}
@@ -133,13 +131,10 @@ function InfoBox() {
         {[
           'طلبات من المتاجر',
           'خدمة مميزة',
-          'كوبونات وعروض',
           'نقاط ولاء',
           'محفظة مالية رقمية',
-          'تتبع الطلبات على ماب',
-          'خدمات دليفري',
           'جميع المنتجات',
-          'معدات وبراندات عالمية',
+          'خدمة دليفري',
           'جميع المتاجر'
         ].map((item, idx) => (
           <div
@@ -208,7 +203,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
           type="text"
           value={userId}
           onChange={e => setUserId(e.target.value)}
-          placeholder="مثال: 0501234567 أو رقم حساب"
+          placeholder="مثلاً رقم حسابك 0501234567"
           style={{
             marginTop: 6,
             width: '100%',
@@ -261,20 +256,6 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
 
       <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
         <button
-          onClick={handleRegister}
-          style={{
-            flex: 1,
-            padding: 10,
-            borderRadius: 10,
-            border: '1px solid rgba(255,255,255,0.25)',
-            background: 'transparent',
-            color: '#fff',
-            fontSize: 13
-          }}
-        >
-          مستخدم جديد
-        </button>
-        <button
           onClick={handleContact}
           style={{
             flex: 1,
@@ -287,6 +268,21 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
           }}
         >
           راسلنا
+        </button>
+
+        <button
+          onClick={handleRegister}
+          style={{
+            flex: 1,
+            padding: 10,
+            borderRadius: 10,
+            border: '1px solid rgba(255,255,255,0.25)',
+            background: 'transparent',
+            color: '#fff',
+            fontSize: 13
+          }}
+        >
+          مستخدم جديد
         </button>
       </div>
     </div>
