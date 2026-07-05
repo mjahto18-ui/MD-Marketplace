@@ -20,12 +20,11 @@ export async function POST(req) {
 
     const users = usersRes.data.values || [];
 
-    const user = users.find((row) => row[4] == mobile); // عمود الموبايل بجدول Users
+    const user = users.find((row) => row[4] == mobile); // عمود الموبايل بUsers
 
-    // إذا موجود بUsers → فحص PIN
     if (user) {
-      const rowPin = user[10];   // عمود PIN
-      const rowStatus = user[9]; // عمود Status
+      const rowPin = user[10];   // PIN
+      const rowStatus = user[9]; // Status
 
       if (rowStatus !== "Active") {
         return Response.json({
@@ -52,7 +51,7 @@ export async function POST(req) {
       });
     }
 
-    // 2) إذا مش موجود بUsers → لازم يكون عميل جديد → نضيفه على Customers
+    // 2) إذا مش موجود بUsers → فحص Customers
     const customersRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: "Customers!A2:Z",
@@ -60,9 +59,8 @@ export async function POST(req) {
 
     const customers = customersRes.data.values || [];
 
-    const existsInCustomers = customers.find((row) => row[2] == mobile); // عمود الموبايل بCustomers
+    const existsInCustomers = customers.find((row) => row[2] == mobile);
 
-    // إذا موجود بCustomers → يعني Pending
     if (existsInCustomers) {
       return Response.json({
         success: false,
