@@ -12,23 +12,26 @@ export async function POST(req) {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    const response = await sheets.spreadsheets.values.get({
+    // 1) فحص USERS لأنو هو اللي فيه PIN
+    const usersRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: "Users!A2:Z",
     });
 
-    const rows = response.data.values || [];
+    const users = usersRes.data.values || [];
 
-    // البحث عن المستخدم
-    const user = rows.find((row) => row[4] == mobile);
+    const user = users.find((row) => row[4] == mobile); // عمود الموبايل بجدول Users
 
-    // إذا المستخدم موجود
+    // إذا موجود بUsers → فحص PIN
     if (user) {
-      const rowPin = user[10];
-      const rowStatus = user[9];
+      const rowPin = user[10];   // عمود PIN
+      const rowStatus = user[9]; // عمود Status
 
-      if (rowStatus === "Pending") {
-        return Response.json({ status: "pending" });
+      if (rowStatus !== "Active") {
+        return Response.json({
+          success: false,
+          message: "الحساب غير مفعل بعد",
+        });
       }
 
       if (rowPin != pin) {
@@ -49,34 +52,50 @@ export async function POST(req) {
       });
     }
 
-    // إذا المستخدم غير موجود → إنشاء Pending
+    // 2) إذا مش موجود بUsers → لازم يكون عميل جديد → نضيفه على Customers
+    const customersRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Customers!A2:Z",
+    });
+
+    const customers = customersRes.data.values || [];
+
+    const existsInCustomers = customers.find((row) => row[2] == mobile); // عمود الموبايل بCustomers
+
+    // إذا موجود بCustomers → يعني Pending
+    if (existsInCustomers) {
+      return Response.json({
+        success: false,
+        message: "تم إرسال طلب التسجيل… الرجاء انتظار التفعيل",
+      });
+    }
+
+    // 3) إذا مش موجود → إنشاء صف جديد بCustomers
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Users!A:Z",
+      range: "Customers!A:Z",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [
           [
-            Date.now(), // User ID
-            "",
-            "Customer",
-            "عميل جديد",
-            mobile,
-            "TRUE",
-            "",
-            "",
-            "",
-            "Pending",
-            pin,
-            "",
-            "",
-            mobile,
+            Date.now(),      // Customer ID
+            "عميل جديد",     // Name
+            mobile,          // Mobile
+            "",              // Area
+            "",              // Address
+            "",              // Email
+            new Date().toLocaleDateString("en-US"), // Join Date
+            "Pending",       // Status
+            10               // Free Delivery Remaining
           ],
         ],
       },
     });
 
-    return Response.json({ status: "pending" });
+    return Response.json({
+      success: false,
+      message: "تم إرسال طلب التسجيل… الرجاء انتظار التفعيل",
+    });
 
   } catch (error) {
     console.error("Login API Error:", error);
