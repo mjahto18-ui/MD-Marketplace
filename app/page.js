@@ -38,15 +38,15 @@ export default function Home() {
       <div
         style={{
           width: '100%',
-          maxWidth: 600, // أهم نقطة: تحديد عرض ثابت للجوال
-          margin: '0 auto', // يخلي كل شي بالنص
+          maxWidth: 600,
+          margin: '0 auto',
+          marginRight: isMobile ? '10px' : '0px',   // ← مزاحة شوي لليمين
           display: 'flex',
           flexDirection: 'column',
           gap: 20
         }}
       >
 
-        {/* الدخول فوق على الجوال */}
         <LoginBox
           userId={userId}
           password={password}
@@ -57,7 +57,6 @@ export default function Home() {
           handleContact={handleContact}
         />
 
-        {/* صندوق المعلومات */}
         <InfoBox />
       </div>
     </main>
@@ -176,7 +175,9 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
         gap: 16,
         width: '100%',
         maxWidth: '100%',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        transform: 'scale(0.9)',        // ← تصغير الخانات 10%
+        transformOrigin: 'center'       // ← يبقى بالنص
       }}
     >
       <h2 style={{ margin: 0, fontSize: 22 }}>تسجيل الدخول إلى MD‑Marketplace</h2>
