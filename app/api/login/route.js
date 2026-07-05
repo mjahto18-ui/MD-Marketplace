@@ -1,107 +1,65 @@
-"use client";
-import { useState } from "react";
+import { google } from "googleapis";
 
-export default function RegisterPage() {
-  const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [area, setArea] = useState("");
-  const [address, setAddress] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+export async function POST(req) {
+  try {
+    const { mobile, pin } = await req.json();
 
-  async function handleRegister() {
-    setLoading(true);
-    setError("");
+    const auth = new google.auth.JWT({
+      email: process.env.GOOGLE_CLIENT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-    try {
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          name,
-          mobile,
-          area,
-          address
-        }),
-      });
+    const sheets = google.sheets({ version: "v4", auth });
 
-      const data = await res.json();
-      setLoading(false);
+    // 1) فحص USERS لأنو هو اللي فيه PIN
+    const usersRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Users!A2:Z",
+    });
 
-      if (!data.success) {
-        setError(data.message);
-        return;
+    const users = usersRes.data.values || [];
+
+    const user = users.find((row) => row[4] == mobile); // عمود الموبايل بUsers
+
+    // إذا موجود بUsers → فحص PIN
+    if (user) {
+      const rowPin = user[10];   // PIN
+      const rowStatus = user[9]; // Status
+
+      if (rowStatus !== "Active") {
+        return Response.json({
+          success: false,
+          message: "الحساب غير مفعل بعد",
+        });
       }
 
-      alert("تم التسجيل بنجاح… الرجاء انتظار التفعيل");
-      window.location.href = "/login";
+      if (rowPin != pin) {
+        return Response.json({
+          success: false,
+          message: "PIN غير صحيح",
+        });
+      }
 
-    } catch (err) {
-      setLoading(false);
-      setError("خطأ في الاتصال بالسيرفر");
+      return Response.json({
+        success: true,
+        user: {
+          id: user[0],
+          name: user[3],
+          mobile: user[4],
+          role: user[2],
+        },
+      });
     }
+
+    // 2) إذا الرقم غير موجود بUsers → ما نسجل جديد
+    return Response.json({
+      success: false,
+      message: "الرقم غير موجود… الرجاء التسجيل أولاً",
+    });
+
+  } catch (error) {
+    console.error("Login API Error:", error);
+    return Response.json({ error: error.message }, { status: 500 });
   }
-
-  return (
-    <main style={{ padding: 20, direction: "rtl" }}>
-      <h2>تسجيل جديد</h2>
-
-      <input
-        placeholder="الاسم الكامل"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={inputStyle}
-      />
-
-      <input
-        placeholder="رقم الهاتف"
-        value={mobile}
-        onChange={(e) => setMobile(e.target.value)}
-        style={inputStyle}
-      />
-
-      <input
-        placeholder="المنطقة"
-        value={area}
-        onChange={(e) => setArea(e.target.value)}
-        style={inputStyle}
-      />
-
-      <input
-        placeholder="العنوان"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-        style={inputStyle}
-      />
-
-      <button onClick={handleRegister} style={btnPrimary}>
-        {loading ? "جاري الإرسال.." : "تسجيل"}
-      </button>
-
-      {error && <p style={{ color: "red" }}>{error}</p>}
-    </main>
-  );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "12px",
-  marginBottom: "12px",
-  borderRadius: "10px",
-  border: "none",
-  background: "#eee",
-};
-
-const btnPrimary = {
-  width: "100%",
-  padding: "12px",
-  background: "#6a00ff",
-  border: "none",
-  borderRadius: "10px",
-  color: "#fff",
-  fontSize: "18px",
-  marginTop: "10px",
-  cursor: "pointer",
-};
