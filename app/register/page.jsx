@@ -1,67 +1,98 @@
 "use client";
+import { useState } from "react";
 
 export default function RegisterPage() {
-  const inputStyle = {
-    width: "100%",
-    padding: "12px",
-    borderRadius: "10px",
-    border: "none",
-    marginBottom: "12px",
-    background: "rgba(255,255,255,0.1)",
-    color: "#fff",
-    fontSize: "14px",
-    outline: "none"
-  };
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [area, setArea] = useState("");
+  const [address, setAddress] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const btnPrimary = {
-    width: "100%",
-    padding: "12px",
-    borderRadius: "10px",
-    border: "none",
-    background: "#ff9800",
-    color: "#000",
-    fontWeight: "bold",
-    marginTop: "10px",
-    cursor: "pointer"
-  };
+  async function handleRegister() {
+    setLoading(true);
+    setError("");
+
+    const res = await fetch("/api/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        mobile,
+        area,
+        address,
+      }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!data.success) {
+      setError(data.message);
+      return;
+    }
+
+    alert("تم إرسال طلب التسجيل… الرجاء انتظار التفعيل");
+    window.location.href = "/login";
+  }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top, #3b1d5a 0%, #0b0b16 55%, #000000 100%)",
-        padding: "25px",
-        direction: "rtl",
-        color: "#fff"
-      }}
-    >
-      <h1 style={{ textAlign: "center", marginBottom: "20px" }}>
-        إنشاء حساب جديد
-      </h1>
+    <main style={{ padding: 20, direction: "rtl" }}>
+      <h2>تسجيل جديد</h2>
 
-      <div
-        style={{
-          maxWidth: "400px",
-          margin: "auto",
-          background: "rgba(255,255,255,0.05)",
-          padding: "20px",
-          borderRadius: "14px",
-          backdropFilter: "blur(6px)"
-        }}
-      >
-        <input placeholder="الاسم الكامل" style={inputStyle} />
-        <input placeholder="رقم الهاتف" style={inputStyle} />
-        <input placeholder="المنطقة" style={inputStyle} />
-        <input placeholder="العنوان" style={inputStyle} />
+      <input
+        placeholder="الاسم الكامل"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        style={inputStyle}
+      />
 
-        <button
-          style={btnPrimary}
-          onClick={() => (window.location.href = "/confirm")}
-        >
-          متابعة
-        </button>
-      </div>
+      <input
+        placeholder="رقم الهاتف"
+        value={mobile}
+        onChange={(e) => setMobile(e.target.value)}
+        style={inputStyle}
+      />
+
+      <input
+        placeholder="المنطقة"
+        value={area}
+        onChange={(e) => setArea(e.target.value)}
+        style={inputStyle}
+      />
+
+      <input
+        placeholder="العنوان"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        style={inputStyle}
+      />
+
+      <button onClick={handleRegister} style={btnPrimary}>
+        {loading ? "جاري الإرسال…" : "تسجيل"}
+      </button>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
     </main>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  padding: "12px",
+  marginBottom: "12px",
+  borderRadius: "10px",
+  border: "none",
+  background: "#eee",
+};
+
+const btnPrimary = {
+  width: "100%",
+  padding: "12px",
+  background: "#6a00ff",
+  border: "none",
+  borderRadius: "10px",
+  color: "#fff",
+  fontSize: "18px",
+  marginTop: "10px",
+  cursor: "pointer",
+};
