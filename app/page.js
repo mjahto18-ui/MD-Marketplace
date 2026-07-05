@@ -31,47 +31,34 @@ export default function Home() {
         justifyContent: 'center',
         overflowX: 'hidden',
         width: '100%',
-        maxWidth: '100%'
+        maxWidth: '100%',
+        margin: 0
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: '100%',
+          maxWidth: 600, // أهم نقطة: تحديد عرض ثابت للجوال
+          margin: '0 auto', // يخلي كل شي بالنص
           display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
+          flexDirection: 'column',
           gap: 20
         }}
       >
 
-        {/* على الجوال: الدخول فوق */}
-        {isMobile && (
-          <LoginBox
-            userId={userId}
-            password={password}
-            setUserId={setUserId}
-            setPassword={setPassword}
-            handleLogin={handleLogin}
-            handleRegister={handleRegister}
-            handleContact={handleContact}
-          />
-        )}
+        {/* الدخول فوق على الجوال */}
+        <LoginBox
+          userId={userId}
+          password={password}
+          setUserId={setUserId}
+          setPassword={setPassword}
+          handleLogin={handleLogin}
+          handleRegister={handleRegister}
+          handleContact={handleContact}
+        />
 
         {/* صندوق المعلومات */}
         <InfoBox />
-
-        {/* على الكمبيوتر: الدخول على اليسار */}
-        {!isMobile && (
-          <LoginBox
-            userId={userId}
-            password={password}
-            setUserId={setUserId}
-            setPassword={setPassword}
-            handleLogin={handleLogin}
-            handleRegister={handleRegister}
-            handleContact={handleContact}
-          />
-        )}
       </div>
     </main>
   );
