@@ -104,13 +104,13 @@ function InfoBox() {
         </div>
         <div>
           <div style={{ fontSize: 20, fontWeight: 'bold' }}>MD‑Marketplace</div>
-          <div style={{ fontSize: 13, opacity: 0.8 }}>منصة رقمية للمتاجر والخدمات</div>
+          <div style={{ fontSize: 13, opacity: 0.8 }}>منصة رقمية للمتاجر والطلبات والخدمات</div>
         </div>
       </div>
 
       <p style={{ fontSize: 14, lineHeight: 1.7, opacity: 0.9, marginBottom: 18 }}>
-        واجهة موحّدة لإدارة الطلبات، الخدمات المميزة، الكوبونات، النقاط، المحفظة الرقمية،
-        وتتبع الخرائط لخدمات التوصيل الخاصة، مع تجربة موجهة للسوق السعودي.
+        واجهة موحّدة لإدارة الطلبات، الخدمات المميزة، الكوبونات، النقاط، المحفظة المالية،
+        وتتبع الطلبات لخدمات التوصيل الخاصة، مع تجربة جديدة موجهة للسوق اللبناني.
       </p>
 
       <div
@@ -126,9 +126,9 @@ function InfoBox() {
           'خدمة مميزة',
           'كوبونات وعروض',
           'نقاط ولاء',
-          'محفظة رقمية',
-          'تتبع على الخريطة',
-          'خدمات دليفري خاصة',
+          'محفظة مالية رقمية',
+          'تتبع الطلب على ماب',
+          'خدمات دليفري ',
           'جميع المنتجات',
           'جميع المتاجر',
           'محلات وبراندات عالمية'
@@ -185,7 +185,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
     >
       <h2 style={{ margin: 0, fontSize: 22 }}>تسجيل الدخول إلى MD‑Marketplace</h2>
       <p style={{ fontSize: 13, opacity: 0.8, margin: 0 }}>
-        أدخل رقم المستخدم وكلمة المرور للوصول إلى لوحة الطلبات والمتاجر والخدمات.
+        أدخل رقم المستخدم وكلمة المرور للوصول إلى المتاجر والخدمات.
       </p>
 
       <label style={{ fontSize: 13, marginTop: 12 }}>
@@ -260,7 +260,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
             cursor: 'pointer'
           }}
         >
-          تسجيل جديد
+          مستخدم جديد
         </button>
         <button
           onClick={handleContact}
@@ -275,7 +275,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
             cursor: 'pointer'
           }}
         >
-          تواصل معنا
+          راسلنا
         </button>
       </div>
     </div>
