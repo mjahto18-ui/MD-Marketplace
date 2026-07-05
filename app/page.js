@@ -24,7 +24,7 @@ export default function Home() {
           <div key={p.id} style={{border: '1px solid #ddd', borderRadius: 8, padding: 15}}>
             <img src={p.image} alt={p.name} style={{width: '100%', height: 200, objectFit: 'cover', borderRadius: 4}} />
             <h3>{p.name}</h3>
-            <p style={{color: 'green', fontWeight: 'bold'}}>LB:{p.price}</p>
+            <p style={{color: 'green', fontWeight: 'bold'}}>LB. {p.price}</p>
             <button style={{width: '100%', padding: 10, background: '#000', color: '#fff', border: 'none', borderRadius: 4}}>
               اضف للسلة
             </button>
