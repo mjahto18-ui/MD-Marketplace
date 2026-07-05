@@ -41,6 +41,7 @@ export default function Home() {
         }}
       >
 
+        {/* Mobile: Login first */}
         {isMobile && (
           <LoginBox
             userId={userId}
@@ -53,8 +54,10 @@ export default function Home() {
           />
         )}
 
+        {/* Info Box */}
         <InfoBox />
 
+        {/* Desktop: Login second */}
         {!isMobile && (
           <LoginBox
             userId={userId}
@@ -83,52 +86,23 @@ function InfoBox() {
         border: '1px solid rgba(255,255,255,0.06)'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, #ff9800, #ff5722)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            fontSize: 22
-          }}
-        >
-          🛒
+      {/* Logo Section */}
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+        <div style={{ fontSize: 32, fontWeight: 'bold', color: '#f7c86b' }}>
+          M JD
         </div>
-
-        <div>
-          <div style={{ fontSize: 23, fontWeight: 'bold' }}>MD‑Marketplace</div>
-
-          {/* الجملة الجديدة هون */}
-          <div
-            style={{
-              fontSize: 13,
-              opacity: 0.85,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              marginTop: 4
-            }}
-          >
-            <span style={{ fontSize: 13 }}>🛍️</span>
-            <span>One App For Everything</span>
-          </div>
-
-          <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
-            منصة رقمية للمتاجر والخدمات
-          </div>
+        <div style={{ fontSize: 14, opacity: 0.85, color: '#f7c86b' }}>
+          ONE APP FOR EVERYTHING
         </div>
       </div>
 
+      {/* Description */}
       <p style={{ fontSize: 14, lineHeight: 1.7, opacity: 0.9, marginBottom: 18 }}>
-        واجهة موحّدة لإدارة الطلبات، والخدمات المميزة، الكوبونات، النقاط، و المحفظة الرقمية،
-        وتتبع حركة الطلبات لخدمة التوصيل ، مع تجربة موجهة للسوق اللبناني.
+        منصة رقمية موحّدة للمتاجر والخدمات، مع نظام طلبات، محفظة مالية، نقاط ولاء،
+        تتبع مباشر عبر الخريطة، وتجربة موجهة للسوق اللبناني.
       </p>
 
+      {/* Features */}
       <div
         style={{
           display: 'grid',
@@ -144,9 +118,9 @@ function InfoBox() {
           'نقاط ولاء',
           'محفظة مالية',
           'تتبع على الخريطة',
-          'خدمات دليفري ',
+          'خدمات دليفري',
           'جميع المنتجات',
-          'إمكانية تتبع الطلب عبر MAP 🗺️',
+          'تتبع الطلب عبر MAP',
           'برندات عالمية'
         ].map((item, idx) => (
           <div
@@ -199,7 +173,7 @@ function LoginBox({ userId, password, setUserId, setPassword, handleLogin, handl
         gap: 16
       }}
     >
-      <h2 style={{ margin: 0, fontSize: 22 }}>تسجيل الدخول إلى MD‑Marketplace</h2>
+      <h2 style={{ margin: 0, fontSize: 22 }}>تسجيل الدخول إلى M JD</h2>
       <p style={{ fontSize: 13, opacity: 0.8, margin: 0 }}>
         أدخل رقم المستخدم وكلمة المرور للوصول إلى المتاجر والخدمات.
       </p>
