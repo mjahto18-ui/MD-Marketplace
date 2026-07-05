@@ -30,7 +30,7 @@ export async function GET() {
       name: row[1] || 'بدون اسم',
       price: row[2] || '0',
       image: row[3] || 'https://via.placeholder.com/300',
-      category: row[4] || 'عام',
+      category: row[4] || 'اسم',
     }));
 
     return Response.json(products);
