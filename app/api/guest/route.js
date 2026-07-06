@@ -14,7 +14,7 @@ export async function POST(req) {
     
     // Log guest visit
     await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.SHEET_ID,
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: "GuestLogs!A:C",
       valueInputOption: "RAW",
       requestBody: {
