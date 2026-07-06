@@ -21,7 +21,7 @@ export async function POST(req) {
 
     const users = res.data.values || [];
     // افترض رقم الهاتف بالعمود C والـ PIN بالعمود D
-    const user = users.find(row => row[2] === phone && row[3] === pin);
+    const user = users.find(row => row[4] === phone && row[10] === pin);
 
     if (user) {
       return NextResponse.json({
