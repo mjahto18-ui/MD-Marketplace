@@ -18,7 +18,7 @@ export async function POST(req) {
 
     // ← هون عم نكتب على شيت Customers
     await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID, // ← نفس المتغير
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID, // ← نفس المتغير
       range: "Customers!A:V", // ← اسم شيت العملاء عندك + 22 عمود
       valueInputOption: "RAW",
       requestBody: {
