@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    console.log('Login API called');
     const { mobile, pin } = await req.json();
+    console.log('Login attempt:', mobile, pin);
 
     const auth = new google.auth.JWT({
       email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -16,13 +16,23 @@ export async function POST(req) {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Users!A2:Z", // A: Mobile, B: PIN, C: Status, D: Name
+      range: "Users!A2:N", // من A لـ N عشان نجيب كل الأعمدة
     });
 
     const rows = response.data.values || [];
     console.log('Found users:', rows.length);
 
-    const user = rows.find(row => row[0] === mobile && row[1] === pin);
+    // Mobile = العمود E = index 4
+    // PIN = العمود K = index 10
+    // Status = العمود J = index 9
+    // Name = العمود D = index 3
+    // Active = العمود F = index 5
+
+    const user = rows.find(row => {
+      const userMobile = row[4]; // E: Mobile
+      const userPin = row[10]; // K: PIN
+      return userMobile === mobile && userPin === pin;
+    });
 
     if (!user) {
       return NextResponse.json({
@@ -31,7 +41,10 @@ export async function POST(req) {
       });
     }
 
-    if (user[2]?.toLowerCase()!== 'active') {
+    const userStatus = user[9]; // J: Status
+    const userActive = user[5]; // F: Active
+
+    if (userStatus?.toLowerCase()!== 'active' || userActive!== 'TRUE') {
       return NextResponse.json({
         success: false,
         msg: 'حسابك غير مفعل بعد. تواصل معنا'
@@ -40,12 +53,17 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      msg: 'أهلاً ' + user[3],
-      user: { name: user[3], mobile: user[0] }
+      msg: 'أهلاً ' + user[3], // D: Name
+      user: {
+        name: user[3], // D: Name
+        mobile: user[4], // E: Mobile
+        role: user[2], // C: Role
+        userId: user[0] // A: User ID
+      }
     });
 
   } catch (e) {
-    console.error('Login Error:', e.message);
+    console.error('Login Error:', e);
     return NextResponse.json({
       success: false,
       msg: 'خطأ بالسيرفر: ' + e.message
