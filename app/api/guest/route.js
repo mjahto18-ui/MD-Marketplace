@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+import { google } from "googleapis";
+
+export async function POST(req) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    
+    // Log guest visit
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.SHEET_ID,
+      range: "GuestLogs!A:C",
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[
+          new Date().toISOString(),
+          req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+          req.headers.get('user-agent') || 'unknown'
+        ]],
+      },
+    });
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: true }); // Still allow guest even if logging fails
+  }
+}
