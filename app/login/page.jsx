@@ -107,10 +107,11 @@ export default function LoginPage() {
       const data = await res.json();
       setMsg(data.message);
       if (data.success) {
-        if (remember) localStorage.setItem('md_phone', form.phone);
-        else localStorage.removeItem('md_phone');
-        window.location.href = '/dashboard';
-      }
+  if (remember) localStorage.setItem('md_phone', form.phone);
+  else localStorage.removeItem('md_phone');
+  localStorage.setItem('md_user', JSON.stringify(data.user)); // ← هاد السطر
+  window.location.href = '/shop'; // ← بدل dashboard
+}
     } catch {
       setMsg("حصل خطأ في الاتصال");
     }
