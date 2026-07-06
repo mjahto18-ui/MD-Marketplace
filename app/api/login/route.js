@@ -16,25 +16,25 @@ export async function POST(req) {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Users!A2:N", // من A لـ N عشان نجيب كل الأعمدة
+      range: "Users!A2:N",
     });
 
     const rows = response.data.values || [];
     console.log('Found users:', rows.length);
 
-    // Mobile = العمود E = index 4
-    // PIN = العمود K = index 10
-    // Status = العمود J = index 9
-    // Name = العمود D = index 3
-    // Active = العمود F = index 5
-
     const user = rows.find(row => {
-      const userMobile = row[4]; // E: Mobile
-      const userPin = row[10]; // K: PIN
-      return userMobile === mobile && userPin === pin;
+      const userMobile = String(row[4] || '').trim().replace(/^0+/, ''); // E: Mobile
+      const userPin = String(row[10] || '').trim(); // K: PIN
+      const inputMobile = String(mobile || '').trim().replace(/^0+/, '');
+      const inputPin = String(pin || '').trim();
+
+      console.log('Checking user:', userMobile, inputMobile, userPin, inputPin);
+
+      return userMobile === inputMobile && userPin === inputPin;
     });
 
     if (!user) {
+      console.log('User not found');
       return NextResponse.json({
         success: false,
         msg: 'رقم الهاتف أو PIN غير صحيح'
@@ -43,6 +43,7 @@ export async function POST(req) {
 
     const userStatus = user[9]; // J: Status
     const userActive = user[5]; // F: Active
+    console.log('User status:', userStatus, userActive);
 
     if (userStatus?.toLowerCase()!== 'active' || userActive!== 'TRUE') {
       return NextResponse.json({
@@ -53,7 +54,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      msg: 'أهلاً ' + user[3], // D: Name
+      msg: 'أهلاً ' + user[3],
       user: {
         name: user[3], // D: Name
         mobile: user[4], // E: Mobile
