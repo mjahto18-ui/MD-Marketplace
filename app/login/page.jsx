@@ -1,217 +1,156 @@
-"use client";
-import { useState } from "react";
+'use client';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function LoginPage() {
-  const [tab, setTab] = useState("login"); // login | register
-  const [form, setForm] = useState({ 
-    mobile: "", 
-    pin: "", 
-    name: "", 
-    area: "", 
-    address: "" 
+export default function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [form, setForm] = useState({
+    name: '', mobile: '', area: '', address: '', email: ''
   });
-  const [msg, setMsg] = useState({ text: "", error: false });
+  const [location, setLocation] = useState({ lat: null, lng: null });
   const [loading, setLoading] = useState(false);
-  const [coords, setCoords] = useState({ lat: null, lng: null });
+  const [msg, setMsg] = useState('');
+  const router = useRouter();
 
+  // تحديد الموقع
   const getLocation = () => {
-    setMsg({ text: "جاري تحديد موقعك...", error: false });
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setMsg({ text: "تم تحديد الموقع بنجاح ✓", error: false });
-      },
-      () => setMsg({ text: "لازم توافق على الموقع", error: true }),
-      { enableHighAccuracy: true }
-    );
-  };
-
-  const handleLogin = async () => {
-    if (!form.mobile || !form.pin) return setMsg({ text: "دخل رقم الموبايل والـ PIN", error: true });
-    setLoading(true);
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobile: form.mobile, pin: form.pin }),
-    });
-    const data = await res.json();
-    setMsg({ text: data.msg, error: !data.success });
-    setLoading(false);
-    if (data.success) {
-      localStorage.setItem("user", JSON.stringify(data.user));
-      window.location.href = "/categories";
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setMsg('✓ تم تحديد الموقع');
+      }, () => setMsg('فشل تحديد الموقع'));
     }
   };
 
-  const handleRegister = async () => {
-    if (!form.name || !form.mobile || !form.pin || !form.area || !form.address) 
-      return setMsg({ text: "عبي كل الخانات المطلوبة", error: true });
-    if (!coords.lat) return setMsg({ text: "حدد موقعك بالأول", error: true });
-    
+  // تسجيل الدخول بالرقم بس
+  const handleLogin = async () => {
     setLoading(true);
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, lat: coords.lat, lng: coords.lng }),
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobile: form.mobile })
     });
     const data = await res.json();
-    setMsg({ text: data.msg, error: !data.success });
     setLoading(false);
-    if (data.success) setTimeout(() => setTab("login"), 1500);
+    if (data.success) {
+      router.push('/dashboard');
+    } else {
+      setMsg(data.msg || 'رقم الهاتف غير صحيح او الحساب غير مفعل');
+    }
+  };
+
+  // التسجيل الجديد - بدون PIN
+  const handleRegister = async () => {
+    if (!location.lat) return setMsg('حدد موقعك اول');
+    setLoading(true);
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({...form,...location })
+    });
+    const data = await res.json();
+    setLoading(false);
+    setMsg(data.msg);
+    if (data.success) setIsLogin(true);
   };
 
   return (
-    <div style={pageStyle}>
-      <div style={cardStyle}>
-        <div style={tabsStyle}>
-          <button onClick={() => setTab("login")} style={tab === "login" ? activeTab : tabStyle}>
-            دخول
-          </button>
-          <button onClick={() => setTab("register")} style={tab === "register" ? activeTab : tabStyle}>
-            انضم الينا
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* الهيدر */}
+        <div className="text-center mb-8">
+          <div className="inline-block px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm mb-4">
+            <span className="text-white text-sm">مشروع سعودي رقمي قادم لسوق إلكتروني متعدد البائعين 🛍️</span>
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-2">السوق الإلكتروني<br/>السعودية</h1>
+          <p className="text-purple-300 text-xl">marketplace.sa</p>
         </div>
 
-        {msg.text && (
-          <div style={msg.error ? errorStyle : successStyle}>{msg.text}</div>
-        )}
+        {/* الكارد */}
+        <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+          {/* التاب */}
+          <div className="flex gap-2 mb-6 bg-black/20 p-1 rounded-xl">
+            <button
+              onClick={() => setIsLogin(true)}
+              className={`flex-1 py-2 rounded-lg transition ${isLogin? 'bg-white text-black' : 'text-white'}`}>
+              دخول
+            </button>
+            <button
+              onClick={() => setIsLogin(false)}
+              className={`flex-1 py-2 rounded-lg transition ${!isLogin? 'bg-white text-black' : 'text-white'}`}>
+              انضم الينا
+            </button>
+          </div>
 
-        {tab === "login" ? (
-          <div style={formStyle}>
-            <input type="tel" placeholder="رقم الموبايل" style={inputStyle}
-              value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
-            <input type="password" placeholder="PIN - 4 أرقام" maxLength={4} style={inputStyle}
-              value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} />
-            <button onClick={handleLogin} disabled={loading} style={btnStyle}>
-              {loading ? "جاري الدخول..." : "دخول"}
-            </button>
-          </div>
-        ) : (
-          <div style={formStyle}>
-            <input placeholder="الاسم الكامل" style={inputStyle}
-              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <input type="tel" placeholder="رقم الموبايل" style={inputStyle}
-              value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
-            <input type="password" placeholder="PIN - 4 أرقام" maxLength={4} style={inputStyle}
-              value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} />
-            <input placeholder="المنطقة" style={inputStyle}
-              value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} />
-            <input placeholder="العنوان بالتفصيل" style={inputStyle}
-              value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            
-            <button onClick={getLocation} style={locationBtnStyle}>
-              📍 {coords.lat ? "تم تحديد الموقع ✓" : "حدد موقعي"}
-            </button>
-            
-            <button onClick={handleRegister} disabled={loading} style={btnGreenStyle}>
-              {loading ? "جاري التسجيل..." : "تسجيل مستخدم جديد"}
-            </button>
-          </div>
-        )}
+          {msg && (
+            <div className={`mb-4 p-3 rounded-lg text-center text-sm ${msg.includes('✓') || msg.includes('نجاح')? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+              {msg}
+            </div>
+          )}
+
+          {isLogin? (
+            // فورم الدخول - رقم بس
+            <div className="space-y-4">
+              <input
+                type="tel"
+                placeholder="رقم الموبايل"
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
+                value={form.mobile}
+                onChange={(e) => setForm({...form, mobile: e.target.value})}
+              />
+              <button
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold disabled:opacity-50">
+                {loading? 'جاري الدخول...' : 'دخول'}
+              </button>
+            </div>
+          ) : (
+            // فورم التسجيل - بدون PIN
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="الاسم الكامل"
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
+                value={form.name}
+                onChange={(e) => setForm({...form, name: e.target.value})}
+              />
+              <input
+                type="tel"
+                placeholder="رقم الموبايل"
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
+                value={form.mobile}
+                onChange={(e) => setForm({...form, mobile: e.target.value})}
+              />
+              <input
+                type="text"
+                placeholder="المنطقة"
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
+                value={form.area}
+                onChange={(e) => setForm({...form, area: e.target.value})}
+              />
+              <input
+                type="text"
+                placeholder="العنوان بالتفصيل"
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-purple-400"
+                value={form.address}
+                onChange={(e) => setForm({...form, address: e.target.value})}
+              />
+              <button
+                onClick={getLocation}
+                className="w-full py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+                {location.lat? '✓ تم تحديد الموقع 📍' : 'تحديد الموقع 📍'}
+              </button>
+              <button
+                onClick={handleRegister}
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold disabled:opacity-50">
+                {loading? 'جاري التسجيل...' : 'تسجيل مستخدم جديد'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-
-const pageStyle = {
-  minHeight: "100vh",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "#f5f7fa",
-  padding: 20,
-  direction: "rtl",
-  fontFamily: "system-ui, -apple-system, sans-serif"
-};
-
-const cardStyle = {
-  background: "#fff",
-  borderRadius: 16,
-  padding: 24,
-  width: "100%",
-  maxWidth: 400,
-  boxShadow: "0 4px 20px rgba(0,0,0,0.08)"
-};
-
-const tabsStyle = {
-  display: "flex",
-  gap: 8,
-  marginBottom: 20,
-  background: "#f0f2f5",
-  padding: 4,
-  borderRadius: 10
-};
-
-const tabStyle = {
-  flex: 1,
-  padding: "10px",
-  border: "none",
-  background: "transparent",
-  borderRadius: 8,
-  cursor: "pointer",
-  fontWeight: 500,
-  color: "#666"
-};
-
-const activeTab = {
-  ...tabStyle,
-  background: "#fff",
-  color: "#1a73e8",
-  boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
-};
-
-const formStyle = { display: "flex", flexDirection: "column", gap: 12 };
-
-const inputStyle = {
-  padding: "12px 16px",
-  borderRadius: 10,
-  border: "1px solid #ddd",
-  fontSize: 15,
-  outline: "none"
-};
-
-const btnStyle = {
-  padding: 12,
-  borderRadius: 10,
-  border: "none",
-  background: "#1a73e8",
-  color: "#fff",
-  fontWeight: "bold",
-  fontSize: 15,
-  cursor: "pointer"
-};
-
-const btnGreenStyle = {
-  ...btnStyle,
-  background: "#0f9d58"
-};
-
-const locationBtnStyle = {
-  padding: 12,
-  borderRadius: 10,
-  border: "1px solid #1a73e8",
-  background: "#fff",
-  color: "#1a73e8",
-  fontWeight: 500,
-  cursor: "pointer"
-};
-
-const errorStyle = {
-  background: "#fee",
-  color: "#c00",
-  padding: 10,
-  borderRadius: 8,
-  marginBottom: 12,
-  fontSize: 14,
-  textAlign: "center"
-};
-
-const successStyle = {
-  background: "#e6f4ea",
-  color: "#0f9d58",
-  padding: 10,
-  borderRadius: 8,
-  marginBottom: 12,
-  fontSize: 14,
-  textAlign: "center"
-};
