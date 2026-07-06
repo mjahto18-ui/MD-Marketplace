@@ -38,6 +38,17 @@ export default function ShopPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* زر الداشبورد - بيبين بس لليوزر المسجل */}
+            {user && (
+              <button 
+                onClick={() => window.location.href = '/dashboard'} 
+                className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20"
+                title="حسابي"
+              >
+                <User className="w-5 h-5 text-white" />
+              </button>
+            )}
+
             {user && user.status === 'Active' && (
               <button className="relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20">
                 <ShoppingCart className="w-5 h-5 text-white" />
