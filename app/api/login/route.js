@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { cookies } from 'next/headers'; // ← السطر الجديد رقم 1: ضيف هاد فوق
 
 export async function POST(req) {
   try {
@@ -29,6 +30,17 @@ export async function POST(req) {
     );
 
     if (user) {
+      // ← السطر الجديد رقم 2: ضيف هاد كله جوا الـ if قبل الـ return
+      cookies().set('md_user', JSON.stringify({
+        customerId: user[0], // العمود A = ID
+        name: user[3], // العمود D = Name حسب ارقامك
+        phone: user[4] // العمود E = Phone حسب ارقامك
+      }), {
+        httpOnly: true,
+        secure: true,
+        maxAge: 60 * 60 * 24 * 7 // اسبوع
+      });
+
       return NextResponse.json({
         success: true,
         message: "تم تسجيل الدخول بنجاح",
