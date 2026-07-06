@@ -4,7 +4,7 @@ import { User, Package, MapPin, LogOut, ShoppingBag, Gift, MessageCircle } from 
 import dynamic from 'next/dynamic';
 
 // استيراد الخريطة بدون SSR عشان ما تخرب
-const Map = dynamic(() => import('@/components/Map'), { ssr: false });
+const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
