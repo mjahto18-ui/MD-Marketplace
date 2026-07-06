@@ -25,7 +25,7 @@ export async function GET() {
 
     // 1. جيب معلومات اليوزر من جدول Users
     const usersRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.SHEET_ID,
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: 'Users!A:Z',
     });
 
