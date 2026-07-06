@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
-import { cookies } from 'next/headers'; // ← السطر الجديد رقم 1: ضيف هاد فوق
+import { cookies } from 'next/headers';
 
 export async function POST(req) {
   try {
@@ -14,7 +14,6 @@ export async function POST(req) {
     });
     const sheets = google.sheets({ version: "v4", auth });
 
-    // ← نقرأ من شيت Users مش Customers
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: "Users!A2:Z",
@@ -22,23 +21,25 @@ export async function POST(req) {
 
     const users = res.data.values || [];
 
-    // العمود D=3 للهاتف، J=9 للـ PIN، نفترض Status بالعمود H=7
+    // A=0 User ID | B=1 Related ID | C=2 Role | D=3 Name | E=4 Mobile | F=5 Active | G=6 Email | H=7 Customer ID | I=8 Store ID | J=9 Status | K=10 PIN
     const user = users.find(row =>
-      row[4] === phone &&
-      row[10] === pin &&
-      row[9] === 'Active' // ← لازم يكون Active عشان يفوت
+      row[4] === phone && // E = Mobile
+      row[10] === pin && // K = PIN
+      row[9] === 'Active' // J = Status
     );
 
     if (user) {
-      // ← السطر الجديد رقم 2: ضيف هاد كله جوا الـ if قبل الـ return
-      cookies().set('md_user', JSON.stringify({
-        customerId: user[0], // العمود A = ID
-        name: user[3], // العمود D = Name حسب ارقامك
-        phone: user[4] // العمود E = Phone حسب ارقامك
+      // غيرت md_user → session + ضفت path و sameSite
+      cookies().set('session', JSON.stringify({
+        customerId: user[0], // A = User ID
+        name: user[3], // D = Name
+        phone: user[4] // E = Mobile
       }), {
         httpOnly: true,
         secure: true,
-        maxAge: 60 * 60 * 24 * 7 // اسبوع
+        sameSite: 'lax', // ← هاي مهمة عالـ Vercel
+        path: '/', // ← هاي مهمة عشان /api/me يشوفها
+        maxAge: 60 * 60 * 24 * 7
       });
 
       return NextResponse.json({
