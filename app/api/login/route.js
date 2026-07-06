@@ -13,7 +13,7 @@ export async function POST(req) {
     });
     const sheets = google.sheets({ version: "v4", auth });
     const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.SHEET_ID,
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: "Customers!A2:Z",
     });
     const users = res.data.values || [];
