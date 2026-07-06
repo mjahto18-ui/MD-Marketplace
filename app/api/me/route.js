@@ -4,20 +4,19 @@ import { google } from 'googleapis';
 
 export async function GET() {
   const cookieStore = cookies();
-  const session = cookieStore.get('session'); // ← هون كان session غيرها لـ md_user
+  const session = cookieStore.get('session'); // ✅ صح
 
   if (!session) {
     return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
   }
 
-  const userPhone = JSON.parse(session.value).phone;
-  //... كمل باقي الكود نفسو
-
   try {
+    const { phone } = JSON.parse(session.value);
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'), // ← ضفت?
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
@@ -26,13 +25,17 @@ export async function GET() {
 
     // 1. جيب معلومات اليوزر من جدول Users
     const usersRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID, // هون التعديل
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: 'Users!A:Z',
     });
 
     const usersRows = usersRes.data.values;
+    if (!usersRows || usersRows.length < 2) {
+      return NextResponse.json({ error: 'No users found' }, { status: 404 });
+    }
+
     const usersHeaders = usersRows[0];
-    const userRow = usersRows.slice(1).find(row => row[usersHeaders.indexOf('Mobile')] === userPhone);
+    const userRow = usersRows.slice(1).find(row => row[usersHeaders.indexOf('Mobile')] === phone);
 
     if (!userRow) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -45,19 +48,22 @@ export async function GET() {
 
     // 2. جيب معلومات الكوستومر من جدول Customers عن طريق Mobile
     const customersRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID, // هون التعديل
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: 'Customers!A:Z',
     });
 
     const customersRows = customersRes.data.values;
-    const customersHeaders = customersRows[0];
-    const customerRow = customersRows.slice(1).find(row => row[customersHeaders.indexOf('Mobile')] === userPhone);
-
     let customerData = {};
-    if (customerRow) {
-      customersHeaders.forEach((header, i) => {
-        customerData[header] = customerRow[i] || null;
-      });
+
+    if (customersRows && customersRows.length > 1) {
+      const customersHeaders = customersRows[0];
+      const customerRow = customersRows.slice(1).find(row => row[customersHeaders.indexOf('Mobile')] === phone);
+
+      if (customerRow) {
+        customersHeaders.forEach((header, i) => {
+          customerData[header] = customerRow[i] || null;
+        });
+      }
     }
 
     // 3. اختار الاحداثيات: Current اذا موجود، اذا لا Registration
@@ -76,7 +82,7 @@ export async function GET() {
         // من جدول Customers
         customerId: customerData['Customer ID'],
         area: customerData['Area'],
-        address: customerData['Adress'],
+        address: customerData['Adress'], // انتبه: Adress مش Address
         freeDeliveries: parseInt(customerData['Free Delivery Remaining']) || 0,
         lat: lat,
         lng: lng,
