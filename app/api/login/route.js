@@ -12,23 +12,22 @@ export async function POST(req) {
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
     const sheets = google.sheets({ version: "v4", auth });
+
+    // ← هون عم نقرأ من شيت Users
     const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: "Users!A2:Z",
+      spreadsheetId: process.env.GOOGLE_SHEET_ID, // ← اسم المتغير الصح
+      range: "Users!A2:Z", // ← غير Users لاسم شيت الدخول عندك
     });
+
     const users = res.data.values || [];
-    // Mobile = column C (index 2), PIN = we'll use password column for now
-    const user = users.find(row => row[2] === phone && row[3] === pin && row[7] === 'Active');
+    // افترض رقم الهاتف بالعمود C والـ PIN بالعمود D
+    const user = users.find(row => row[2] === phone && row[3] === pin);
+
     if (user) {
-      return NextResponse.json({ 
-        success: true, 
-        message: "تم تسجيل الدخول بنجاح", 
-        user: { 
-          customerId: user[0],
-          name: user[1], 
-          phone: user[2],
-          status: user[7]
-        } 
+      return NextResponse.json({
+        success: true,
+        message: "تم تسجيل الدخول بنجاح",
+        user: { name: user[1], phone: user[2] }
       });
     } else {
       return NextResponse.json({ success: false, message: "رقم الهاتف أو رمز الدخول خطأ" }, { status: 401 });
