@@ -17,69 +17,60 @@ export async function POST(req) {
       range: "Users!A2:Z",
     });
 
-    const rows = response.data.values || [];
+    import { google } from "googleapis";
+import { NextResponse } from "next/server";
 
-    // البحث عن المستخدم
-    const user = rows.find((row) => row[4] == mobile);
+export async function POST(req) {
+  try {
+    const { mobile, pin } = await req.json();
 
-    // إذا المستخدم موجود
-    if (user) {
-      const rowPin = user[10];
-      const rowStatus = user[9];
-
-      if (rowStatus === "Pending") {
-        return Response.json({ status: "pending" });
-      }
-
-      if (rowPin != pin) {
-        return Response.json({
-          success: false,
-          message: "PIN غير صحيح",
-        });
-      }
-
-      return Response.json({
-        success: true,
-        user: {
-          id: user[0],
-          name: user[3],
-          mobile: user[4],
-          role: user[2],
-        },
-      });
-    }
-
-    // إذا المستخدم غير موجود → إنشاء Pending
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Users!A:Z",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [
-          [
-            Date.now(), // User ID
-            "",
-            "Customer",
-            "عميل جديد",
-            mobile,
-            "TRUE",
-            "",
-            "",
-            "",
-            "Pending",
-            pin,
-            "",
-            "",
-            mobile,
-          ],
-        ],
-      },
+    const auth = new google.auth.JWT({
+      email: process.env.GOOGLE_CLIENT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
-    return Response.json({ status: "pending" });
+    const sheets = google.sheets({ version: "v4", auth });
 
-  } catch (error) {
-    console.error("Login API Error:", error);
-    return Response.json({ error: error.message }, { status: 500 });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Users!A2:Z", // نفترض الترتيب: A=mobile, B=pin, C=status, D=name
+    });
+
+    const rows = response.data.values || [];
+
+    // دور على اليوزر
+    const userRow = rows.find(row => row[0] === mobile && row[1] === pin);
+
+    if (!userRow) {
+      return NextResponse.json({
+        success: false,
+        msg: 'رقم الهاتف أو PIN غير صحيح'
+      }, { status: 401 });
+    }
+
+    // تأكد من الحالة - نفترض انها بالعمود C
+    if (userRow[2]?.toLowerCase() === 'stopped' || userRow[2]?.toLowerCase() === 'متوقف') {
+      return NextResponse.json({
+        success: false,
+        msg: 'حسابك متوقف، يرجى التواصل معنا'
+      }, { status: 403 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      msg: 'تم تسجيل الدخول بنجاح',
+      user: {
+        mobile: userRow[0],
+        name: userRow[3] || '',
+        status: userRow[2]
+      }
+    });
+
+  } catch (e) {
+    return NextResponse.json({
+      success: false,
+      msg: 'خطأ بالسيرفر: ' + e.message
+    }, { status: 500 });
   }
 }
