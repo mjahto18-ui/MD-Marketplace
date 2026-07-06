@@ -1,4 +1,4 @@
-iimport './globals.css'
+import './globals.css'
 
 export const metadata = {
   title: 'MD-Marketplace',
@@ -17,4 +17,3 @@ export default function RootLayout({ children }) {
     </html>
   )
 }
-
