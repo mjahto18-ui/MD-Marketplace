@@ -6,13 +6,14 @@ import Link from "next/link";
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
     fetch('/api/me', {
       credentials: 'include',
     })
-   .then(async (res) => {
+  .then(async (res) => {
       const data = await res.json();
       if (res.ok && data.user) {
         setUser(data.user);
@@ -21,8 +22,9 @@ export default function ProfilePage() {
       }
       setLoading(false);
     })
-   .catch(() => {
-      router.push('/login');
+  .catch((err) => {
+      console.log('Profile fetch error:', err);
+      setError('فشل تحميل البيانات');
       setLoading(false);
     });
   }, [router]);
@@ -30,6 +32,12 @@ export default function ProfilePage() {
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-xl">جاري تحميل الملف...</div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-xl text-red-500">{error}</div>
     </div>
   );
 
@@ -48,40 +56,40 @@ export default function ProfilePage() {
         <div className="space-y-4">
           <div className="border-b pb-2">
             <span className="text-gray-500">الاسم: </span>
-            <span className="font-semibold">{user.name}</span>
+            <span className="font-semibold">{user?.name || 'غير محدد'}</span>
           </div>
 
           <div className="border-b pb-2">
             <span className="text-gray-500">رقم الموبايل: </span>
-            <span className="font-semibold">{user.phone}</span>
+            <span className="font-semibold">{user?.phone || 'غير محدد'}</span>
           </div>
 
           <div className="border-b pb-2">
             <span className="text-gray-500">الايميل: </span>
-            <span className="font-semibold">{user.email || 'غير محدد'}</span>
+            <span className="font-semibold">{user?.email || 'غير محدد'}</span>
           </div>
 
           <div className="border-b pb-2">
             <span className="text-gray-500">نوع الحساب: </span>
-            <span className="font-semibold">{user.role}</span>
+            <span className="font-semibold">{user?.role || 'غير محدد'}</span>
           </div>
 
           <div className="border-b pb-2">
             <span className="text-gray-500">المنطقة: </span>
-            <span className="font-semibold">{user.area || 'غير محدد'}</span>
+            <span className="font-semibold">{user?.area || 'غير محدد'}</span>
           </div>
 
           <div className="border-b pb-2">
             <span className="text-gray-500">العنوان: </span>
-            <span className="font-semibold">{user.address || 'غير محدد'}</span>
+            <span className="font-semibold">{user?.address || 'غير محدد'}</span>
           </div>
 
           <div className="border-b pb-2">
             <span className="text-gray-500">توصيل مجاني متبقي: </span>
-            <span className="font-semibold text-green-600">{user.freeDeliveries}</span>
+            <span className="font-semibold text-green-600">{user?.freeDeliveries?? 0}</span>
           </div>
 
-          {user.lat && user.lng && (
+          {user?.lat && user?.lng && (
             <div className="border-b pb-2">
               <span className="text-gray-500">الموقع: </span>
               <span className="font-semibold">{user.lat}, {user.lng}</span>
