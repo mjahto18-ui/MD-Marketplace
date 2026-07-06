@@ -9,18 +9,27 @@ export default function LoginPage() {
   const [msg, setMsg] = useState({ text: '', error: false });
 
   const handleLogin = async () => {
-    if (!form.mobile || !form.pin) return setMsg({ text: 'دخل رقم الموبايل والـ PIN', error: true });
-    setLoading(true);
+  if (!form.mobile ||!form.pin) return setMsg({ text: 'دخل رقم الموبايل والـ PIN', error: true });
+  setLoading(true);
+  try {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mobile: form.mobile, pin: form.pin })
     });
     const data = await res.json();
-    setMsg({ text: data.msg, error: !data.success });
+    setMsg({ text: data.msg, error:!data.success });
     setLoading(false);
-    if (data.success) window.location.href = '/home';
-  };
+
+    if (data.success) {
+      localStorage.setItem('user', JSON.stringify(data.user));
+      window.location.href = '/categories'; // هون بيروح على الكاتيجوري
+    }
+  } catch (error) {
+    setMsg({ text: 'خطأ بالاتصال، حاول مرة تانية', error: true });
+    setLoading(false);
+  }
+};
 
   const handleRegister = async () => {
     if (!form.name || !form.mobile || !form.area || !form.address) {
