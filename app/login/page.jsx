@@ -119,9 +119,10 @@ export default function LoginPage() {
   };
 
   const handleGuest = async () => {
-    await fetch("/api/guest", { method: "POST" });
-    window.location.href = '/shop';
-  };
+  await fetch("/api/guest", { method: "POST" });
+  localStorage.setItem('md_guest', 'true'); // ← هاد السطر
+  window.location.href = '/shop';
+};
 
   const handleWhatsApp = () => {
     window.open('https://wa.me/961XXXXXXXX', '_blank');
