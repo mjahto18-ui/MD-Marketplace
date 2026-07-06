@@ -14,7 +14,7 @@ export async function POST(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const customerId = "CUST-" + Date.now();
     await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.SHEET_ID,
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: "Customers!A:F",
       valueInputOption: "RAW",
       requestBody: {
