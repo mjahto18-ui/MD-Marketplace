@@ -13,16 +13,21 @@ export default function ProfilePage() {
     fetch('/api/me', {
       credentials: 'include',
     })
-  .then(async (res) => {
+ .then(async (res) => {
+      if (!res.ok) {
+        // اذا 401 او ايرور، روح login دغري
+        router.push('/login');
+        return;
+      }
       const data = await res.json();
-      if (res.ok && data.user) {
+      if (data.user) {
         setUser(data.user);
       } else {
         router.push('/login');
       }
       setLoading(false);
     })
-  .catch((err) => {
+ .catch((err) => {
       console.log('Profile fetch error:', err);
       setError('فشل تحميل البيانات');
       setLoading(false);
@@ -30,13 +35,13 @@ export default function ProfilePage() {
   }, [router]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-xl">جاري تحميل الملف...</div>
     </div>
   );
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-xl text-red-500">{error}</div>
     </div>
   );
