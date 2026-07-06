@@ -15,19 +15,14 @@ export async function POST(req) {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!A2:U",
+      range: "Users!A2:Z",
     });
 
     const rows = response.data.values || [];
-    // عمود C = موبايل, عمود D = PIN, عمود H = Status
     const user = rows.find(row => row[2] === mobile && row[3] === pin);
 
     if (!user) {
       return NextResponse.json({ success: false, msg: 'يرجى التسجيل او التأكد من البيانات' });
-    }
-
-    if (user[7]!== 'active') {
-      return NextResponse.json({ success: false, msg: 'حسابك قيد الانتظار، سوف يصلك اشعار قريباً' });
     }
 
     return NextResponse.json({
