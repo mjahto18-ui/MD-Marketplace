@@ -125,7 +125,7 @@ export default function LoginPage() {
 };
 
   const handleWhatsApp = () => {
-    window.open('https://wa.me/961XXXXXXXX', '_blank');
+    window.open('https://wa.me/9613177653', '_blank');
   };
 
   if (view === "main") {
