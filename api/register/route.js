@@ -1,8 +1,9 @@
 import { google } from "googleapis";
+import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const { name, mobile, area, address } = await req.json();
+    const { name, mobile, area, address, lat, lng, pin } = await req.json();
 
     const auth = new google.auth.JWT({
       email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -12,52 +13,61 @@ export async function POST(req) {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // فحص إذا الرقم موجود بCustomers
-    const customersRes = await sheets.spreadsheets.values.get({
+    // 1. تأكد ان الرقم مش مسجل قبل بجدول Customers
+    const checkCustomers = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!A2:Z",
+      range: "Customers!A2:A", // عمود الموبايل
     });
-
-    const customers = customersRes.data.values || [];
-
-    const exists = customers.find((row) => row[2] == mobile);
-
-    if (exists) {
-      return Response.json({
+    const existingCustomers = checkCustomers.data.values?.flat() || [];
+    if (existingCustomers.includes(mobile)) {
+      return NextResponse.json({
         success: false,
-        message: "هذا الرقم مسجل مسبقاً… الرجاء انتظار التفعيل",
+        msg: 'هذا الرقم مسجل مسبقاً وبانتظار الموافقة'
       });
     }
 
-    // إضافة العميل الجديد
+    // 2. تأكد مش موجود بـ Users كمان
+    const checkUsers = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Users!A2:A",
+    });
+    const existingUsers = checkUsers.data.values?.flat() || [];
+    if (existingUsers.includes(mobile)) {
+      return NextResponse.json({
+        success: false,
+        msg: 'عندك حساب بالفعل، سجل دخول'
+      });
+    }
+
+    // 3. ضيفه على جدول Customers
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!A:Z",
-      valueInputOption: "USER_ENTERED",
+      range: "Customers!A1",
+      valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [
-          [
-            Date.now(),      // Customer ID
-            name,            // Name
-            mobile,          // Mobile
-            area,            // Area
-            address,         // Address
-            "",              // Email
-            new Date().toLocaleDateString("en-US"), // Join Date
-            "Pending",       // Status
-            5                // Free Delivery Remaining
-          ],
-        ],
+        values: [[
+          mobile, // A
+          pin, // B
+          name, // C
+          area, // D
+          address, // E
+          lat, // F
+          lng, // G
+          'pending', // H - Status
+          new Date().toLocaleString('ar-SA') // I - CreatedAt
+        ]]
       },
     });
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
-      message: "تم التسجيل بنجاح… الرجاء انتظار التفعيل",
+      msg: 'تم التسجيل بنجاح. سيتم التواصل معك بعد مراجعة البيانات'
     });
 
-  } catch (error) {
-    console.error("Register API Error:", error);
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({
+      success: false,
+      msg: 'خطأ بالتسجيل: ' + e.message
+    }, { status: 500 });
   }
 }
