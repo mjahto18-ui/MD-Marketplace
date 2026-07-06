@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
+    console.log('Login API called');
     const { mobile, pin } = await req.json();
 
     const auth = new google.auth.JWT({
@@ -19,6 +20,8 @@ export async function POST(req) {
     });
 
     const rows = response.data.values || [];
+    console.log('Found users:', rows.length);
+
     const user = rows.find(row => row[0] === mobile && row[1] === pin);
 
     if (!user) {
@@ -42,6 +45,10 @@ export async function POST(req) {
     });
 
   } catch (e) {
-    return NextResponse.json({ success: false, msg: 'خطأ بالسيرفر' }, { status: 500 });
+    console.error('Login Error:', e.message);
+    return NextResponse.json({
+      success: false,
+      msg: 'خطأ بالسيرفر: ' + e.message
+    }, { status: 500 });
   }
 }
