@@ -10,20 +10,29 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/me')
-     .then(res => {
-        if (!res.ok) window.location.href = '/login';
-        return res.json();
-      })
-     .then(data => {
+    fetch('/api/me', {
+      credentials: 'include', // ← ضفناها هون، اهم شي
+    })
+     .then(async (res) => {
+        if (!res.ok) {
+          window.location.href = '/login';
+          return;
+        }
+        const data = await res.json();
         setUser(data.user);
         setLoading(false);
       })
-     .catch(() => window.location.href = '/login');
+     .catch(() => {
+        window.location.href = '/login';
+     });
   }, []);
 
   const handleLogout = async () => {
-    await fetch('/api/logout', { method: 'POST' });
+    await fetch('/api/logout', { 
+      method: 'POST',
+      credentials: 'include' // ← ضيفها هون كمان
+    });
+    document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     window.location.href = '/login';
   };
 
@@ -34,6 +43,8 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  if (!user) return null; // حماية زيادة
 
   return (
     <div className="min-h-screen gradient-bg">
@@ -69,16 +80,27 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="w-5 h-5 text-pink-400" />
-            <h2 className="text-white font-bold">موقع التوصيل</h2>
+        {/* قسم الخريطة - ضفنا check عشان ما يكرش */}
+        {user?.lat && user?.lng ? (
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="w-5 h-5 text-pink-400" />
+              <h2 className="text-white font-bold">موقع التوصيل</h2>
+            </div>
+            <div className="h-48 rounded-xl overflow-hidden mb-3">
+              <Map lat={parseFloat(user.lat)} lng={parseFloat(user.lng)} />
+            </div>
+            <p className="text-purple-200 text-sm">{user?.address}, {user?.area}</p>
           </div>
-          <div className="h-48 rounded-xl overflow-hidden mb-3">
-            <Map lat={user?.lat} lng={user?.lng} />
+        ) : (
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="w-5 h-5 text-pink-400" />
+              <h2 className="text-white font-bold">موقع التوصيل</h2>
+            </div>
+            <p className="text-purple-200 text-sm">لم يتم تحديد الموقع بعد</p>
           </div>
-          <p className="text-purple-200 text-sm">{user?.address}, {user?.area}</p>
-        </div>
+        )}
 
         <div className="glass rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
