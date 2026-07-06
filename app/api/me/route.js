@@ -4,7 +4,7 @@ import { google } from 'googleapis';
 
 export async function GET() {
   const cookieStore = cookies();
-  const session = cookieStore.get('md_user'); // ← هون كان session غيرها لـ md_user
+  const session = cookieStore.get('session'); // ← هون كان session غيرها لـ md_user
 
   if (!session) {
     return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
