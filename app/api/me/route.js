@@ -25,7 +25,7 @@ export async function GET() {
 
     // 1. جيب معلومات اليوزر من جدول Users
     const usersRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID, // هون التعديل
       range: 'Users!A:Z',
     });
 
@@ -44,7 +44,7 @@ export async function GET() {
 
     // 2. جيب معلومات الكوستومر من جدول Customers عن طريق Mobile
     const customersRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID, // هون التعديل
       range: 'Customers!A:Z',
     });
 
@@ -61,7 +61,7 @@ export async function GET() {
 
     // 3. اختار الاحداثيات: Current اذا موجود، اذا لا Registration
     let lat = customerData['Current Latitude'] || customerData['Registration Latitude'] || null;
-    let lng = customerData['Current Longtitude'] || customerData['Registration Longitude'] || null; // انتبه Longtitude هيك مكتوبة عندك
+    let lng = customerData['Current Longtitude'] || customerData['Registration Longitude'] || null;
 
     // 4. ادمج كلشي سوا
     return NextResponse.json({
@@ -75,7 +75,7 @@ export async function GET() {
         // من جدول Customers
         customerId: customerData['Customer ID'],
         area: customerData['Area'],
-        address: customerData['Adress'], // انتبه Adress هيك مكتوبة عندك
+        address: customerData['Adress'],
         freeDeliveries: parseInt(customerData['Free Delivery Remaining']) || 0,
         lat: lat,
         lng: lng,
@@ -84,6 +84,7 @@ export async function GET() {
     });
 
   } catch (error) {
+    console.log('ME API Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
