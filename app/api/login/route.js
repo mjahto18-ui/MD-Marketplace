@@ -15,7 +15,7 @@ export async function POST(req) {
 
     // ← هون عم نقرأ من شيت Users
     const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID, // ← اسم المتغير الصح
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID, // ← اسم المتغير الصح
       range: "Users!A2:Z", // ← غير Users لاسم شيت الدخول عندك
     });
 
