@@ -25,10 +25,15 @@ export async function POST(req) {
 
     if (user) {
       return NextResponse.json({
-        success: true,
-        message: "تم تسجيل الدخول بنجاح",
-        user: { name: user[1], phone: user[2] }
-      });
+  success: true,
+  message: "تم تسجيل الدخول بنجاح",
+  user: {
+    customerId: user[0],
+    name: user[1],
+    phone: user[3],
+    status: user[7] // ← هاد مهم عشان نعرف Active ولا Pending
+  }
+});
     } else {
       return NextResponse.json({ success: false, message: "رقم الهاتف أو رمز الدخول خطأ" }, { status: 401 });
     }
