@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 
 export async function POST(req) {
   try {
+    console.log('Register API called');
     const { name, mobile, area, address, email, lat, lng } = await req.json();
     const headersList = headers();
 
@@ -27,35 +28,18 @@ export async function POST(req) {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // تأكد الرقم مش موجود بـ Customers ولا Users
-    const checkCustomers = await sheets.spreadsheets.values.get({
+    // تأكد الرقم مش موجود
+    const check = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!C2:C", // عمود Mobile صار C
+      range: "Customers!C2:C",
     });
-    const checkUsers = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Users!A2:A", // نفترض Mobile بجدول Users بالأول
-    });
-
-    const allMobiles = [
-     ...(checkCustomers.data.values?.flat() || []),
-     ...(checkUsers.data.values?.flat() || [])
-    ];
-
-    if (allMobiles.includes(mobile)) {
-      return NextResponse.json({
-        success: false,
-        msg: 'هذا الرقم مسجل مسبقاً. اذا نسيت الـ PIN تواصل معنا'
-      });
+    if (check.data.values?.flat().includes(mobile)) {
+      return NextResponse.json({ success: false, msg: 'هذا الرقم مسجل مسبقاً' });
     }
 
-    // أضف الطلب الجديد
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-GB'); // 29/06/2026
     const timeStr = now.toLocaleString('en-GB'); // 29/06/2026, 14:30:00
-
-    // لو AppSheet بيولد Customer ID تلقائي، خلي الخانة فاضية ""
-    // لو بدك الموقع يولده استخدم السطر تحت
     const customerId = crypto.randomUUID().slice(0, 8);
 
     await sheets.spreadsheets.values.append({
@@ -95,9 +79,10 @@ export async function POST(req) {
     });
 
   } catch (e) {
+    console.error('Register Error:', e.message);
     return NextResponse.json({
       success: false,
-      msg: 'خطأ بالتسجيل: ' + e.message
+      msg: 'خطأ بالسيرفر: ' + e.message
     }, { status: 500 });
   }
 }
