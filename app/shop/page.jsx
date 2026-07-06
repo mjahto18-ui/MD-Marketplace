@@ -4,21 +4,35 @@ import { ShoppingCart, User, LogOut, Package, Clock, MessageCircle } from "lucid
 
 export default function ShopPage() {
   const [user, setUser] = useState(null);
-  const [isGuest, setIsGuest] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userData = localStorage.getItem('md_user');
-    const guestData = localStorage.getItem('md_guest');
-    if (userData) setUser(JSON.parse(userData));
-    else if (guestData) setIsGuest(true);
-    else window.location.href = '/login';
+    fetch('/api/me', {
+      credentials: 'include', // ← اهم شي
+    })
+   .then(async (res) => {
+      const data = await res.json();
+      if (res.ok && data.user) {
+        setUser(data.user);
+      }
+      setLoading(false);
+    })
+   .catch(() => {
+      setLoading(false);
+    });
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('md_user');
-    localStorage.removeItem('md_guest');
+    // منحذف الكوكي
+    document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     window.location.href = '/login';
   };
+
+  if (loading) return (
+    <div className="min-h-screen gradient-bg flex items-center justify-center">
+      <div className="text-white text-xl">جاري التحميل...</div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen gradient-bg">
@@ -72,7 +86,7 @@ export default function ShopPage() {
           </div>
         )}
 
-        {isGuest && (
+        {!user && (
           <div className="glass rounded-2xl p-4 mb-6 flex items-center justify-between">
             <p className="text-white">عم تتصفح كزائر. سجل دخولك لتتمكن من الطلب</p>
             <button onClick={() => window.location.href = '/login'} className="bg-gradient-to-r from-pink-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold">
