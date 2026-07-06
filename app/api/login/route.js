@@ -13,32 +13,32 @@ export async function POST(req) {
     });
     const sheets = google.sheets({ version: "v4", auth });
 
-    // ← هون عم نقرأ من شيت Users
+    // ← نقرأ من شيت Users مش Customers
     const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID, // ← اسم المتغير الصح
-      range: "Users!A2:Z", // ← غير Users لاسم شيت الدخول عندك
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Users!A2:Z",
     });
 
     const users = res.data.values || [];
-    // افترض رقم الهاتف بالعمود C والـ PIN بالعمود D
-    const user = users.find(row => row[4] === phone && row[10] === pin);
+
+    // العمود D=3 للهاتف، J=9 للـ PIN، نفترض Status بالعمود H=7
+    const user = users.find(row =>
+      row[4] === phone &&
+      row[10] === pin &&
+      row[9] === 'Active' // ← لازم يكون Active عشان يفوت
+    );
 
     if (user) {
       return NextResponse.json({
-  success: true,
-  message: "تم تسجيل الدخول بنجاح",
-  user: {
-    customerId: user[0],
-    name: user[1],
-    phone: user[3],
-    status: user[7] // ← هاد مهم عشان نعرف Active ولا Pending
-  }
-});
+        success: true,
+        message: "تم تسجيل الدخول بنجاح",
+        user: { name: user[3], phone: user[4] }
+      });
     } else {
-      return NextResponse.json({ success: false, message: "رقم الهاتف أو رمز الدخول خطأ" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "الحساب غير مفعل أو البيانات خطأ" }, { status: 401 });
     }
   } catch (error) {
-    console.error(error);
+    console.error("Login Error:", error);
     return NextResponse.json({ success: false, message: "خطأ في الخادم" }, { status: 500 });
   }
 }
