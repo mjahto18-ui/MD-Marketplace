@@ -13,19 +13,41 @@ export async function POST(req) {
     });
     const sheets = google.sheets({ version: "v4", auth });
 
+    // ===== هاد الجزء الجديد كله - Check قبل ما نضيف =====
+    // 1. جيب كل ارقام التلفونات من العمود C
+    const phoneColumn = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Customers!C:C", // العمود C = Mobile
+    });
+
+    // 2. نظف الارقام وقارن
+    const submittedPhone = data.phone.toString().trim();
+    const existingPhones = (phoneColumn.data.values || [])
+      .flat()
+      .map(p => p?.toString().trim())
+      .filter(p => p);
+
+    if (existingPhones.includes(submittedPhone)) {
+      return NextResponse.json({ 
+        success: false, 
+        message: "الرقم مسجل مسبقاً، سجل دخول" 
+      });
+    }
+    // ===== خلص جزء الـ Check =====
+
+    // 3. اذا وصل لهون يعني الرقم مش موجود، كمّل التسجيل عادي
     const customerId = "CUST-" + Date.now();
     const now = new Date().toISOString();
 
-    // ← هون عم نكتب على شيت Customers
     await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID, // ← نفس المتغير
-      range: "Customers!A:V", // ← اسم شيت العملاء عندك + 22 عمود
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Customers!A:V",
       valueInputOption: "RAW",
       requestBody: {
         values: [[
           customerId, // A: Customer ID
           data.name, // B: Name
-          data.phone, // C: Mobile
+          submittedPhone, // C: Mobile - استخدمنا الرقم النظيف
           data.area, // D: Area
           data.address, // E: Address
           data.email || '', // F: Email
@@ -51,7 +73,7 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, message: "تم إرسال طلب الانضمام بنجاح" });
   } catch (error) {
-    console.error(error); // ← هاد السطر مهم عشان نشوف الخطأ بـ Vercel Logs
+    console.error('Register Error:', error);
     return NextResponse.json({ success: false, message: "فشل إنشاء الحساب" }, { status: 500 });
   }
 }
