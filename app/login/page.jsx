@@ -17,8 +17,6 @@ export default function LoginPage() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // شلنا useEffect تبع "تذكرني" نهائياً
-
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const getLocationAndRegister = () => {
@@ -100,6 +98,9 @@ export default function LoginPage() {
     setLoading(true);
     setMsg("");
     try {
+      // 1. امحي كوكي الزائر قبل تسجيل الدخول - هاي اللي بتحل المشكلة
+      document.cookie = 'md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -109,8 +110,7 @@ export default function LoginPage() {
       const data = await res.json();
       setMsg(data.message);
       if (data.success) {
-        // شلنا حفظ md_phone - ما منخزن شي
-        window.location.href = '/shop';
+        window.location.replace('/shop'); // replace احسن من href
       }
     } catch {
       setMsg("حصل خطأ في الاتصال");
@@ -119,10 +119,13 @@ export default function LoginPage() {
   };
 
   const handleGuest = async () => {
-    await fetch("/api/guest", { method: "POST" });
-    // ضفنا كوكي عشان يشتغل عالتلفون
-    document.cookie = "md_guest=true; path=/; max-age=86400; SameSite=Lax";
-    window.location.href = '/shop';
+    await fetch("/api/guest", { 
+      method: "POST",
+      credentials: 'include'
+    });
+    // ضفنا Secure عشان يشتغل عالتلفون + HTTPS
+    document.cookie = "md_guest=true; path=/; max-age=86400; SameSite=Lax; Secure";
+    window.location.replace('/shop'); // replace احسن من href
   };
 
   const handleWhatsApp = () => {
@@ -164,7 +167,6 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">دخول</div>
                   <div className="text-purple-200 text-sm">لديك حساب بالفعل؟ سجل الدخول</div>
                 </div>
-              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
@@ -177,7 +179,6 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">تسجيل جديد</div>
                   <div className="text-purple-200 text-sm">انضم إلينا وابدأ رحلتك</div>
                 </div>
-              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
@@ -277,8 +278,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* شلنا "تذكرني" من هون */}
-
               <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold py-4 rounded-2xl hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50">
                 {loading ? "جاري الدخول..." : "تسجيل الدخول"}
               </button>
@@ -343,7 +342,6 @@ export default function LoginPage() {
                     <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
                     <input name="area" value={form.area} onChange={handleChange} placeholder="منطقة سكنك" className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
                   </div>
-                </div>
                 <div>
                   <label className="text-purple-200 text-sm mb-2 block">العنوان</label>
                   <div className="relative">
