@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Lock, Phone, MapPin, Home, Mail, ShoppingCart, LogIn, UserPlus, Eye, MessageCircle, ChevronRight, Shield, Zap, BadgeCheck, MapPinned, X, Info } from "lucide-react";
 
 export default function LoginPage() {
@@ -16,14 +16,46 @@ export default function LoginPage() {
   const [showLocationPopup, setShowLocationPopup] = useState(false);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  // هاد الجديد - بيتشيك اذا انت اصلاً مسجل او زائر
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      // 1. اذا زائر رجعه عالـ shop
+      const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
+      if (isGuestCookie) {
+        window.location.replace('/shop');
+        return;
+      }
+
+      // 2. اذا مسجل دخول رجعه عالـ shop
+      try {
+        const res = await fetch('/api/me', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            window.location.replace('/shop');
+            return;
+          }
+        }
+      } catch {}
+
+      setCheckingSession(false);
+    };
+
+    checkExistingSession();
+  }, []);
+
+  const handleChange = (e) => setForm({...form, [e.target.name]: e.target.value });
 
   const getLocationAndRegister = () => {
     setShowLocationPopup(false);
     setLoading(true);
     setMsg("");
-    
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -48,22 +80,22 @@ export default function LoginPage() {
   const submitRegistration = async (currentLocation) => {
     try {
       const deviceInfo = {
-        deviceType: /Mobile|Android|iP(hone|od)|IEMobile/.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+        deviceType: /Mobile|Android|iP(hone|od)|IEMobile/.test(navigator.userAgent)? 'Mobile' : 'Desktop',
         deviceName: navigator.platform,
         browser: navigator.userAgent,
       };
       const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json());
-      
+
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+         ...form,
           registrationLatitude: currentLocation.lat,
           registrationLongitude: currentLocation.lng,
           currentLatitude: currentLocation.lat,
           currentLongitude: currentLocation.lng,
-          ...deviceInfo,
+         ...deviceInfo,
           ipAddress: ipRes.ip,
           status: 'Pending',
           freeDeliveryRemaining: 5,
@@ -84,12 +116,12 @@ export default function LoginPage() {
   const handleRegisterClick = (e) => {
     e.preventDefault();
     setMsg("");
-    
-    if (!form.name || !form.phone || !form.area || !form.address || !form.pin) {
+
+    if (!form.name ||!form.phone ||!form.area ||!form.address ||!form.pin) {
       setMsg("يرجى تعبئة جميع الحقول المطلوبة");
       return;
     }
-    
+
     setShowLocationPopup(true);
   };
 
@@ -119,11 +151,10 @@ export default function LoginPage() {
 
   const handleGuest = async () => {
     setLoading(true);
-    await fetch("/api/guest", { 
+    await fetch("/api/guest", {
       method: "POST",
       credentials: 'include'
     });
-    // ما عاد نحط كوكي من هون - السيرفر بيحطه
     window.location.replace('/shop');
   };
 
@@ -134,6 +165,14 @@ export default function LoginPage() {
   const handleAbout = () => {
     window.location.href = '/about';
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="text-white text-xl">جاري التحميل...</div>
+      </div>
+    );
+  }
 
   if (view === "main") {
     return (
@@ -166,7 +205,6 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">دخول</div>
                   <div className="text-purple-200 text-sm">لديك حساب بالفعل؟ سجل الدخول</div>
                 </div>
-              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
@@ -250,7 +288,7 @@ export default function LoginPage() {
             <ChevronRight className="w-5 h-5 rotate-180" />
             رجوع
           </button>
-          
+
           <div className="glass rounded-3xl overflow-hidden">
             <div className="p-6 text-center border-b border-white/10">
               <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl mx-auto mb-3 flex items-center justify-center">
@@ -280,10 +318,10 @@ export default function LoginPage() {
               </div>
 
               <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold py-4 rounded-2xl hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50">
-                {loading ? "جاري الدخول..." : "تسجيل الدخول"}
+                {loading? "جاري الدخول..." : "تسجيل الدخول"}
               </button>
 
-              {msg && <div className={`text-center p-3 rounded-xl text-sm ${msg.includes("نجاح") ? "bg-green-500/20 text-green-200" : "bg-red-500/20 text-red-200"}`}>{msg}</div>}
+              {msg && <div className={`text-center p-3 rounded-xl text-sm ${msg.includes("نجاح")? "bg-green-500/20 text-green-200" : "bg-red-500/20 text-red-200"}`}>{msg}</div>}
 
               <div className="text-center text-purple-200 text-sm pt-2">
                 أو
@@ -307,7 +345,7 @@ export default function LoginPage() {
             <ChevronRight className="w-5 h-5 rotate-180" />
             رجوع
           </button>
-          
+
           <div className="glass rounded-3xl overflow-hidden">
             <div className="p-6 text-center border-b border-white/10">
               <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl mx-auto mb-3 flex items-center justify-center">
@@ -378,10 +416,10 @@ export default function LoginPage() {
               </div>
 
               <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold py-4 rounded-2xl hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? "جاري الإرسال..." : "إرسال طلب الانضمام"}
+                {loading? "جاري الإرسال..." : "إرسال طلب الانضمام"}
               </button>
 
-              {msg && <div className={`text-center p-3 rounded-xl text-sm ${msg.includes("نجاح") ? "bg-green-500/20 text-green-200" : "bg-red-500/20 text-red-200"}`}>{msg}</div>}
+              {msg && <div className={`text-center p-3 rounded-xl text-sm ${msg.includes("نجاح")? "bg-green-500/20 text-green-200" : "bg-red-500/20 text-red-200"}`}>{msg}</div>}
 
               <p className="text-center text-purple-300 text-xs">سيتم مراجعة طلبك والرد عليك خلال وقت قصير</p>
             </form>
