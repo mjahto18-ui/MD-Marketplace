@@ -42,7 +42,7 @@ export default function ShopPage() {
         setIsGuest(true);
       }
       setLoading(false);
-    })
+    });
  .catch(() => {
       // 3. اذا فشل الـ fetch نتشيك عالزائر
       const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
