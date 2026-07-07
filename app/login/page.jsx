@@ -56,19 +56,6 @@ export default function LoginPage() {
 
   const submitRegistration = async (currentLocation) => {
     try {
-      const checkRes = await fetch("/api/check-phone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: form.phone }),
-      });
-      const checkData = await checkRes.json();
-      
-      if (checkData.exists) {
-        setMsg("الرقم مسجل مسبقاً، سجل دخول");
-        setLoading(false);
-        return;
-      }
-
       const deviceInfo = {
         deviceType: /Mobile|Android|iP(hone|od)|IEMobile/.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
         deviceName: navigator.platform,
@@ -206,7 +193,6 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">دخول كزائر</div>
                   <div className="text-purple-200 text-sm">تصفح المتاجر والمنتجات بدون تسجيل</div>
                 </div>
-              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
