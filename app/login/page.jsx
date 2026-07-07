@@ -193,6 +193,7 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">دخول كزائر</div>
                   <div className="text-purple-200 text-sm">تصفح المتاجر والمنتجات بدون تسجيل</div>
                 </div>
+              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
