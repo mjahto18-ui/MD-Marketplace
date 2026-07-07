@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 
 export function middleware(request) {
-  // الصفحات اللي بدها login اجباري
   const protectedRoutes = ['/shop', '/cart', '/profile', '/orders'];
   const isProtectedRoute = protectedRoutes.some(route => 
     request.nextUrl.pathname.startsWith(route)
@@ -9,9 +8,10 @@ export function middleware(request) {
 
   if (isProtectedRoute) {
     const session = request.cookies.get('session');
+    const isGuest = request.cookies.get('md_guest');
     
-    if (!session) {
-      // اذا مش مسجل دخول رجعه على /login
+    // اسمح بالدخول اذا في session او اذا زائر
+    if (!session && !isGuest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
   }
@@ -19,7 +19,6 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
-// هون بتحدد على اي مسارات يشتغل الـ Middleware
 export const config = {
   matcher: ['/shop/:path*', '/cart/:path*', '/profile/:path*', '/orders/:path*']
 };
