@@ -5,10 +5,20 @@ import { ShoppingCart, User, LogOut, Package, Clock, MessageCircle } from "lucid
 export default function ShopPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false); // ← ضفنا هاي
 
   useEffect(() => {
+    // اول شي نتشيك اذا زائر من localStorage
+    const guestMode = localStorage.getItem('md_guest');
+    if (guestMode === 'true') {
+      setIsGuest(true);
+      setLoading(false);
+      return; // ما تعمل fetch للـ /api/me
+    }
+
+    // اذا مش زائر، جيب اليوزر المسجل
     fetch('/api/me', {
-      credentials: 'include', // ← اهم شي
+      credentials: 'include',
     })
    .then(async (res) => {
       const data = await res.json();
@@ -23,8 +33,10 @@ export default function ShopPage() {
   }, []);
 
   const handleLogout = () => {
-    // منحذف الكوكي
-    document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    // منحذف الكوكي + منحذف guest mode
+    document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:01:00 GMT';
+    localStorage.removeItem('md_guest'); // ← ضفنا هاي
+    localStorage.removeItem('md_user');
     window.location.href = '/login';
   };
 
@@ -46,7 +58,7 @@ export default function ShopPage() {
             <div>
               <h1 className="text-white font-bold">MD Marketplace</h1>
               <p className="text-purple-200 text-xs">
-                {user? `أهلاً ${user.name}` : 'تصفح كزائر'}
+                {user ? `أهلاً ${user.name}` : isGuest ? 'تصفح كزائر' : 'تصفح كزائر'}
               </p>
             </div>
           </div>
@@ -86,11 +98,20 @@ export default function ShopPage() {
           </div>
         )}
 
-        {!user && (
+        {(!user && !isGuest) && (
           <div className="glass rounded-2xl p-4 mb-6 flex items-center justify-between">
             <p className="text-white">عم تتصفح كزائر. سجل دخولك لتتمكن من الطلب</p>
             <button onClick={() => window.location.href = '/login'} className="bg-gradient-to-r from-pink-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold">
               تسجيل دخول
+            </button>
+          </div>
+        )}
+
+        {isGuest && (
+          <div className="glass rounded-2xl p-4 mb-6 flex items-center justify-between border border-blue-500/30">
+            <p className="text-white">عم تتصفح كزائر. سجل حساب لتتمكن من الطلب والاستفادة من العروض</p>
+            <button onClick={() => window.location.href = '/login'} className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold">
+              انشاء حساب
             </button>
           </div>
         )}
@@ -103,7 +124,7 @@ export default function ShopPage() {
               <div className="p-3">
                 <h3 className="text-white font-semibold text-sm mb-1">منتج {i}</h3>
                 <p className="text-pink-400 font-bold mb-2">$99.99</p>
-                {user && user.status === 'Active'? (
+                {user && user.status === 'Active' ? (
                   <button className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs py-2 rounded-lg">
                     أضف للسلة
                   </button>
@@ -119,7 +140,7 @@ export default function ShopPage() {
       </div>
 
       {/* زر واتساب ثابت */}
-      <button onClick={() => window.open('https://wa.me/961XXXXXXXX')} className="fixed bottom-6 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all">
+      <button onClick={() => window.open('https://wa.me/9613177653')} className="fixed bottom-6 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all">
         <MessageCircle className="w-7 h-7 text-white" />
       </button>
     </div>
