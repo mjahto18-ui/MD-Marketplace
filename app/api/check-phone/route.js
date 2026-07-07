@@ -9,7 +9,7 @@ const supabase = createClient(
 export async function POST(request) {
   const { phone } = await request.json();
   
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('Customers')
     .select('phone')
     .eq('phone', phone)
