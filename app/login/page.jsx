@@ -136,7 +136,6 @@ export default function LoginPage() {
     window.open('https://wa.me/9613177653', '_blank');
   };
 
-  // الفنكشن الجديدة لزر من نحن
   const handleAbout = () => {
     window.location.href = '/about';
   };
@@ -202,7 +201,6 @@ export default function LoginPage() {
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
-            {/* الزر الجديد - من نحن */}
             <button onClick={handleAbout} className="w-full glass rounded-3xl p-5 flex items-center justify-between hover:bg-white/10 transition-all group">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] rounded-2xl flex items-center justify-center">
@@ -358,6 +356,7 @@ export default function LoginPage() {
                     <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
                     <input name="area" value={form.area} onChange={handleChange} placeholder="منطقة سكنك" className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
                   </div>
+                </div>
                 <div>
                   <label className="text-purple-200 text-sm mb-2 block">العنوان</label>
                   <div className="relative">
