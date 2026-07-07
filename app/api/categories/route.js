@@ -19,7 +19,7 @@ export async function GET() {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${CATEGORIES_SHEET}!A:C`,
+      range: `${Categories_Sheets}!A:C`,
     });
 
     const rows = response.data.values || [];
