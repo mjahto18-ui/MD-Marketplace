@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { User, Lock, Phone, MapPin, Home, Mail, ShoppingCart, LogIn, UserPlus, Eye, MessageCircle, ChevronRight, Shield, Zap, BadgeCheck, MapPinned, X, Info } from "lucide-react";
 
 export default function LoginPage() {
-  const [view, setView] = useState("main"); // main, login, register
+  const [view, setView] = useState("main");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -16,15 +16,8 @@ export default function LoginPage() {
   const [showLocationPopup, setShowLocationPopup] = useState(false);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [remember, setRemember] = useState(false);
 
-  useEffect(() => {
-    const savedPhone = localStorage.getItem('md_phone');
-    if (savedPhone) {
-      setForm(prev => ({ ...prev, phone: savedPhone }));
-      setRemember(true);
-    }
-  }, []);
+  // شلنا useEffect تبع "تذكرني" نهائياً
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -110,14 +103,13 @@ export default function LoginPage() {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({ phone: form.phone, pin: form.pin }),
       });
       const data = await res.json();
       setMsg(data.message);
       if (data.success) {
-        if (remember) localStorage.setItem('md_phone', form.phone);
-        else localStorage.removeItem('md_phone');
-        localStorage.setItem('md_user', JSON.stringify(data.user));
+        // شلنا حفظ md_phone - ما منخزن شي
         window.location.href = '/shop';
       }
     } catch {
@@ -128,7 +120,8 @@ export default function LoginPage() {
 
   const handleGuest = async () => {
     await fetch("/api/guest", { method: "POST" });
-    localStorage.setItem('md_guest', 'true');
+    // ضفنا كوكي عشان يشتغل عالتلفون
+    document.cookie = "md_guest=true; path=/; max-age=86400; SameSite=Lax";
     window.location.href = '/shop';
   };
 
@@ -284,13 +277,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 text-purple-200 cursor-pointer">
-                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="w-4 h-4 rounded bg-white/10 border-white/20" />
-                  تذكرني
-                </label>
-                <button type="button" className="text-pink-400 hover:text-pink-300">نسيت رمز الدخول؟</button>
-              </div>
+              {/* شلنا "تذكرني" من هون */}
 
               <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold py-4 rounded-2xl hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50">
                 {loading ? "جاري الدخول..." : "تسجيل الدخول"}
