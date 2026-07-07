@@ -342,6 +342,7 @@ export default function LoginPage() {
                     <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
                     <input name="area" value={form.area} onChange={handleChange} placeholder="منطقة سكنك" className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
                   </div>
+                </div>
                 <div>
                   <label className="text-purple-200 text-sm mb-2 block">العنوان</label>
                   <div className="relative">
