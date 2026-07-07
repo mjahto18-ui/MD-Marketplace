@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { cookies } from 'next/headers';
 
 export async function POST(req) {
   try {
@@ -26,8 +27,33 @@ export async function POST(req) {
       },
     });
     
+    // حط كوكي الزائر من السيرفر - هاي اللي بتحل مشكلة التلفون
+    const cookieStore = cookies();
+    
+    // 1. امحي session اذا موجودة
+    cookieStore.delete('session');
+    
+    // 2. حط كوكي الزائر
+    cookieStore.set('md_guest', 'true', {
+      httpOnly: false, // لازم false عشان نقراه بـ JS
+      secure: process.env.NODE_ENV === 'production', // بس عالـ HTTPS
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 // يوم واحد
+    });
+    
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ success: true }); // Still allow guest even if logging fails
+    // حتى لو فشل الـ log، حط الكوكي وخليه يفوت كزائر
+    const cookieStore = cookies();
+    cookieStore.delete('session');
+    cookieStore.set('md_guest', 'true', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24
+    });
+    return NextResponse.json({ success: true });
   }
 }
