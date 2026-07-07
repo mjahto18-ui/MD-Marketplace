@@ -85,7 +85,7 @@ export default function AboutPage() {
           </div>
 
           {/* الاحصائيات */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-12">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-12 mb-12">
             <div className="text-center">
               <p className="text-3xl font-bold text-[#6A11CB]">+500</p>
               <p className="text-sm text-[#0D0D21]">متجر متعاقد</p>
@@ -106,6 +106,28 @@ export default function AboutPage() {
               <p className="text-3xl font-bold text-[#6A11CB]">4.8</p>
               <p className="text-sm text-[#0D0D21]">متوسط التقييم</p>
             </div>
+          </div>
+
+          {/* الفوتر - الشغلتين الجداد */}
+          <div className="border-t border-[#6A11CB]/20 pt-8 pb-4">
+            <div className="flex items-center justify-center gap-6 text-sm">
+              <Link 
+                href="/privacy" 
+                className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium"
+              >
+                سياسة الخصوصية
+              </Link>
+              <span className="text-[#6A11CB]/30">|</span>
+              <Link 
+                href="/terms" 
+                className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium"
+              >
+                الشروط والاحكام
+              </Link>
+            </div>
+            <p className="text-xs text-[#0D0D21]/60 mt-4">
+              © 2026 MD Marketplace. جميع الحقوق محفوظة
+            </p>
           </div>
         </div>
       </div>
