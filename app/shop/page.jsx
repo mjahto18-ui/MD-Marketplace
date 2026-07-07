@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, Package, Clock, MessageCircle, ChevronRight } from "lucide-react";
+import { ShoppingCart, User, LogOut, Clock, MessageCircle, ChevronRight } from "lucide-react";
 
 export default function ShopPage() {
   const [user, setUser] = useState(null);
@@ -8,52 +8,56 @@ export default function ShopPage() {
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    // 1. نتشيك عالكوكي اول شي عشان يشتغل عالتلفون
-    const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
-
-    if (isGuestCookie) {
-      setIsGuest(true);
-      setLoading(false);
-      return;
-    }
-
-    // 2. اذا مش زائر، جيب اليوزر من السيرفر
+    // 1. اول شي نتشيك اذا في يوزر مسجل دخول
     fetch('/api/me', {
       credentials: 'include',
-      cache: 'no-store', // ← مهم عشان ما يجيب كاش قديم
+      cache: 'no-store',
     })
-  .then(async (res) => {
-      if (!res.ok) {
-        setLoading(false);
-        return;
+ .then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setUser(data.user);
+          setLoading(false);
+          return; // اذا في يوزر خلص ما نتشيك عالزائر
+        }
       }
-      const data = await res.json();
-      if (data.user) {
-        setUser(data.user);
+
+      // 2. اذا ما في يوزر، نتشيك اذا زائر من الكوكي
+      const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
+      if (isGuestCookie) {
+        setIsGuest(true);
       }
       setLoading(false);
     })
-  .catch(() => {
+ .catch(() => {
+      // 3. اذا فشل الـ fetch نتشيك عالزائر
+      const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
+      if (isGuestCookie) {
+        setIsGuest(true);
+      }
       setLoading(false);
     });
   }, []);
 
   const handleLogout = async () => {
-    // 1. نحكي السيرفر يمحي الجلسة - اهم شي
+    // نمحي الجلسة من السيرفر بس لما يكبس تسجيل خروج
     await fetch('/api/logout', {
       method: 'POST',
       credentials: 'include'
     }).catch(() => {});
 
-    // 2. نمحي كل الكوكيز
+    // نمحي كل الكوكيز
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
     document.cookie = 'md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
 
-    // 3. نمحي localStorage كلو
     localStorage.clear();
-
-    // 4. نعمل replace عشان ما يقدر يرجع back
     window.location.replace('/login');
+  };
+
+  const handleBack = () => {
+    // رجوع عادي بدون ما نمحي شي
+    window.location.href = '/login';
   };
 
   if (loading) return (
@@ -68,9 +72,9 @@ export default function ShopPage() {
       <div className="glass border-b border-white/10 p-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* زر رجوع جديد */}
+            {/* زر رجوع - بس بيرجع بدون تسجيل خروج */}
             <button
-              onClick={() => window.location.href = '/login'}
+              onClick={handleBack}
               className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20"
               title="رجوع"
             >
@@ -89,7 +93,6 @@ export default function ShopPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* زر الداشبورد - بيبين بس لليوزر المسجل */}
             {user && (
               <button
                 onClick={() => window.location.href = '/dashboard'}
