@@ -18,17 +18,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
-  // هاد الجديد - بيتشيك اذا انت اصلاً مسجل او زائر
   useEffect(() => {
     const checkExistingSession = async () => {
-      // 1. اذا زائر رجعه عالـ shop
       const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
       if (isGuestCookie) {
         window.location.replace('/shop');
         return;
       }
 
-      // 2. اذا مسجل دخول رجعه عالـ shop
       try {
         const res = await fetch('/api/me', {
           credentials: 'include',
@@ -90,12 +87,12 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-         ...form,
+        ...form,
           registrationLatitude: currentLocation.lat,
           registrationLongitude: currentLocation.lng,
           currentLatitude: currentLocation.lat,
           currentLongitude: currentLocation.lng,
-         ...deviceInfo,
+        ...deviceInfo,
           ipAddress: ipRes.ip,
           status: 'Pending',
           freeDeliveryRemaining: 5,
@@ -205,6 +202,7 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">دخول</div>
                   <div className="text-purple-200 text-sm">لديك حساب بالفعل؟ سجل الدخول</div>
                 </div>
+              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
