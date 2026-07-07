@@ -118,11 +118,12 @@ export default function LoginPage() {
   };
 
   const handleGuest = async () => {
+    setLoading(true);
     await fetch("/api/guest", { 
       method: "POST",
       credentials: 'include'
     });
-    document.cookie = "md_guest=true; path=/; max-age=86400; SameSite=Lax; Secure";
+    // ما عاد نحط كوكي من هون - السيرفر بيحطه
     window.location.replace('/shop');
   };
 
@@ -182,7 +183,7 @@ export default function LoginPage() {
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
-            <button onClick={handleGuest} className="w-full glass rounded-3xl p-5 flex items-center justify-between hover:bg-white/10 transition-all group">
+            <button onClick={handleGuest} disabled={loading} className="w-full glass rounded-3xl p-5 flex items-center justify-between hover:bg-white/10 transition-all group disabled:opacity-50">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl flex items-center justify-center">
                   <Eye className="w-7 h-7 text-white" />
