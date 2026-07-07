@@ -7,21 +7,34 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
 
-  useEffect(() => {
-    // 1. اول شي نتشيك اذا في يوزر مسجل دخول
-    fetch('/api/me', {
-      credentials: 'include',
-      cache: 'no-store',
-    })
- .then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          setUser(data.user);
-          setLoading(false);
-          return; // اذا في يوزر خلص ما نتشيك عالزائر
-        }
+ useEffect(() => {
+  // 1. نتشيك عالكوكي اول شي - اذا زائر منوقف هون
+  const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
+
+  if (isGuestCookie) {
+    setIsGuest(true);
+    setLoading(false);
+    return; // ← اهم شي: اذا زائر ما نكمل
+  }
+
+  // 2. اذا مش زائر، نتشيك اذا في يوزر مسجل
+  fetch('/api/me', {
+    credentials: 'include',
+    cache: 'no-store',
+  })
+.then(async (res) => {
+    if (res.ok) {
+      const data = await res.json();
+      if (data.user) {
+        setUser(data.user);
       }
+    }
+    setLoading(false);
+  })
+.catch(() => {
+    setLoading(false);
+  });
+}, []);
 
       // 2. اذا ما في يوزر، نتشيك اذا زائر من الكوكي
       const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
