@@ -28,38 +28,51 @@ export default function LoginPage() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const getLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-          setShowLocationPopup(false);
-          handleRegister();
-        },
-        () => {
-          alert("يلزم السماح باستخدام موقعك الحالي لإكمال التسجيل");
-          setShowLocationPopup(false);
-        }
-      );
-    }
-  };
-
-  const handleRegisterClick = (e) => {
-    e.preventDefault();
-    if (!location.lat) {
-      setShowLocationPopup(true);
-    } else {
-      handleRegister();
-    }
-  };
-
-  const handleRegister = async () => {
+  // ✅ صارت هاي بتشتغل بس بعد ما يوافق عالـ popup
+  const getLocationAndRegister = () => {
+    setShowLocationPopup(false);
     setLoading(true);
     setMsg("");
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const currentLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setLocation(currentLocation);
+          await submitRegistration(currentLocation);
+        },
+        () => {
+          setMsg("يلزم السماح باستخدام موقعك الحالي لإكمال التسجيل");
+          setLoading(false);
+        }
+      );
+    } else {
+      setMsg("المتصفح لا يدعم تحديد الموقع");
+      setLoading(false);
+    }
+  };
+
+  // ✅ Check الرقم + ارسال البيانات مرة وحدة بس
+  const submitRegistration = async (currentLocation) => {
     try {
+      // 1. Check اذا الرقم موجود قبل اي شي
+      const checkRes = await fetch("/api/check-phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: form.phone }),
+      });
+      const checkData = await checkRes.json();
+      
+      if (checkData.exists) {
+        setMsg("الرقم مسجل مسبقاً، سجل دخول");
+        setLoading(false);
+        return;
+      }
+
+      // 2. جهز معلومات الجهاز
       const deviceInfo = {
         deviceType: /Mobile|Android|iP(hone|od)|IEMobile/.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
         deviceName: navigator.platform,
@@ -67,15 +80,16 @@ export default function LoginPage() {
       };
       const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json());
       
+      // 3. ابعت كلشي مرة وحدة
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          registrationLatitude: location.lat,
-          registrationLongitude: location.lng,
-          currentLatitude: location.lat,
-          currentLongitude: location.lng,
+          registrationLatitude: currentLocation.lat,
+          registrationLongitude: currentLocation.lng,
+          currentLatitude: currentLocation.lat,
+          currentLongitude: currentLocation.lng,
           ...deviceInfo,
           ipAddress: ipRes.ip,
           status: 'Pending',
@@ -94,6 +108,20 @@ export default function LoginPage() {
     setLoading(false);
   };
 
+  // ✅ هلق بس يكبس ارسال بطلع popup الموقع
+  const handleRegisterClick = (e) => {
+    e.preventDefault();
+    setMsg("");
+    
+    // Validation قبل ما نطلب الموقع
+    if (!form.name || !form.phone || !form.area || !form.address || !form.pin) {
+      setMsg("يرجى تعبئة جميع الحقول المطلوبة");
+      return;
+    }
+    
+    setShowLocationPopup(true);
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -107,11 +135,11 @@ export default function LoginPage() {
       const data = await res.json();
       setMsg(data.message);
       if (data.success) {
-  if (remember) localStorage.setItem('md_phone', form.phone);
-  else localStorage.removeItem('md_phone');
-  localStorage.setItem('md_user', JSON.stringify(data.user)); // ← هاد السطر
-  window.location.href = '/shop'; // ← بدل dashboard
-}
+        if (remember) localStorage.setItem('md_phone', form.phone);
+        else localStorage.removeItem('md_phone');
+        localStorage.setItem('md_user', JSON.stringify(data.user));
+        window.location.href = '/shop';
+      }
     } catch {
       setMsg("حصل خطأ في الاتصال");
     }
@@ -119,10 +147,10 @@ export default function LoginPage() {
   };
 
   const handleGuest = async () => {
-  await fetch("/api/guest", { method: "POST" });
-  localStorage.setItem('md_guest', 'true'); // ← هاد السطر
-  window.location.href = '/shop';
-};
+    await fetch("/api/guest", { method: "POST" });
+    localStorage.setItem('md_guest', 'true');
+    window.location.href = '/shop';
+  };
 
   const handleWhatsApp = () => {
     window.open('https://wa.me/9613177653', '_blank');
@@ -185,7 +213,6 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">دخول كزائر</div>
                   <div className="text-purple-200 text-sm">تصفح المتاجر والمنتجات بدون تسجيل</div>
                 </div>
-              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
@@ -331,7 +358,6 @@ export default function LoginPage() {
                     <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
                     <input name="area" value={form.area} onChange={handleChange} placeholder="منطقة سكنك" className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
                   </div>
-                </div>
                 <div>
                   <label className="text-purple-200 text-sm mb-2 block">العنوان</label>
                   <div className="relative">
@@ -357,19 +383,16 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* ✅ شلت زر تحديد الموقع المنفصل - صار كله مع زر الارسال */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                 <div className="flex items-center gap-2 text-pink-400 text-sm mb-2">
                   <MapPinned className="w-4 h-4" />
-                  <span>تحديد الموقع الحالي</span>
+                  <span>الموقع الجغرافي</span>
                 </div>
-                <p className="text-purple-200 text-xs mb-3">يرجى السماح بتحديد موقعك الحالي لإكمال طلب التسجيل</p>
-                <button type="button" onClick={() => setShowLocationPopup(true)} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg transition-all">
-                  <MapPinned className="w-4 h-4" />
-                  تحديد موقعي الحالي
-                </button>
+                <p className="text-purple-200 text-xs">سيتم طلب موقعك عند الضغط على "إرسال طلب الانضمام" لتأكيد عنوانك</p>
               </div>
 
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold py-4 rounded-2xl hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50">
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold py-4 rounded-2xl hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {loading ? "جاري الإرسال..." : "إرسال طلب الانضمام"}
               </button>
 
@@ -380,6 +403,7 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* ✅ Popup الموقع هلق بطلع بس عند الارسال */}
         {showLocationPopup && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="glass rounded-3xl p-6 max-w-sm w-full">
@@ -387,18 +411,18 @@ export default function LoginPage() {
                 <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center">
                   <MapPinned className="w-6 h-6 text-white" />
                 </div>
-                <button onClick={() => setShowLocationPopup(false)} className="text-white/50 hover:text-white">
+                <button onClick={() => {setShowLocationPopup(false); setLoading(false);}} className="text-white/50 hover:text-white">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <h3 className="text-white font-bold text-lg mb-2">يلزم السماح باستخدام موقعك الحالي</h3>
-              <p className="text-purple-200 text-sm mb-6">لإكمال التسجيل. نستخدم موقعك لتقديم خدمة أفضل وتحديد أقرب المتاجر لك.</p>
+              <h3 className="text-white font-bold text-lg mb-2">تأكيد موقعك الحالي</h3>
+              <p className="text-purple-200 text-sm mb-6">لإكمال التسجيل، يرجى السماح باستخدام موقعك الحالي. نستخدم موقعك لتقديم خدمة أفضل وتحديد أقرب المتاجر لك.</p>
               <div className="flex gap-3">
-                <button onClick={() => setShowLocationPopup(false)} className="flex-1 bg-white/10 text-white font-semibold py-3 rounded-xl hover:bg-white/20 transition-all">
+                <button onClick={() => {setShowLocationPopup(false); setLoading(false);}} className="flex-1 bg-white/10 text-white font-semibold py-3 rounded-xl hover:bg-white/20 transition-all">
                   إلغاء
                 </button>
-                <button onClick={getLocation} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-3 rounded-xl hover:shadow-lg transition-all">
-                  سماح
+                <button onClick={getLocationAndRegister} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-3 rounded-xl hover:shadow-lg transition-all">
+                  موافق
                 </button>
               </div>
             </div>
