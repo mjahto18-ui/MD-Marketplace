@@ -7,60 +7,41 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
 
- useEffect(() => {
-  // 1. نتشيك عالكوكي اول شي - اذا زائر منوقف هون
-  const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
+  useEffect(() => {
+    // 1. نتشيك عالكوكي اول شي - اذا زائر منوقف هون
+    const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
 
-  if (isGuestCookie) {
-    setIsGuest(true);
-    setLoading(false);
-    return; // ← اهم شي: اذا زائر ما نكمل
-  }
-
-  // 2. اذا مش زائر، نتشيك اذا في يوزر مسجل
-  fetch('/api/me', {
-    credentials: 'include',
-    cache: 'no-store',
-  })
-.then(async (res) => {
-    if (res.ok) {
-      const data = await res.json();
-      if (data.user) {
-        setUser(data.user);
-      }
+    if (isGuestCookie) {
+      setIsGuest(true);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
-  })
-.catch(() => {
-    setLoading(false);
-  });
-}, []);
 
-      // 2. اذا ما في يوزر، نتشيك اذا زائر من الكوكي
-      const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
-      if (isGuestCookie) {
-        setIsGuest(true);
+    // 2. اذا مش زائر، نتشيك اذا في يوزر مسجل
+    fetch('/api/me', {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+   .then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setUser(data.user);
+        }
       }
       setLoading(false);
-    });
- .catch(() => {
-      // 3. اذا فشل الـ fetch نتشيك عالزائر
-      const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
-      if (isGuestCookie) {
-        setIsGuest(true);
-      }
+    })
+   .catch(() => {
       setLoading(false);
     });
   }, []);
 
   const handleLogout = async () => {
-    // نمحي الجلسة من السيرفر بس لما يكبس تسجيل خروج
     await fetch('/api/logout', {
       method: 'POST',
       credentials: 'include'
     }).catch(() => {});
 
-    // نمحي كل الكوكيز
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
     document.cookie = 'md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
 
@@ -69,7 +50,6 @@ export default function ShopPage() {
   };
 
   const handleBack = () => {
-    // رجوع عادي بدون ما نمحي شي
     window.location.href = '/login';
   };
 
@@ -81,11 +61,9 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen gradient-bg">
-      {/* الهيدر */}
       <div className="glass border-b border-white/10 p-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* زر رجوع - بس بيرجع بدون تسجيل خروج */}
             <button
               onClick={handleBack}
               className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20"
@@ -133,7 +111,6 @@ export default function ShopPage() {
         </div>
       </div>
 
-      {/* المحتوى */}
       <div className="max-w-6xl mx-auto p-4">
         {user && user.status === 'Pending' && (
           <div className="glass rounded-2xl p-6 mb-6 text-center">
@@ -152,7 +129,6 @@ export default function ShopPage() {
           </div>
         )}
 
-        {/* المنتجات - للكل */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1,2,3,4,5,6,7,8].map(i => (
             <div key={i} className="glass rounded-2xl overflow-hidden">
@@ -175,7 +151,6 @@ export default function ShopPage() {
         </div>
       </div>
 
-      {/* زر واتساب ثابت */}
       <button onClick={() => window.open('https://wa.me/9613177653')} className="fixed bottom-6 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all">
         <MessageCircle className="w-7 h-7 text-white" />
       </button>
