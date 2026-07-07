@@ -28,7 +28,6 @@ export default function LoginPage() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  // ✅ صارت هاي بتشتغل بس بعد ما يوافق عالـ popup
   const getLocationAndRegister = () => {
     setShowLocationPopup(false);
     setLoading(true);
@@ -55,10 +54,8 @@ export default function LoginPage() {
     }
   };
 
-  // ✅ Check الرقم + ارسال البيانات مرة وحدة بس
   const submitRegistration = async (currentLocation) => {
     try {
-      // 1. Check اذا الرقم موجود قبل اي شي
       const checkRes = await fetch("/api/check-phone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,7 +69,6 @@ export default function LoginPage() {
         return;
       }
 
-      // 2. جهز معلومات الجهاز
       const deviceInfo = {
         deviceType: /Mobile|Android|iP(hone|od)|IEMobile/.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
         deviceName: navigator.platform,
@@ -80,7 +76,6 @@ export default function LoginPage() {
       };
       const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json());
       
-      // 3. ابعت كلشي مرة وحدة
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,12 +103,10 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // ✅ هلق بس يكبس ارسال بطلع popup الموقع
   const handleRegisterClick = (e) => {
     e.preventDefault();
     setMsg("");
     
-    // Validation قبل ما نطلب الموقع
     if (!form.name || !form.phone || !form.area || !form.address || !form.pin) {
       setMsg("يرجى تعبئة جميع الحقول المطلوبة");
       return;
@@ -213,6 +206,7 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">دخول كزائر</div>
                   <div className="text-purple-200 text-sm">تصفح المتاجر والمنتجات بدون تسجيل</div>
                 </div>
+              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
@@ -358,6 +352,7 @@ export default function LoginPage() {
                     <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
                     <input name="area" value={form.area} onChange={handleChange} placeholder="منطقة سكنك" className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
                   </div>
+                </div>
                 <div>
                   <label className="text-purple-200 text-sm mb-2 block">العنوان</label>
                   <div className="relative">
@@ -383,7 +378,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* ✅ شلت زر تحديد الموقع المنفصل - صار كله مع زر الارسال */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                 <div className="flex items-center gap-2 text-pink-400 text-sm mb-2">
                   <MapPinned className="w-4 h-4" />
@@ -403,7 +397,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* ✅ Popup الموقع هلق بطلع بس عند الارسال */}
         {showLocationPopup && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="glass rounded-3xl p-6 max-w-sm w-full">
