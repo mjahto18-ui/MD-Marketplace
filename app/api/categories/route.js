@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getgooglesheets, ensuresheetheaders } from '@/lib/googlesheets';
 
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
 const CATEGORIES_SHEET = 'Categories';
 const CATEGORY_HEADERS = ['Category ID', 'Category Name', 'Icon'];
 
