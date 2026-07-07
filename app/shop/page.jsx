@@ -22,7 +22,7 @@ export default function ShopPage() {
       credentials: 'include',
       cache: 'no-store',
     })
-   .then(async (res) => {
+  .then(async (res) => {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
@@ -31,7 +31,7 @@ export default function ShopPage() {
       }
       setLoading(false);
     })
-   .catch(() => {
+  .catch(() => {
       setLoading(false);
     });
   }, []);
@@ -50,7 +50,19 @@ export default function ShopPage() {
   };
 
   const handleBack = () => {
-    window.location.href = '/login';
+    // اذا في صفحة قبلها بالـ history، رجاع عليها
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      // اذا فاتح /shop دغري، روح عالـ login
+      window.location.href = '/login';
+    }
+  };
+
+  const handleCreateAccount = () => {
+    // امحي كوكي الزائر قبل ما تروح عاللوغين
+    document.cookie = 'md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+    window.location.href = '/login?view=register';
   };
 
   if (loading) return (
@@ -123,7 +135,7 @@ export default function ShopPage() {
         {isGuest && (
           <div className="glass rounded-2xl p-4 mb-6 flex items-center justify-between border border-blue-500/30">
             <p className="text-white">عم تتصفح كزائر. سجل حساب لتتمكن من الطلب والاستفادة من العروض</p>
-            <button onClick={() => window.location.href = '/login'} className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold">
+            <button onClick={handleCreateAccount} className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold">
               انشاء حساب
             </button>
           </div>
@@ -141,7 +153,7 @@ export default function ShopPage() {
                     أضف للسلة
                   </button>
                 ) : (
-                  <button onClick={() => window.location.href = '/login'} className="w-full bg-white/10 text-white text-xs py-2 rounded-lg">
+                  <button onClick={handleCreateAccount} className="w-full bg-white/10 text-white text-xs py-2 rounded-lg">
                     سجل دخول للطلب
                   </button>
                 )}
