@@ -36,7 +36,7 @@ export async function POST(req) {
     // 2. حط كوكي الزائر
     cookieStore.set('md_guest', 'true', {
       httpOnly: false, // لازم false عشان نقراه بـ JS
-      secure: process.env.NODE_ENV === 'production', // بس عالـ HTTPS
+      secure: false, // بس عالـ HTTPS
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 // يوم واحد
@@ -49,7 +49,7 @@ export async function POST(req) {
     cookieStore.delete('session');
     cookieStore.set('md_guest', 'true', {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24
