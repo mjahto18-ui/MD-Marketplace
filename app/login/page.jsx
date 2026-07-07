@@ -98,7 +98,6 @@ export default function LoginPage() {
     setLoading(true);
     setMsg("");
     try {
-      // 1. امحي كوكي الزائر قبل تسجيل الدخول - هاي اللي بتحل المشكلة
       document.cookie = 'md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
 
       const res = await fetch("/api/login", {
@@ -110,7 +109,7 @@ export default function LoginPage() {
       const data = await res.json();
       setMsg(data.message);
       if (data.success) {
-        window.location.replace('/shop'); // replace احسن من href
+        window.location.replace('/shop');
       }
     } catch {
       setMsg("حصل خطأ في الاتصال");
@@ -123,9 +122,8 @@ export default function LoginPage() {
       method: "POST",
       credentials: 'include'
     });
-    // ضفنا Secure عشان يشتغل عالتلفون + HTTPS
     document.cookie = "md_guest=true; path=/; max-age=86400; SameSite=Lax; Secure";
-    window.location.replace('/shop'); // replace احسن من href
+    window.location.replace('/shop');
   };
 
   const handleWhatsApp = () => {
@@ -167,6 +165,7 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">دخول</div>
                   <div className="text-purple-200 text-sm">لديك حساب بالفعل؟ سجل الدخول</div>
                 </div>
+              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
@@ -179,6 +178,7 @@ export default function LoginPage() {
                   <div className="text-white font-bold text-lg">تسجيل جديد</div>
                   <div className="text-purple-200 text-sm">انضم إلينا وابدأ رحلتك</div>
                 </div>
+              </div>
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
 
