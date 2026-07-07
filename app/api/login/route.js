@@ -29,16 +29,21 @@ export async function POST(req) {
     );
 
     if (user) {
-      // غيرت md_user → session + ضفت path و sameSite
-      cookies().set('session', JSON.stringify({
+      const cookieStore = cookies();
+
+      // 1. امحي كوكي الزائر اول شي - هاي اللي بتحل المشكلة
+      cookieStore.delete('md_guest');
+
+      // 2. بعدين سجل جلسة اليوزر
+      cookieStore.set('session', JSON.stringify({
         customerId: user[0], // A = User ID
         name: user[3], // D = Name
         phone: user[4] // E = Mobile
       }), {
         httpOnly: true,
-        secure: true,
-        sameSite: 'lax', // ← هاي مهمة عالـ Vercel
-        path: '/', // ← هاي مهمة عشان /api/me يشوفها
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
         maxAge: 60 * 60 * 24 * 7
       });
 
