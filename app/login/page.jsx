@@ -20,11 +20,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     const checkExistingSession = async () => {
-      const isGuestCookie = document.cookie.split('; ').find(row => row.startsWith('md_guest='))?.split('=')[1] === 'true';
-      if (isGuestCookie) {
-        window.location.replace('/shop');
-        return;
-      }
+
+      // ⚠️ تم حذف شرط md_guest هون لأنه كان يعمل redirect غلط
 
       try {
         const res = await fetch('/api/me', {
@@ -87,12 +84,12 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-        ...form,
+          ...form,
           registrationLatitude: currentLocation.lat,
           registrationLongitude: currentLocation.lng,
           currentLatitude: currentLocation.lat,
           currentLongitude: currentLocation.lng,
-        ...deviceInfo,
+          ...deviceInfo,
           ipAddress: ipRes.ip,
           status: 'Pending',
           freeDeliveryRemaining: 5,
@@ -170,6 +167,10 @@ export default function LoginPage() {
       </div>
     );
   }
+
+  // باقي الصفحة بدون أي تعديل
+
+
 
   if (view === "main") {
     return (
