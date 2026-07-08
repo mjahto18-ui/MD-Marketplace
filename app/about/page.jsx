@@ -4,6 +4,7 @@ import Link from 'next/link'
 export default function AboutPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+      
       {/* زر العودة لتسجيل الدخول */}
       <div className="absolute top-4 left-4 z-50">
         <Link 
@@ -15,20 +16,18 @@ export default function AboutPage() {
       </div>
 
       <div className="container mx-auto px-4 py-16">
-        {/* اللوغو الرسمي MD Marketplace */}
+
+        {/* اللوغو الرسمي */}
         <div className="flex flex-col items-center mb-12">
           <div className="relative w-24 h-24 mb-4">
-            {/* المربع الاساسي */}
             <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center shadow-xl">
               <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
               </svg>
             </div>
-            {/* المربع الصغير فوق */}
             <div className="absolute -top-1 -right-1 w-6 h-6 rounded-lg bg-gradient-to-br from-[#FF4E9A] to-[#6A11CB] opacity-90"></div>
           </div>
-          
-          {/* النص تحت اللوغو - نفس شاشة الدخول */}
+
           <h1 className="text-4xl font-bold text-[#0D0D21] mb-1">MD</h1>
           <p className="text-lg text-[#0D0D21] mb-1 tracking-wider">MARKETPLACE</p>
           <p className="text-base">
@@ -37,31 +36,38 @@ export default function AboutPage() {
           </p>
         </div>
 
-        {/* باقي محتوى الصفحة */}
+        {/* النص الرسمي الجديد */}
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-[#0D0D21] mb-4">
             منصتك الرقمية الذكية
           </h2>
+
           <p className="text-lg text-[#0D0D21] mb-8 leading-relaxed">
-            التي تجمع العملاء، المتاجر، والسائقين في تطبيق واحد. لنقدم لك تجربة تسوق وتوصيل عصرية، سريعة، وآمنة، صُممت خصيصاً للسوق اللبناني.
+            منصّة متكاملة تجمع العملاء، المتاجر، والسائقين ضمن تطبيق واحد، لتقدّم تجربة تسوّق وتوصيل حديثة، سريعة، وآمنة، مصمّمة لتلبية احتياجات السوق اللبناني. نعمل على توفير بيئة موثوقة تجمع بين سهولة الاستخدام، وضمان الجودة، ووضوح الإجراءات، بهدف تقديم خدمة رقمية عالية المستوى.
           </p>
 
           {/* MD Marketplace؟ */}
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
             <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">MD Marketplace؟</h3>
+            <p className="text-[#0D0D21] mb-4">
+              MD Marketplace هو نظام رقمي موحّد يسهّل عملية الشراء والتوصيل بين العميل والتاجر والسائق، ويقدّم خدمات مرنة تلائم احتياجات المستخدم اليومية.
+            </p>
             <ul className="space-y-4 text-[#0D0D21]">
-              <li>✓ اختر طريقة الدفع التي تناسبك: نقداً عند الاستلام أو عبر نظام Wish</li>
-              <li>✓ 5 توصيلات مجانية لأول 5 طلبات للعملاء الجدد، للطلبات حتى 10 كغ</li>
-              <li>✓ تتبع طلبك لحظة بلحظة عبر نظام ماب</li>
+              <li>✓ خيارات دفع مناسبة: الدفع نقداً عند الاستلام أو عبر نظام Wish لضمان الحقوق</li>
+              <li>✓ خمس توصيلات مجانية لأول خمسة طلبات حتى وزن 10 كغ</li>
+              <li>✓ تتبّع مباشر لحالة الطلب لحظة بلحظة عبر نظام الخرائط</li>
             </ul>
           </div>
 
           {/* الأمان والشفافية */}
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
             <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">الأمان والشفافية</h3>
+            <p className="text-[#0D0D21] mb-4">
+              نلتزم بتطبيق أعلى معايير الخصوصية وحماية البيانات لضمان تجربة آمنة وواضحة لجميع المستخدمين.
+            </p>
             <ul className="space-y-4 text-[#0D0D21]">
-              <li>✓ نخفي بياناتك عن السائق لحين قبول الطلب، لضمان خصوصيتك التامة</li>
-              <li>✓ جميع سائقينا موثقون بأوراق رسمية ومستندات ثبوتية لضمان الأمان والثقة</li>
+              <li>✓ إخفاء معلوماتك الشخصية عن السائق قبل قبول الطلب</li>
+              <li>✓ جميع السائقين معتمدون بمستندات رسمية لضمان الثقة والموثوقية</li>
             </ul>
           </div>
 
@@ -69,7 +75,7 @@ export default function AboutPage() {
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
             <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">خدماتنا</h3>
             <p className="text-[#0D0D21]">
-              <strong>خدمة "طلب خاص"</strong> - اطلب أي غرض من أي مكان، وسائقنا يشتريه ويوصله لبابك
+              <strong>خدمة "طلب خاص"</strong> — يمكنك طلب أي غرض من أي مكان، وسيقوم السائق بشرائه وتسليمه مباشرة إلى باب منزلك، مع متابعة دقيقة لحالة الطلب حتى وصوله.
             </p>
           </div>
 
@@ -77,11 +83,11 @@ export default function AboutPage() {
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
             <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">تواصل معنا</h3>
             <p className="text-[#0D0D21] mb-4">
-              نسعد بتلقي شكواك واقتراحاتك عبر الواتساب أو البريد الإلكتروني، ونلتزم بالرد خلال 24 ساعة
+              نرحّب بجميع الاستفسارات والملاحظات، ونتعهّد بالرد خلال 24 ساعة عبر قنوات التواصل التالية:
             </p>
             <p className="text-[#0D0D21]">واتساب: [رقم واتساب]</p>
             <p className="text-[#0D0D21]">اتصال: [رقم اتصال]</p>
-            <p className="text-[#0D0D21]">ايميل: [البريد الإلكتروني]</p>
+            <p className="text-[#0D0D21]">البريد الإلكتروني: [البريد الإلكتروني]</p>
           </div>
 
           {/* الاحصائيات */}
@@ -108,7 +114,7 @@ export default function AboutPage() {
             </div>
           </div>
 
-          {/* الفوتر - الشغلتين الجداد */}
+          {/* الفوتر */}
           <div className="border-t border-[#6A11CB]/20 pt-8 pb-4">
             <div className="flex items-center justify-center gap-6 text-sm">
               <Link 
@@ -129,6 +135,7 @@ export default function AboutPage() {
               © 2020 MD-Marketplace. جميع الحقوق محفوظة
             </p>
           </div>
+
         </div>
       </div>
     </div>
