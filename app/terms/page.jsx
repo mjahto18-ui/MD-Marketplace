@@ -2,8 +2,8 @@ import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 
 export const metadata = {
-  title: 'الشروط والاحكام - MD Marketplace',
-  description: 'شروط استخدام منصة MD Marketplace'
+  title: 'الشروط والاحكام - MD-Marketplace',
+  description: 'شروط استخدام منصة MD-Marketplace'
 }
 
 export default function TermsPage() {
@@ -30,7 +30,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">1. عن MD Marketplace</h2>
-            <p>MD Marketplace منصة رقمية تربط بين الزبائن والتجار والسائقين في لبنان. نحنا <strong>وسيط فقط</strong> ولا نبيع المنتجات مباشرة. كل تاجر مسؤول عن منتجاته واسعاره وجودتها.</p>
+            <p>MD Marketplace منصة رقمية تربط بين العملاء والتجار والسائقين في لبنان. نحنا <strong>وسيط فقط</strong> ولا نبيع المنتجات مباشرة. كل تاجر مسؤول عن منتجاته واسعاره وجودتها.</p>
           </section>
 
           <section>
@@ -48,7 +48,7 @@ export default function TermsPage() {
             <ul className="list-disc list-inside space-y-2">
               <li><strong>الدفع عند الاستلام فقط</strong> - لا يوجد دفع اونلاين حالياً</li>
               <li>الاسعار بالليرة اللبنانية او الدولار حسب التاجر</li>
-              <li>MD Marketplace نأخذ عمولة من التاجر، وليس منك</li>
+              <li>MD-Marketplace تأخذ عمولة من التاجر، وليس منك</li>
               <li>الطلب بيعتبر مؤكد حين يتصل بك فريق العمل  او السائق</li>
             </ul>
           </section>
@@ -58,8 +58,8 @@ export default function TermsPage() {
             <ul className="list-disc list-inside space-y-2">
               <li>التوصيل ضمن طرابلس فقط حالياً مع التوسع القريب</li>
               <li>مدة التوصيل حسب المنطقة - من 15 دقيقة لـ 30 ساعة</li>
-              <li><strong>لديك 5 توصيلات مجانية</strong> عند اول تسجيل، بعدها حسب المسافة ووزن الطلب</li>
-              <li>عندما لا تكون موجود وقت التوصيل، السائق رح يحاول التواصل معك مرتين</li>
+              <li><strong>لديك 5 توصيلات مجانية تحت 10 كيلو</strong> عند اول تسجيل، بعدها حسب المسافة ووزن الطلب</li>
+              <li>عندما لا تكون موجود وقت التوصيل، السائق سوف يحاول التواصل معك مرتين</li>
             </ul>
           </section>
 
@@ -68,9 +68,9 @@ export default function TermsPage() {
             <div className="bg-gradient-to-r from-[#6A11CB]/20 to-[#FF4E9A]/20 border border-[#FF4E9A]/30 rounded-xl p-6">
               <p className="font-bold text-white mb-3">Wish هي ميزتنا الحصرية لحمايتك:</p>
               <ul className="list-disc list-inside space-y-2">
-                <li>اذا دفعت وما استلمت طلبك خلال 7 ايام → <strong>منرجعلك فلوسك كاملة</strong></li>
-                <li>اذا استلمت منتج مختلف او مضروب → <strong>بتقدر ترجعه ونرجعلك المبلغ</strong></li>
-                <li>كل الشكاوي تتعالج خلال 48 ساعة كحد اقصى</li>
+                <li>اذا دفعت وما استلمت طلبك خلال ساعتين → <strong>نسترجع المبلغ كامل دون خصارتك أي شيء</strong></li>
+                <li>اذا استلمت منتج مختلف او مضروب → <strong>يحق لك استرجاعه واسترداد المبلغ</strong></li>
+                <li>كل الشكاوي تتعالج خلال 12 ساعة كحد اقصى</li>
                 <li>Wish مجانية 100% ولا تدفع عليها شيء</li>
               </ul>
             </div>
