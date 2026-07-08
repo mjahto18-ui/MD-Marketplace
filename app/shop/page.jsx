@@ -190,22 +190,32 @@ export default function ShopPage() {
         </div>
 
         {/* فلتر الاقسام */}
-        <h2 className="text-white font-bold text-lg mb-4">
-          {search? `نتائج البحث عن "${search}"` : 'تصفح حسب القسم'}
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {filteredCategories.length > 0? filteredCategories.map((cat) => (
-            <Link 
-              key={cat.id} 
-              href={`/category/${cat.id}`} 
-              className="glass rounded-2xl p-6 text-center hover:bg-white/10 transition-all"
-            >
-              <h3 className="text-white font-semibold">{cat.name}</h3>
-            </Link>
-          )) : (
-            <p className="text-purple-200 col-span-full text-center">ما في نتائج للبحث</p>
-          )}
-        </div>
+        {/* فلتر الاقسام */}
+<h2 className="text-white font-bold text-lg mb-4">
+  {search? `نتائج البحث عن "${search}"` : 'تصفح حسب القسم'}
+</h2>
+<div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-8">
+  {filteredCategories.length > 0? filteredCategories.map((cat) => (
+    <Link 
+      key={cat.id} 
+      href={`/category/${cat.id}`} 
+      className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group"
+    >
+      {/* البوكس تبع الصورة - مربع وثابت */}
+      <div className="aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
+        <img 
+          src={`https://www.appsheet.com/template/gettablefileurl?appName=MDMARKETPLACE-958093981&tableName=Categories&fileName=${cat.icon}`}
+          alt={cat.name}
+          className="w-full h-full object-contain group-hover:scale-110 transition-all duration-300"
+          onError={(e) => e.target.src = 'https://via.placeholder.com/100?text=MD'} 
+        />
+      </div>
+      <h3 className="text-white font-semibold text-xs">{cat.name}</h3>
+    </Link>
+  )) : (
+    <p className="text-purple-200 col-span-full text-center">ما في نتائج للبحث</p>
+  )}
+</div>
 
         {/* منتجات مقترحة */}
         <h2 className="text-white font-bold text-lg mb-4">منتجات مقترحة</h2>
