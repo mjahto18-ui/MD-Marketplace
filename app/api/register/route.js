@@ -11,16 +11,15 @@ export async function POST(req) {
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
+
     const sheets = google.sheets({ version: "v4", auth });
 
-    // ===== هاد الجزء الجديد كله - Check قبل ما نضيف =====
-    // 1. جيب كل ارقام التلفونات من العمود C
+    // ===== 1) Check رقم الهاتف =====
     const phoneColumn = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!C:C", // العمود C = Mobile
+      range: "Customers!C:C",
     });
 
-    // 2. نظف الارقام وقارن
     const submittedPhone = data.phone.toString().trim();
     const existingPhones = (phoneColumn.data.values || [])
       .flat()
@@ -28,52 +27,81 @@ export async function POST(req) {
       .filter(p => p);
 
     if (existingPhones.includes(submittedPhone)) {
-      return NextResponse.json({ 
-        success: false, 
-        message: "الرقم مسجل مسبقاً، سجل دخول" 
+      return NextResponse.json({
+        success: false,
+        message: "الرقم مسجل مسبقاً، سجل دخول"
       });
     }
-    // ===== خلص جزء الـ Check =====
 
-    // 3. اذا وصل لهون يعني الرقم مش موجود، كمّل التسجيل عادي
+    // ===== 2) جيب كل الـ New PINs من عمود W =====
+    const pinColumn = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: "Customers!W:W",
+    });
+
+    const existingNewPins = (pinColumn.data.values || [])
+      .flat()
+      .map(p => p?.toString().trim())
+      .filter(p => p);
+
+    // ===== 3) ولّد PIN جديد غير مكرّر =====
+    function generateUniqueNewPIN() {
+      let pin;
+      do {
+        pin = Math.floor(1000 + Math.random() * 9000).toString(); // 4 digits
+      } while (existingNewPins.includes(pin));
+      return pin;
+    }
+
+    const newPIN = generateUniqueNewPIN();
+
+    // ===== 4) كتابة الصف كامل بعمود W الجديد =====
     const customerId = "CUST-" + Date.now();
     const now = new Date().toISOString();
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!A:V",
+      range: "Customers!A:W",
       valueInputOption: "RAW",
       requestBody: {
         values: [[
-          customerId, // A: Customer ID
-          data.name, // B: Name
-          submittedPhone, // C: Mobile - استخدمنا الرقم النظيف
-          data.area, // D: Area
-          data.address, // E: Address
-          data.email || '', // F: Email
-          now, // G: Join Date
-          'Pending', // H: Status
-          5, // I: Free Delivery Remaining
-          data.registrationLatitude, // J: Registration Latitude
-          data.registrationLongitude, // K: Registration Longitude
-          data.currentLatitude, // L: Current Latitude
-          data.currentLongitude, // M: Current Longitude
-          now, // N: Last Location Update
-          data.deviceType, // O: Device Type
-          data.deviceName, // P: Device Name
-          data.browser, // Q: Browser
-          data.ipAddress, // R: IP Address
-          '', // S: Approved Date
-          '', // T: Approved By
-          '', // U: Notes
-          data.pin // V: PIN
+          customerId,              // A
+          data.name,               // B
+          submittedPhone,          // C
+          data.area,               // D
+          data.address,            // E
+          data.email || '',        // F
+          now,                     // G
+          'Pending',               // H
+          5,                       // I
+          data.registrationLatitude,   // J
+          data.registrationLongitude,  // K
+          data.currentLatitude,        // L
+          data.currentLongitude,        // M
+          now,                     // N
+          data.deviceType,         // O
+          data.deviceName,         // P
+          data.browser,            // Q
+          data.ipAddress,          // R
+          '',                      // S
+          '',                      // T
+          '',                      // U
+          data.pin,                // V ← العميل بيكتبو، ما خصّنا فيه
+          newPIN                   // W ← شغلنا الحقيقي
         ]],
       },
     });
 
-    return NextResponse.json({ success: true, message: "تم إرسال طلب الانضمام بنجاح" });
+    return NextResponse.json({
+      success: true,
+      message: "تم إرسال طلب الانضمام بنجاح"
+    });
+
   } catch (error) {
     console.error('Register Error:', error);
-    return NextResponse.json({ success: false, message: "فشل إنشاء الحساب" }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      message: "فشل إنشاء الحساب"
+    }, { status: 500 });
   }
 }
