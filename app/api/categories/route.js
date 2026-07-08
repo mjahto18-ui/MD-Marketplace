@@ -3,7 +3,7 @@ import { getgooglesheets, ensuresheetheaders } from '@/lib/googlesheets';
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
 const CATEGORIES_SHEET = 'Categories';
-const CATEGORY_HEADERS = ['Category ID', 'Category Name', 'Icon']; // خليها Icon لانه هاد اسم العمود بالشيت
+const CATEGORY_HEADERS = ['Category ID', 'Category Name', 'Icon'];
 
 export async function GET() {
   try {
@@ -29,9 +29,9 @@ export async function GET() {
       return {
         id: category['Category ID'],
         name: category['Category Name'],
-        image: category['Icon'] // غيّرنا هون: صار يرجع image بدل icon
+        image: category['Icon'] // هون السر: منقرأ Icon ومنرجعه باسم image
       };
-    }).filter(cat => cat.id);
+    }).filter(cat => cat.id && cat.name); // نتأكد انه في id و name
 
     return NextResponse.json({ categories });
   } catch (error) {
