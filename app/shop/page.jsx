@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, Clock, MessageCircle, ChevronRight } from "lucide-react";
+import { ShoppingCart, User, LogOut, Clock, MessageCircle, ChevronRight, Store, Package } from "lucide-react";
+import Link from "next/link";
 
 export default function ShopPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const [categories, setCategories] = useState([]); // الجديد: للاقسام
 
   useEffect(() => {
     // 1. نتشيك عالكوكي اول شي - اذا زائر منوقف هون
@@ -14,26 +16,33 @@ export default function ShopPage() {
     if (isGuestCookie) {
       setIsGuest(true);
       setLoading(false);
-      return;
+    } else {
+      // 2. اذا مش زائر، نتشيك اذا في يوزر مسجل
+      fetch('/api/me', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+     .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setUser(data.user);
+          }
+        }
+        setLoading(false);
+      })
+     .catch(() => {
+        setLoading(false);
+      });
     }
 
-    // 2. اذا مش زائر، نتشيك اذا في يوزر مسجل
-    fetch('/api/me', {
-      credentials: 'include',
-      cache: 'no-store',
-    })
-  .then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          setUser(data.user);
-        }
-      }
-      setLoading(false);
-    })
-  .catch(() => {
-      setLoading(false);
-    });
+    // 3. الجديد: نجيب الاقسام من الـ API
+    fetch('/api/categories', { cache: 'no-store' })
+     .then(res => res.json())
+     .then(data => {
+        if (data.categories) setCategories(data.categories);
+      })
+     .catch(() => {});
   }, []);
 
   const handleLogout = async () => {
@@ -50,17 +59,14 @@ export default function ShopPage() {
   };
 
   const handleBack = () => {
-    // اذا في صفحة قبلها بالـ history، رجاع عليها
     if (window.history.length > 1) {
       window.history.back();
     } else {
-      // اذا فاتح /shop دغري، روح عالـ login
       window.location.href = '/login';
     }
   };
 
   const handleCreateAccount = () => {
-    // امحي كوكي الزائر قبل ما تروح عاللوغين
     document.cookie = 'md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
     window.location.href = '/login?view=register';
   };
@@ -141,6 +147,34 @@ export default function ShopPage() {
           </div>
         )}
 
+        {/* الجديد: الكبستين الرئيسيات */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <Link href="/stores" className="glass rounded-2xl p-6 text-center hover:bg-white/10 transition-all border border-purple-500/30">
+            <Store className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+            <h3 className="text-white font-bold">جميع المتاجر</h3>
+          </Link>
+          <Link href="/products" className="glass rounded-2xl p-6 text-center hover:bg-white/10 transition-all border border-pink-500/30">
+            <Package className="w-8 h-8 text-pink-400 mx-auto mb-2" />
+            <h3 className="text-white font-bold">جميع المنتجات</h3>
+          </Link>
+        </div>
+
+        {/* الجديد: فلتر الاقسام */}
+        <h2 className="text-white font-bold text-lg mb-4">تصفح حسب القسم</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {categories.map((cat) => (
+            <Link 
+              key={cat.id} 
+              href={`/category/${cat.id}`} 
+              className="glass rounded-2xl p-6 text-center hover:bg-white/10 transition-all"
+            >
+              <h3 className="text-white font-semibold">{cat.name}</h3>
+            </Link>
+          ))}
+        </div>
+
+        {/* المنتجات الوهمية القديمة - فيك تشيلها بعدين */}
+        <h2 className="text-white font-bold text-lg mb-4">منتجات مقترحة</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1,2,3,4,5,6,7,8].map(i => (
             <div key={i} className="glass rounded-2xl overflow-hidden">
