@@ -52,7 +52,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">3. مشاركة البيانات</h2>
-            <p><strong>لا نشارك بياناتك  لأي طرف ثالث ابداً.</strong></p>
+            <p><strong>لا نشارك بياناتك  مع أي طرف ثالث ابداً.</strong></p>
             <p className="mt-3">نشارك بياناتك فقط مع:</p>
             <ul className="list-disc list-inside space-y-2 mt-3">
               <li><strong>التجار:</strong> اسمك ورقمك وعنوانك لتوصيل الطلب</li>
