@@ -215,12 +215,7 @@ export default function ShopPage() {
     <p className="text-purple-200 col-span-full text-center">ما في نتائج للبحث</p>
   )}
 </div>
-      <h3 className="text-white font-semibold text-xs">{cat.name}</h3>
-    </Link>
-  )) : (
-    <p className="text-purple-200 col-span-full text-center">ما في نتائج للبحث</p>
-  )}
-</div>
+      
 
         {/* منتجات مقترحة */}
         <h2 className="text-white font-bold text-lg mb-4">منتجات مقترحة</h2>
