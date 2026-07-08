@@ -29,7 +29,7 @@ export async function POST(req) {
     if (existingPhones.includes(submittedPhone)) {
       return NextResponse.json({
         success: false,
-        message: "الرقم مسجل مسبقاً، سجل دخول"
+        message: "الرقم مسجل مسبقاً، "
       });
     }
 
