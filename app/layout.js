@@ -1,6 +1,7 @@
 import './globals.css'
 
 export const metadata = {
+  metadataBase: new URL("https://md-marketplace-seven.vercel.app/")
   title: "MD-Marketplace | One App For Everything",
   description: "One App For Everything",
 
