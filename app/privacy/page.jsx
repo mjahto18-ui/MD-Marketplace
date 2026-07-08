@@ -26,11 +26,11 @@ export default function PrivacyPage() {
         </h1>
         
         <div className="space-y-8 text-white/80 leading-relaxed">
-          <p className="text-sm text-purple-300">آخر تحديث: 7 تموز 2026</p>
+          <p className="text-sm text-purple-300">آخر تحديث: 7 تموز 2025</p>
 
           <section>
-            <h2 className="text-2xl font-bold text-white mb-4">1. البيانات اللي منجمعها</h2>
-            <p>منجمع البيانات التالية لنقدملك أفضل خدمة:</p>
+            <h2 className="text-2xl font-bold text-white mb-4">1. البيانات اللتي نجمعها</h2>
+            <p>نجمع البيانات التالية لنقدملك أفضل خدمة:</p>
             <ul className="list-disc list-inside space-y-2 mt-3">
               <li><strong>معلومات الحساب:</strong> الاسم، رقم الهاتف، المنطقة، العنوان</li>
               <li><strong>الموقع الجغرافي:</strong> وقت التسجيل فقط لتأكيد عنوانك وتحديد أقرب المتاجر</li>
@@ -40,10 +40,10 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-white mb-4">2. كيف منستخدم بياناتك</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">2. كيف نستخدم بياناتك</h2>
             <ul className="list-disc list-inside space-y-2">
               <li>توصيل طلباتك للعنوان الصحيح</li>
-              <li>التواصل معك بخصوص طلباتك عبر الهاتف او واتساب</li>
+              <li>التواصل مع العميل بخصوص طلبه عبر الهاتف او واتساب</li>
               <li>تحسين خدماتنا وعرض منتجات تناسبك</li>
               <li>حماية حسابك من الاحتيال والاستخدام غير المشروع</li>
               <li>تطبيق ميزة Wish لضمان حقوقك اذا ما استلمت الطلب</li>
@@ -52,38 +52,38 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">3. مشاركة البيانات</h2>
-            <p><strong>ما منبيع بياناتك لطرف ثالث ابداً.</strong></p>
-            <p className="mt-3">منشارك بياناتك فقط مع:</p>
+            <p><strong>لا نشارك بياناتك  لأي طرف ثالث ابداً.</strong></p>
+            <p className="mt-3">نشارك بياناتك فقط مع:</p>
             <ul className="list-disc list-inside space-y-2 mt-3">
               <li><strong>التجار:</strong> اسمك ورقمك وعنوانك لتوصيل الطلب</li>
               <li><strong>السائقين:</strong> عنوانك ورقمك للتواصل عند التوصيل</li>
-              <li><strong>الجهات القانونية:</strong> فقط اذا طلب القانون اللبناني ذلك</li>
+              <li><strong>الجهات القانونية:</strong> فقط اذا طلب القانون اللبناني بذلك</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">4. أمان البيانات</h2>
-            <p>منستخدم تشفير SSL لكل البيانات. كلمات السر محفوظة بشكل مشفّر وما حدا بيقدر يشوفها حتى نحنا. السيرفرات محمية بجدران نارية متطورة.</p>
+            <p>نستخدم نظام تشفير SSL لكل البيانات. كلمات السر محفوظة بشكل مشفّر ولا أحدا يستطيع مشاهدتها حتى نحن. السيرفرات محمية بجدران نارية متطورة.</p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">5. حقوقك</h2>
             <ul className="list-disc list-inside space-y-2">
-              <li>بتقدر تطلب نسخة من كل بياناتك بأي وقت</li>
-              <li>بتقدر تعدل او تحذف حسابك من الاعدادات</li>
-              <li>بتقدر ترفض استخدام الموقع الجغرافي - بس ما رح نقدر نسجلك</li>
-              <li>بتقدر تطلب حذف كل بياناتك نهائياً</li>
+              <li>تستطيع طلب نسخة من كل بياناتك بأي وقت</li>
+              <li>تستطيع تعدبل او حذف حسابك من الاعدادات</li>
+              <li>تستطيع رفض استخدام الموقع الجغرافي - ولكن لا نستطيع تسجيلك</li>
+              <li>تستطيع طلب حذف كل بياناتك نهائياً</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">6. الكوكيز</h2>
-            <p>منستخدم كوكيز اساسية فقط لتتذكر دخولك وتحسين الاداء. ما منستخدم كوكيز تتبع او اعلانات.</p>
+            <p>نستخدم كوكيز اساسية فقط لتتذكر دخولك وتحسين الاداء. لا نستخدم كوكيز تتبع او اعلانات.</p>
           </section>
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">7. التواصل معنا</h2>
-            <p>لأي استفسار عن الخصوصية: واتساب 9613177653</p>
+            <p>لأي استفسار عن الخصوصية: واتساب 9613000000</p>
           </section>
         </div>
       </div>
