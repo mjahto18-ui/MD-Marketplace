@@ -26,7 +26,7 @@ export const metadata = {
   openGraph: {
     title: "MD-Marketplace",
     description: "One App For Everything",
-    url: "https://md-marketplace-seven.vercel.app",
+    url: "https://md-marketplace-seven.vercel.app/",
     siteName: "MD-Marketplace",
     images: [
       {
