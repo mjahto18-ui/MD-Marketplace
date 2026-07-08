@@ -53,7 +53,7 @@ export async function POST(req) {
         user: { name: user[3], phone: user[4] }
       });
     } else {
-      return NextResponse.json({ success: false, message: "الحساب غير مفعل أو البيانات خطأ" }, { status: 401 });
+      return NextResponse.json({ success: false, message: "الحساب مقيد أو البيانات خطأ" }, { status: 401 });
     }
   } catch (error) {
     console.error("Login Error:", error);
