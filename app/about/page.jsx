@@ -52,7 +52,7 @@ export default function AboutPage() {
             <ul className="space-y-4 text-[#0D0D21]">
               <li>✓ اختر طريقة الدفع التي تناسبك: نقداً عند الاستلام أو عبر نظام Wish</li>
               <li>✓ 5 توصيلات مجانية لأول 5 طلبات للعملاء الجدد، للطلبات حتى 10 كغ</li>
-              <li>✓ تتبع طلبك لحظة بلحظة</li>
+              <li>✓ تتبع طلبك لحظة بلحظة عبر نظام ماب</li>
             </ul>
           </div>
 
@@ -60,8 +60,8 @@ export default function AboutPage() {
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
             <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">الأمان والشفافية</h3>
             <ul className="space-y-4 text-[#0D0D21]">
-              <li>✓ نخفي بياناتك عن السائق حتى قبول الطلب، لضمان خصوصيتك التامة</li>
-              <li>✓ جميع سائقينا موثقون بأوراق رسمية وصور هوية لضمان الأمان والثقة</li>
+              <li>✓ نخفي بياناتك عن السائق لحين قبول الطلب، لضمان خصوصيتك التامة</li>
+              <li>✓ جميع سائقينا موثقون بأوراق رسمية ومستندات ثبوتية لضمان الأمان والثقة</li>
             </ul>
           </div>
 
@@ -69,7 +69,7 @@ export default function AboutPage() {
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
             <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">خدماتنا</h3>
             <p className="text-[#0D0D21]">
-              <strong>خدمة "اشترِ لي"</strong> - اطلب أي غرض من أي مكان، وسائقنا يشتريه ويوصله لبابك
+              <strong>خدمة "طلب خاص"</strong> - اطلب أي غرض من أي مكان، وسائقنا يشتريه ويوصله لبابك
             </p>
           </div>
 
@@ -126,7 +126,7 @@ export default function AboutPage() {
               </Link>
             </div>
             <p className="text-xs text-[#0D0D21]/60 mt-4">
-              © 2026 MD Marketplace. جميع الحقوق محفوظة
+              © 2020 MD-Marketplace. جميع الحقوق محفوظة
             </p>
           </div>
         </div>
