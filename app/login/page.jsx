@@ -419,7 +419,7 @@ export default function LoginPage() {
 
               {msg && <div className={`text-center p-3 rounded-xl text-sm ${msg.includes("نجاح")? "bg-green-500/20 text-green-200" : "bg-red-500/20 text-red-200"}`}>{msg}</div>}
 
-              <p className="text-center text-purple-300 text-xs">سيتم مراجعة طلبك والرد عليك خلال وقت قصير</p>
+              <p className="text-center text-purple-300 text-xs">سيتم مراجعة طلبك خلال وقت قصير</p>
             </form>
           </div>
         </div>
