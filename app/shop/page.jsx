@@ -2,8 +2,10 @@
 import { useEffect, useState } from "react";
 import { ShoppingCart, User, LogOut, MessageCircle, Store, Package, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 
 export default function ShopPage() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
@@ -32,8 +34,8 @@ export default function ShopPage() {
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
-    // هون السر: روح عالـ login وما ترجع عالـ shop
-    window.location.href = '/login'; 
+    router.push('/login'); // هون السر: استعمل router مش window.location
+    router.refresh(); // مشان يعمل refresh كامل
   };
 
   if (loading) return (
@@ -61,7 +63,7 @@ export default function ShopPage() {
             <div className="flex items-center gap-3">
               {user ? (
                 <>
-                  <button onClick={() => window.location.href = '/dashboard'} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20">
+                  <button onClick={() => router.push('/dashboard')} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20">
                     <User className="w-5 h-5 text-white" />
                   </button>
                   <button onClick={handleLogout} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20">
@@ -69,7 +71,7 @@ export default function ShopPage() {
                   </button>
                 </>
               ) : (
-                <button onClick={() => window.location.href = '/login'} className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold">
+                <button onClick={() => router.push('/login')} className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold">
                   تسجيل دخول
                 </button>
               )}
@@ -109,12 +111,14 @@ export default function ShopPage() {
           {filteredCategories.map((cat) => (
             <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group">
               <div className="aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
-                <img 
-                  src={cat.image}
-                  alt={cat.name}
-                  className="w-full h-full object-contain group-hover:scale-110 transition-all duration-300"
-                  onError={(e) => e.target.style.display = 'none'} 
-                />
+                {cat.image && (
+                  <img 
+                    key={cat.image} // هاد السطر بيجبر الصورة تعمل refresh
+                    src={cat.image}
+                    alt={cat.name}
+                    className="w-full h-full object-contain group-hover:scale-110 transition-all duration-300"
+                  />
+                )}
               </div>
               <h3 className="text-white font-semibold text-xs">{cat.name}</h3>
             </Link>
