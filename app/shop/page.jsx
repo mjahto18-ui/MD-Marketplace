@@ -189,7 +189,7 @@ export default function ShopPage() {
           </button>
         </div>
 
-        {/* فلتر الاقسام */}
+        
         {/* فلتر الاقسام */}
 <h2 className="text-white font-bold text-lg mb-4">
   {search? `نتائج البحث عن "${search}"` : 'تصفح حسب القسم'}
@@ -201,15 +201,20 @@ export default function ShopPage() {
       href={`/category/${cat.id}`} 
       className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group"
     >
-      {/* البوكس تبع الصورة - مربع وثابت */}
       <div className="aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
         <img 
-          src={`https://www.appsheet.com/template/gettablefileurl?appName=MDMARKETPLACE-958093981&tableName=Categories&fileName=${cat.icon}`}
+          src={cat.image}
           alt={cat.name}
           className="w-full h-full object-contain group-hover:scale-110 transition-all duration-300"
-          onError={(e) => e.target.src = 'https://via.placeholder.com/100?text=MD'} 
+          onError={(e) => e.target.src = 'https://via.placeholder.com/100x100/6d28d9/ffffff?text=MD'} 
         />
       </div>
+      <h3 className="text-white font-semibold text-xs">{cat.name}</h3>
+    </Link>
+  )) : (
+    <p className="text-purple-200 col-span-full text-center">ما في نتائج للبحث</p>
+  )}
+</div>
       <h3 className="text-white font-semibold text-xs">{cat.name}</h3>
     </Link>
   )) : (
