@@ -4,6 +4,9 @@ import { ShoppingCart, User, LogOut, MessageCircle, Store, Package, Search, Spar
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 
+// ⭐ استدعاء الـ Popup
+import NotificationPopup from "@/components/NotificationPopup";
+
 export default function ShopPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -34,8 +37,8 @@ export default function ShopPage() {
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
-    router.push('/login'); // هون السر: استعمل router مش window.location
-    router.refresh(); // مشان يعمل refresh كامل
+    router.push('/login');
+    router.refresh();
   };
 
   if (loading) return (
@@ -46,6 +49,10 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen gradient-bg">
+
+      {/* ⭐⭐ دمج الـ Popup هون ⭐⭐ */}
+      {user && <NotificationPopup userId={user.customerId} />}
+
       <div className="glass border-b border-white/10 p-4">
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -77,6 +84,7 @@ export default function ShopPage() {
               )}
             </div>
           </div>
+
           <div className="relative">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
             <input
@@ -113,7 +121,7 @@ export default function ShopPage() {
               <div className="aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
                 {cat.image && (
                   <img 
-                    key={cat.image} // هاد السطر بيجبر الصورة تعمل refresh
+                    key={cat.image}
                     src={cat.image}
                     alt={cat.name}
                     className="w-full h-full object-contain group-hover:scale-110 transition-all duration-300"
