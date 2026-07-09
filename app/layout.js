@@ -62,7 +62,7 @@ export default function RootLayout({ children }) {
               window.OneSignal = window.OneSignal || [];
               OneSignal.push(function() {
                 OneSignal.init({
-                  appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
+                  appId: 8736bcd3-452e-4b06-a3c1-0363071f1254,
                   allowLocalhostAsSecureOrigin: true
                 });
               });
