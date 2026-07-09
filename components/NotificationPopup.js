@@ -1,60 +1,30 @@
-"use client";
-import { useState, useEffect } from "react";
+async function enableNotifications() {
+  setShowPopup(false);
 
-export default function NotificationPopup({ userId }) {
-  const [showPopup, setShowPopup] = useState(false);
+  alert("نستخدم الإشعارات لتحسين تجربتك داخل التطبيق، ولإعلامك بحالة طلباتك، التوصيل، والعروض الجديدة.");
 
-  useEffect(() => {
-    async function checkSubscription() {
-      const res = await fetch(`/api/check-subscription?userId=${userId}`);
-      const data = await res.json();
+  // ⭐ ننتظر OneSignal ليجهز بالكامل
+  await OneSignal.User.waitUntilReady();
 
-      if (!data.hasSubscription) {
-        setShowPopup(true);
-      }
-    }
+  // ⭐ هلق منطلب الإذن
+  const permission = await OneSignal.Notifications.requestPermission();
 
-    checkSubscription();
-  }, [userId]);
+  if (permission === "granted") {
 
-  async function enableNotifications() {
-    setShowPopup(false);
+    // ⭐ ننتظر الـ Service Worker يعمل registration كامل
+    await OneSignal.User.waitUntilReady();
 
-    alert("نستخدم الإشعارات لتحسين تجربتك داخل التطبيق، ولإعلامك بحالة طلباتك، التوصيل، والعروض الجديدة.");
+    const subId = await OneSignal.User.getSubscriptionId();
 
-    const permission = await OneSignal.Notifications.requestPermission();
+    console.log("SUB ID:", subId);
 
-    if (permission === "granted") {
-      const subId = await OneSignal.User.getSubscriptionId();
-
-      await fetch("/api/save-subscription", {
-        method: "POST",
-        body: JSON.stringify({
-          userId,
-          subscriptionId: subId
-        })
-      });
-    }
+    await fetch("/api/save-subscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        subscriptionId: subId
+      })
+    });
   }
-
-  if (!showPopup) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-80 text-center">
-        <h2 className="text-lg font-bold mb-2">🔔 تفعيل الإشعارات</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          نستخدم الإشعارات لتحسين تجربتك داخل التطبيق،
-          ولإعلامك بحالة طلباتك، التوصيل، والعروض الجديدة.
-        </p>
-
-        <button
-          onClick={enableNotifications}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg w-full hover:bg-blue-700 transition"
-        >
-          تفعيل الإشعارات
-        </button>
-      </div>
-    </div>
-  );
 }
