@@ -1,5 +1,5 @@
 import './globals.css'
-import Head from "next/head";
+import Script from "next/script";
 
 export const metadata = {
   metadataBase: new URL("https://md-marketplace-seven.vercel.app/"),
@@ -54,26 +54,29 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
-      <Head>
-        <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async=""></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.OneSignal = window.OneSignal || [];
-              OneSignal.push(function() {
-                OneSignal.init({
-                  OneSignal.init({
-  appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
-  allowLocalhostAsSecureOrigin: true
-});
+      <body>
 
-              });
-            `,
-          }}
+        {/* تحميل SDK */}
+        <Script 
+          src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" 
+          strategy="beforeInteractive"
         />
-      </Head>
 
-      <body>{children}</body>
+        {/* تفعيل OneSignal */}
+        <Script id="onesignal-init" strategy="beforeInteractive">
+          {`
+            window.OneSignal = window.OneSignal || [];
+            OneSignal.push(function() {
+              OneSignal.init({
+                appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
+                allowLocalhostAsSecureOrigin: true
+              });
+            });
+          `}
+        </Script>
+
+        {children}
+      </body>
     </html>
   );
 }
