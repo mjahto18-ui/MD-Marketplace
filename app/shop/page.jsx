@@ -16,21 +16,34 @@ export default function ShopPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-    .then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) setUser(data.user);
-      }
-    }).finally(() => setLoading(false));
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) setUser(data.user);
+        }
+      })
+      .finally(() => setLoading(false));
 
     fetch('/api/categories', { cache: 'no-store' })
-    .then(res => res.json())
-    .then(data => {
-      if (data.categories) setCategories(data.categories);
-    });
+      .then(res => res.json())
+      .then(data => {
+        if (data.categories) setCategories(data.categories);
+      });
   }, []);
 
-  const filteredCategories = categories.filter(cat => 
+  // ⭐⭐ الحل الأساسي: إذا ما في user → رجّعني على login ⭐⭐
+  if (!loading && !user) {
+    router.push('/login');
+    return null;
+  }
+
+  if (loading) return (
+    <div className="min-h-screen gradient-bg flex items-center justify-center">
+      <div className="text-white text-xl">جاري التحميل...</div>
+    </div>
+  );
+
+  const filteredCategories = categories.filter(cat =>
     cat.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -40,12 +53,6 @@ export default function ShopPage() {
     router.push('/login');
     router.refresh();
   };
-
-  if (loading) return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center">
-      <div className="text-white text-xl">جاري التحميل...</div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen gradient-bg">
@@ -63,7 +70,7 @@ export default function ShopPage() {
               <div>
                 <h1 className="text-white font-bold">MD Marketplace</h1>
                 <p className="text-purple-200 text-xs">
-                  {user? `أهلاً ${user.name}` : 'تصفح كزائر'}
+                  {user ? `أهلاً ${user.name}` : 'تصفح كزائر'}
                 </p>
               </div>
             </div>
@@ -120,7 +127,7 @@ export default function ShopPage() {
             <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group">
               <div className="aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
                 {cat.image && (
-                  <img 
+                  <img
                     key={cat.image}
                     src={cat.image}
                     alt={cat.name}
