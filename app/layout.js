@@ -1,5 +1,6 @@
-import './globals.css'
+import "./globals.css";
 import Script from "next/script";
+import OneSignalInit from "@/components/OneSignalInit";
 
 export const metadata = {
   metadataBase: new URL("https://md-marketplace-seven.vercel.app/"),
@@ -50,23 +51,14 @@ export default function RootLayout({ children }) {
     <html lang="ar" dir="rtl">
       <body>
 
-        {/* تحميل SDK الجديد v16 */}
-        <Script 
+        {/* تحميل SDK */}
+        <Script
           src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
           strategy="afterInteractive"
         />
 
-        {/* تفعيل OneSignal */}
-        <Script id="onesignal-init" strategy="afterInteractive">
-          {`
-            window.OneSignalDeferred = window.OneSignalDeferred || [];
-            OneSignalDeferred.push(async function(OneSignal) {
-              await OneSignal.init({
-                appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
-              });
-            });
-          `}
-        </Script>
+        {/* تفعيل OneSignal داخل useEffect */}
+        <OneSignalInit />
 
         {children}
       </body>
