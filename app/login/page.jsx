@@ -259,6 +259,28 @@ export default function LoginPage() {
               <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white transition-all" />
             </button>
           </div>
+          {/* مكوّن تفعيل التنبيهات */}
+<div className="mt-6 bg-white/10 border border-white/20 rounded-2xl p-5 text-center backdrop-blur-sm">
+  <p className="text-purple-100 text-sm mb-3">
+    لتصلك تحديثات الطلب فوراً، يرجى تفعيل التنبيهات
+  </p>
+
+  <button
+    onClick={() => {
+      window.OneSignal.push(function () {
+        window.OneSignal.showSlidedownPrompt();
+      });
+    }}
+    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold py-3 rounded-xl hover:shadow-lg hover:shadow-purple-500/40 transition-all"
+  >
+    تفعيل التنبيهات
+  </button>
+
+  <p className="text-purple-300 text-xs mt-3">
+    (اختياري – لكن يُحسّن تجربة التوصيل)
+  </p>
+</div>
+
 
           <div className="flex items-center justify-center gap-6 mt-8 text-purple-200 text-sm">
             <div className="flex items-center gap-1">
