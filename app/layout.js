@@ -1,4 +1,5 @@
 import './globals.css'
+import Head from "next/head";
 
 export const metadata = {
   metadataBase: new URL("https://md-marketplace-seven.vercel.app/"),
@@ -53,6 +54,23 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
+      <Head>
+        <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async=""></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.OneSignal = window.OneSignal || [];
+              OneSignal.push(function() {
+                OneSignal.init({
+                  appId: "YOUR-ONESIGNAL-APP-ID",
+                  allowLocalhostAsSecureOrigin: true
+                });
+              });
+            `,
+          }}
+        />
+      </Head>
+
       <body>{children}</body>
     </html>
   );
