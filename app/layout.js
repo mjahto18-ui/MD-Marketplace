@@ -3,12 +3,9 @@ import Script from "next/script";
 
 export const metadata = {
   metadataBase: new URL("https://md-marketplace-seven.vercel.app/"),
-    
   title: "MD-Marketplace | One App For Everything",
   description: "One App For Everything",
-
   applicationName: "MD-Marketplace",
-
   keywords: [
     "MD Marketplace",
     "Marketplace",
@@ -19,13 +16,11 @@ export const metadata = {
     "Rewards",
     "Tracking"
   ],
-
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
     apple: "/logo.png",
   },
-
   openGraph: {
     title: "MD-Marketplace",
     description: "One App For Everything",
@@ -42,7 +37,6 @@ export const metadata = {
     locale: "ar_LB",
     type: "website",
   },
-
   twitter: {
     card: "summary_large_image",
     title: "MD-Marketplace",
@@ -59,11 +53,11 @@ export default function RootLayout({ children }) {
         {/* تحميل SDK الجديد v16 */}
         <Script 
           src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
         />
 
         {/* تفعيل OneSignal */}
-        <Script id="onesignal-init" strategy="beforeInteractive">
+        <Script id="onesignal-init" strategy="afterInteractive">
           {`
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             OneSignalDeferred.push(async function(OneSignal) {
