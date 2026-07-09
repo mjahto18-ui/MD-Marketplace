@@ -11,8 +11,23 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function Map({ lat, lng }) {
+
+  // 🔥 حماية قوية
+  if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+    return (
+      <div className="text-white text-sm">
+        الموقع غير متوفر
+      </div>
+    );
+  }
+
   return (
-    <MapContainer center={[lat, lng]} zoom={15} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+    <MapContainer 
+      center={[lat, lng]} 
+      zoom={15} 
+      style={{ height: '100%', width: '100%' }} 
+      scrollWheelZoom={false}
+    >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <Marker position={[lat, lng]} />
     </MapContainer>
