@@ -173,7 +173,7 @@ export default function LoginPage() {
             // انتظار OneSignal ليصبح جاهز
             let subId = null;
             for (let i = 0; i < 10; i++) {
-              subId = await window.OneSignal.User.PushSubscription.getId();
+              subId =  window.OneSignal.User.PushSubscription.getId();
               if (subId) break;
               await new Promise((r) => setTimeout(r, 300));
             }
