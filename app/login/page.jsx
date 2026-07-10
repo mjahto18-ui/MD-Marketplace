@@ -30,20 +30,10 @@ export default function LoginPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.success) {
-
-  // ⭐⭐⭐ ربط OneSignal برقم الهاتف ⭐⭐⭐
-  if (typeof window !== "undefined" && window.OneSignal) {
-    window.OneSignal.User.login(data.user.phone);
-
-    const subId = window.OneSignal.User.PushSubscription.id;
-    console.log("PushSubscription ID:", subId);
-  }
-
-  window.location.replace('/shop');
-}
-
+         if (data.user) {
             window.location.replace('/shop');
+
+          
             return;
           }
         }
@@ -146,8 +136,18 @@ export default function LoginPage() {
       });
       const data = await res.json();
       setMsg(data.message);
-      if (data.success) {
-        window.location.replace('/shop');
+     if (data.success) {
+
+  // ⭐⭐⭐ ربط OneSignal برقم الهاتف ⭐⭐⭐
+  if (typeof window !== "undefined" && window.OneSignal) {
+    window.OneSignal.User.login(data.user.phone);
+
+    const subId = window.OneSignal.User.PushSubscription.id;
+    console.log("PushSubscription ID:", subId);
+  }
+
+  window.location.replace('/shop');
+
       }
     } catch {
       setMsg("حصل خطأ في الاتصال");
