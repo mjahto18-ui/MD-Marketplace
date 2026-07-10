@@ -39,7 +39,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     const checkExistingSession = async () => {
-      // ⚠️ تم حذف شرط md_guest هون لأنه كان يعمل redirect غلط
       try {
         const res = await fetch("/api/me", {
           credentials: "include",
@@ -149,7 +148,6 @@ export default function LoginPage() {
     setMsg("");
 
     try {
-      // مسح كوكي الزائر
       document.cookie =
         "md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax";
 
@@ -162,29 +160,36 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      // ما نعمل setMsg إلا إذا موجودة فعلاً
       if (data.message) {
         setMsg(data.message);
       }
 
       if (data.success) {
-        // ربط OneSignal برقم الهاتف مع تأكد من الجهوزية
         if (typeof window !== "undefined" && window.OneSignal) {
           try {
-            // إذا الـ SDK جاهز مباشرة
+            // تسجيل المستخدم داخل OneSignal
             window.OneSignal.User.login(data.user.phone);
 
-            const subId = window.OneSignal.User.PushSubscription.id || null;
+            // جلب الـ Subscription ID
+            const subId = await window.OneSignal.User.PushSubscription.getId();
             console.log("PushSubscription ID:", subId);
 
-            // إذا بدك يظهر تأكيد التنبيهات فوراً:
-            // window.OneSignal.showSlidedownPrompt();
+            // إرسال الـ Subscription ID إلى Google Sheet
+            await fetch("/api/save-subscription", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: data.user.userId,
+                subscriptionId: subId,
+              }),
+            });
+
+            console.log("Subscription saved to Google Sheet");
           } catch (e) {
             console.log("OneSignal not ready yet:", e);
           }
         }
 
-        // تحويل إلى صفحة المتاجر
         window.location.replace("/shop");
       }
     } catch (err) {
@@ -219,6 +224,7 @@ export default function LoginPage() {
       </div>
     );
   }
+
 
   if (view === "main") {
     return (
