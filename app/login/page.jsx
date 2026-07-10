@@ -480,31 +480,54 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {showLocationPopup && (
+                {showLocationPopup && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="glass rounded-3xl p-6 max-w-sm w-full">
               <div className="flex justify-between items-start mb-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center">
                   <MapPinned className="w-6 h-6 text-white" />
                 </div>
-                <button onClick={() => {setShowLocationPopup(false); setLoading(false);}} className="text-white/50 hover:text-white">
+                <button
+                  onClick={() => {
+                    setShowLocationPopup(false);
+                    setLoading(false);
+                  }}
+                  className="text-white/50 hover:text-white"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
+
               <h3 className="text-white font-bold text-lg mb-2">تأكيد موقعك الحالي</h3>
-              <p className="text-purple-200 text-sm mb-6">لإكمال التسجيل، يرجى السماح باستخدام موقعك الحالي. نستخدم موقعك لتقديم خدمة أفضل وتحديد أقرب المتاجر لك.</p>
+              <p className="text-purple-200 text-sm mb-6">
+                لإكمال التسجيل، يرجى السماح باستخدام موقعك الحالي. نستخدم موقعك لتقديم خدمة أفضل وتحديد أقرب المتاجر لك.
+              </p>
+
               <div className="flex gap-3">
-                <button onClick={() => {setShowLocationPopup(false); setLoading(false);}} className="flex-1 bg-white/10 text-white font-semibold py-3 rounded-xl hover:bg-white/20 transition-all">
+                <button
+                  onClick={() => {
+                    setShowLocationPopup(false);
+                    setLoading(false);
+                  }}
+                  className="flex-1 bg-white/10 text-white font-semibold py-3 rounded-xl hover:bg-white/20 transition-all"
+                >
                   إلغاء
                 </button>
-                <button onClick={getLocationAndRegister} className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-3 rounded-xl hover:shadow-lg transition-all">
+
+                <button
+                  onClick={getLocationAndRegister}
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-3 rounded-xl hover:shadow-lg transition-all"
+                >
                   موافق
                 </button>
               </div>
             </div>
           </div>
-              )}
-            </div>
+        )}
+
+      </div>
     );
-  }  // ← يسكّر if (view === "register")
-}    // ← يسكّر component LoginPage
+  }
+
+}
+
