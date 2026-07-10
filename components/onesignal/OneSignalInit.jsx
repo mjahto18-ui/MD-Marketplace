@@ -7,18 +7,11 @@ export default function OneSignalInit() {
       window.OneSignal = window.OneSignal || [];
       OneSignal.push(function () {
         OneSignal.init({
-          appId: process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID,
-          safari_web_id: process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_ID,
+          appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
           allowLocalhostAsSecureOrigin: true,
-        });
-
-        // طلب الإذن
-        OneSignal.showSlidedownPrompt();
-
-        // جلب PushSubscription.id
-        OneSignal.User.PushSubscription.addEventListener("change", async () => {
-          const id = OneSignal.User.PushSubscription.id;
-          console.log("PushSubscription ID:", id);
+          notifyButton: {
+            enable: false,
+          },
         });
       });
     }
