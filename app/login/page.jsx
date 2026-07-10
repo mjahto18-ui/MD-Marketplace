@@ -144,29 +144,58 @@ export default function LoginPage() {
       setMsg(data.message);
     }
 
-    if (data.success) {
+    const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setMsg("");
 
-  if (typeof window !== "undefined" && window.OneSignal) {
+  try {
+    // مسح كوكي الزائر
+    document.cookie =
+      "md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax";
 
-    window.OneSignal.on('initialized', () => {
-      try {
-        window.OneSignal.User.login(data.user.phone);
-
-        const subId = window.OneSignal.User.PushSubscription.id || null;
-        console.log("PushSubscription ID:", subId);
-
-        // إذا بدك يظهر تأكيد التنبيهات فوراً:
-        // window.OneSignal.showSlidedownPrompt();
-      } catch (e) {
-        console.log("OneSignal not ready yet:", e);
-      }
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ phone: form.phone, pin: form.pin }),
     });
+
+    const data = await res.json();
+
+    // ما نعمل setMsg إلا إذا موجودة فعلاً
+    if (data.message) {
+      setMsg(data.message);
+    }
+
+    if (data.success) {
+      // ربط OneSignal برقم الهاتف مع تأكد من الجهوزية
+      if (typeof window !== "undefined" && window.OneSignal) {
+        try {
+          // إذا الـ SDK جاهز مباشرة
+          window.OneSignal.User.login(data.user.phone);
+
+          const subId = window.OneSignal.User.PushSubscription.id || null;
+          console.log("PushSubscription ID:", subId);
+
+          // إذا بدك يظهر تأكيد التنبيهات فوراً:
+          // window.OneSignal.showSlidedownPrompt();
+        } catch (e) {
+          console.log("OneSignal not ready yet:", e);
+        }
+      }
+
+      // تحويل إلى صفحة المتاجر
+      window.location.replace("/shop");
+    }
+  } catch (err) {
+    console.log(err);
+    setMsg("حصل خطأ في الاتصال");
   }
 
-  window.location.replace('/shop');
-}
   setLoading(false);
 };
+
 
 
   const handleGuest = async () => {
@@ -479,3 +508,4 @@ export default function LoginPage() {
     );
   }
 }
+  }
