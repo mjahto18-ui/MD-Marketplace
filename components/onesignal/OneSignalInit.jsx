@@ -1,21 +1,28 @@
 "use client";
-import { useEffect } from "react";
+
+import Script from "next/script";
 
 export default function OneSignalInit() {
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.OneSignal = window.OneSignal || [];
-      OneSignal.push(function () {
-        OneSignal.init({
-          appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
-          allowLocalhostAsSecureOrigin: true,
-          notifyButton: {
-            enable: false,
-          },
-        });
-      });
-    }
-  }, []);
+  return (
+    <>
+      <Script
+        src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+        strategy="afterInteractive"
+      />
 
-  return null;
+      <Script id="onesignal-init" strategy="afterInteractive">
+        {`
+          window.OneSignalDeferred = window.OneSignalDeferred || [];
+          OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
+              appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
+              allowLocalhostAsSecureOrigin: true
+            });
+
+            console.log("OneSignal جاهز بالكامل");
+          });
+        `}
+      </Script>
+    </>
+  );
 }
