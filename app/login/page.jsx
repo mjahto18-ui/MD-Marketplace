@@ -235,7 +235,7 @@ export default function LoginPage() {
       </div>
     );
   }
-}
+
 
   if (view === "main") {
     return (
