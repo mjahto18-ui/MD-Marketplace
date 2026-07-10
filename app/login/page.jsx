@@ -165,8 +165,6 @@ export default function LoginPage() {
 
   window.location.replace('/shop');
 }
-
-
   setLoading(false);
 };
 
