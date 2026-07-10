@@ -88,7 +88,7 @@ export async function POST(req) {
     email: user[6],         // البريد (اختياري)
   }
 });
-
+}   
     // PIN غلط → زيد المحاولات
     let attempts = parseInt(user[14] || "0") + 1;
     user[14] = attempts.toString();
