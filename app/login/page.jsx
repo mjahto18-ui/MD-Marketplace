@@ -508,5 +508,3 @@ export default function LoginPage() {
     );
   }  // ← يسكّر if (view === "register")
 }    // ← يسكّر component LoginPage
-
-
