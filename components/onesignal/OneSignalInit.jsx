@@ -15,7 +15,7 @@ export default function OneSignalInit() {
           window.OneSignalDeferred = window.OneSignalDeferred || [];
           OneSignalDeferred.push(async function(OneSignal) {
             await OneSignal.init({
-              appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
+              appId: 8736bcd3-452e-4b06-a3c1-0363071f1254,
               allowLocalhostAsSecureOrigin: true
             });
 
