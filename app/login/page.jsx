@@ -145,25 +145,27 @@ export default function LoginPage() {
     }
 
     if (data.success) {
-      // ربط OneSignal برقم الهاتف
-      if (typeof window !== "undefined" && window.OneSignal) {
+
+  if (typeof window !== "undefined" && window.OneSignal) {
+
+    window.OneSignal.on('initialized', () => {
+      try {
         window.OneSignal.User.login(data.user.phone);
 
-        // محاولة قراءة الـ Subscription ID بدون ما نوقع إذا مش جاهز
         const subId = window.OneSignal.User.PushSubscription.id || null;
         console.log("PushSubscription ID:", subId);
 
-        // إذا بدك يظهر تأكيد التنبيهات فوراً بعد الدخول:
+        // إذا بدك يظهر تأكيد التنبيهات فوراً:
         // window.OneSignal.showSlidedownPrompt();
+      } catch (e) {
+        console.log("OneSignal not ready yet:", e);
       }
-
-      // تحويل إلى صفحة المتاجر
-      window.location.replace("/shop");
-    }
-  } catch (err) {
-    console.log(err);
-    setMsg("حصل خطأ في الاتصال");
+    });
   }
+
+  window.location.replace('/shop');
+}
+
 
   setLoading(false);
 };
