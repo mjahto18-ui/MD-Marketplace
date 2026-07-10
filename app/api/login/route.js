@@ -77,11 +77,17 @@ export async function POST(req) {
       });
 
       return NextResponse.json({
-        success: true,
-        message: "تم تسجيل الدخول بنجاح",
-        user: { name: user[3], phone: user[4] }
-      });
-    }
+  success: true,
+  message: "تم تسجيل الدخول بنجاح",
+  user: {
+    userId: user[0],        // User ID من العمود A
+    customerId: user[7],    // Customer ID من العمود H
+    name: user[3],          // الاسم
+    phone: user[4],         // الهاتف
+    role: user[2],          // الدور (اختياري)
+    email: user[6],         // البريد (اختياري)
+  }
+});
 
     // PIN غلط → زيد المحاولات
     let attempts = parseInt(user[14] || "0") + 1;
