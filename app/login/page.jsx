@@ -122,38 +122,52 @@ export default function LoginPage() {
   };
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMsg("");
-    try {
-      document.cookie = 'md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+  e.preventDefault();
+  setLoading(true);
+  setMsg("");
 
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify({ phone: form.phone, pin: form.pin }),
-      });
-      const data = await res.json();
+  try {
+    // مسح كوكي الزائر
+    document.cookie = 'md_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ phone: form.phone, pin: form.pin }),
+    });
+
+    const data = await res.json();
+
+    // ما نعمل setMsg إلا إذا موجودة فعلاً
+    if (data.message) {
       setMsg(data.message);
-     if (data.success) {
+    }
 
-  // ⭐⭐⭐ ربط OneSignal برقم الهاتف ⭐⭐⭐
-  if (typeof window !== "undefined" && window.OneSignal) {
-    window.OneSignal.User.login(data.user.phone);
+    if (data.success) {
+      // ربط OneSignal برقم الهاتف
+      if (typeof window !== "undefined" && window.OneSignal) {
+        window.OneSignal.User.login(data.user.phone);
 
-    const subId = window.OneSignal.User.PushSubscription.id;
-    console.log("PushSubscription ID:", subId);
+        // محاولة قراءة الـ Subscription ID بدون ما نوقع إذا مش جاهز
+        const subId = window.OneSignal.User.PushSubscription.id || null;
+        console.log("PushSubscription ID:", subId);
+
+        // إذا بدك يظهر تأكيد التنبيهات فوراً بعد الدخول:
+        // window.OneSignal.showSlidedownPrompt();
+      }
+
+      // تحويل إلى صفحة المتاجر
+      window.location.replace("/shop");
+    }
+  } catch (err) {
+    console.log(err);
+    setMsg("حصل خطأ في الاتصال");
   }
 
-  window.location.replace('/shop');
+  setLoading(false);
+};
 
-      }
-    } catch {
-      setMsg("حصل خطأ في الاتصال");
-    }
-    setLoading(false);
-  };
 
   const handleGuest = async () => {
     setLoading(true);
