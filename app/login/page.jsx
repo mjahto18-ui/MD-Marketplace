@@ -504,10 +504,9 @@ export default function LoginPage() {
             </div>
           </div>
               )}
-      </div>
+            </div>
     );
-  }
-
-} // ← نهاية LoginPage
+  }  // ← يسكّر if (view === "register")
+}    // ← يسكّر component LoginPage
 
 
