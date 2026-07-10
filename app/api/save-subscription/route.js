@@ -19,7 +19,7 @@ export async function POST(req) {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID_USERS;
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
     // جلب كل الصفوف
     const read = await sheets.spreadsheets.values.get({
