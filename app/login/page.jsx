@@ -170,23 +170,34 @@ export default function LoginPage() {
             // تسجيل المستخدم داخل OneSignal
             window.OneSignal.User.login(data.user.phone);
 
-            // جلب الـ Subscription ID
-            const subId = await window.OneSignal.User.PushSubscription.getId();
+            // انتظار OneSignal ليصبح جاهز
+            let subId = null;
+            for (let i = 0; i < 10; i++) {
+              subId = await window.OneSignal.User.PushSubscription.getId();
+              if (subId) break;
+              await new Promise((r) => setTimeout(r, 300));
+            }
+
             console.log("PushSubscription ID:", subId);
 
-            // إرسال الـ Subscription ID إلى Google Sheet
-            await fetch("/api/save-subscription", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId: data.user.userId,
-                subscriptionId: subId,
-              }),
-            });
+            if (!subId) {
+              console.log("❌ OneSignal لم يرجع Subscription ID");
+            } else {
+              // إرسال الـ Subscription ID إلى Google Sheet
+              const saveRes = await fetch("/api/save-subscription", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId: data.user.userId,
+                  subscriptionId: subId,
+                }),
+              });
 
-            console.log("Subscription saved to Google Sheet");
+              const saveData = await saveRes.json();
+              console.log("نتيجة حفظ الاشتراك:", saveData);
+            }
           } catch (e) {
-            console.log("OneSignal not ready yet:", e);
+            console.log("OneSignal error:", e);
           }
         }
 
@@ -224,6 +235,8 @@ export default function LoginPage() {
       </div>
     );
   }
+}
+
 
 
   if (view === "main") {
