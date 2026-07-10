@@ -237,8 +237,6 @@ export default function LoginPage() {
   }
 }
 
-
-
   if (view === "main") {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
