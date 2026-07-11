@@ -45,7 +45,7 @@ export async function POST(req) {
       ) {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `Users!Q${i + 2}`,
+          range: `Users!Q${i + 1}`,
           valueInputOption: "RAW",
           requestBody: {
             values: [[""]],
@@ -69,7 +69,7 @@ export async function POST(req) {
     // ثالثاً: حفظ Subscription ID للمستخدم الحالي
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `Users!Q${rowIndex + 2}`,
+      range: `Users!Q${rowIndex + 1}`,
       valueInputOption: "RAW",
       requestBody: {
         values: [[subscriptionId]],
