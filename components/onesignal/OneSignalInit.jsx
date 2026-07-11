@@ -13,13 +13,30 @@ export default function OneSignalInit() {
       <Script id="onesignal-init" strategy="afterInteractive">
         {`
           window.OneSignalDeferred = window.OneSignalDeferred || [];
-          OneSignalDeferred.push(async function(OneSignal) {
+
+          OneSignalDeferred.push(async function (OneSignal) {
+
             await OneSignal.init({
               appId: "8736bcd3-452e-4b06-a3c1-0363071f1254",
-              allowLocalhostAsSecureOrigin: true
+              allowLocalhostAsSecureOrigin: true,
             });
 
             console.log("OneSignal جاهز بالكامل");
+
+            const subscriptionId = await OneSignal.User.PushSubscription.id;
+            const optedIn = await OneSignal.User.PushSubscription.optedIn;
+            const token = await OneSignal.User.PushSubscription.token;
+
+            console.log("Subscription ID:", subscriptionId);
+            console.log("Opted In:", optedIn);
+            console.log("Token:", token);
+
+            alert(
+              "Subscription ID:\\n" +
+              subscriptionId +
+              "\\n\\nOpted In: " +
+              optedIn
+            );
           });
         `}
       </Script>
