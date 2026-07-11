@@ -21,22 +21,26 @@ export default function OneSignalInit() {
               allowLocalhostAsSecureOrigin: true,
             });
 
-            console.log("OneSignal جاهز بالكامل");
+            console.log("✅ OneSignal جاهز بالكامل");
 
-            const subscriptionId = await OneSignal.User.PushSubscription.id;
-            const optedIn = await OneSignal.User.PushSubscription.optedIn;
-            const token = await OneSignal.User.PushSubscription.token;
+            // طلب إذن الإشعارات إذا لم يكن قد تم من قبل
+            if (OneSignal.Notifications.permission !== true) {
+              const permission = await OneSignal.Notifications.requestPermission();
+              console.log("Permission:", permission);
+            }
+
+            // انتظر قليلاً حتى يتم إنشاء الاشتراك
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            const subscriptionId = OneSignal.User.PushSubscription.id;
+            const optedIn = OneSignal.User.PushSubscription.optedIn;
+            const token = OneSignal.User.PushSubscription.token;
+            const externalId = OneSignal.User.externalId;
 
             console.log("Subscription ID:", subscriptionId);
             console.log("Opted In:", optedIn);
             console.log("Token:", token);
-
-            alert(
-              "Subscription ID:\\n" +
-              subscriptionId +
-              "\\n\\nOpted In: " +
-              optedIn
-            );
+            console.log("External ID:", externalId);
           });
         `}
       </Script>
