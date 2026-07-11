@@ -30,7 +30,7 @@ export async function POST(req) {
 
     const read = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Users!A:Q",
+      range: "Users!A:Z",
     });
 
     const rows = read.data.values || [];
