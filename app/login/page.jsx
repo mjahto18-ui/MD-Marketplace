@@ -168,17 +168,21 @@ export default function LoginPage() {
         if (typeof window !== "undefined" && window.OneSignal) {
           try {
             // تسجيل المستخدم داخل OneSignal
-            window.OneSignal.login(data.user.phone);
+            await window.OneSignal.login(data.user.phone);
             
             // انتظار OneSignal ليصبح جاهز
             let subId = null;
             for (let i = 0; i < 10; i++) {
-              subId =  window.OneSignal.User.PushSubscription.getId();
+              subId = await window.OneSignal.User.PushSubscription.id;
+              
               if (subId) break;
-              await new Promise((r) => setTimeout(r, 300));
+              
+              await new Promise((r) => setTimeout(r, 500));
             }
             
-            console.log("External ID:", await OneSignal.User.externalId);
+            console.log(
+              "External ID:",
+                        await window.OneSignal.User.externalId);
             
             console.log("PushSubscription ID:", subId);
 
