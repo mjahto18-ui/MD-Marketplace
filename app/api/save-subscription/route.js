@@ -4,15 +4,10 @@ export async function POST(req) {
   try {
     const { userId, subscriptionId } = await req.json();
 
-    console.log("========== SAVE SUBSCRIPTION ==========");
-    console.log("USER ID =", userId);
-    console.log("SUB ID =", subscriptionId);
-
     if (!userId || !subscriptionId) {
-      console.log("❌ Missing data");
       return Response.json({
         success: false,
-        message: "Missing data"
+        message: "Missing data",
       });
     }
 
@@ -40,38 +35,53 @@ export async function POST(req) {
 
     const rows = read.data.values || [];
 
+    // أولاً: إزالة Subscription ID من أي مستخدم آخر
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      if (
+        row[16] === subscriptionId &&
+        row[0] !== userId.toString()
+      ) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `Users!Q${i + 1}`,
+          valueInputOption: "RAW",
+          requestBody: {
+            values: [[""]],
+          },
+        });
+      }
+    }
+
+    // ثانياً: البحث عن المستخدم الحالي
     const rowIndex = rows.findIndex(
       (row) => row[0] === userId.toString()
     );
 
-    console.log("ROW INDEX =", rowIndex);
-
     if (rowIndex === -1) {
-      console.log("❌ User not found");
       return Response.json({
         success: false,
         message: "User not found",
       });
     }
 
+    // ثالثاً: حفظ Subscription ID للمستخدم الحالي
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `Users!Q${rowIndex + 1}`,
+      range: `Users!Q${rowIndex + 2}`,
       valueInputOption: "RAW",
       requestBody: {
         values: [[subscriptionId]],
       },
     });
 
-    console.log("✅ Subscription Saved Successfully");
-
     return Response.json({
       success: true,
-      message: "Subscription ID saved successfully",
+      message: "Subscription updated",
     });
 
   } catch (err) {
-    console.error("❌ SAVE SUBSCRIPTION ERROR");
     console.error(err);
 
     return Response.json({
