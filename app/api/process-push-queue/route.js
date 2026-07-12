@@ -82,7 +82,7 @@ export async function POST(req) {
 
     const templateRows = templates.data.values || [];
 
-    const template = templateRows.find(r => r[0] === code);
+    const template = templateRows.find(r => r[1] === code);
     console.log("Template =", template);
 
     if (!template) {
@@ -92,9 +92,9 @@ export async function POST(req) {
       });
     }
 
-    const title = template[1];
-    const message = template[2];
-    const image = template[3];
+    const title = template[2];
+    const message = template[3];
+    const image = template"";
     console.log("Title =", title);
     console.log("Message =", message);
     console.log("Image =", image);
