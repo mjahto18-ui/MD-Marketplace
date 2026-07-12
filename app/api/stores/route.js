@@ -1,33 +1,52 @@
-import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { JWT } from 'google-auth-library';
-
-const serviceAccountAuth = new JWT({
-  email: process.env.GOOGLE_CLIENT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
-const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEETS_ID, serviceAccountAuth);
+import { NextResponse } from "next/server";
+import { google } from "googleapis";
 
 export async function GET() {
   try {
-    await doc.loadInfo();
-    const storesSheet = doc.sheetsByTitle['Stores'];
-    const storeRows = await storesSheet.getRows();
+    // Google Auth
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-    const stores = storeRows.map(store => ({
-      storeID: store.get('Store ID'),
-      storeName: store.get('Store Name'),
-      image: store.get('Image') || '',
-      address: store.get('Address') || '',
-      phone: store.get('Phone') || '',
-      category: store.get('Category') || ''
+    const sheets = google.sheets({ version: "v4", auth });
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+
+    // ============================
+    // 1) جلب جدول Stores
+    // ============================
+    const storesRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Stores!A:Z",
+    });
+
+    const rows = storesRes.data.values || [];
+
+    // ============================
+    // 2) تجهيز البيانات
+    // ============================
+    const stores = rows.map((row) => ({
+      storeID: row[0],
+      storeName: row[1],
+      image: row[2] || "",
+      address: row[3] || "",
+      phone: row[4] || "",
+      category: row[5] || "",
     }));
 
-    return Response.json({ success: true, stores });
+    return NextResponse.json({
+      success: true,
+      stores,
+    });
 
-  } catch (error) {
-    console.error('Stores GET Error:', error);
-    return Response.json({ success: false, message: 'خطأ بجلب المتاجر' }, { status: 500 });
+  } catch (err) {
+    console.error("Stores GET Error:", err);
+    return NextResponse.json(
+      { success: false, message: "خطأ بجلب المتاجر" },
+      { status: 500 }
+    );
   }
 }
