@@ -1,57 +1,82 @@
-import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { JWT } from 'google-auth-library';
-
-const serviceAccountAuth = new JWT({
-  email: process.env.GOOGLE_CLIENT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
-const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEETS_ID, serviceAccountAuth);
+import { NextResponse } from "next/server";
+import { google } from "googleapis";
 
 export async function GET(request) {
   try {
-    await doc.loadInfo();
     const { searchParams } = new URL(request.url);
-    const storeID = searchParams.get('storeID'); // فلتر اختياري
+    const storeID = searchParams.get("storeID"); // فلتر اختياري
 
-    const productsSheet = doc.sheetsByTitle['Products'];
-    const storesSheet = doc.sheetsByTitle['Stores'];
+    // Google Auth
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-    const [productRows, storeRows] = await Promise.all([
-      productsSheet.getRows(),
-      storesSheet.getRows()
-    ]);
+    const sheets = google.sheets({ version: "v4", auth });
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-    let filteredProducts = productRows;
+    // ============================
+    // 1) جلب جدول Products
+    // ============================
+    const productsRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Products!A:Z",
+    });
 
-    // اذا بعت storeID فلتر عليه
+    const productsRows = productsRes.data.values || [];
+
+    // ============================
+    // 2) جلب جدول Stores
+    // ============================
+    const storesRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Stores!A:Z",
+    });
+
+    const storesRows = storesRes.data.values || [];
+
+    // ============================
+    // 3) فلترة حسب Store ID (اختياري)
+    // ============================
+    let filteredProducts = productsRows;
+
     if (storeID) {
-      filteredProducts = productRows.filter(p => p.get('Store ID') === storeID);
+      filteredProducts = productsRows.filter((row) => row[1] === storeID);
     }
 
-    // اربط مع Stores عشان نجيب اسم المحل
-    const products = filteredProducts.map(product => {
-      const store = storeRows.find(s => s.get('Store ID') === product.get('Store ID'));
+    // ============================
+    // 4) تجهيز البيانات وربطها مع Stores
+    // ============================
+    const products = filteredProducts.map((row) => {
+      const store = storesRows.find((s) => s[0] === row[1]); // Store ID
 
       return {
-        productID: product.get('Product ID'),
-        name: product.get('Name'),
-        price: Number(product.get('Price')),
-        image: product.get('Image'),
-        weightPoint: Number(product.get('Weight Point')),
-        storeID: product.get('Store ID'),
-        storeName: store?.get('Store Name') || 'متجر محذوف',
-        description: product.get('Description') || '',
-        category: product.get('Category') || '',
-        stock: Number(product.get('Stock')) || 0
+        productID: row[0],
+        name: row[2],
+        price: Number(row[4]),
+        image: row[5],
+        weightPoint: Number(row[11]),
+        storeID: row[1],
+        storeName: store ? store[1] : "متجر محذوف",
+        description: row[6] || "",
+        category: row[3] || "",
+        stock: Number(row[10]) || 0,
       };
     });
 
-    return Response.json({ success: true, products });
+    return NextResponse.json({
+      success: true,
+      products,
+    });
 
-  } catch (error) {
-    console.error('Products GET Error:', error);
-    return Response.json({ success: false, message: 'خطأ بجلب المنتجات' }, { status: 500 });
+  } catch (err) {
+    console.error("Products GET Error:", err);
+    return NextResponse.json(
+      { success: false, message: "خطأ بجلب المنتجات" },
+      { status: 500 }
+    );
   }
 }
