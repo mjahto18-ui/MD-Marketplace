@@ -97,7 +97,7 @@ export async function POST(req) {
     const image = template"";
     console.log("Title =", title);
     console.log("Message =", message);
-    console.log("Image =", image);
+    
 
     console.log(title);
     console.log(message);
