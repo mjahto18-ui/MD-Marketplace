@@ -40,7 +40,7 @@ export async function POST(req) {
       sheets.spreadsheets.values.get({ spreadsheetId, range: "Customers!A:Z" }),
       sheets.spreadsheets.values.get({ spreadsheetId, range: "Products!A:Z" }),
       sheets.spreadsheets.values.get({ spreadsheetId, range: "Delivery Rates!A:Z" }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Order Requuest!A:Z" }),
+      sheets.spreadsheets.values.get({ spreadsheetId, range: "Order Requuest!A:AC" }),
       sheets.spreadsheets.values.get({ spreadsheetId, range: "Order Details!A:Z" }),
     ]);
 
