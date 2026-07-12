@@ -129,7 +129,7 @@ export async function POST(req) {
             en: message,
           },
 
-          big_picture: image || undefined,
+         
         }),
       }
     );
