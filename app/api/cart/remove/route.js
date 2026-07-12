@@ -30,7 +30,7 @@ export async function DELETE(request) {
     // ============================
     const cartRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Cart!A:Z",
+      range: "Cart!A:J",
     });
 
     const cartRows = cartRes.data.values || [];
