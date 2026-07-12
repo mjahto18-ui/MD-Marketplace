@@ -23,7 +23,7 @@ export async function GET(request) {
     // ============================
     const productsRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Products!A:Z",
+      range: "Products!A:L",
     });
 
     const productsRows = productsRes.data.values || [];
@@ -33,7 +33,7 @@ export async function GET(request) {
     // ============================
     const storesRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Stores!A:Z",
+      range: "Stores!A:O",
     });
 
     const storesRows = storesRes.data.values || [];
