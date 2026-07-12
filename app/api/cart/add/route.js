@@ -1,70 +1,131 @@
-import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { JWT } from 'google-auth-library';
+import { NextResponse } from "next/server";
+import { google } from "googleapis";
 
-const serviceAccountAuth = new JWT({
-  email: process.env.GOOGLE_CLIENT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
-const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEETS_ID, serviceAccountAuth);
-
-export async function POST(request) {
+export async function POST(req) {
   try {
-    await doc.loadInfo();
-    const { customerID, productID, qty = 1 } = await request.json();
+    const { customerID, productID, qty = 1 } = await req.json();
 
-    const cartSheet = doc.sheetsByTitle['Cart'];
-    const productsSheet = doc.sheetsByTitle['Products'];
-    
-    const [cartRows, productRows] = await Promise.all([
-      cartSheet.getRows(),
-      productsSheet.getRows()
-    ]);
-
-    // شوف اذا المنتج موجود بالسلة
-    const existingItem = cartRows.find(
-      row => row.get('Customer ID') === customerID && 
-             row.get('Product ID') === productID && 
-             row.get('Checked Out') === 'FALSE'
-    );
-
-    const product = productRows.find(p => p.get('Product ID') === productID);
-    if (!product) {
-      return Response.json({ success: false, message: 'المنتج غير موجود' }, { status: 404 });
-    }
-
-    const unitPrice = Number(product.get('Price'));
-    const linePoints = Number(product.get('Weight Point'));
-    const storeID = product.get('Store ID');
-
-    if (existingItem) {
-      // اذا موجود زيد الكمية
-      const newQty = Number(existingItem.get('Qty')) + qty;
-      existingItem.set('Qty', newQty);
-      existingItem.set('Line Total', newQty * unitPrice);
-      await existingItem.save();
-    } else {
-      // اذا مش موجود ضيف سطر جديد
-      const cartID = crypto.randomUUID().replace(/-/g, '').substring(0, 8);
-      await cartSheet.addRow({
-        'Cart ID': cartID,
-        'Customer ID': customerID,
-        'Product ID': productID,
-        'Qty': qty,
-        'Store ID': storeID,
-        'Line Total': qty * unitPrice,
-        'Checked Out': 'FALSE',
-        'Check Out Flagge': 'FALSE',
-        'Request ID': '',
-        'Line Points': linePoints
+    if (!customerID || !productID) {
+      return NextResponse.json({
+        success: false,
+        message: "Missing data",
       });
     }
 
-    return Response.json({ success: true, message: 'تمت الاضافة للسلة' });
+    // Google Auth
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-  } catch (error) {
-    console.error('Cart ADD Error:', error);
-    return Response.json({ success: false, message: 'خطأ بالاضافة' }, { status: 500 });
+    const sheets = google.sheets({ version: "v4", auth });
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+
+    // ============================
+    // 1) جلب جدول Products
+    // ============================
+    const productsRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Products!A:Z",
+    });
+
+    const products = productsRes.data.values || [];
+
+    const product = products.find((row) => row[0] === productID);
+
+    if (!product) {
+      return NextResponse.json({
+        success: false,
+        message: "المنتج غير موجود",
+      });
+    }
+
+    const unitPrice = Number(product[4]);        // Price
+    const storeID = product[1];                 // Store ID
+    const linePoints = Number(product[11]);     // Weight Point
+
+    // ============================
+    // 2) جلب جدول Cart
+    // ============================
+    const cartRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Cart!A:Z",
+    });
+
+    const cartRows = cartRes.data.values || [];
+
+    // ============================
+    // 3) هل المنتج موجود بالسلة؟
+    // ============================
+    const existingIndex = cartRows.findIndex(
+      (row) =>
+        row[1] === customerID &&
+        row[2] === productID &&
+        row[6] === "FALSE" // Checked Out
+    );
+
+    // ============================
+    // 4) إذا موجود → زيد الكمية
+    // ============================
+    if (existingIndex !== -1) {
+      const row = cartRows[existingIndex];
+      const oldQty = Number(row[3]);
+      const newQty = oldQty + qty;
+
+      row[3] = newQty;                 // Qty
+      row[5] = newQty * unitPrice;     // Line Total
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Cart!A${existingIndex + 2}:Z${existingIndex + 2}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [row] },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "تم تحديث الكمية بالسلة",
+      });
+    }
+
+    // ============================
+    // 5) إذا مش موجود → ضيف سطر جديد
+    // ============================
+    const cartID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
+
+    const newRow = [
+      cartID,          // Cart ID
+      customerID,      // Customer ID
+      productID,       // Product ID
+      qty,             // Qty
+      storeID,         // Store ID
+      qty * unitPrice, // Line Total
+      "FALSE",         // Checked Out
+      "FALSE",         // Check Out Flagge
+      "",              // Request ID
+      linePoints       // Line Points
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "Cart!A:Z",
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [newRow] },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "تمت الإضافة للسلة",
+    });
+
+  } catch (err) {
+    console.error("Cart API Error:", err);
+    return NextResponse.json(
+      { success: false, message: "خطأ بالاضافة" },
+      { status: 500 }
+    );
   }
 }
