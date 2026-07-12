@@ -26,15 +26,24 @@ export async function GET() {
     const rows = storesRes.data.values || [];
 
     // ============================
-    // 2) تجهيز البيانات
+    // 2) تجهيز البيانات حسب ترتيب الأعمدة الصحيح
     // ============================
     const stores = rows.map((row) => ({
-      storeID: row[0],
-      storeName: row[1],
-      image: row[2] || "",
-      address: row[3] || "",
-      phone: row[4] || "",
-      category: row[5] || "",
+      storeID: row[0],            // A
+      storeName: row[1],          // B
+      category: row[2],           // C
+      ownerName: row[3],          // D
+      phone: row[4],              // E
+      area: row[5],               // F
+      address: row[6],            // G
+      description: row[7],        // H
+      image: row[8],              // I (Logo)
+      status: row[9],             // J
+      joinDate: row[10],          // K
+      commissionRate: row[11],    // L
+      deliveryAvailable: row[12], // M
+      closeTime: row[13],         // N
+      openTime: row[14],          // O
     }));
 
     return NextResponse.json({
