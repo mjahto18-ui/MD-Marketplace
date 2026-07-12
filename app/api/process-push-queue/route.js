@@ -62,6 +62,7 @@ export async function POST(req) {
     const subscriptionId = user[16];
 
     console.log("Subscription =", subscriptionId);
+    console.log("searching Template...");
 
     if (!subscriptionId) {
       return NextResponse.json({
@@ -82,6 +83,7 @@ export async function POST(req) {
     const templateRows = templates.data.values || [];
 
     const template = templateRows.find(r => r[0] === code);
+    console.loge("Template =", template);
 
     if (!template) {
       return NextResponse.json({
@@ -93,6 +95,9 @@ export async function POST(req) {
     const title = template[1];
     const message = template[2];
     const image = template[3];
+    console.loge("Title =", title);
+    console.loge("Message =", message);
+    console.loge("Image =", image);
 
     console.log(title);
     console.log(message);
@@ -100,7 +105,7 @@ export async function POST(req) {
     //==============================
     // OneSignal
     //==============================
-
+    console.loge("Sending OneSignal...");
     const response = await fetch(
       "https://api.onesignal.com/notifications?c=push",
       {
@@ -128,8 +133,9 @@ export async function POST(req) {
         }),
       }
     );
-
+      console.loge("HTTP Status =", response.status);
     const result = await response.json();
+    consile.loge("OneSignal Result =", result);
 
     console.log(result);
 
