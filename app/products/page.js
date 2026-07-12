@@ -12,7 +12,7 @@ export default function ProductsPage() {
     fetch('/api/products')
      .then(res => res.json())
      .then(data => {
-        if (data.success) setProducts(data.products);
+        if (data.success) setProducts(data.Products);
         setLoading(false);
       });
   }, []);
