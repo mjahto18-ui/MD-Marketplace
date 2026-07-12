@@ -49,7 +49,7 @@ export async function GET(req, { params }) {
     // ============================
     const storesRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Stores!A:Z",
+      range: "Stores!A:O",
     });
 
     const stores = storesRes.data.values || [];
