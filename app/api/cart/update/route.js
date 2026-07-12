@@ -1,48 +1,108 @@
-import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { JWT } from 'google-auth-library';
+import { NextResponse } from "next/server";
+import { google } from "googleapis";
 
-const serviceAccountAuth = new JWT({
-  email: process.env.GOOGLE_CLIENT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
-const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEETS_ID, serviceAccountAuth);
-
-export async function PUT(request) {
+export async function PUT(req) {
   try {
-    await doc.loadInfo();
-    const { cartID, qty } = await request.json();
+    const { cartID, qty } = await req.json();
+
+    if (!cartID || !qty) {
+      return NextResponse.json(
+        { success: false, message: "cartID و qty مطلوبين" },
+        { status: 400 }
+      );
+    }
 
     if (qty < 1) {
-      return Response.json({ success: false, message: 'الكمية لازم 1 او اكتر' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "الكمية لازم تكون 1 أو أكثر" },
+        { status: 400 }
+      );
     }
 
-    const cartSheet = doc.sheetsByTitle['Cart'];
-    const productsSheet = doc.sheetsByTitle['Products'];
-    
-    const [cartRows, productRows] = await Promise.all([
-      cartSheet.getRows(),
-      productsSheet.getRows()
-    ]);
+    // Google Auth
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-    const cartItem = cartRows.find(row => row.get('Cart ID') === cartID);
-    if (!cartItem) {
-      return Response.json({ success: false, message: 'المنتج مش بالسلة' }, { status: 404 });
+    const sheets = google.sheets({ version: "v4", auth });
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+
+    // ============================
+    // 1) جلب جدول Cart
+    // ============================
+    const cartRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Cart!A:Z",
+    });
+
+    const cartRows = cartRes.data.values || [];
+
+    // ============================
+    // 2) إيجاد المنتج بالسلة
+    // ============================
+    const index = cartRows.findIndex((row) => row[0] === cartID);
+
+    if (index === -1) {
+      return NextResponse.json(
+        { success: false, message: "المنتج مش بالسلة" },
+        { status: 404 }
+      );
     }
 
-    const product = productRows.find(p => p.get('Product ID') === cartItem.get('Product ID'));
-    const unitPrice = Number(product.get('Price'));
+    const cartItem = cartRows[index];
+    const productID = cartItem[2];
 
-    // المعادلة: Line Total = Qty * Unit Price
-    cartItem.set('Qty', qty);
-    cartItem.set('Line Total', qty * unitPrice);
-    await cartItem.save();
+    // ============================
+    // 3) جلب جدول Products
+    // ============================
+    const productsRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Products!A:Z",
+    });
 
-    return Response.json({ success: true, message: 'تم التعديل' });
+    const productsRows = productsRes.data.values || [];
 
-  } catch (error) {
-    console.error('Cart UPDATE Error:', error);
-    return Response.json({ success: false, message: 'خطأ بالتعديل' }, { status: 500 });
+    const product = productsRows.find((row) => row[0] === productID);
+
+    if (!product) {
+      return NextResponse.json(
+        { success: false, message: "المنتج غير موجود" },
+        { status: 404 }
+      );
+    }
+
+    const unitPrice = Number(product[4]); // Price
+
+    // ============================
+    // 4) تعديل الكمية + Line Total
+    // ============================
+    cartItem[3] = qty;                // Qty
+    cartItem[5] = qty * unitPrice;    // Line Total
+
+    // ============================
+    // 5) حفظ التعديلات
+    // ============================
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Cart!A${index + 2}:Z${index + 2}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [cartItem] },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "تم تعديل الكمية",
+    });
+
+  } catch (err) {
+    console.error("Cart UPDATE Error:", err);
+    return NextResponse.json(
+      { success: false, message: "خطأ بالتعديل" },
+      { status: 500 }
+    );
   }
 }
