@@ -20,7 +20,7 @@ export async function GET() {
     // ============================
     const storesRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Stores!A:Z",
+      range: "Stores!A:O",
     });
 
     const rows = storesRes.data.values || [];
