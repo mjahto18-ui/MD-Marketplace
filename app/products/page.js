@@ -6,7 +6,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
 
   // بدك تجيب customerID من السيشن
-  const customerID = "5482cbf7"; // مؤقت
+  const customerID = " "; // مؤقت
 
   useEffect(() => {
     fetch('/api/products')
