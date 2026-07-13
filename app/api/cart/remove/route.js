@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
-export async function DELETE(request) {
+export async function DELETE(req) {
   try {
-    const { searchParams } = new URL(request.url);
-    const cartID = searchParams.get("cartID");
+    // قراءة cartID بالطريقة الصحيحة
+    const cartID = req.nextUrl.searchParams.get("cartID");
 
     if (!cartID) {
       return NextResponse.json(
@@ -33,7 +33,7 @@ export async function DELETE(request) {
       range: "Cart!A:Z",
     });
 
-    const cartRows = cartRes.data.values || [];
+    const cartRows = cartRes.data.values?.slice(1) || [];
 
     // ============================
     // 2) إيجاد الصف المطلوب حذفه
@@ -52,11 +52,12 @@ export async function DELETE(request) {
     // ============================
     cartRows.splice(index, 1);
 
+    // إعادة كتابة الجدول كامل بعد حذف الصف
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: "Cart!A:Z",
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: cartRows },
+      requestBody: { values: [["Cart ID","Customer ID","Product ID","Qty","Store ID","Line Total","Checked Out","Check Out Flag","Request ID","Line Points"], ...cartRows] },
     });
 
     return NextResponse.json({
