@@ -23,7 +23,7 @@ export async function GET(request) {
     // ============================
     const productsRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Products!A:Z",
+      range: "Products!A:L", // حسب الأعمدة الموجودة بالصورة
     });
 
     const productsRows = productsRes.data.values || [];
@@ -33,7 +33,7 @@ export async function GET(request) {
     // ============================
     const storesRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Stores!A:Z",
+      range: "Stores!A:O",
     });
 
     const storesRows = storesRes.data.values || [];
@@ -54,16 +54,19 @@ export async function GET(request) {
       const store = storesRows.find((s) => s[0] === row[1]); // Store ID
 
       return {
-        productID: row[0],
-        name: row[2],
-        price: Number(row[4]),
-        image: row[5],
-        weightPoint: Number(row[11]),
-        storeID: row[1],
+        productID: row[0],            // A
+        storeID: row[1],              // B
+        name: row[2],                 // C
+        category: row[3],             // D
+        unit: row[4],                 // E
+        price: Number(row[5]),        // F
+        image: row[6],                // G
+        description: row[7],          // H
+        available: row[8],            // I
+        stock: Number(row[9]),        // J
+        active: row[10],              // K
+        weightPoint: Number(row[11]), // L
         storeName: store ? store[1] : "متجر محذوف",
-        description: row[6] || "",
-        category: row[3] || "",
-        stock: Number(row[10]) || 0,
       };
     });
 
