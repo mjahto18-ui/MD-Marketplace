@@ -39,7 +39,7 @@ export async function GET(req) {
       success: true,
       order: {
         requestID: order[0],
-        totalAmount: order[6], // عدّلها حسب عمود المجموع عندك
+        totalAmount: order[6],
       },
     });
 
