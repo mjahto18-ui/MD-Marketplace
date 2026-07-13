@@ -24,11 +24,15 @@ export async function DELETE(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-    // 1. جيب الـ sheetId الصح
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId })
-    const cartSheet = spreadsheet.data.sheets.find(s => s.properties.title === 'Cart')
-    if (!cartSheet) throw new Error("Cart sheet not found")
-    const sheetId = cartSheet.properties.sheetId
+    // 1. جيب sheetId الصح
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const cartSheet = spreadsheet.data.sheets.find(
+      (s) => s.properties.title === "Cart"
+    );
+    if (!cartSheet) {
+      throw new Error("Cart sheet مش موجود. تأكد من اسم التاب");
+    }
+    const sheetId = cartSheet.properties.sheetId;
 
     const cartRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -37,11 +41,18 @@ export async function DELETE(req) {
 
     const rows = cartRes.data.values || [];
 
+    // 2. طباعة للـ debug
+    console.log("Searching for:", customerID, productID);
+    console.log("First 3 rows:", rows.slice(0, 3));
+
     const rowIndex = rows.findIndex(
       (row) =>
+        row[1] && row[2] &&
         String(row[1]).trim() === String(customerID).trim() &&
         String(row[2]).trim() === String(productID).trim()
     );
+
+    console.log("Found at rowIndex:", rowIndex);
 
     if (rowIndex === -1) {
       return NextResponse.json(
@@ -50,17 +61,19 @@ export async function DELETE(req) {
       );
     }
 
-    // 2. لو عندك header زيد 1. لو بتبدأ البيانات من الصف 1 شيل السطر هذا
-    const actualRowIndex = rowIndex // + 1 إذا في header
+    // 3. لو عندك header بالصف 1، خليها rowIndex + 1
+    // لو البيانات بتبلش من الصف 1 مباشرة، خليها rowIndex
+    const actualRowIndex = rowIndex; // غيّرها لـ rowIndex + 1 لو في header
+    console.log("Deleting sheetId:", sheetId, "actualRowIndex:", actualRowIndex);
 
-    await sheets.spreadsheets.batchUpdate({
+    const batchResponse = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: {
         requests: [
           {
             deleteDimension: {
               range: {
-                sheetId: sheetId, // استخدمنا الـ ID الصح
+                sheetId: sheetId,
                 dimension: "ROWS",
                 startIndex: actualRowIndex,
                 endIndex: actualRowIndex + 1,
@@ -71,9 +84,12 @@ export async function DELETE(req) {
       },
     });
 
+    console.log("Batch response:", batchResponse.data);
+
     return NextResponse.json({
       success: true,
       message: "تم حذف المنتج من السلة",
+      deletedRow: actualRowIndex + 1, // للـ debug
     });
 
   } catch (err) {
