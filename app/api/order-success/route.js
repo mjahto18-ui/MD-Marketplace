@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
@@ -29,7 +27,6 @@ export async function GET(req) {
     });
 
     const rows = res.data.values || [];
-    const header = rows[0];
     const data = rows.slice(1);
 
     const order = data.find((row) => row[0] === requestID);
