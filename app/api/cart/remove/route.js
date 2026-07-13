@@ -3,7 +3,6 @@ import { google } from "googleapis";
 
 export async function DELETE(req) {
   try {
-    // قراءة cartID بالطريقة الصحيحة
     const cartID = req.nextUrl.searchParams.get("cartID");
 
     if (!cartID) {
@@ -25,44 +24,46 @@ export async function DELETE(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-    // ============================
-    // 1) جلب جدول Cart
-    // ============================
+    // 1) جلب كل الصفوف بدون حذف الـ header
     const cartRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "Cart!A:Z",
     });
 
-    const cartRows = cartRes.data.values?.slice(1) || [];
+    const rows = cartRes.data.values || [];
 
-    // ============================
-    // 2) إيجاد الصف المطلوب حذفه
-    // ============================
-    const index = cartRows.findIndex((row) => row[0] === cartID);
+    // 2) إيجاد الصف الحقيقي داخل الـ Sheet
+    const rowIndex = rows.findIndex((row) => String(row[0]).trim() === String(cartID).trim());
 
-    if (index === -1) {
+    if (rowIndex === -1) {
       return NextResponse.json(
         { success: false, message: "المنتج مش بالسلة" },
         { status: 404 }
       );
     }
 
-    // ============================
-    // 3) حذف الصف
-    // ============================
-    cartRows.splice(index, 1);
-
-    // إعادة كتابة الجدول كامل بعد حذف الصف
-    await sheets.spreadsheets.values.update({
+    // 3) حذف الصف الحقيقي من الـ Sheet
+    await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
-      range: "Cart!A:Z",
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [["Cart ID","Customer ID","Product ID","Qty","Store ID","Line Total","Checked Out","Check Out Flag","Request ID","Line Points"], ...cartRows] },
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: 0, // أول شيت عادةً
+                dimension: "ROWS",
+                startIndex: rowIndex,
+                endIndex: rowIndex + 1,
+              },
+            },
+          },
+        ],
+      },
     });
 
     return NextResponse.json({
       success: true,
-      message: "تم الحذف",
+      message: "تم حذف المنتج من السلة",
     });
 
   } catch (err) {
