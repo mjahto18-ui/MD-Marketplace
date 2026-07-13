@@ -3,11 +3,12 @@ import { google } from "googleapis";
 
 export async function DELETE(req) {
   try {
-    const cartID = req.nextUrl.searchParams.get("cartID");
+    const customerID = req.nextUrl.searchParams.get("customerID");
+    const productID = req.nextUrl.searchParams.get("productID");
 
-    if (!cartID) {
+    if (!customerID || !productID) {
       return NextResponse.json(
-        { success: false, message: "cartID مطلوب" },
+        { success: false, message: "customerID و productID مطلوبين" },
         { status: 400 }
       );
     }
@@ -32,14 +33,16 @@ export async function DELETE(req) {
 
     const rows = cartRes.data.values || [];
 
-    // 2) إيجاد الصف الحقيقي داخل الـ Sheet
+    // 2) إيجاد الصف الحقيقي حسب customerID + productID
     const rowIndex = rows.findIndex(
-      (row) => String(row[0]).trim() === String(cartID).trim()
+      (row) =>
+        String(row[1]).trim() === String(customerID).trim() &&
+        String(row[2]).trim() === String(productID).trim()
     );
 
     if (rowIndex === -1) {
       return NextResponse.json(
-        { success: false, message: "المنتج مش بالسلة" },
+        { success: false, message: "المنتج غير موجود بالسلة" },
         { status: 404 }
       );
     }
@@ -52,7 +55,7 @@ export async function DELETE(req) {
           {
             deleteDimension: {
               range: {
-                sheetId: 0, // رقم الشيت (عادة 0)
+                sheetId: 0,
                 dimension: "ROWS",
                 startIndex: rowIndex,
                 endIndex: rowIndex + 1,
