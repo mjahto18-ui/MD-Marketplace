@@ -23,7 +23,7 @@ export async function PUT(req) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
@@ -39,7 +39,7 @@ export async function PUT(req) {
       range: "Cart!A:Z",
     });
 
-    const cartRows = cartRes.data.values || [];
+    const cartRows = cartRes.data.values?.slice(1) || [];
 
     // ============================
     // 2) إيجاد المنتج بالسلة
@@ -61,10 +61,10 @@ export async function PUT(req) {
     // ============================
     const productsRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Products!A:Z",
+      range: "Products!A:L",
     });
 
-    const productsRows = productsRes.data.values || [];
+    const productsRows = productsRes.data.values?.slice(1) || [];
 
     const product = productsRows.find((row) => row[0] === productID);
 
@@ -75,7 +75,7 @@ export async function PUT(req) {
       );
     }
 
-    const unitPrice = Number(product[4]); // Price
+    const unitPrice = Number(product[5]); // السعر الصحيح
 
     // ============================
     // 4) تعديل الكمية + Line Total
