@@ -11,6 +11,9 @@ export default function StorePage() {
   const customerID = "5482cbf7"; // مؤقت
 
   useEffect(() => {
+    // أهم سطر: ما نضرب API قبل ما يوصل storeID
+    if (!storeID) return;
+
     fetch(`/api/products/by-store?id=${storeID}`)
       .then(res => res.json())
       .then(data => {
