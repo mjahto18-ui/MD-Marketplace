@@ -12,7 +12,7 @@ export default function CategoryPage() {
     const load = async () => {
       const res = await fetch(`/api/stores/by-category?id=${id}`);
       const data = await res.json();
-      if (data.success) setStores(data.Stores);
+      if (data.success) setStores(data.stores);
     };
     load();
   }, [id]);
