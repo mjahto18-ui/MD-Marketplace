@@ -12,7 +12,7 @@ export async function GET(req) {
 
     // Auth
     const auth = new google.auth.JWT(
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      process.env.GOOGLE_CLIENT_EMAIL,
       null,
       process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
       ["https://www.googleapis.com/auth/spreadsheets"]
@@ -22,7 +22,7 @@ export async function GET(req) {
 
     // Read Products sheet
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: "Products",
     });
 
