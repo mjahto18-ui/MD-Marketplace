@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
@@ -40,7 +42,7 @@ export async function GET(req) {
       success: true,
       order: {
         requestID: order[0],
-        totalAmount: order[6], // حسب ترتيبك: Delivery Fee؟ أو Total؟ عدّلها حسب عمودك
+        totalAmount: order[6], // عدّلها حسب عمود المجموع عندك
       },
     });
 
