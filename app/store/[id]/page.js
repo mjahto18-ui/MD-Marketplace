@@ -37,12 +37,12 @@ export default function StorePage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
         {products.map(product => (
-          <div key={product["Product ID"]} style={{ border: '1px solid #ccc', padding: 10 }}>
-            <img src={product["Image"]} width="100%" />
-            <h3>{product["Product Name"]}</h3>
-            <p>السعر: {Number(product["Price"]).toLocaleString()} ل.ل</p>
-            <p>الوزن: {product["Weight Points"]} نقطة</p>
-            <button onClick={() => addToCart(product["Product ID"])}>
+          <div key={product.productID} style={{ border: '1px solid #ccc', padding: 10 }}>
+            <img src={product.image} width="100%" />
+            <h3>{product.name}</h3>
+            <p>السعر: {Number(product.price).toLocaleString()} ل.ل</p>
+            <p>الوزن: {product.weightPoint} نقطة</p>
+            <button onClick={() => addToCart(product.productID)}>
               اضف للسلة
             </button>
           </div>
