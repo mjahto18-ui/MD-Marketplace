@@ -27,15 +27,38 @@ export async function GET(req) {
     });
 
     const rows = response.data.values;
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ success: true, products: [] });
+    }
+
     const headers = rows[0];
     const data = rows.slice(1);
 
     const storeIdIndex = headers.findIndex(
-      h => h.trim().toLowerCase() === "store id"
+      h =>
+        h
+          ?.trim()
+          .replace(/"/g, "")
+          .replace(/\u00A0/g, "")
+          .toLowerCase() === "store id"
     );
 
+    if (storeIdIndex === -1) {
+      return NextResponse.json({
+        success: false,
+        message: "Store ID column not found",
+      });
+    }
+
     const products = data
-      .filter(row => String(row[storeIdIndex]).replace(/"/g, "").trim() === storeID.trim())
+      .filter(row => {
+        const raw = String(row[storeIdIndex] ?? "");
+        const cleaned = raw
+          .trim()
+          .replace(/"/g, "")
+          .replace(/\u00A0/g, "");
+        return cleaned === storeID.trim();
+      })
       .map(row => {
         const obj = {};
         headers.forEach((h, i) => {
