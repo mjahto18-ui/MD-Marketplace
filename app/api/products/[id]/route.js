@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";   // ← الحل الأساسي
+
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
@@ -29,12 +31,11 @@ export async function GET(req, { params }) {
     // ============================
     const productsRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Products!A:Z", // حسب الأعمدة الموجودة بالصورة
+      range: "Products!A:Z",
     });
 
     const products = productsRes.data.values || [];
 
-    // Product ID موجود بالعمود A (index 0)
     const product = products.find((row) => row[0] === productID);
 
     if (!product) {
@@ -57,21 +58,21 @@ export async function GET(req, { params }) {
     const store = stores.find((row) => row[0] === product[1]); // Store ID
 
     // ============================
-    // 3) تجهيز بيانات المنتج حسب ترتيب الأعمدة الصحيح
+    // 3) تجهيز بيانات المنتج
     // ============================
     const productData = {
-      productID: product[0],            // A
-      storeID: product[1],              // B
-      name: product[2],                 // C
-      category: product[3],             // D
-      unit: product[4],                 // E
-      price: Number(product[5]),        // F
-      image: product[6],                // G
-      description: product[7],          // H
-      available: product[8],            // I
-      stock: Number(product[9]),        // J
-      active: product[10],              // K
-      weightPoint: Number(product[11]), // L
+      productID: product[0],
+      storeID: product[1],
+      name: product[2],
+      category: product[3],
+      unit: product[4],
+      price: Number(product[5]),
+      image: product[6],
+      description: product[7],
+      available: product[8],
+      stock: Number(product[9]),
+      active: product[10],
+      weightPoint: Number(product[11]),
       storeName: store ? store[1] : "متجر محذوف",
     };
 
