@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 'use client';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -40,10 +42,15 @@ export default function OrderSuccessPage() {
 
         <h1 className="text-2xl font-bold mb-4">تم تأكيد طلبك بنجاح!</h1>
 
-        <p className="text-lg mb-2">رقم الطلب: <span className="font-bold">{order.requestID}</span></p>
+        <p className="text-lg mb-2">
+          رقم الطلب: <span className="font-bold">{order.requestID}</span>
+        </p>
 
         <p className="text-lg mb-4">
-          المبلغ الإجمالي: <span className="font-bold">{Number(order.totalAmount).toLocaleString()} ل.ل</span>
+          المبلغ الإجمالي:{" "}
+          <span className="font-bold">
+            {Number(order.totalAmount).toLocaleString()} ل.ل
+          </span>
         </p>
 
         <button
