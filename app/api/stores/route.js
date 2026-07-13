@@ -26,9 +26,14 @@ export async function GET() {
     const rows = storesRes.data.values || [];
 
     // ============================
-    // 2) تجهيز البيانات حسب ترتيب الأعمدة الصحيح
+    // 2) تجاهل أول صف لأنه Header
     // ============================
-    const stores = rows.map((row) => ({
+    const dataRows = rows.slice(1);
+
+    // ============================
+    // 3) تجهيز البيانات حسب ترتيب الأعمدة الصحيح
+    // ============================
+    const stores = dataRows.map((row) => ({
       storeID: row[0],            // A
       storeName: row[1],          // B
       category: row[2],           // C
