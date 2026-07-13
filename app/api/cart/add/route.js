@@ -16,7 +16,7 @@ export async function POST(req) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
@@ -29,10 +29,10 @@ export async function POST(req) {
     // ============================
     const productsRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Products!A:Z",
+      range: "Products!A:L",
     });
 
-    const products = productsRes.data.values || [];
+    const products = productsRes.data.values?.slice(1) || [];
 
     const product = products.find((row) => row[0] === productID);
 
@@ -43,7 +43,7 @@ export async function POST(req) {
       });
     }
 
-    const unitPrice = Number(product[4]);        // Price
+    const unitPrice = Number(product[5]);        // السعر الصحيح
     const storeID = product[1];                 // Store ID
     const linePoints = Number(product[11]);     // Weight Point
 
@@ -55,7 +55,7 @@ export async function POST(req) {
       range: "Cart!A:Z",
     });
 
-    const cartRows = cartRes.data.values || [];
+    const cartRows = cartRes.data.values?.slice(1) || [];
 
     // ============================
     // 3) هل المنتج موجود بالسلة؟
@@ -64,7 +64,7 @@ export async function POST(req) {
       (row) =>
         row[1] === customerID &&
         row[2] === productID &&
-        row[6] === "FALSE" // Checked Out
+        row[6] === "FALSE"
     );
 
     // ============================
