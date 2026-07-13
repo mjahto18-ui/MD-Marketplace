@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, MessageCircle, Store, Package, Search, Sparkles } from "lucide-react";
+import { ShoppingCart, User, LogOut, Store, Package, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 
@@ -47,12 +47,14 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen gradient-bg">
 
-      {/* زر السلة */}
+      {/* زر السلة فوق حد تسجيل الخروج */}
       <CartIcon />
 
       <div className="glass border-b border-white/10 p-4">
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
           <div className="flex items-center justify-between">
+            
+            {/* الشمال */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
                 <ShoppingCart className="w-5 h-5 text-white" />
@@ -64,7 +66,21 @@ export default function ShopPage() {
                 </p>
               </div>
             </div>
+
+            {/* اليمين */}
             <div className="flex items-center gap-3">
+
+              {/* زر السلة هون */}
+              <button 
+                onClick={() => router.push('/cart')}
+                className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 relative"
+              >
+                🛒
+
+                {/* الجرس يهزّ */}
+                <CartBell />
+              </button>
+
               {user ? (
                 <>
                   <button onClick={() => router.push('/dashboard')} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20">
@@ -134,9 +150,8 @@ export default function ShopPage() {
   );
 }
 
-/* زر السلة */
-function CartIcon() {
-  const router = useRouter();
+/* الجرس */
+function CartBell() {
   const [hasItems, setHasItems] = useState(false);
   const customerID = "5482cbf7";
 
@@ -150,40 +165,22 @@ function CartIcon() {
       });
   }, []);
 
+  if (!hasItems) return null;
+
   return (
     <div
-      onClick={() => router.push('/cart')}
       style={{
-        position: 'fixed',
-        bottom: 20,
-        left: 20,
-        background: '#e91e63',
-        padding: 14,
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        background: 'yellow',
+        width: 16,
+        height: 16,
         borderRadius: '50%',
-        cursor: 'pointer',
-        fontSize: 28,
-        boxShadow: '0 0 15px rgba(0,0,0,0.3)',
-        zIndex: 999
+        border: '2px solid white',
+        animation: 'shake 0.5s infinite'
       }}
     >
-      🛒
-
-      {hasItems && (
-        <div
-          style={{
-            position: 'absolute',
-            top: -5,
-            right: -5,
-            background: 'yellow',
-            width: 18,
-            height: 18,
-            borderRadius: '50%',
-            animation: 'shake 0.5s infinite',
-            border: '2px solid #e91e63'
-          }}
-        ></div>
-      )}
-
       <style>{`
         @keyframes shake {
           0% { transform: translate(0, 0); }
