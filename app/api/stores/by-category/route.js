@@ -27,22 +27,52 @@ export async function GET(req) {
     });
 
     const rows = res.data.values || [];
-    const headers = rows[0];
+    if (rows.length <= 1) {
+      return NextResponse.json({ success: true, stores: [] });
+    }
+
+    const headers = rows[0].map(h => h.trim());
     const data = rows.slice(1);
 
-    const stores = data
-  .filter(row => String(row[headers.indexOf("Category")]).trim() === String(categoryID).trim())
-  .map(row => {
-    const store = {};
-    headers.forEach((h, i) => store[h] = row[i] || "");
-    return store;
-  });
+    // عمود Category في شيت Stores
+    const categoryIndex = headers.findIndex(h => h.toLowerCase() === 'category');
 
+    if (categoryIndex === -1) {
+      return NextResponse.json({
+        success: false,
+        message: "Category column not found in Stores sheet"
+      });
+    }
+
+    const stores = data
+     .filter(row => {
+        const rowCategory = String(row[categoryIndex] || "")
+         .trim()
+         .replace('.0', ''); // عشان 3002.0 تصير 3002
+        return rowCategory === String(categoryID).trim();
+      })
+     .map(row => {
+        const store = {};
+        headers.forEach((h, i) => store[h] = row[i] || "");
+
+        return {
+          store_id: store["Store ID"],
+          store_name: store["Store Name"],
+          logo: store["Logo"] || "",
+          description: store["Description"] || "",
+          category: store["Category"],
+          status: store["Status"] || "",
+          address: store["Adress"] || store["Address"] || "",
+        };
+      });
 
     return NextResponse.json({ success: true, stores });
 
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false, message: "Error" });
+    console.error("by-category error:", err);
+    return NextResponse.json({
+      success: false,
+      message: err.message || "Server Error"
+    });
   }
 }
