@@ -44,8 +44,11 @@ export default function CartPage() {
     fetchCart();
   };
 
-  const removeItem = async (cartID) => {
-    await fetch(`/api/cart/remove?cartID=${cartID}`, { method: 'DELETE' });
+  // 🔥 النسخة الصحيحة للحذف
+  const removeItem = async (productID) => {
+    await fetch(`/api/cart/remove?customerID=${customerID}&productID=${productID}`, {
+      method: 'DELETE'
+    });
     fetchCart();
   };
 
@@ -109,7 +112,7 @@ export default function CartPage() {
 
               {/* حذف */}
               <button 
-                onClick={() => removeItem(item.cartID)}
+                onClick={() => removeItem(item.productID)}
                 className="mt-3 text-red-400 text-sm"
               >
                 حذف المنتج
