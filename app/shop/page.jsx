@@ -4,6 +4,65 @@ import { ShoppingCart, User, LogOut, Store, Package, Search, Sparkles } from "lu
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 
+/* زر السلة فوق */
+function CartBell() {
+  const [hasItems, setHasItems] = useState(false);
+  const customerID = "5482cbf7";
+
+  useEffect(() => {
+    fetch(`/api/cart?customerID=${customerID}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.cart.length > 0) {
+          setHasItems(true);
+        }
+      });
+  }, []);
+
+  if (!hasItems) return null;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        background: 'yellow',
+        width: 16,
+        height: 16,
+        borderRadius: '50%',
+        border: '2px solid white',
+        animation: 'shake 0.5s infinite'
+      }}
+    >
+      <style>{`
+        @keyframes shake {
+          0% { transform: translate(0, 0); }
+          25% { transform: translate(2px, -2px); }
+          50% { transform: translate(-2px, 2px); }
+          75% { transform: translate(2px, 2px); }
+          100% { transform: translate(0, 0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function CartIcon() {
+  const router = useRouter();
+
+  return (
+    <button 
+      onClick={() => router.push('/cart')}
+      className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 relative"
+    >
+      🛒
+      <CartBell />
+    </button>
+  );
+}
+
+/* الصفحة الرئيسية */
 export default function ShopPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -47,13 +106,10 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen gradient-bg">
 
-      {/* زر السلة فوق حد تسجيل الخروج */}
-      <CartIcon />
-
       <div className="glass border-b border-white/10 p-4">
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            
+
             {/* الشمال */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
@@ -70,16 +126,8 @@ export default function ShopPage() {
             {/* اليمين */}
             <div className="flex items-center gap-3">
 
-              {/* زر السلة هون */}
-              <button 
-                onClick={() => router.push('/cart')}
-                className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 relative"
-              >
-                🛒
-
-                {/* الجرس يهزّ */}
-                <CartBell />
-              </button>
+              {/* زر السلة فوق */}
+              <CartIcon />
 
               {user ? (
                 <>
@@ -146,50 +194,6 @@ export default function ShopPage() {
           ))}
         </div>
       </div>
-    </div>
-  );
-}
-
-/* الجرس */
-function CartBell() {
-  const [hasItems, setHasItems] = useState(false);
-  const customerID = "5482cbf7";
-
-  useEffect(() => {
-    fetch(`/api/cart?customerID=${customerID}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.cart.length > 0) {
-          setHasItems(true);
-        }
-      });
-  }, []);
-
-  if (!hasItems) return null;
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top: -4,
-        right: -4,
-        background: 'yellow',
-        width: 16,
-        height: 16,
-        borderRadius: '50%',
-        border: '2px solid white',
-        animation: 'shake 0.5s infinite'
-      }}
-    >
-      <style>{`
-        @keyframes shake {
-          0% { transform: translate(0, 0); }
-          25% { transform: translate(2px, -2px); }
-          50% { transform: translate(-2px, 2px); }
-          75% { transform: translate(2px, 2px); }
-          100% { transform: translate(0, 0); }
-        }
-      `}</style>
     </div>
   );
 }
