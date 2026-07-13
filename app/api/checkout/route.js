@@ -33,21 +33,16 @@ export async function POST(req) {
       customersRes,
       productsRes,
       deliveryRatesRes,
-      orderRequestRes,
-      orderDetailsRes,
     ] = await Promise.all([
       sheets.spreadsheets.values.get({ spreadsheetId, range: "Cart!A:Z" }),
       sheets.spreadsheets.values.get({ spreadsheetId, range: "Customers!A:Z" }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Products!A:Z" }),
+      sheets.spreadsheets.values.get({ spreadsheetId, range: "Products!A:L" }),
       sheets.spreadsheets.values.get({ spreadsheetId, range: "Delivery Rates!A:Z" }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Order Requuest!A:AC" }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Order Details!A:Z" }),
     ]);
 
-    const cartRows = cartRes.data.values || [];
-    const customerRows = customersRes.data.values || [];
-    const productsRows = productsRes.data.values || [];
-    const deliveryRatesRows = deliveryRatesRes.data.values || [];
+    const cartRows = cartRes.data.values?.slice(1) || [];
+    const customerRows = customersRes.data.values?.slice(1) || [];
+    const deliveryRatesRows = deliveryRatesRes.data.values?.slice(1) || [];
 
     // ============================
     // 2) سلة الزبون
@@ -172,7 +167,7 @@ export async function POST(req) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "Order Requuest!A:Z",
+      range: "Order Requuest!A:AC",
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [newOrderRequestRow] },
     });
@@ -210,7 +205,16 @@ export async function POST(req) {
     // ============================
     // 9) تحديث السلة → Checked Out = TRUE
     // ============================
-    const updatedCart = cartRows.map((row) => {
+    const fullCartRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Cart!A:Z",
+    });
+
+    const fullCartRows = fullCartRes.data.values || [];
+    const header = fullCartRows[0];
+    const dataRows = fullCartRows.slice(1);
+
+    const updatedDataRows = dataRows.map((row) => {
       if (row[1] === customerID && row[6] === "FALSE") {
         row[6] = "TRUE";
         row[8] = requestID;
@@ -222,7 +226,7 @@ export async function POST(req) {
       spreadsheetId,
       range: "Cart!A:Z",
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: updatedCart },
+      requestBody: { values: [header, ...updatedDataRows] },
     });
 
     return NextResponse.json({
