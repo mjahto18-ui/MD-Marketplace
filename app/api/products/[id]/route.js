@@ -16,7 +16,7 @@ export async function GET(req, { params }) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
@@ -29,7 +29,7 @@ export async function GET(req, { params }) {
     // ============================
     const productsRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Products!A:Z",
+      range: "Products!A:L", // حسب الأعمدة الموجودة بالصورة
     });
 
     const products = productsRes.data.values || [];
@@ -57,19 +57,22 @@ export async function GET(req, { params }) {
     const store = stores.find((row) => row[0] === product[1]); // Store ID
 
     // ============================
-    // 3) تجهيز بيانات المنتج
+    // 3) تجهيز بيانات المنتج حسب ترتيب الأعمدة الصحيح
     // ============================
     const productData = {
-      productID: product[0],
-      name: product[2],
-      price: Number(product[4]),
-      image: product[5],
-      weightPoint: Number(product[11]),
-      storeID: product[1],
+      productID: product[0],            // A
+      storeID: product[1],              // B
+      name: product[2],                 // C
+      category: product[3],             // D
+      unit: product[4],                 // E
+      price: Number(product[5]),        // F
+      image: product[6],                // G
+      description: product[7],          // H
+      available: product[8],            // I
+      stock: Number(product[9]),        // J
+      active: product[10],              // K
+      weightPoint: Number(product[11]), // L
       storeName: store ? store[1] : "متجر محذوف",
-      description: product[6] || "",
-      category: product[3] || "",
-      stock: Number(product[10]) || 0,
     };
 
     return NextResponse.json({
