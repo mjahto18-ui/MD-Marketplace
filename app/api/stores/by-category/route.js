@@ -31,7 +31,7 @@ export async function GET(req) {
     const data = rows.slice(1);
 
     const stores = data
-      .filter(row => row[headers.indexOf("category_id")] === categoryID)
+      .filter(row => row[headers.indexOf("Category")] === categoryID)
       .map(row => {
         const store = {};
         headers.forEach((h, i) => store[h] = row[i] || "");
