@@ -29,7 +29,7 @@ export async function GET(req, { params }) {
     // ============================
     const productsRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Products!A:L", // حسب الأعمدة الموجودة بالصورة
+      range: "Products!A:Z", // حسب الأعمدة الموجودة بالصورة
     });
 
     const products = productsRes.data.values || [];
@@ -49,7 +49,7 @@ export async function GET(req, { params }) {
     // ============================
     const storesRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Stores!A:O",
+      range: "Stores!A:Z",
     });
 
     const stores = storesRes.data.values || [];
