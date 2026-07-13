@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";   // ← الحل الأساسي
+
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
@@ -23,13 +25,11 @@ export async function GET(req) {
     // ============================
     const productsRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Products!A:L", // حسب الأعمدة الموجودة بالصورة
+      range: "Products!A:L",
     });
 
     const rows = productsRes.data.values || [];
-
-    // تجاهل أول صف لأنه Header
-    const productsRows = rows.slice(1);
+    const productsRows = rows.slice(1); // تجاهل الـ Header
 
     // ============================
     // 2) جلب جدول Stores
@@ -40,9 +40,7 @@ export async function GET(req) {
     });
 
     const storesRows = storesRes.data.values || [];
-
-    // تجاهل أول صف لأنه Header
-    const storesData = storesRows.slice(1);
+    const storesData = storesRows.slice(1); // تجاهل الـ Header
 
     // ============================
     // 3) فلترة حسب Store ID (اختياري)
@@ -60,18 +58,18 @@ export async function GET(req) {
       const store = storesData.find((s) => s[0] === row[1]); // Store ID
 
       return {
-        productID: row[0],            // A
-        storeID: row[1],              // B
-        name: row[2],                 // C
-        category: row[3],             // D
-        unit: row[4],                 // E
-        price: Number(row[5]),        // F
-        image: row[6],                // G
-        description: row[7],          // H
-        available: row[8],            // I
-        stock: Number(row[9]),        // J
-        active: row[10],              // K
-        weightPoint: Number(row[11]), // L
+        productID: row[0],
+        storeID: row[1],
+        name: row[2],
+        category: row[3],
+        unit: row[4],
+        price: Number(row[5]),
+        image: row[6],
+        description: row[7],
+        available: row[8],
+        stock: Number(row[9]),
+        active: row[10],
+        weightPoint: Number(row[11]),
         storeName: store ? store[1] : "متجر محذوف",
       };
     });
