@@ -34,6 +34,7 @@ export async function GET(req) {
     const headers = rows[0];
     const data = rows.slice(1);
 
+    // Find Store ID column safely
     const storeIdIndex = headers.findIndex(
       h =>
         h
@@ -50,6 +51,7 @@ export async function GET(req) {
       });
     }
 
+    // Filter products by storeID
     const products = data
       .filter(row => {
         const raw = String(row[storeIdIndex] ?? "");
