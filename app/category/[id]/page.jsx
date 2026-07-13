@@ -37,7 +37,7 @@ export default function CategoryPage() {
   if (loading) {
     return (
       <div className="p-4 text-white" style={{ direction: "rtl" }}>
-        <h1 className="text-2xl font-bold mb-4">جاري التحميل...</h1>
+        <h1 className="text-2xl font-bold mb-4">جاري التحميل....</h1>
       </div>
     );
   }
