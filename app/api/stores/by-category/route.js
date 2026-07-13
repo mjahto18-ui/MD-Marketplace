@@ -31,12 +31,13 @@ export async function GET(req) {
     const data = rows.slice(1);
 
     const stores = data
-      .filter(row => row[headers.indexOf("Category")] === categoryID)
-      .map(row => {
-        const store = {};
-        headers.forEach((h, i) => store[h] = row[i] || "");
-        return store;
-      });
+  .filter(row => String(row[headers.indexOf("Category")]).trim() === String(categoryID).trim())
+  .map(row => {
+    const store = {};
+    headers.forEach((h, i) => store[h] = row[i] || "");
+    return store;
+  });
+
 
     return NextResponse.json({ success: true, stores });
 
