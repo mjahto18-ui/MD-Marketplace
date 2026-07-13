@@ -24,7 +24,7 @@ export async function DELETE(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-    // 1) جلب كل الصفوف بدون حذف الـ header
+    // 1) جلب كل الصفوف كما هي
     const cartRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "Cart!A:Z",
@@ -33,7 +33,9 @@ export async function DELETE(req) {
     const rows = cartRes.data.values || [];
 
     // 2) إيجاد الصف الحقيقي داخل الـ Sheet
-    const rowIndex = rows.findIndex((row) => String(row[0]).trim() === String(cartID).trim());
+    const rowIndex = rows.findIndex(
+      (row) => String(row[0]).trim() === String(cartID).trim()
+    );
 
     if (rowIndex === -1) {
       return NextResponse.json(
@@ -42,7 +44,7 @@ export async function DELETE(req) {
       );
     }
 
-    // 3) حذف الصف الحقيقي من الـ Sheet
+    // 3) حذف الصف الحقيقي فقط
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: {
@@ -50,7 +52,7 @@ export async function DELETE(req) {
           {
             deleteDimension: {
               range: {
-                sheetId: 0, // أول شيت عادةً
+                sheetId: 0, // رقم الشيت (عادة 0)
                 dimension: "ROWS",
                 startIndex: rowIndex,
                 endIndex: rowIndex + 1,
