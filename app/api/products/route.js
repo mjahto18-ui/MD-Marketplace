@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
-export async function GET(request) {
+export async function GET(req) {
   try {
-    const { searchParams } = new URL(request.url);
-    const storeID = searchParams.get("storeID"); // فلتر اختياري
+    // قراءة storeID من URL بالطريقة الصحيحة
+    const storeID = req.nextUrl.searchParams.get("storeID");
 
     // Google Auth
     const auth = new google.auth.GoogleAuth({
@@ -26,7 +26,10 @@ export async function GET(request) {
       range: "Products!A:L", // حسب الأعمدة الموجودة بالصورة
     });
 
-    const productsRows = productsRes.data.values || [];
+    const rows = productsRes.data.values || [];
+
+    // تجاهل أول صف لأنه Header
+    const productsRows = rows.slice(1);
 
     // ============================
     // 2) جلب جدول Stores
@@ -37,6 +40,9 @@ export async function GET(request) {
     });
 
     const storesRows = storesRes.data.values || [];
+
+    // تجاهل أول صف لأنه Header
+    const storesData = storesRows.slice(1);
 
     // ============================
     // 3) فلترة حسب Store ID (اختياري)
@@ -51,7 +57,7 @@ export async function GET(request) {
     // 4) تجهيز البيانات وربطها مع Stores
     // ============================
     const products = filteredProducts.map((row) => {
-      const store = storesRows.find((s) => s[0] === row[1]); // Store ID
+      const store = storesData.find((s) => s[0] === row[1]); // Store ID
 
       return {
         productID: row[0],            // A
