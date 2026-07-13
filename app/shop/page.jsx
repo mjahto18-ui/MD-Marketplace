@@ -34,8 +34,8 @@ export default function ShopPage() {
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
-    router.push('/login'); // هون السر: استعمل router مش window.location
-    router.refresh(); // مشان يعمل refresh كامل
+    router.push('/login');
+    router.refresh();
   };
 
   if (loading) return (
@@ -46,6 +46,10 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen gradient-bg">
+
+      {/* زر السلة */}
+      <CartIcon />
+
       <div className="glass border-b border-white/10 p-4">
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -77,6 +81,7 @@ export default function ShopPage() {
               )}
             </div>
           </div>
+
           <div className="relative">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
             <input
@@ -113,7 +118,7 @@ export default function ShopPage() {
               <div className="aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
                 {cat.image && (
                   <img 
-                    key={cat.image} // هاد السطر بيجبر الصورة تعمل refresh
+                    key={cat.image}
                     src={cat.image}
                     alt={cat.name}
                     className="w-full h-full object-contain group-hover:scale-110 transition-all duration-300"
@@ -125,6 +130,69 @@ export default function ShopPage() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* زر السلة */
+function CartIcon() {
+  const router = useRouter();
+  const [hasItems, setHasItems] = useState(false);
+  const customerID = "5482cbf7";
+
+  useEffect(() => {
+    fetch(`/api/cart?customerID=${customerID}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.cart.length > 0) {
+          setHasItems(true);
+        }
+      });
+  }, []);
+
+  return (
+    <div
+      onClick={() => router.push('/cart')}
+      style={{
+        position: 'fixed',
+        bottom: 20,
+        left: 20,
+        background: '#e91e63',
+        padding: 14,
+        borderRadius: '50%',
+        cursor: 'pointer',
+        fontSize: 28,
+        boxShadow: '0 0 15px rgba(0,0,0,0.3)',
+        zIndex: 999
+      }}
+    >
+      🛒
+
+      {hasItems && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -5,
+            right: -5,
+            background: 'yellow',
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            animation: 'shake 0.5s infinite',
+            border: '2px solid #e91e63'
+          }}
+        ></div>
+      )}
+
+      <style>{`
+        @keyframes shake {
+          0% { transform: translate(0, 0); }
+          25% { transform: translate(2px, -2px); }
+          50% { transform: translate(-2px, 2px); }
+          75% { transform: translate(2px, 2px); }
+          100% { transform: translate(0, 0); }
+        }
+      `}</style>
     </div>
   );
 }
