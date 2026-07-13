@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";   // ← الحل الأساسي
+
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
