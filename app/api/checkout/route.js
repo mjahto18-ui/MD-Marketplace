@@ -67,7 +67,7 @@ export async function POST(req) {
     for (const row of customerCart) {
       const productID = row[2];
       const qty = Number(row[3]);
-      const linePoints = Number(row[9]); // Line Points
+      const linePoints = Number(row[9]); 
       const lineTotal = Number(row[5]);
       const unitPrice = lineTotal / qty;
 
@@ -222,11 +222,18 @@ export async function POST(req) {
       return row;
     });
 
+    // ============================
+    // 10) حذف السلة بالكامل بعد التأكيد
+    // ============================
+    const clearedCartRows = updatedDataRows.filter(
+      (row) => !(row[1] === customerID && row[6] === "TRUE")
+    );
+
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: "Cart!A:Z",
       valueInputOption: "USER_ENTERED",
-      requestBody: { values: [header, ...updatedDataRows] },
+      requestBody: { values: [header, ...clearedCartRows] },
     });
 
     return NextResponse.json({
@@ -235,6 +242,7 @@ export async function POST(req) {
       delivery_fee: deliveryFee,
       message: "تم ارسال طلبك للمراجعة",
     });
+
   } catch (err) {
     console.error("Checkout Error:", err);
     return NextResponse.json(
