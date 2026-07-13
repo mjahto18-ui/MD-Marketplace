@@ -124,7 +124,7 @@ export async function POST(req) {
       requestID, customerID, String(areaID), createdDate, note || "",
       String(deliveryAddress), deliveryFee, "", "", "Pending", "",
       requestDate, "", "FALSE", "Pending", "", "", "", "", "",
-      "Pending", "FALSE", 0, "", "", Customer[3] || "", "", "", requestDate,
+      "Pending", "FALSE", 0, "", "", customer[3] || "", "", "", requestDate,
     ];
 
     await sheets.spreadsheets.values.append({
