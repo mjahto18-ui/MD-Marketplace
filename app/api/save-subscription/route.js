@@ -1,39 +1,92 @@
-import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
 export async function POST(req) {
-  const { userId, subscriptionId } = await req.json();
+  try {
+    const { userId, subscriptionId } = await req.json();
 
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    },
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
+    if (!userId || !subscriptionId) {
+      return Response.json({
+        success: false,
+        message: "Missing data",
+      });
+    }
 
-  const sheets = google.sheets({ version: "v4", auth });
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      },
+      scopes: [
+        "https://www.googleapis.com/auth/spreadsheets",
+      ],
+    });
 
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-    range: "Users!A2:Z",
-  });
+    const sheets = google.sheets({
+      version: "v4",
+      auth,
+    });
 
-  const users = res.data.values || [];
-  const userIndex = users.findIndex(row => row[0] === userId);
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-  if (userIndex === -1) {
-    return NextResponse.json({ success: false });
+    const read = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Users!A:Z",
+    });
+
+    const rows = read.data.values || [];
+
+    // أولاً: إزالة Subscription ID من أي مستخدم آخر
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      if (
+        row[16] === subscriptionId &&
+        row[0] !== userId.toString()
+      ) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `Users!Q${i + 1}`,
+          valueInputOption: "RAW",
+          requestBody: {
+            values: [[""]],
+          },
+        });
+      }
+    }
+
+    // ثانياً: البحث عن المستخدم الحالي
+    const rowIndex = rows.findIndex(
+      (row) => row[0] === userId.toString()
+    );
+
+    if (rowIndex === -1) {
+      return Response.json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // ثالثاً: حفظ Subscription ID للمستخدم الحالي
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Users!Q${rowIndex + 1}`,
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[subscriptionId]],
+      },
+    });
+
+    return Response.json({
+      success: true,
+      message: "Subscription updated",
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    return Response.json({
+      success: false,
+      message: "Server error",
+    });
   }
-
-  users[userIndex][16] = subscriptionId; // العامود Q
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-    range: `Users!A${userIndex + 2}:Z`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values: [users[userIndex]] }
-  });
-
-  return NextResponse.json({ success: true });
 }

@@ -1,12 +1,68 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, MessageCircle, Store, Package, Search, Sparkles } from "lucide-react";
+import { ShoppingCart, User, LogOut, Store, Package, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 
-// ⭐ استدعاء الـ Popup
-import NotificationPopup from "@/components/NotificationPopup";
+/* زر السلة فوق */
+function CartBell() {
+  const [hasItems, setHasItems] = useState(false);
+  const customerID = "5482cbf7";
 
+  useEffect(() => {
+    fetch(`/api/cart?customerID=${customerID}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.cart.length > 0) {
+          setHasItems(true);
+        }
+      });
+  }, []);
+
+  if (!hasItems) return null;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        background: 'yellow',
+        width: 16,
+        height: 16,
+        borderRadius: '50%',
+        border: '2px solid white',
+        animation: 'shake 0.5s infinite'
+      }}
+    >
+      <style>{`
+        @keyframes shake {
+          0% { transform: translate(0, 0); }
+          25% { transform: translate(2px, -2px); }
+          50% { transform: translate(-2px, 2px); }
+          75% { transform: translate(2px, 2px); }
+          100% { transform: translate(0, 0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function CartIcon() {
+  const router = useRouter();
+
+  return (
+    <button 
+      onClick={() => router.push('/cart')}
+      className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 relative"
+    >
+      🛒
+      <CartBell />
+    </button>
+  );
+}
+
+/* الصفحة الرئيسية */
 export default function ShopPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -16,34 +72,21 @@ export default function ShopPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-      .then(async (res) => {
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user) setUser(data.user);
-        }
-      })
-      .finally(() => setLoading(false));
+    .then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) setUser(data.user);
+      }
+    }).finally(() => setLoading(false));
 
     fetch('/api/categories', { cache: 'no-store' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.categories) setCategories(data.categories);
-      });
+    .then(res => res.json())
+    .then(data => {
+      if (data.categories) setCategories(data.categories);
+    });
   }, []);
 
-  // ⭐⭐ الحل الأساسي: إذا ما في user → رجّعني على login ⭐⭐
-  if (!loading && !user) {
-    router.push('/login');
-    return null;
-  }
-
-  if (loading) return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center">
-      <div className="text-white text-xl">جاري التحميل...</div>
-    </div>
-  );
-
-  const filteredCategories = categories.filter(cat =>
+  const filteredCategories = categories.filter(cat => 
     cat.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -54,15 +97,20 @@ export default function ShopPage() {
     router.refresh();
   };
 
+  if (loading) return (
+    <div className="min-h-screen gradient-bg flex items-center justify-center">
+      <div className="text-white text-xl">جاري التحميل...</div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen gradient-bg">
-
-      {/* ⭐⭐ دمج الـ Popup هون ⭐⭐ */}
-      {user && <NotificationPopup userId={user.customerId} />}
 
       <div className="glass border-b border-white/10 p-4">
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
           <div className="flex items-center justify-between">
+
+            {/* الشمال */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
                 <ShoppingCart className="w-5 h-5 text-white" />
@@ -70,11 +118,17 @@ export default function ShopPage() {
               <div>
                 <h1 className="text-white font-bold">MD Marketplace</h1>
                 <p className="text-purple-200 text-xs">
-                  {user ? `أهلاً ${user.name}` : 'تصفح كزائر'}
+                  {user? `أهلاً ${user.name}` : 'تصفح كزائر'}
                 </p>
               </div>
             </div>
+
+            {/* اليمين */}
             <div className="flex items-center gap-3">
+
+              {/* زر السلة فوق */}
+              <CartIcon />
+
               {user ? (
                 <>
                   <button onClick={() => router.push('/dashboard')} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20">
@@ -127,7 +181,7 @@ export default function ShopPage() {
             <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group">
               <div className="aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
                 {cat.image && (
-                  <img
+                  <img 
                     key={cat.image}
                     src={cat.image}
                     alt={cat.name}
