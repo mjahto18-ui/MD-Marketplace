@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
-export async function GET(request) {
+export async function GET(req) {
   try {
-    const { searchParams } = new URL(request.url);
-    const customerID = searchParams.get("customerID");
+    // قراءة customerID بالطريقة الصحيحة
+    const customerID = req.nextUrl.searchParams.get("customerID");
 
     if (!customerID) {
       return NextResponse.json(
@@ -35,17 +35,17 @@ export async function GET(request) {
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "Products!A:Z",
+        range: "Products!A:L",
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "Stores!A:Z",
+        range: "Stores!A:O",
       }),
     ]);
 
-    const cartRows = cartRes.data.values || [];
-    const productsRows = productsRes.data.values || [];
-    const storesRows = storesRes.data.values || [];
+    const cartRows = cartRes.data.values?.slice(1) || [];
+    const productsRows = productsRes.data.values?.slice(1) || [];
+    const storesRows = storesRes.data.values?.slice(1) || [];
 
     // ============================
     // 2) فلترة سلة الزبون
@@ -69,7 +69,7 @@ export async function GET(request) {
         cartID: row[0],
         productID: row[2],
         name: product ? product[2] : "منتج محذوف",
-        image: product ? product[5] : "",
+        image: product ? product[6] : "",
         unitPrice,
         qty,
         lineTotal,
@@ -97,6 +97,7 @@ export async function GET(request) {
       totalWeight,
       subtotal,
     });
+
   } catch (err) {
     console.error("Cart GET Error:", err);
     return NextResponse.json(
