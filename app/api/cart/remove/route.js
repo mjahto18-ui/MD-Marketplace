@@ -13,7 +13,6 @@ export async function DELETE(req) {
       );
     }
 
-    // Google Auth
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -25,7 +24,6 @@ export async function DELETE(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-    // 1) جلب كل الصفوف كما هي
     const cartRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "Cart!A:Z",
@@ -33,7 +31,6 @@ export async function DELETE(req) {
 
     const rows = cartRes.data.values || [];
 
-    // 2) إيجاد الصف الحقيقي حسب customerID + productID
     const rowIndex = rows.findIndex(
       (row) =>
         String(row[1]).trim() === String(customerID).trim() &&
@@ -47,7 +44,6 @@ export async function DELETE(req) {
       );
     }
 
-    // 3) حذف الصف الحقيقي فقط
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: {
