@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { GoogleSpreadsheet } from "google-spreadsheet";
-import { JWT } from "google-auth-library";
+import { google } from "googleapis";
 
 export async function GET(req) {
   try {
@@ -11,28 +10,47 @@ export async function GET(req) {
       return NextResponse.json({ success: false, message: "Missing store ID" });
     }
 
-    const serviceAccountAuth = new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    // Auth
+    const auth = new google.auth.JWT(
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      null,
+      process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      ["https://www.googleapis.com/auth/spreadsheets"]
+    );
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // Read Products sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: "Products",
     });
 
-    const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
-    await doc.loadInfo();
+    const rows = response.data.values;
+    const headers = rows[0];
+    const data = rows.slice(1);
 
-    const sheet = doc.sheetsByTitle["Products"];
-    const rows = await sheet.getRows();
+    const storeIdIndex = headers.findIndex(
+      h => h.trim().toLowerCase() === "store id"
+    );
 
-    const products = rows
-      .filter(r => String(r["Store ID"]).replace(/"/g, "").trim() === storeID.trim())
-      .map(r => ({
-        productID: r["Product ID"],
-        name: r["Product Name"],
-        image: r["Image"],
-        price: Number(r["Price"]),
-        weightPoint: Number(r["Weight Points"]),
-        storeName: r["Store Name"] || "",
-      }));
+    const products = data
+      .filter(row => String(row[storeIdIndex]).replace(/"/g, "").trim() === storeID.trim())
+      .map(row => {
+        const obj = {};
+        headers.forEach((h, i) => {
+          obj[h] = row[i];
+        });
+
+        return {
+          productID: obj["Product ID"],
+          name: obj["Product Name"],
+          image: obj["Image"],
+          price: Number(obj["Price"]),
+          weightPoint: Number(obj["Weight Points"]),
+          storeName: obj["Store Name"] || "",
+        };
+      });
 
     return NextResponse.json({ success: true, products });
   } catch (err) {
