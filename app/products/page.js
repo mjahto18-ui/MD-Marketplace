@@ -7,7 +7,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const customerID = " "; // مؤقت
+  const customerID = "5482cbf7"; // مؤقت
 
   useEffect(() => {
     fetch('/api/products')
