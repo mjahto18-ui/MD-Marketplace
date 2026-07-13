@@ -1,6 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+export const dynamic = "force-dynamic";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
 export default function StorePage() {
   const { id: storeID } = useParams();
@@ -9,9 +11,9 @@ export default function StorePage() {
   const customerID = "5482cbf7"; // مؤقت
 
   useEffect(() => {
-    fetch(`/api/products?storeID=${storeID}`)
-     .then(res => res.json())
-     .then(data => {
+    fetch(`/api/products/by-store?id=${storeID}`)
+      .then(res => res.json())
+      .then(data => {
         if (data.success) setProducts(data.products);
         setLoading(false);
       });
@@ -32,14 +34,15 @@ export default function StorePage() {
   return (
     <div style={{ padding: 20, direction: 'rtl' }}>
       <h1>منتجات المتجر</h1>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
         {products.map(product => (
-          <div key={product.productID} style={{ border: '1px solid #ccc', padding: 10 }}>
-            <img src={product.image} width="100%" />
-            <h3>{product.name}</h3>
-            <p>السعر: {product.price.toLocaleString()} ل.ل</p>
-            <p>الوزن: {product.weightPoint} نقطة</p>
-            <button onClick={() => addToCart(product.productID)}>
+          <div key={product["Product ID"]} style={{ border: '1px solid #ccc', padding: 10 }}>
+            <img src={product["Image"]} width="100%" />
+            <h3>{product["Product Name"]}</h3>
+            <p>السعر: {Number(product["Price"]).toLocaleString()} ل.ل</p>
+            <p>الوزن: {product["Weight Points"]} نقطة</p>
+            <button onClick={() => addToCart(product["Product ID"])}>
               اضف للسلة
             </button>
           </div>
