@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState([]);
+  const [filtered, setFiltered] = useState([]);   // ← للفلترة
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");       // ← نص الفلتر
 
   const customerID = "5482cbf7"; // مؤقت
 
@@ -13,10 +15,28 @@ export default function ProductsPage() {
     fetch('/api/products')
       .then(res => res.json())
       .then(data => {
-        if (data.success) setProducts(data.products);
+        if (data.success) {
+          setProducts(data.products);
+          setFiltered(data.products); // ← أول مرة نفس الشي
+        }
         setLoading(false);
       });
   }, []);
+
+  // فلترة حسب الاسم
+  useEffect(() => {
+    const text = search.trim().toLowerCase();
+    if (!text) {
+      setFiltered(products);
+      return;
+    }
+
+    const result = products.filter(p =>
+      p.name?.toLowerCase().includes(text)
+    );
+
+    setFiltered(result);
+  }, [search, products]);
 
   const addToCart = async (productID) => {
     const res = await fetch('/api/cart/add', {
@@ -51,13 +71,29 @@ export default function ProductsPage() {
 
       <h1 style={{ marginBottom: 20 }}>كل المنتجات</h1>
 
+      {/* فلتر البحث */}
+      <input
+        type="text"
+        placeholder="ابحث عن منتج..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{
+          width: '100%',
+          padding: 12,
+          marginBottom: 20,
+          borderRadius: 8,
+          border: 'none',
+          fontSize: 16
+        }}
+      />
+
       {/* Grid */}
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
         gap: 15 
       }}>
-        {products.map(product => (
+        {filtered.map(product => (
           <div 
             key={product.productID} 
             style={{ 
@@ -67,7 +103,6 @@ export default function ProductsPage() {
               textAlign: 'center'
             }}
           >
-            {/* صورة صغيرة */}
             <img 
               src={product.image} 
               style={{ 
@@ -83,6 +118,7 @@ export default function ProductsPage() {
             <p style={{ fontSize: 13 }}>السعر: {product.price.toLocaleString()} ل.ل</p>
             <p style={{ fontSize: 13 }}>الوزن: {product.weightPoint} نقطة</p>
 
+            {/* زر السلة */}
             <button 
               onClick={() => addToCart(product.productID)}
               style={{
