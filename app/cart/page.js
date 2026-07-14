@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, ChevronRight, Plus, Minus, Trash2 } from 'lucide-react';
+import { ShoppingCart, ChevronRight, Plus, Minus, Trash2, Banknote, Wallet, Check } from 'lucide-react';
 
 export default function CartPage() {
   const router = useRouter();
@@ -10,6 +10,8 @@ export default function CartPage() {
   const [subtotal, setSubtotal] = useState(0);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState('wallet'); // 'cod' او 'wallet'
+  const [walletBalance, setWalletBalance] = useState(0); // مؤقتاً 0 زي ما طلبت
 
   // مؤقت – لازم يجي من /api/me
   const customerID = "5482cbf7";
@@ -33,6 +35,8 @@ export default function CartPage() {
 
   useEffect(() => {
     fetchCart();
+    // بعدين هون بتجيب رصيد المحفظة من /api/wallet
+    // setWalletBalance(data.balance);
   }, []);
 
   const updateQty = async (cartID, newQty) => {
@@ -64,14 +68,15 @@ export default function CartPage() {
   if (cart.length === 0)
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
-        {/* الهيدر - بس لوجو وسلة */}
         <header className="px-4 pt-6 pb-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="w-12"></div>
+            <button onClick={() => router.back()}>
+              <ChevronRight className="w-6 h-6" />
+            </button>
             <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/50">
               <ShoppingCart className="w-7 h-7" />
             </div>
-            <div className="w-12"></div>
+            <div className="w-6"></div>
           </div>
           <div className="text-center">
             <h1 className="text-xl font-bold">MD Marketplace</h1>
@@ -94,7 +99,7 @@ export default function CartPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
       
-      {/* الهيدر - بس لوجو وسلة، شلنا تسجيل الدخول */}
+      {/* الهيدر - بس لوجو + سهم رجوع، شلنا تسجيل الدخول */}
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-3">
           <button onClick={() => router.back()}>
@@ -111,90 +116,95 @@ export default function CartPage() {
       </header>
 
       <div className="px-4 pb-6">
-        <h2 className="text-2xl font-bold mb-6">سلة التسوق</h2>
+        <h2 className="text-2xl font-bold mb-6">إتمام الطلب</h2>
 
-        {/* كروت المنتجات - نفس المنطق تبعك */}
-        <div className="flex flex-col gap-3">
+        {/* كروت المنتجات - نفس المنطق تبعك 100% */}
+        <div className="flex flex-col gap-3 mb-6">
           {cart.map(item => (
-            <div key={item.cartID} className="bg-white/5 backdrop-blur-xl p-4 rounded-2xl border border-white/10 flex gap-4">
+            <div key={item.cartID} className="bg-white/5 backdrop-blur-xl p-3 rounded-2xl border border-white/10 flex gap-3 items-center">
+              <img src={item.image} className="w-16 h-16 rounded-xl object-cover" />
               
-              <img src={item.image} className="w-20 h-20 rounded-xl object-cover" />
-
               <div className="flex-1">
                 <h3 className="font-bold text-sm">{item.name}</h3>
-                <p className="text-purple-300 text-xs">المتجر: {item.storeName}</p>
-                <p className="text-xs">السعر: {item.unitPrice.toLocaleString()} ل.ل</p>
-                <p className="text-xs text-purple-200">الوزن: {item.linePoints} نقطة</p>
-
-                {/* تعديل الكمية - نفس الفنكشن تبعك */}
-                <div className="flex items-center gap-3 mt-2">
-                  <button 
-                    onClick={() => updateQty(item.cartID, item.qty - 1)}
-                    className="bg-white/10 p-2 rounded-lg active:scale-90"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
-
-                  <span className="font-bold">{item.qty}</span>
-
-                  <button 
-                    onClick={() => updateQty(item.cartID, item.qty + 1)}
-                    className="bg-white/10 p-2 rounded-lg active:scale-90"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-
-                  <button 
-                    onClick={() => removeItem(item.productID)}
-                    className="mr-auto text-red-400 p-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                <p className="text-xs text-purple-300">{item.unitPrice.toLocaleString()} LBP • الكمية {item.qty}</p>
               </div>
 
-              {/* المجموع - نفس المتغير تبعك */}
-              <div className="text-left">
-                <p className="text-xs text-purple-300">{item.unitPrice.toLocaleString()}</p>
-                <p className="font-bold text-fuchsia-400">{item.lineTotal.toLocaleString()} ل.ل</p>
+              <div className="text-left font-bold">
+                {item.lineTotal.toLocaleString()} LBP
               </div>
             </div>
           ))}
         </div>
 
         {/* ملخص الطلب - نفس المتغيرات تبعك */}
-        <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 mt-6">
-          <h3 className="font-bold mb-4 text-center text-purple-200">ملخص الطلب</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-purple-200">وزن السلة</span>
-              <span>{totalWeight} نقطة</span>
+        <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 mb-6">
+          <h3 className="text-lg font-bold mb-4 text-center">ملخص الطلب</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-purple-200">المجموع الفرعي</span>
+              <span>{subtotal.toLocaleString()} LBP</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-purple-200">مجموع المنتجات</span>
-              <span>{subtotal.toLocaleString()} ل.ل</span>
-            </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-purple-200">رسوم التوصيل</span>
-              <span className={deliveryFee === 0 ? 'text-green-400' : ''}>
-                {deliveryFee === 0 ? 'مجاني' : deliveryFee.toLocaleString() + ' ل.ل'}
-              </span>
+              <span>{deliveryFee.toLocaleString()} LBP</span>
             </div>
             <div className="border-t border-dashed border-white/20 my-3"></div>
-            <div className="flex justify-between text-lg font-bold">
-              <span>المجموع الكلي</span>
-              <span className="text-fuchsia-400">{total.toLocaleString()} ل.ل</span>
+            <div className="flex justify-between items-center text-lg font-bold">
+              <span>الإجمالي</span>
+              <span className="text-fuchsia-400">{total.toLocaleString()} LBP</span>
             </div>
           </div>
         </div>
 
+        {/* طريقة الدفع - ضفتها زي الصورة */}
+        <h3 className="text-lg font-bold mb-3 text-center">طريقة الدفع</h3>
+        
+        {/* الدفع نقداً */}
+        <button 
+          onClick={() => setPaymentMethod('cod')}
+          className={`w-full bg-white/5 backdrop-blur-xl p-4 rounded-2xl border mb-3 flex items-center gap-3 text-right ${paymentMethod === 'cod' ? 'border-fuchsia-500' : 'border-white/10'}`}
+        >
+          <div className="bg-white/10 p-3 rounded-xl">
+            <Banknote className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold">الدفع نقداً عند الاستلام</p>
+            <p className="text-xs text-purple-300">الدفع عند استلام الطلب</p>
+          </div>
+          {paymentMethod === 'cod' && <Check className="w-6 h-6 text-fuchsia-400" />}
+        </button>
+
+        {/* المحفظة - شلت Wish Money وخليتها 0 مؤقتاً */}
+        <button 
+          onClick={() => setPaymentMethod('wallet')}
+          className={`w-full bg-white/5 backdrop-blur-xl p-4 rounded-2xl border-2 mb-6 flex items-center gap-3 text-right ${paymentMethod === 'wallet' ? 'border-fuchsia-500 shadow-lg shadow-fuchsia-500/30' : 'border-white/10'}`}
+        >
+          <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-3 rounded-xl">
+            <Wallet className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold">المحفظة</p>
+            <p className="text-xs text-purple-300">متاح للاستخدام • {walletBalance.toLocaleString()} LBP</p>
+          </div>
+          {paymentMethod === 'wallet' && (
+            <div className="bg-fuchsia-500 rounded-full p-1">
+              <Check className="w-5 h-5" />
+            </div>
+          )}
+        </button>
+
         {/* زر تأكيد الطلب - نفس المنطق تبعك */}
         <button
           onClick={() => router.push('/checkout')}
-          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg mt-6 shadow-lg shadow-purple-500/50 active:scale-95 transition"
+          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition"
         >
-          تأكيد الطلب {total.toLocaleString()} ل.ل
+          تأكيد الطلب {total.toLocaleString()} LBP
         </button>
+
+        {/* النص تبع الشروط - ضفته تحت */}
+        <p className="text-center text-xs text-purple-300 mt-4">
+          بالمتابعة، أنت توافق على الشروط والأحكام
+        </p>
       </div>
     </div>
   );
