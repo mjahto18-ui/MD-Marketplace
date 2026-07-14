@@ -4,7 +4,7 @@ import { ShoppingCart, User, LogOut, Store, Package, Search, Sparkles } from "lu
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 
-/* زر السلة فوق */
+/* زر السلة فوق - ما تغير المنطق */
 function CartBell() {
   const [hasItems, setHasItems] = useState(false);
   const customerID = "5482cbf7";
@@ -48,15 +48,16 @@ function CartBell() {
   );
 }
 
+/* ايقونة السلة - صارت احلى بس نفس الشغل */
 function CartIcon() {
   const router = useRouter();
 
   return (
     <button 
       onClick={() => router.push('/cart')}
-      className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 relative"
+      className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 relative active:scale-95 transition"
     >
-      🛒
+      <ShoppingCart className="w-5 h-5 text-white" />
       <CartBell />
     </button>
   );
@@ -124,22 +125,28 @@ export default function ShopPage() {
             </div>
 
             {/* اليمين */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
 
-              {/* زر السلة فوق */}
+              {/* زر السلة */}
               <CartIcon />
 
               {user ? (
                 <>
-                  <button onClick={() => router.push('/dashboard')} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20">
+                  <button onClick={() => router.push('/dashboard')} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
                     <User className="w-5 h-5 text-white" />
                   </button>
-                  <button onClick={handleLogout} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20">
-                    <LogOut className="w-5 h-5 text-white" />
+                  
+                  {/* زر الخروج - صار زي الداشبورد واضح */}
+                  <button
+                    onClick={handleLogout}
+                    className="bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/30 transition active:scale-95"
+                  >
+                    <LogOut className="w-4 h-4 text-red-300" />
+                    <span className="text-red-300 text-sm font-bold hidden sm:block">خروج</span>
                   </button>
                 </>
               ) : (
-                <button onClick={() => router.push('/login')} className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold">
+                <button onClick={() => router.push('/login')} className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold active:scale-95 transition">
                   تسجيل دخول
                 </button>
               )}
@@ -161,15 +168,15 @@ export default function ShopPage() {
 
       <div className="max-w-6xl mx-auto p-4">
         <div className="grid grid-cols-3 gap-3 mb-8">
-          <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30">
+          <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30 active:scale-95">
             <Store className="w-7 h-7 text-purple-400 mx-auto mb-2" />
             <h3 className="text-white font-bold text-sm">جميع المتاجر</h3>
           </Link>
-          <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30">
+          <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95">
             <Package className="w-7 h-7 text-pink-400 mx-auto mb-2" />
             <h3 className="text-white font-bold text-sm">جميع المنتجات</h3>
           </Link>
-          <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30">
+          <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95">
             <Sparkles className="w-7 h-7 text-yellow-400 mx-auto mb-2" />
             <h3 className="text-white font-bold text-sm">طلب خاص</h3>
           </button>
@@ -178,7 +185,7 @@ export default function ShopPage() {
         <h2 className="text-white font-bold text-lg mb-4">تصفح حسب القسم</h2>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-8">
           {filteredCategories.map((cat) => (
-            <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group">
+            <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group active:scale-95">
               <div className="aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
                 {cat.image && (
                   <img 
