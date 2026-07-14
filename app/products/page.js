@@ -1,20 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronRight, Search, ShoppingCart, Package } from 'lucide-react';
 
 export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState([]);
-  const [filtered, setFiltered] = useState([]);   // ← للفلترة
+  const [filtered, setFiltered] = useState([]); // ← للفلترة
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");       // ← نص الفلتر
+  const [search, setSearch] = useState(""); // ← نص الفلتر
 
   const customerID = "5482cbf7"; // مؤقت
 
   useEffect(() => {
     fetch('/api/products')
-      .then(res => res.json())
-      .then(data => {
+     .then(res => res.json())
+     .then(data => {
         if (data.success) {
           setProducts(data.products);
           setFiltered(data.products); // ← أول مرة نفس الشي
@@ -48,94 +49,91 @@ export default function ProductsPage() {
     alert(data.message);
   };
 
-  if (loading) return <div style={{ color: 'white', padding: 20 }}>جاري التحميل...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center text-white">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p>جاري التحميل...</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div style={{ padding: 20, direction: 'rtl', background: '#000', minHeight: '100vh', color: 'white' }}>
-      
-      {/* زر الرجوع */}
-      <button 
-        onClick={() => router.back()}
-        style={{
-          background: '#444',
-          color: 'white',
-          padding: '10px 20px',
-          borderRadius: 8,
-          border: 'none',
-          marginBottom: 20,
-          cursor: 'pointer'
-        }}
-      >
-        رجوع
-      </button>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
 
-      <h1 style={{ marginBottom: 20 }}>كل المنتجات</h1>
-
-      {/* فلتر البحث */}
-      <input
-        type="text"
-        placeholder="ابحث عن منتج..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: '100%',
-          padding: 12,
-          marginBottom: 20,
-          borderRadius: 8,
-          border: 'none',
-          fontSize: 16
-        }}
-      />
-
-      {/* Grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
-        gap: 15 
-      }}>
-        {filtered.map(product => (
-          <div 
-            key={product.productID} 
-            style={{ 
-              background: '#111',
-              borderRadius: 10,
-              padding: 10,
-              textAlign: 'center'
-            }}
+      {/* الهيدر مع زر الرجوع - نفس اللي قبل */}
+      <header className="px-4 pt-6 pb-4">
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => router.back()}
+            className="bg-white/10 p-2 rounded-xl active:scale-90 transition"
           >
-            <img 
-              src={product.image} 
-              style={{ 
-                width: '100%', 
-                height: 120, 
-                objectFit: 'cover', 
-                borderRadius: 8 
-              }} 
-            />
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          <h1 className="text-2xl font-bold">كل المنتجات</h1>
+        </div>
 
-            <h3 style={{ fontSize: 16, marginTop: 10 }}>{product.name}</h3>
-            <p style={{ fontSize: 13, color: '#ccc' }}>المتجر: {product.storeName}</p>
-            <p style={{ fontSize: 13 }}>السعر: {product.price.toLocaleString()} ل.ل</p>
-            <p style={{ fontSize: 13 }}>الوزن: {product.weightPoint} نقطة</p>
+        {/* فلتر البحث - نفس الستايل */}
+        <div className="relative">
+          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
+          <input
+            type="text"
+            placeholder="ابحث عن منتج..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl py-3.5 pr-12 pl-4 text-white placeholder:text-purple-300 focus:border-purple-500 focus:outline-none transition"
+          />
+        </div>
+      </header>
 
-            {/* زر السلة */}
-            <button 
-              onClick={() => addToCart(product.productID)}
-              style={{
-                marginTop: 10,
-                background: '#e91e63',
-                color: 'white',
-                padding: '8px 12px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            >
-              اضف للسلة
-            </button>
+      <div className="px-4 pb-6">
+        {/* اذا ما في نتائج */}
+        {filtered.length === 0 &&!loading && (
+          <div className="text-center py-20">
+            <Package className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+            <p className="text-xl font-bold mb-2">ما لقينا منتجات</p>
+            <p className="text-purple-300">جرب تبحث باسم تاني</p>
           </div>
-        ))}
+        )}
+
+        {/* Grid - نفس حجم الصورة اللي شايفه منيح */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+          {filtered.map(product => (
+            <div
+              key={product.productID}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition"
+            >
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-full h-[120px] object-cover bg-white/5"
+              />
+
+              <div className="p-3">
+                <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
+                <p className="text-xs text-purple-300 mb-2 truncate">المتجر: {product.storeName}</p>
+
+                <div className="space-y-1 text-xs mb-3">
+                  <p className="text-purple-200">
+                    السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span>
+                  </p>
+                  <p className="text-purple-300">
+                    الوزن: {product.weightPoint} نقطة
+                  </p>
+                </div>
+
+                {/* زر السلة - نفس الستايل */}
+                <button
+                  onClick={() => addToCart(product.productID)}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  اضف للسلة
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
