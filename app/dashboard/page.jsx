@@ -86,66 +86,70 @@ export default function Dashboard() {
   if (!user) return null;
 
   return (
-   <div className="relative">
-  <button onClick={() => setOpenNotifications(!openNotifications)} className="p-2 rounded-xl bg-white/10 active:scale-90 transition">
-    <Bell className="w-6 h-6 text-white" />
+<div className="flex items-center gap-2">
 
-    {notificationCount > 0 && (
-      <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded-full">
-        {notificationCount}
-      </span>
-    )}
-  </button>
+  <div className="relative">
+    <button onClick={() => setOpenNotifications(!openNotifications)} className="p-2 rounded-xl bg-white/10 active:scale-90 transition">
+      <Bell className="w-6 h-6 text-white" />
 
-  {openNotifications && (
-    <div className="absolute right-0 mt-3 w-80 bg-[#1a1a1a] text-white shadow-lg rounded-lg p-3 z-50">
-
-      {notifications.length === 0 && (
-        <div className="text-center py-4 text-gray-400">
-          لا يوجد إشعارات بعد
-        </div>
+      {notificationCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+          {notificationCount}
+        </span>
       )}
+    </button>
 
-      {notifications.map((n, i) => (
-        <div
-          key={i}
-          className={`border-b border-gray-700 py-2 ${
-            i === 0 ? "bg-[#2a2a2a]" : "bg-transparent"
-          }`}
-        >
-          <div className={`font-bold ${i === 0 ? "text-yellow-300" : "text-white"}`}>
-            {n.title}
+    {openNotifications && (
+      <div className="absolute right-0 mt-3 w-80 bg-[#1a1a1a] text-white shadow-lg rounded-lg p-3 z-50">
+
+        {notifications.length === 0 && (
+          <div className="text-center py-4 text-gray-400">
+            لا يوجد إشعارات بعد
           </div>
+        )}
 
-          <div className={`text-sm ${i === 0 ? "text-yellow-200" : "text-gray-300"}`}>
-            {n.message}
+        {notifications.map((n, i) => (
+          <div
+            key={i}
+            className={`border-b border-gray-700 py-2 ${
+              i === 0 ? "bg-[#2a2a2a]" : "bg-transparent"
+            }`}
+          >
+            <div className={`font-bold ${i === 0 ? "text-yellow-300" : "text-white"}`}>
+              {n.title}
+            </div>
+
+            <div className={`text-sm ${i === 0 ? "text-yellow-200" : "text-gray-300"}`}>
+              {n.message}
+            </div>
+
+            <div className={`text-xs ${i === 0 ? "text-yellow-400" : "text-gray-500"}`}>
+              {n.date}
+            </div>
           </div>
+        ))}
 
-          <div className={`text-xs ${i === 0 ? "text-yellow-400" : "text-gray-500"}`}>
-            {n.date}
-          </div>
-        </div>
-      ))}
+      </div>
+    )}
+  </div>
 
-    </div>
+  {/* زر تحديث الموقع */}
+  {needsLocationUpdate ? (
+    <button
+      onClick={() => setShowLocationModal(true)}
+      className="bg-red-500/30 border border-red-500/50 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/40 transition"
+    >
+      <RefreshCcw className="w-4 h-4 text-red-300" />
+      <span className="text-red-300 text-sm font-bold">تحديث الموقع</span>
+    </button>
+  ) : (
+    <button className="bg-white/10 px-3 py-2 rounded-xl text-white/50 text-sm cursor-default flex items-center gap-2">
+      <RefreshCcw className="w-4 h-4 text-white/40" />
+      موقعك محدّث
+    </button>
   )}
-</div>
 
-            {/* زر تحديث الموقع */}
-            {needsLocationUpdate ? (
-              <button
-                onClick={() => setShowLocationModal(true)}
-                className="bg-red-500/30 border border-red-500/50 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/40 transition"
-              >
-                <RefreshCcw className="w-4 h-4 text-red-300" />
-                <span className="text-red-300 text-sm font-bold">تحديث الموقع</span>
-              </button>
-            ) : (
-              <button className="bg-white/10 px-3 py-2 rounded-xl text-white/50 text-sm cursor-default flex items-center gap-2">
-                <RefreshCcw className="w-4 h-4 text-white/40" />
-                موقعك محدّث
-              </button>
-            )}
+</div>
 
             <button onClick={() => router.push('/notifications')} className="relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition">
               <Bell className="w-5 h-5 text-white" />
