@@ -4,6 +4,7 @@ import { User, Package, MapPin, LogOut, ShoppingBag, Gift, MessageCircle, Chevro
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 
+
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 
 export default function Dashboard() {
@@ -13,6 +14,9 @@ export default function Dashboard() {
   const [notificationCount, setNotificationCount] = useState(0);
   const [balance, setBalance] = useState({ points: 0, wallet: 0 });
   const [orders, setOrders] = useState([]);
+  const [openNotifications, setOpenNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+
 
   // نظام تحديث الموقع
   const [needsLocationUpdate, setNeedsLocationUpdate] = useState(false);
@@ -54,6 +58,20 @@ export default function Dashboard() {
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     window.location.href = '/login';
   };
+  useEffect(() => {
+  async function load() {
+    const res = await fetch("/api/get-notifications", {
+      method: "POST",
+      body: JSON.stringify({ customerId: user?.customerId }),
+    });
+
+    const data = await res.json();
+    setNotifications(data.notifications || []);
+  }
+
+  if (user) load();
+}, [user]);
+
 
   if (loading) {
     return (
@@ -68,25 +86,50 @@ export default function Dashboard() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950" style={{direction: 'rtl'}}>
-      
-      {/* الهيدر */}
-      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.push('/shop')} className="bg-white/10 p-2 rounded-xl active:scale-90 transition">
-              <ChevronRight className="w-5 h-5 text-white" />
-            </button>
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-white font-bold">اهلاً {user?.name}</h1>
-              <p className="text-purple-200 text-xs">{user?.phone}</p>
-            </div>
+   <div className="relative">
+  <button onClick={() => setOpenNotifications(!openNotifications)} className="p-2 rounded-xl bg-white/10 active:scale-90 transition">
+    <Bell className="w-6 h-6 text-white" />
+
+    {notificationCount > 0 && (
+      <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+        {notificationCount}
+      </span>
+    )}
+  </button>
+
+  {openNotifications && (
+    <div className="absolute right-0 mt-3 w-80 bg-[#1a1a1a] text-white shadow-lg rounded-lg p-3 z-50">
+
+      {notifications.length === 0 && (
+        <div className="text-center py-4 text-gray-400">
+          لا يوجد إشعارات بعد
+        </div>
+      )}
+
+      {notifications.map((n, i) => (
+        <div
+          key={i}
+          className={`border-b border-gray-700 py-2 ${
+            i === 0 ? "bg-[#2a2a2a]" : "bg-transparent"
+          }`}
+        >
+          <div className={`font-bold ${i === 0 ? "text-yellow-300" : "text-white"}`}>
+            {n.title}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className={`text-sm ${i === 0 ? "text-yellow-200" : "text-gray-300"}`}>
+            {n.message}
+          </div>
+
+          <div className={`text-xs ${i === 0 ? "text-yellow-400" : "text-gray-500"}`}>
+            {n.date}
+          </div>
+        </div>
+      ))}
+
+    </div>
+  )}
+</div>
 
             {/* زر تحديث الموقع */}
             {needsLocationUpdate ? (
