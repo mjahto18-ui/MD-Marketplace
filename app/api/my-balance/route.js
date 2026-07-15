@@ -20,11 +20,38 @@ export async function GET(req) {
     let points = 0;
     (rew.data.values||[]).slice(1).forEach(r => { if((r[1]||"").toString().trim().toLowerCase() === customerID.toString().trim().toLowerCase()) points += Number(r[5]||0) - Number(r[6]||0); });
 
-    const cust = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Wallet Transactions!A:Z" });
-    let wallet = 0;
-    const found = (cust.data.values||[]).slice(1).find(r => (r[0]||"").toString().trim().toLowerCase() === customerID.toString().trim().toLowerCase() || (r[1]||"").toString().trim().toLowerCase() === customerID.toString().trim().toLowerCase());
-    if(found) wallet = Number(found[found.length-1] || found[8] || 0); // اخر عمود غالبا هو الرصيد
+   const cust = await sheets.spreadsheets.values.get({
+  spreadsheetId,
+  range: "Wallet Transactions!A:Z",
+});
 
+let wallet = 0;
+
+(cust.data.values || [])
+  .slice(1)
+  .forEach((r) => {
+    const id = (r[1] || "").toString().trim().toLowerCase();
+    const type = (r[3] || "").toString().trim().toLowerCase(); // غيّر رقم العمود إذا Type بمكان آخر
+    const amount = Number(r[4] || 0);
+
+    if (id === customerID.toString().trim().toLowerCase()) {
+      switch (type) {
+        case "deduct":
+          wallet -= amount;
+          break;
+
+        case "add":
+        case "refund":
+        case "reward":
+          wallet += amount;
+          break;
+
+        default:
+          wallet += amount;
+          break;
+      }
+    }
+  });
     return NextResponse.json({ success: true, points, wallet });
   } catch (e) {
     return NextResponse.json({ success: true, points: 0, wallet: 0, error: e.message });
