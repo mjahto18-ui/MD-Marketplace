@@ -24,6 +24,7 @@ import {
 export default function LoginPage() {
   const [view, setView] = useState("main");
   const [form, setForm] = useState({
+    const [useCustomArea, setUseCustomArea] = useState(false);
     name: "",
     phone: "",
     area: "",
@@ -38,6 +39,14 @@ export default function LoginPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
+  async function fetchAreas() {
+    const res = await fetch("/api/areas");
+    const data = await res.json();
+    setAreas(data.areas || []);
+  }
+  fetchAreas();
+}, []);
+
     const checkExistingSession = async () => {
       try {
         const res = await fetch("/api/me", {
