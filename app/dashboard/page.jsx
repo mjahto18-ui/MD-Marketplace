@@ -22,13 +22,13 @@ export default function Dashboard() {
         setUser(data.user);
         setLoading(false);
 
-        fetch(`/api/notifications/count?userID=${data.user.customerid}`)
+        fetch(`/api/notifications/count?userid=${data.user.customerid}`)
          .then(r => r.json()).then(n => setNotificationCount(n.count || 0));
 
-        fetch(`/api/my-balance?customerID=${data.user.customerid}`)
+        fetch(`/api/my-balance?customerid=${data.user.customerid}`)
          .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0 }));
 
-        fetch(`/api/my-orders?customerID=${data.user.customerid}`)
+        fetch(`/api/my-orders?customerid=${data.user.customerid}`)
          .then(r => r.json()).then(o => setOrders(o.orders || []));
       })
      .catch(() => { window.location.href = '/login'; });
