@@ -7,7 +7,7 @@ export async function POST(req) {
 
     console.log("===== OneSignal Webhook =====");
     console.log(body);
-
+    console.log(JSON.stringify(body, null, 2));
     // -----------------------------
     // Extract Data From OneSignal
     // -----------------------------
