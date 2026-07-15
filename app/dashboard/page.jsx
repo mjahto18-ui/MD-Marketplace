@@ -12,39 +12,30 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [notificationCount, setNotificationCount] = useState(0);
   const [balance, setBalance] = useState({ points: 0, wallet: 0 });
+  const [orders, setOrders] = useState([]);
 
   useEffect(() => {
-    fetch('/api/me', {
-      credentials: 'include',
-    })
+    fetch('/api/me', { credentials: 'include' })
      .then(async (res) => {
-        if (!res.ok) {
-          window.location.href = '/login';
-          return;
-        }
+        if (!res.ok) { window.location.href = '/login'; return; }
         const data = await res.json();
         setUser(data.user);
         setLoading(false);
 
         fetch(`/api/notifications/count?userID=${data.user.customerID}`)
-         .then(r => r.json())
-         .then(n => setNotificationCount(n.count || 0));
+         .then(r => r.json()).then(n => setNotificationCount(n.count || 0));
 
-        // هون بيجيب النقاط والمحفظة من الشيتين
         fetch(`/api/my-balance?customerID=${data.user.customerID}`)
-         .then(r => r.json())
-         .then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0 }));
+         .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0 }));
+
+        fetch(`/api/my-orders?customerID=${data.user.customerID}`)
+         .then(r => r.json()).then(o => setOrders(o.orders || []));
       })
-     .catch(() => {
-        window.location.href = '/login';
-     });
+     .catch(() => { window.location.href = '/login'; });
   }, []);
 
   const handleLogout = async () => {
-    await fetch('/api/logout', {
-      method: 'POST',
-      credentials: 'include'
-    });
+    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     window.location.href = '/login';
   };
@@ -59,11 +50,11 @@ export default function Dashboard() {
       </div>
     );
   }
-
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950" style={{direction: 'rtl'}}>
+      {/* الهيدر */}
       <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -96,6 +87,7 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-6xl mx-auto p-4 space-y-4 pb-24">
+        {/* نقاطي ومحفظتي - جديد */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-yellow-500/20 to-amber-500/20 backdrop-blur-xl border border-yellow-500/20 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -129,6 +121,7 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* قسم الخريطة - رجعت متل ما كانت */}
         {user?.lat && user?.lng ? (
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -150,15 +143,37 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* طلباتي - مربوطة */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <Package className="w-5 h-5 text-purple-400" />
             <h2 className="text-white font-bold">طلباتي</h2>
           </div>
-          <div className="text-center py-8">
-            <Package className="w-12 h-12 text-purple-300/50 mx-auto mb-3" />
-            <p className="text-purple-200">لا يوجد طلبات بعد</p>
-          </div>
+          {orders.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="w-12 h-12 text-purple-300/50 mx-auto mb-3" />
+              <p className="text-purple-200">لا يوجد طلبات بعد</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {orders.map(o => (
+                <div key={o.requestID} className="bg-white/5 rounded-xl p-3 border border-white/5">
+                  <div className="flex justify-between items-center">
+                    <p className="text-white font-bold text-sm">#{o.requestID.slice(-6)}</p>
+                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/20">{o.status}</span>
+                  </div>
+                  <p className="text-purple-300/60 text-xs mt-1">{o.date}</p>
+                  <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                    <div><p className="text-white/40">قبل التوصيل</p><p className="text-white font-bold">{Number(o.itemsCost||0).toLocaleString()}</p></div>
+                    <div><p className="text-white/40">التوصيل</p><p className="text-white">{o.freeUsed ? 'مجاني' : Number(o.deliveryFee||0).toLocaleString()}</p></div>
+                    <div><p className="text-white/40">المجموع</p><p className="text-green-300 font-bold">{Number(o.total||0).toLocaleString()}</p></div>
+                  </div>
+                  {/* لاحقا هون منحط زر شوف السائق عالخريطة */}
+                  {/* {o.currentLocation && <button onClick={()=> setMapCenter(o.currentLocation)} className="mt-2 text-xs text-pink-300">📍 تتبع السائق</button>} */}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <button onClick={() => window.location.href = '/shop'} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition">
