@@ -32,7 +32,10 @@ export default function LoginPage() {
     email: "",
     pin: "",
   });
-   const [useCustomArea, setUseCustomArea] = useState(false);
+  
+  const [areas, setAreas] = useState([]);
+ const [useCustomArea, setUseCustomArea] = useState(false);
+
   const [location, setLocation] = useState({ lat: null, lng: null });
   const [showLocationPopup, setShowLocationPopup] = useState(false);
   const [msg, setMsg] = useState("");
