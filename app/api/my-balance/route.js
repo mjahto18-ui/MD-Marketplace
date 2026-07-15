@@ -4,7 +4,7 @@ import { getgooglesheets } from "@/lib/googlesheets";
 export async function GET(req) {
   const customerID = (req.nextUrl.searchParams.get("customerID") || "").trim().toLowerCase();
   const sheets = await getgooglesheets();
-  const spreadsheetId = process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID;
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
   const rew = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Rewards!A:G" });
   let points = 0;
