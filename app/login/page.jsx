@@ -39,7 +39,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
-  useEffect(() => {
+  // جلب المناطق
+useEffect(() => {
   async function fetchAreas() {
     const res = await fetch("/api/areas");
     const data = await res.json();
@@ -48,26 +49,30 @@ export default function LoginPage() {
   fetchAreas();
 }, []);
 
-    const checkExistingSession = async () => {
-      try {
-        const res = await fetch("/api/me", {
-          credentials: "include",
-          cache: "no-store",
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user) {
-            window.location.replace("/shop");
-            return;
-          }
+// فحص الجلسة
+useEffect(() => {
+  const checkExistingSession = async () => {
+    try {
+      const res = await fetch("/api/me", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          window.location.replace("/shop");
+          return;
         }
-      } catch {}
+      }
+    } catch {}
 
-      setCheckingSession(false);
-    };
+    setCheckingSession(false);
+  };
 
-    checkExistingSession();
-  }, []);
+  checkExistingSession();
+}, []);
+
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
