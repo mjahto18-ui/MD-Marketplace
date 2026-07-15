@@ -4,7 +4,7 @@ import { getgooglesheets } from "@/lib/googlesheets";
 export async function GET(req) {
   const customerID = (req.nextUrl.searchParams.get("customerID") || "").trim();
   const sheets = await getgooglesheets();
-  const spreadsheetId = process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEET_ID;
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID,
 
   // عندك الاسم فيه typo ب 2 u
   const res = await sheets.spreadsheets.values.get({
