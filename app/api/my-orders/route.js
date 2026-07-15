@@ -11,7 +11,7 @@ export async function GET(req) {
   const sheets = google.sheets({ version: "v4", auth });
   const id = process.env.GOOGLE_SHEETS_ID;
 
-  const res = await sheets.spreadsheets.values.get({ range: "Order Request!A:Z" });
+  const res = await sheets.spreadsheets.values.get({ range: "Order Requuest!A:AC" });
   const rows = res.data.values || [];
   const header = rows[0] || [];
 
