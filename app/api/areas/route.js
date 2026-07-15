@@ -13,7 +13,6 @@ export async function GET() {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // 👈 هون التصحيح: اسم الجدول هو Areas
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
       range: "Areas!A2:B",
