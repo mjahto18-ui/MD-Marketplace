@@ -555,14 +555,50 @@ export default function LoginPage() {
                   </label>
                   <div className="relative">
                     <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
-                    <input
-                      name="area"
-                      value={form.area}
-                      onChange={handleChange}
-                      placeholder="منطقة سكنك"
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      required
-                    />
+                    {!useCustomArea && (
+  <div className="relative">
+    <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
+
+    <select
+      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+      value={form.area}
+      onChange={(e) => {
+        if (e.target.value === "custom") {
+          setUseCustomArea(true);
+          setForm({ ...form, area: "" });
+        } else {
+          setForm({ ...form, area: e.target.value });
+        }
+      }}
+      required
+    >
+      <option value="">اختر منطقتك</option>
+
+      {areas.map((a) => (
+        <option key={a.id} value={a.id}>
+          {a.name}
+        </option>
+      ))}
+
+      <option value="custom">أدخل منطقتك يدويًا</option>
+    </select>
+  </div>
+)}
+
+{useCustomArea && (
+  <div className="relative mt-2">
+    <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
+    <input
+      type="text"
+      placeholder="اكتب منطقتك"
+      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+      value={form.area}
+      onChange={(e) => setForm({ ...form, area: e.target.value })}
+      required
+    />
+  </div>
+)}
+
                   </div>
                 </div>
                 <div>
