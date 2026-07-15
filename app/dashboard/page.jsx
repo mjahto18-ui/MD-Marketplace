@@ -214,7 +214,7 @@ export default function Dashboard() {
           <div className="bg-white/10 border border-white/20 rounded-2xl p-6 w-80 text-center">
             <h2 className="text-white font-bold mb-3">تحديث موقعك</h2>
             <p className="text-purple-200 text-sm mb-4">
-              هيدا يساعدنا في تحديد بياناتك إذا تغيّر عنوان إقامتك.
+              هذا الاجراء يساعدنا في تحديد بياناتك إذا تغيّر عنوان إقامتك.
             </p>
 
             <div className="flex gap-3 justify-center">
