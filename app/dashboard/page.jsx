@@ -22,7 +22,7 @@ export default function Dashboard() {
         setUser(data.user);
         setLoading(false);
 
-        fetch(`/api/notifications/count?userID=${data.user.ustomerID}`)
+        fetch(`/api/notifications/count?userID=${data.user.customerID}`)
          .then(r => r.json()).then(n => setNotificationCount(n.count || 0));
 
         fetch(`/api/my-balance?customerID=${data.user.customerID}`)
