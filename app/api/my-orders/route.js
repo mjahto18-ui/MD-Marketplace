@@ -18,11 +18,12 @@ export async function GET(req) {
   // فلتر حسب CustomerID - شوف عندك بأي عمود
   const orders = rows.slice(1).filter(r => r[1] === customerID).reverse().map(r => ({
     requestID: r[0], // A
-    date: r[2], // C افترض
-    subtotal: r[4], // قبل الدليفري
-    deliveryFee: r[5], // الدليفري
-    total: r[6], // المجموع
-    status: r[7], // Status
+    date: r[3], // C افترض
+    subtotal: r[15], // قبل الدليفري
+    deliveryFee: r[6], // الدليفري
+    total: r[16], // المجموع
+    status: r[14] || r[9], // Delivery Status او Aprproval Status
+    freeUsed: r[24], // ==="TRUE"
   }));
 
   return Response.json({ success: true, orders });
