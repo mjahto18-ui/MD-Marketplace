@@ -85,88 +85,122 @@ export default function Dashboard() {
   }
   if (!user) return null;
 
-  return (
-<div className="flex items-center gap-2">
+ return (
+  <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950" style={{ direction: "rtl" }}>
 
-  <div className="relative">
-    <button onClick={() => setOpenNotifications(!openNotifications)} className="p-2 rounded-xl bg-white/10 active:scale-90 transition">
-      <Bell className="w-6 h-6 text-white" />
+    {/* الهيدر */}
+    <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-50">
+      <div className="max-w-6xl mx-auto flex items-center justify-between">
 
-      {notificationCount > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded-full">
-          {notificationCount}
-        </span>
-      )}
-    </button>
+        {/* القسم اليسار */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push('/shop')} className="bg-white/10 p-2 rounded-xl active:scale-90 transition">
+            <ChevronRight className="w-5 h-5 text-white" />
+          </button>
 
-    {openNotifications && (
-      <div className="absolute right-0 mt-3 w-80 bg-[#1a1a1a] text-white shadow-lg rounded-lg p-3 z-50">
-
-        {notifications.length === 0 && (
-          <div className="text-center py-4 text-gray-400">
-            لا يوجد إشعارات بعد
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+            <User className="w-5 h-5 text-white" />
           </div>
-        )}
 
-        {notifications.map((n, i) => (
-          <div
-            key={i}
-            className={`border-b border-gray-700 py-2 ${
-              i === 0 ? "bg-[#2a2a2a]" : "bg-transparent"
-            }`}
-          >
-            <div className={`font-bold ${i === 0 ? "text-yellow-300" : "text-white"}`}>
-              {n.title}
-            </div>
-
-            <div className={`text-sm ${i === 0 ? "text-yellow-200" : "text-gray-300"}`}>
-              {n.message}
-            </div>
-
-            <div className={`text-xs ${i === 0 ? "text-yellow-400" : "text-gray-500"}`}>
-              {n.date}
-            </div>
+          <div>
+            <h1 className="text-white font-bold">اهلاً {user?.name}</h1>
+            <p className="text-purple-200 text-xs">{user?.phone}</p>
           </div>
-        ))}
+        </div>
 
-      </div>
-    )}
-  </div>
+        {/* القسم اليمين */}
+        <div className="flex items-center gap-2">
 
-  {/* زر تحديث الموقع */}
-  {needsLocationUpdate ? (
-    <button
-      onClick={() => setShowLocationModal(true)}
-      className="bg-red-500/30 border border-red-500/50 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/40 transition"
-    >
-      <RefreshCcw className="w-4 h-4 text-red-300" />
-      <span className="text-red-300 text-sm font-bold">تحديث الموقع</span>
-    </button>
-  ) : (
-    <button className="bg-white/10 px-3 py-2 rounded-xl text-white/50 text-sm cursor-default flex items-center gap-2">
-      <RefreshCcw className="w-4 h-4 text-white/40" />
-      موقعك محدّث
-    </button>
-  )}
+          {/* الجرس + قائمة الإشعارات */}
+          <div className="relative">
+            <button onClick={() => setOpenNotifications(!openNotifications)} className="p-2 rounded-xl bg-white/10 active:scale-90 transition">
+              <Bell className="w-6 h-6 text-white" />
 
-</div>
-
-            <button onClick={() => router.push('/notifications')} className="relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition">
-              <Bell className="w-5 h-5 text-white" />
               {notificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                  {notificationCount > 9 ? '9+' : notificationCount}
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {notificationCount}
                 </span>
               )}
             </button>
 
-            <button onClick={handleLogout} className="bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/30 transition active:scale-95">
-              <LogOut className="w-4 h-4 text-red-300" />
-              <span className="text-red-300 text-sm font-bold hidden sm:block">خروج</span>
-            </button>
+            {openNotifications && (
+              <div className="absolute right-0 mt-3 w-80 bg-[#1a1a1a] text-white shadow-lg rounded-lg p-3 z-50">
+
+                {notifications.length === 0 && (
+                  <div className="text-center py-4 text-gray-400">
+                    لا يوجد إشعارات بعد
+                  </div>
+                )}
+
+                {notifications.map((n, i) => (
+                  <div
+                    key={i}
+                    className={`border-b border-gray-700 py-2 ${
+                      i === 0 ? "bg-[#2a2a2a]" : "bg-transparent"
+                    }`}
+                  >
+                    <div className={`font-bold ${i === 0 ? "text-yellow-300" : "text-white"}`}>
+                      {n.title}
+                    </div>
+
+                    <div className={`text-sm ${i === 0 ? "text-yellow-200" : "text-gray-300"}`}>
+                      {n.message}
+                    </div>
+
+                    <div className={`text-xs ${i === 0 ? "text-yellow-400" : "text-gray-500"}`}>
+                      {n.date}
+                    </div>
+                  </div>
+                ))}
+
+              </div>
+            )}
           </div>
+
+          {/* زر تحديث الموقع */}
+          {needsLocationUpdate ? (
+            <button
+              onClick={() => setShowLocationModal(true)}
+              className="bg-red-500/30 border border-red-500/50 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/40 transition"
+            >
+              <RefreshCcw className="w-4 h-4 text-red-300" />
+              <span className="text-red-300 text-sm font-bold">تحديث الموقع</span>
+            </button>
+          ) : (
+            <button className="bg-white/10 px-3 py-2 rounded-xl text-white/50 text-sm cursor-default flex items-center gap-2">
+              <RefreshCcw className="w-4 h-4 text-white/40" />
+              موقعك محدّث
+            </button>
+          )}
+
+          {/* زر الإشعارات القديم */}
+          <button onClick={() => router.push('/notifications')} className="relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition">
+            <Bell className="w-5 h-5 text-white" />
+            {notificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                {notificationCount > 9 ? '9+' : notificationCount}
+              </span>
+            )}
+          </button>
+
+          {/* زر الخروج */}
+          <button onClick={handleLogout} className="bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/30 transition active:scale-95">
+            <LogOut className="w-4 h-4 text-red-300" />
+            <span className="text-red-300 text-sm font-bold hidden sm:block">خروج</span>
+          </button>
+
         </div>
       </div>
+    </div>
+
+    {/* باقي الصفحة */}
+    <div className="max-w-6xl mx-auto p-4 space-y-4 pb-24">
+      {/* محتوى الصفحة هون */}
+    </div>
+
+  </div>
+);
+
 
       {/* باقي الصفحة نفسها بدون تغيير */}
       <div className="max-w-6xl mx-auto p-4 space-y-4 pb-24">
