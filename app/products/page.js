@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, Search, ShoppingCart, Package } from 'lucide-react';
+import { ChevronRight, Search, ShoppingCart, Package, Check } from 'lucide-react';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -9,13 +9,15 @@ export default function ProductsPage() {
   const [filtered, setFiltered] = useState([]); // ← للفلترة
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(""); // ← نص الفلتر
+  const [toast, setToast] = useState(null); // ← جديد: للتوست
+  const [addingId, setAddingId] = useState(null); // ← جديد: لمنع الدبل كليك
 
   const customerID = "5482cbf7"; // مؤقت
 
   useEffect(() => {
     fetch('/api/products')
-     .then(res => res.json())
-     .then(data => {
+    .then(res => res.json())
+    .then(data => {
         if (data.success) {
           setProducts(data.products);
           setFiltered(data.products); // ← أول مرة نفس الشي
@@ -40,13 +42,20 @@ export default function ProductsPage() {
   }, [search, products]);
 
   const addToCart = async (productID) => {
-    const res = await fetch('/api/cart/add', {
+    if (addingId) return;
+    setAddingId(productID);
+    await fetch('/api/cart/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ customerID, productID, qty: 1 })
     });
-    const data = await res.json();
-    alert(data.message);
+    // بدل alert القديم
+    const prod = products.find(p => p.productID === productID);
+    setToast(prod? prod.name : 'المنتج');
+    setTimeout(() => {
+      setToast(null);
+      setAddingId(null);
+    }, 2000);
   };
 
   if (loading) return (
@@ -125,16 +134,25 @@ export default function ProductsPage() {
                 {/* زر السلة - نفس الستايل */}
                 <button
                   onClick={() => addToCart(product.productID)}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60"
                 >
-                  <ShoppingCart className="w-4 h-4" />
-                  اضف للسلة
+                  {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}
+                  {addingId === product.productID? '...' : 'اضف للسلة'}
                 </button>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* التوست الجديد - بيختفي لحالو */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white text-black px-5 py-3 rounded-full shadow-2xl z-[999] flex items-center gap-2">
+          <div className="bg-green-500 rounded-full p-1"><Check className="w-3 h-3 text-white" /></div>
+          <span className="text-sm font-bold">{toast} - تمت الإضافة</span>
+        </div>
+      )}
+
     </div>
   );
 }
