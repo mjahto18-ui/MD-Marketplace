@@ -36,13 +36,13 @@ let wallet = 0;
 
     if (id === customerID.toString().trim().toLowerCase()) {
       switch (type) {
-        case "deduct":
+        case "Deduct":
           wallet -= amount;
           break;
 
-        case "add":
-        case "refund":
-        case "reward":
+        case "Add":
+        case "Refund":
+        case "Points":
           wallet += amount;
           break;
 
