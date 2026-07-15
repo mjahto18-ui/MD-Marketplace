@@ -103,7 +103,7 @@ export default function Dashboard() {
           {/* القسم اليمين */}
           <div className="flex items-center gap-2">
 
-            {/* الجرس */}
+            {/* الجرس الجديد */}
             <div className="relative">
               <button onClick={() => setOpenNotifications(!openNotifications)} className="p-2 rounded-xl bg-white/10 active:scale-90 transition">
                 <Bell className="w-6 h-6 text-white" />
@@ -144,17 +144,7 @@ export default function Dashboard() {
               </button>
             )}
 
-            {/* الإشعارات القديمة */}
-            <button onClick={() => router.push('/notifications')} className="relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition">
-              <Bell className="w-5 h-5 text-white" />
-              {notificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                  {notificationCount > 9 ? '9+' : notificationCount}
-                </span>
-              )}
-            </button>
-
-            {/* خروج */}
+            {/* زر الخروج */}
             <button onClick={handleLogout} className="bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/30 transition active:scale-95">
               <LogOut className="w-4 h-4 text-red-300" />
               <span className="text-red-300 text-sm font-bold hidden sm:block">خروج</span>
