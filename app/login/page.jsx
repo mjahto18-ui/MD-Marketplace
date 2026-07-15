@@ -24,7 +24,7 @@ import {
 export default function LoginPage() {
   const [view, setView] = useState("main");
   const [form, setForm] = useState({
-    const [useCustomArea, setUseCustomArea] = useState(false);
+   
     name: "",
     phone: "",
     area: "",
@@ -32,6 +32,7 @@ export default function LoginPage() {
     email: "",
     pin: "",
   });
+   const [useCustomArea, setUseCustomArea] = useState(false);
   const [location, setLocation] = useState({ lat: null, lng: null });
   const [showLocationPopup, setShowLocationPopup] = useState(false);
   const [msg, setMsg] = useState("");
