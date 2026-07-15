@@ -17,7 +17,7 @@ export async function GET(req) {
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
     const res = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Order Requuest!A:AC" });
     const rows = res.data.values || [];
-    const orders = rows.slice(1).filter(r => (r[1]||"").toString().trim().toLowerCase() === customerID.toString().trim().toLowerCase()).reverse().map(r => ({ requestID: r[0], date: r[3], itemsCost: r[15], deliveryFee: r[6], total: r[16], status: r[14] || r[9] || "Pending", freeUsed: r[24] === "TRUE" }));
+    const orders = rows.slice(1).filter(r => (r[1]||"").toString().trim().toLowerCase() === customerID.toString().trim().toLowerCase()).reverse().map(r => ({ requestID: r[0], date: r[3], itemsCost: r[15], deliveryFee: r[6], total: r[16], status: r[14] , freeUsed: r[24] === "TRUE" }));
     return NextResponse.json({ success: true, orders });
   } catch (e) {
     return NextResponse.json({ success: false, orders: [], error: e.message });
