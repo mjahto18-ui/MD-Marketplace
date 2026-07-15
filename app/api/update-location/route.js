@@ -32,9 +32,9 @@ export async function POST(req) {
     // Current Longtitude = العمود رقم 11
     // Last Location Update = العمود رقم 12
 
-    const currentLatCol = 10;
-    const currentLngCol = 11;
-    const lastUpdateCol = 12;
+    const currentLatCol = 11;
+    const currentLngCol = 12;
+    const lastUpdateCol = 13;
 
     const rowNumber = rowIndex + 2;
 
