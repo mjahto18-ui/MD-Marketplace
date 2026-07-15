@@ -46,23 +46,26 @@ export default function Dashboard() {
       .catch(() => { window.location.href = '/login'; });
   }, []);
 
+  useEffect(() => {
+    async function load() {
+      const res = await fetch("/api/get-notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: user?.customerId }),
+      });
+
+      const data = await res.json();
+      setNotifications(data.notifications || []);
+    }
+
+    if (user) load();
+  }, [user]);
+
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     window.location.href = '/login';
   };
-
-  useEffect(() => {
-    async function load() {
-      const res = await fetch("/api/get-notifications", {
-        method: "POST",
-        body: JSON.stringify({ customerId: user?.customerId }),
-      });
-      const data = await res.json();
-      setNotifications(data.notifications || []);
-    }
-    if (user) load();
-  }, [user]);
 
   if (loading) {
     return (
@@ -105,8 +108,12 @@ export default function Dashboard() {
 
             {/* الجرس الجديد */}
             <div className="relative">
-              <button onClick={() => setOpenNotifications(!openNotifications)} className="p-2 rounded-xl bg-white/10 active:scale-90 transition">
+              <button
+                onClick={() => setOpenNotifications(!openNotifications)}
+                className="p-2 rounded-xl bg-white/10 active:scale-90 transition"
+              >
                 <Bell className="w-6 h-6 text-white" />
+
                 {notificationCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded-full">
                     {notificationCount}
@@ -116,24 +123,44 @@ export default function Dashboard() {
 
               {openNotifications && (
                 <div className="absolute right-0 mt-3 w-80 bg-[#1a1a1a] text-white shadow-lg rounded-lg p-3 z-50">
+
                   {notifications.length === 0 && (
-                    <div className="text-center py-4 text-gray-400">لا يوجد إشعارات بعد</div>
+                    <div className="text-center py-4 text-gray-400">
+                      لا يوجد إشعارات بعد
+                    </div>
                   )}
 
                   {notifications.map((n, i) => (
-                    <div key={i} className={`border-b border-gray-700 py-2 ${i === 0 ? "bg-[#2a2a2a]" : ""}`}>
-                      <div className={`font-bold ${i === 0 ? "text-yellow-300" : "text-white"}`}>{n.title}</div>
-                      <div className={`text-sm ${i === 0 ? "text-yellow-200" : "text-gray-300"}`}>{n.message}</div>
-                      <div className={`text-xs ${i === 0 ? "text-yellow-400" : "text-gray-500"}`}>{n.date}</div>
+                    <div
+                      key={i}
+                      className={`border-b border-gray-700 py-2 ${
+                        i === 0 ? "bg-[#2a2a2a]" : "bg-transparent"
+                      }`}
+                    >
+                      <div className={`font-bold ${i === 0 ? "text-yellow-300" : "text-white"}`}>
+                        {n.title}
+                      </div>
+
+                      <div className={`text-sm ${i === 0 ? "text-yellow-200" : "text-gray-300"}`}>
+                        {n.message}
+                      </div>
+
+                      <div className={`text-xs ${i === 0 ? "text-yellow-400" : "text-gray-500"}`}>
+                        {n.date}
+                      </div>
                     </div>
                   ))}
+
                 </div>
               )}
             </div>
 
-            {/* تحديث الموقع */}
+            {/* زر تحديث الموقع */}
             {needsLocationUpdate ? (
-              <button onClick={() => setShowLocationModal(true)} className="bg-red-500/30 border border-red-500/50 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/40 transition">
+              <button
+                onClick={() => setShowLocationModal(true)}
+                className="bg-red-500/30 border border-red-500/50 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/40 transition"
+              >
                 <RefreshCcw className="w-4 h-4 text-red-300" />
                 <span className="text-red-300 text-sm font-bold">تحديث الموقع</span>
               </button>
