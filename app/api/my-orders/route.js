@@ -25,7 +25,7 @@ export async function GET(req) {
 
     const rows = res.data.values || [];
     const orders = rows.slice(1)
-     .filter(r => (r[1]||"").trim() === customerID.trim().tolowewCase())
+     .filter(r => (r[1]||"").trim().tolowerCase() === customerID.trim().tolowewCase())
      .reverse()
      .map(r => ({
         requestID: r[0],
