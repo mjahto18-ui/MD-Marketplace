@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 
@@ -7,11 +7,34 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   const [addressType, setAddressType] = useState(null); // fixed / new
-  const [areaID, setAreaID] = useState("fad82d73");
+  const [areaID, setAreaID] = useState(""); // رح يتعبّى ديناميكي
+  const [areas, setAreas] = useState([]);   // المناطق من API
+
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [note, setNote] = useState("");
 
   const [loading, setLoading] = useState(false);
+
+  // ============================
+  // جلب المناطق من /api/areas
+  // ============================
+  useEffect(() => {
+    async function fetchAreas() {
+      try {
+        const res = await fetch('/api/areas');
+        const data = await res.json();
+
+        if (data.areas && data.areas.length > 0) {
+          setAreas(data.areas);
+          setAreaID(data.areas[0].id); // أول منطقة كافتراضي
+        }
+      } catch (err) {
+        console.error("Areas Fetch Error:", err);
+      }
+    }
+
+    fetchAreas();
+  }, []);
 
   const handleConfirm = async () => {
     if (!addressType) {
@@ -24,9 +47,7 @@ export default function CheckoutPage() {
     let lat = "";
     let lng = "";
 
-    // ============================
     // عنوان جديد → جيب GPS
-    // ============================
     if (addressType === "new") {
       try {
         const pos = await new Promise((resolve, reject) => {
@@ -45,12 +66,8 @@ export default function CheckoutPage() {
       }
     }
 
-    // ============================
-    // عنوان ثابت → ما منجيب GPS هون
-    // ============================
+    // عنوان ثابت → ما منجيب GPS
     if (addressType === "fixed") {
-      // ما منبعت المنطقة والعنوان هون
-      // الAPI رح يجيبهن من جدول Customers
       lat = "";
       lng = "";
     }
@@ -95,9 +112,7 @@ export default function CheckoutPage() {
         <p className="text-sm text-purple-200 mr-11">اختر نوع العنوان</p>
       </header>
 
-      {/* ============================
-          خيارين العنوان
-      ============================ */}
+      {/* خيارين العنوان */}
       <div className="px-4 pb-4 flex flex-col gap-3">
         <button
           onClick={() => setAddressType("fixed")}
@@ -118,13 +133,12 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* ============================
-          الفورم يظهر فقط إذا العنوان جديد
-      ============================ */}
+      {/* الفورم يظهر فقط إذا العنوان جديد */}
       {addressType === "new" && (
         <div className="px-4 pb-6">
           <div className="glass p-5 rounded-2xl border border-white/10 flex flex-col gap-5">
 
+            {/* القائمة المنسدلة الديناميكية */}
             <div>
               <label className="text-sm text-purple-200 mb-2 block">اختر المنطقة</label>
               <select
@@ -132,9 +146,11 @@ export default function CheckoutPage() {
                 onChange={(e) => setAreaID(e.target.value)}
                 className="w-full bg-white/10 border border-white/20 rounded-xl p-3.5 text-white"
               >
-                <option value="fad82d73">وادي حلول</option>
-                <option value="a8d92f11">المنارة</option>
-                <option value="b7c21d55">النبطية</option>
+                {areas.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.name}
+                  </option>
+                ))}
               </select>
             </div>
 
