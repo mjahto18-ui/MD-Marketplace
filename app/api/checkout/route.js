@@ -123,10 +123,16 @@ export async function POST(req) {
       const customerLat = customer[11] || "";
       const customerLng = customer[12] || "";
 
-      // تحقق أن المنطقة موجودة بجدول Areas
-      const areaExists = areasRows.some(row =>
-        row.some(cell => String(cell).trim() === customerArea)
+      // شرطين: كود مع كود + اسم مع اسم
+      const areaExistsByID = areasRows.some(row =>
+        String(row[0]).trim() === String(customerArea).trim()
       );
+
+      const areaExistsByName = areasRows.some(row =>
+        String(row[1]).trim() === String(customerArea).trim()
+      );
+
+      const areaExists = areaExistsByID || areaExistsByName;
 
       if (!areaExists) {
         return NextResponse.json({
@@ -169,30 +175,11 @@ export async function POST(req) {
       finalNote,                      // E
       String(finalAddress),           // F
       deliveryFee,                    // G
-      "",                             // H
-      "",                             // I
-      "Pending",                      // J
-      "",                             // K
-      requestDate,                    // L
-      "",                             // M
-      "FALSE",                        // N
-      "Pending",                      // O
-      "",                             // P
-      "",                             // Q
-      "",                             // R
-      "",                             // S
-      "",                             // T
-      "Pending",                      // U
-      "FALSE",                        // V
-      0,                              // W
-      "",                             // X
-      "",                             // Y
-      customer[2] || "",              // Z (Mobile)
-      "",                             // AA (Current Location)
-      "",                             // AB (Last Location Update)
-      "",                             // AC (Archived Date)
-      finalLat,                       // AD (Customer Latitude)
-      finalLng,                       // AE (Customer Longitude)
+      "", "", "Pending", "", requestDate, "", "FALSE", "Pending",
+      "", "", "", "", "", "Pending", "FALSE", 0, "", "", customer[2] || "",
+      "", "", "",                     // AC
+      finalLat,                       // AD
+      finalLng,                       // AE
     ];
 
     await sheets.spreadsheets.values.append({
