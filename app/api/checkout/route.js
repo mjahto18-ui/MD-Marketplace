@@ -184,7 +184,7 @@ export async function POST(req) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "Order requuest!A:AE",
+      range: "Order Requuest!A:AE",
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [newOrderRequestRow] },
     });
