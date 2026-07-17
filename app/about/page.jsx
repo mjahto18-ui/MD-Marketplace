@@ -113,9 +113,9 @@ export default function AboutPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 text-sm text-[#0D0D21]/80 border-t border-gray-100 pt-4">
-              <p>واتساب: [رقم واتساب]</p>
+              <p>واتساب: [9613000000]</p>
               <span className="hidden sm:block text-[#6A11CB]/30">|</span>
-              <p>اتصال: [رقم اتصال]</p>
+              <p>اتصال: [03000000]</p>
             </div>
           </div>
 
