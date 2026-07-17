@@ -79,15 +79,44 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* تواصل معنا */}
+          {/* تواصل معنا - تم التعديل 3 ايميلات جنب بعض */}
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
-            <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">تواصل معنا</h3>
-            <p className="text-[#0D0D21] mb-4">
+            <h3 className="text-2xl font-bold text-[#6A11CB] mb-2">تواصل معنا</h3>
+            <p className="text-[#0D0D21]/70 mb-6">
               نرحّب بجميع الاستفسارات والملاحظات، ونتعهّد بالرد خلال 24 ساعة عبر قنوات التواصل التالية:
             </p>
-            <p className="text-[#0D0D21]">واتساب: [رقم واتساب]</p>
-            <p className="text-[#0D0D21]">اتصال: [رقم اتصال]</p>
-            <p className="text-[#0D0D21]">البريد الإلكتروني: [البريد الإلكتروني]</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <a href="mailto:info@md-marketplace.store" className="group bg-gradient-to-br from-purple-50 to-pink-50 border border-[#6A11CB]/10 rounded-2xl p-5 text-center hover:shadow-md hover:border-[#6A11CB]/20 transition-all">
+                <div className="w-10 h-10 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <p className="text-sm font-semibold text-[#0D0D21] mb-1">الاستفسارات العامة</p>
+                <p className="text-xs text-[#6A11CB] font-medium group-hover:text-[#FF4E9A] transition break-all">info@md-marketplace.store</p>
+              </a>
+
+              <a href="mailto:support@md-marketplace.store" className="group bg-gradient-to-br from-purple-50 to-pink-50 border border-[#6A11CB]/10 rounded-2xl p-5 text-center hover:shadow-md hover:border-[#6A11CB]/20 transition-all">
+                <div className="w-10 h-10 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </div>
+                <p className="text-sm font-semibold text-[#0D0D21] mb-1">الدعم والشكاوي</p>
+                <p className="text-xs text-[#6A11CB] font-medium group-hover:text-[#FF4E9A] transition break-all">support@md-marketplace.store</p>
+              </a>
+
+              <a href="mailto:sales@md-marketplace.store" className="group bg-gradient-to-br from-purple-50 to-pink-50 border border-[#6A11CB]/10 rounded-2xl p-5 text-center hover:shadow-md hover:border-[#6A11CB]/20 transition-all">
+                <div className="w-10 h-10 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </div>
+                <p className="text-sm font-semibold text-[#0D0D21] mb-1">المبيعات والتوظيف</p>
+                <p className="text-xs text-[#6A11CB] font-medium group-hover:text-[#FF4E9A] transition break-all">sales@md-marketplace.store</p>
+              </a>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 text-sm text-[#0D0D21]/80 border-t border-gray-100 pt-4">
+              <p>واتساب: [رقم واتساب]</p>
+              <span className="hidden sm:block text-[#6A11CB]/30">|</span>
+              <p>اتصال: [رقم اتصال]</p>
+            </div>
           </div>
 
           {/* الاحصائيات */}
@@ -117,23 +146,11 @@ export default function AboutPage() {
           {/* الفوتر */}
           <div className="border-t border-[#6A11CB]/20 pt-8 pb-4">
             <div className="flex items-center justify-center gap-6 text-sm">
-              <Link 
-                href="/privacy" 
-                className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium"
-              >
-                سياسة الخصوصية
-              </Link>
+              <Link href="/privacy" className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium">سياسة الخصوصية</Link>
               <span className="text-[#6A11CB]/30">|</span>
-              <Link 
-                href="/terms" 
-                className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium"
-              >
-                الشروط والاحكام
-              </Link>
+              <Link href="/terms" className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium">الشروط والاحكام</Link>
             </div>
-            <p className="text-xs text-[#0D0D21]/60 mt-4">
-              © 2020 MD-Marketplace. جميع الحقوق محفوظة
-            </p>
+            <p className="text-xs text-[#0D0D21]/60 mt-4">© 2020 MD-Marketplace. جميع الحقوق محفوظة</p>
           </div>
 
         </div>
