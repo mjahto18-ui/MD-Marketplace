@@ -6,22 +6,35 @@ import { ChevronRight, Search, Store } from 'lucide-react';
 export default function StoresPage() {
   const [stores, setStores] = useState([]);
   const [filteredStores, setFilteredStores] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // جلب المتاجر
   useEffect(() => {
     fetch('/api/stores')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           setStores(data.stores);
-          setFilteredStores(data.stores); // بالبداية اعرض الكل
+          setFilteredStores(data.stores);
+        }
+      });
+  }, []);
+
+  // جلب التقييمات
+  useEffect(() => {
+    fetch('/api/reviews')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setReviews(data.reviews);
         }
         setLoading(false);
       });
   }, []);
 
-  // محرك البحث - فلترة عالاسم
+  // فلترة البحث
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredStores(stores);
@@ -33,6 +46,25 @@ export default function StoresPage() {
       setFilteredStores(filtered);
     }
   }, [searchQuery, stores]);
+
+  // حساب التقييم لكل متجر (نفس أب شيت 100%)
+  function getStoreRating(storeID) {
+    const approved = reviews.filter(
+      r => r.storeId === storeID && r.status === "Approved"
+    );
+
+    if (approved.length === 0) {
+      return { rating: 0, count: 0 };
+    }
+
+    const rating =
+      approved.reduce((sum, r) => sum + r.rating, 0) / approved.length;
+
+    return {
+      rating: Number(rating.toFixed(1)),
+      count: approved.length
+    };
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center text-white">
@@ -46,7 +78,6 @@ export default function StoresPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
       
-      {/* الهيدر مع زر رجوع */}
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3 mb-4">
           <Link href="/shop">
@@ -57,7 +88,6 @@ export default function StoresPage() {
           <h1 className="text-2xl font-bold">كل المتاجر</h1>
         </div>
 
-        {/* محرك البحث */}
         <div className="relative">
           <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
           <input
@@ -71,8 +101,8 @@ export default function StoresPage() {
       </header>
 
       <div className="px-4 pb-6">
-        {/* اذا ما في نتائج */}
-        {filteredStores.length === 0 && !loading && (
+
+        {filteredStores.length === 0 && (
           <div className="text-center py-20">
             <Store className="w-16 h-16 text-purple-400 mx-auto mb-4" />
             <p className="text-xl font-bold mb-2">ما لقينا متاجر</p>
@@ -80,27 +110,37 @@ export default function StoresPage() {
           </div>
         )}
 
-        {/* شبكة المتاجر - Responsive */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-          {filteredStores.map(store => (
-            <Link key={store.storeID} href={`/store/${store.storeID}`}>
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden active:scale-95 transition cursor-pointer hover:border-purple-500/50">
-                
-                {/* صورة المتجر - صارت responsive */}
-                <img 
-                  src={store.image}
-                  alt={store.storeName}
-                  className="w-full h-28 md:h-32 object-cover bg-white/5"
-                />
+          {filteredStores.map(store => {
+            const { rating, count } = getStoreRating(store.storeID);
 
-                <div className="p-3">
-                  <h3 className="font-bold text-sm mb-1 truncate">{store.storeName}</h3>
-                  <p className="text-xs text-purple-300 truncate">{store.address}</p>
+            return (
+              <Link key={store.storeID} href={`/store/${store.storeID}`}>
+                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden active:scale-95 transition cursor-pointer hover:border-purple-500/50">
+                  
+                  <img 
+                    src={store.image}
+                    alt={store.storeName}
+                    className="w-full h-28 md:h-32 object-cover bg-white/5"
+                  />
+
+                  <div className="p-3">
+                    <h3 className="font-bold text-sm mb-1 truncate">{store.storeName}</h3>
+                    <p className="text-xs text-purple-300 truncate">{store.address}</p>
+
+                    {/* ⭐⭐⭐⭐☆ (4.2) */}
+                    <div className="text-xs text-yellow-400 mt-2">
+                      ⭐⭐⭐⭐⭐ ({rating})
+                    </div>
+
+                    {/* عدد التقييمات */}
+                    <p className="text-xs text-purple-300">{count} تقييم</p>
+                  </div>
+
                 </div>
-
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>
