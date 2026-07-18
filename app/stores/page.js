@@ -47,6 +47,19 @@ export default function StoresPage() {
     }
   }, [searchQuery, stores]);
 
+  // ⭐ دالة النجوم مع نص نجمة
+  function renderStars(rating) {
+    const full = Math.floor(rating);          // نجوم مليانة
+    const half = rating % 1 >= 0.5 ? 1 : 0;   // نص نجمة
+    const empty = 5 - full - half;            // نجوم فاضية
+
+    return (
+      '★'.repeat(full) +
+      (half ? '⯨' : '') +
+      '☆'.repeat(empty)
+    );
+  }
+
   // حساب التقييم لكل متجر (نفس أب شيت 100%)
   function getStoreRating(storeID) {
     const approved = reviews.filter(
@@ -130,7 +143,7 @@ export default function StoresPage() {
 
                     {/* ⭐⭐⭐⭐☆ (4.2) */}
                     <div className="text-xs text-yellow-400 mt-2">
-                      ⭐⭐⭐⭐⭐ ({rating})
+                      {renderStars(rating)} ({rating})
                     </div>
 
                     {/* عدد التقييمات */}
