@@ -82,8 +82,8 @@ export default function Dashboard() {
 
   // ⭐ تحديد آخر طلب Approved فقط
   const latestApproved = orders
-    .filter(j => j.status === "Approved")
-    .slice(-1)[0];
+  .filter(o => o.approvalStatus === "Approved")
+  .slice(-1)[0];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950" style={{ direction: "rtl" }}>
