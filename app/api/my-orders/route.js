@@ -41,6 +41,8 @@ export async function GET(req) {
           itemsCost: r[15],
           deliveryFee: r[6],
           total: r[16],
+          // ⭐ Approval Status من عامود J
+          approvalStatus: r[9],
           status: r[14],
           freeUsed: r[24] === "TRUE",
 
