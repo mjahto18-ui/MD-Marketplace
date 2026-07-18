@@ -62,7 +62,16 @@ export default function ProtectionCasesPage() {
   }
 
   return (
-    <div className="p-4">
+    <div 
+      className="
+        min-h-screen 
+        p-4 
+        bg-gradient-to-r 
+        from-[#6A11CB]/20 
+        to-[#FF4E9A]/20 
+        border border-[#FF4E9A]/30
+      "
+    >
 
       {/* الهيدر */}
       <div className="flex items-center gap-3 mb-6">
@@ -71,20 +80,20 @@ export default function ProtectionCasesPage() {
           alt="Protection Icon" 
           className="w-8 h-8"
         />
-        <h1 className="text-xl font-bold text-gray-800">
+        <h1 className="text-xl font-bold text-white">
           خدمة حماية المستخدم
         </h1>
       </div>
 
       {/* النموذج */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 text-white">
 
         {/* نوع البلاغ */}
         <div>
-          <label className="block mb-2 font-medium text-gray-700">
+          <label className="block mb-2 font-medium">
             نوع البلاغ
           </label>
-          <select name="caseType" required className="w-full border rounded-md p-2">
+          <select name="caseType" required className="w-full border rounded-md p-2 bg-white text-black">
             <option value="">اختر نوع البلاغ</option>
             <option value="طلب لم يصل">طلب لم يصل</option>
             <option value="خطأ في الشحن">خطأ في الشحن</option>
@@ -97,31 +106,31 @@ export default function ProtectionCasesPage() {
 
         {/* الوصف */}
         <div>
-          <label className="block mb-2 font-medium text-gray-700">
+          <label className="block mb-2 font-medium">
             وصف المشكلة
           </label>
           <textarea
             name="description"
             required
             rows="4"
-            className="w-full border rounded-md p-2"
+            className="w-full border rounded-md p-2 bg-white text-black"
             placeholder="اكتب تفاصيل المشكلة هنا..."
           ></textarea>
         </div>
 
         {/* رقم الطلب */}
         <div>
-          <label className="block mb-2 font-medium text-gray-700">
+          <label className="block mb-2 font-medium">
             رقم الطلب (اختياري)
           </label>
-          <select name="orderId" className="w-full border rounded-md p-2">
+          <select name="orderId" className="w-full border rounded-md p-2 bg-white text-black">
             <option value="">— بدون رقم طلب —</option>
           </select>
         </div>
 
         {/* رقم الواتساب */}
         <div>
-          <label className="block mb-2 font-medium text-gray-700">
+          <label className="block mb-2 font-medium">
             رقم الواتساب للتواصل
           </label>
           <input
@@ -131,25 +140,25 @@ export default function ProtectionCasesPage() {
             pattern="[0-9]{8}"
             maxLength="8"
             minLength="8"
-            className="w-full border rounded-md p-2"
+            className="w-full border rounded-md p-2 bg-white text-black"
             placeholder="مثال: 03xxxxxx"
           />
         </div>
 
         {/* الصور */}
         <div>
-          <label className="block mb-2 font-medium text-gray-700">صورة 1</label>
-          <input type="file" name="photo1" accept="image/*" capture="environment" className="w-full" />
+          <label className="block mb-2 font-medium">صورة 1</label>
+          <input type="file" name="photo1" accept="image/*" capture="environment" className="w-full bg-white text-black" />
         </div>
 
         <div>
-          <label className="block mb-2 font-medium text-gray-700">صورة 2 (اختياري)</label>
-          <input type="file" name="photo2" accept="image/*" capture="environment" className="w-full" />
+          <label className="block mb-2 font-medium">صورة 2 (اختياري)</label>
+          <input type="file" name="photo2" accept="image/*" capture="environment" className="w-full bg-white text-black" />
         </div>
 
         <div>
-          <label className="block mb-2 font-medium text-gray-700">صورة 3 (اختياري)</label>
-          <input type="file" name="photo3" accept="image/*" capture="environment" className="w-full" />
+          <label className="block mb-2 font-medium">صورة 3 (اختياري)</label>
+          <input type="file" name="photo3" accept="image/*" capture="environment" className="w-full bg-white text-black" />
         </div>
 
         {/* الأزرار */}
@@ -164,7 +173,7 @@ export default function ProtectionCasesPage() {
 
           <button
             type="submit"
-            className="px-4 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700"
+            className="px-4 py-2 rounded-md bg-gradient-to-r from-[#6A11CB] to-[#FF4E9A] text-white font-medium"
           >
             إرسال البلاغ
           </button>
