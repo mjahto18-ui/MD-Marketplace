@@ -74,17 +74,47 @@ export default function TermsPage() {
             </ul>
           </section>
 
-          {/* 5 */}
+          {/* 5 — خدمة حماية المستخدم */}
           <section>
-            <h2 className="text-2xl font-bold text-white mb-4">5. ميزة Wish — ضمان الحق</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">5. خدمة حماية المستخدم — ضمان الحق</h2>
+
             <div className="bg-gradient-to-r from-[#6A11CB]/20 to-[#FF4E9A]/20 border border-[#FF4E9A]/30 rounded-xl p-6">
-              <p className="font-bold text-white mb-3">Wish هي ميزة مخصّصة لحماية العميل:</p>
-              <ul className="list-disc list-inside space-y-2">
-                <li>إذا دفعت ولم تستلم الطلب خلال ساعتين → <strong>استرجاع كامل للمبلغ</strong></li>
-                <li>إذا استلمت منتجاً مختلفاً أو تالفاً → <strong>يحق لك استرجاعه واسترداد قيمته</strong></li>
-                <li>معالجة جميع الشكاوى خلال 12 ساعة كحد أقصى</li>
-                <li>الخدمة مجانية بالكامل</li>
+
+              {/* اللوغو داخل البوكس */}
+              <div className="flex items-center gap-3 mb-4">
+                <img 
+                  src="/icons/protection-shield.png"
+                  alt="Protection Icon"
+                  className="w-12 h-12"
+                />
+                <p className="font-bold text-white text-lg">
+                  خدمة حماية المستخدم تضمن حقك في حال حدوث أي مشكلة بالطلب:
+                </p>
+              </div>
+
+              <ul className="list-disc list-inside space-y-2 text-white/90">
+                <li>في حال عدم وصول الطلب خلال الوقت المحدد، يتم فتح بلاغ ومتابعته فوراً.</li>
+                <li>في حال استلام منتج تالف أو مختلف عن الوصف، يحق لك استرجاعه أو استرداد قيمته.</li>
+                <li>يتم معالجة البلاغات خلال مدة أقصاها <strong>12 ساعة</strong>.</li>
+                <li>الخدمة مجانية بالكامل ولا تتطلّب أي رسوم إضافية.</li>
               </ul>
+
+              {/* زر إرسال البلاغ داخل البوكس */}
+              <div className="mt-6">
+                <Link 
+                  href="/protection-cases"
+                  className="
+                    block w-full text-center 
+                    px-4 py-3 rounded-lg 
+                    bg-gradient-to-r from-[#6A11CB] to-[#FF4E9A]
+                    text-white font-semibold
+                    hover:opacity-90 transition
+                  "
+                >
+                  إرسال بلاغ
+                </Link>
+              </div>
+
             </div>
           </section>
 
@@ -118,7 +148,7 @@ export default function TermsPage() {
               <li>جودة المنتجات — مسؤولية التاجر</li>
               <li>التأخير الناتج عن ظروف قاهرة مثل الطقس، الحرب، أو قطع الطرقات</li>
               <li>الأضرار الناتجة عن سوء استخدام المنتج</li>
-              <li>الخلافات المباشرة بينك وبين التاجر، مع إمكانية المساعدة عبر نظام Wish</li>
+              <li>الخلافات المباشرة بينك وبين التاجر، مع إمكانية المساعدة عبر نظام حماية المستخدم</li>
             </ul>
           </section>
 
