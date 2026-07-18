@@ -40,7 +40,7 @@ async function handleSubmit(e) {
     photo2: photo2Base,
     photo3: photo3Base,
 
-    // هول رح ينعطوا من التطبيق لاحقاً
+    // .هول رح ينعطوا من التطبيق لاحقاً
     customerId: "CUSTOMER-ID-HERE",
     storeId: "",
     driverId: "",
