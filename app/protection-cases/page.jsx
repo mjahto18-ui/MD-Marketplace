@@ -27,18 +27,14 @@ export default function ProtectionCasesPage() {
       });
     }
 
-    const photo1Base = await toBase64(photo1);
-    const photo2Base = await toBase64(photo2);
-    const photo3Base = await toBase64(photo3);
-
     const payload = {
       caseType,
       description,
       orderId,
       whatsapp,
-      photo1: photo1Base,
-      photo2: photo2Base,
-      photo3: photo3Base,
+      photo1: await toBase64(photo1),
+      photo2: await toBase64(photo2),
+      photo3: await toBase64(photo3),
 
       customerId: "CUSTOMER-ID-HERE",
       storeId: "",
@@ -65,7 +61,7 @@ export default function ProtectionCasesPage() {
     <div 
       className="
         min-h-screen 
-        p-4 
+        p-6 
         bg-gradient-to-r 
         from-[#6A11CB]/20 
         to-[#FF4E9A]/20 
@@ -73,113 +69,111 @@ export default function ProtectionCasesPage() {
       "
     >
 
-      {/* الهيدر */}
-      <div className="flex items-center gap-3 mb-6">
-        <img 
-          src="/icons/protection.png" 
-          alt="Protection Icon" 
-          className="w-8 h-8"
-        />
-        <h1 className="text-xl font-bold text-white">
-          خدمة حماية المستخدم
-        </h1>
-      </div>
+      {/* صندوق مركزي */}
+      <div className="max-w-xl mx-auto bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
 
-      {/* النموذج */}
-      <form onSubmit={handleSubmit} className="space-y-4 text-white">
-
-        {/* نوع البلاغ */}
-        <div>
-          <label className="block mb-2 font-medium">
-            نوع البلاغ
-          </label>
-          <select name="caseType" required className="w-full border rounded-md p-2 bg-white text-black">
-            <option value="">اختر نوع البلاغ</option>
-            <option value="طلب لم يصل">طلب لم يصل</option>
-            <option value="خطأ في الشحن">خطأ في الشحن</option>
-            <option value="منتج تالف">منتج تالف</option>
-            <option value="منتج مفقود ضمن الطلب">منتج مفقود ضمن الطلب</option>
-            <option value="تأخير في التوصيل">تأخير في التوصيل</option>
-            <option value="أخرى">أخرى</option>
-          </select>
-        </div>
-
-        {/* الوصف */}
-        <div>
-          <label className="block mb-2 font-medium">
-            وصف المشكلة
-          </label>
-          <textarea
-            name="description"
-            required
-            rows="4"
-            className="w-full border rounded-md p-2 bg-white text-black"
-            placeholder="اكتب تفاصيل المشكلة هنا..."
-          ></textarea>
-        </div>
-
-        {/* رقم الطلب */}
-        <div>
-          <label className="block mb-2 font-medium">
-            رقم الطلب (اختياري)
-          </label>
-          <select name="orderId" className="w-full border rounded-md p-2 bg-white text-black">
-            <option value="">— بدون رقم طلب —</option>
-          </select>
-        </div>
-
-        {/* رقم الواتساب */}
-        <div>
-          <label className="block mb-2 font-medium">
-            رقم الواتساب للتواصل
-          </label>
-          <input
-            type="tel"
-            name="whatsapp"
-            required
-            pattern="[0-9]{8}"
-            maxLength="8"
-            minLength="8"
-            className="w-full border rounded-md p-2 bg-white text-black"
-            placeholder="مثال: 03xxxxxx"
+        {/* الهيدر */}
+        <div className="flex items-center gap-3 mb-6">
+          <img 
+            src="/icons/protection-shield.png"
+            alt="Protection Icon"
+            className="w-10 h-10"
           />
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#6A11CB] to-[#FF4E9A] bg-clip-text text-transparent">
+            خدمة حماية المستخدم
+          </h1>
         </div>
 
-        {/* الصور */}
-        <div>
-          <label className="block mb-2 font-medium">صورة 1</label>
-          <input type="file" name="photo1" accept="image/*" capture="environment" className="w-full bg-white text-black" />
-        </div>
+        {/* النموذج */}
+        <form onSubmit={handleSubmit} className="space-y-5 text-white">
 
-        <div>
-          <label className="block mb-2 font-medium">صورة 2 (اختياري)</label>
-          <input type="file" name="photo2" accept="image/*" capture="environment" className="w-full bg-white text-black" />
-        </div>
+          {/* نوع البلاغ */}
+          <div>
+            <label className="block mb-2 font-medium">نوع البلاغ</label>
+            <select name="caseType" required className="w-full border rounded-md p-2 bg-white text-black">
+              <option value="">اختر نوع البلاغ</option>
+              <option value="طلب لم يصل">طلب لم يصل</option>
+              <option value="خطأ في الشحن">خطأ في الشحن</option>
+              <option value="منتج تالف">منتج تالف</option>
+              <option value="منتج مفقود ضمن الطلب">منتج مفقود ضمن الطلب</option>
+              <option value="تأخير في التوصيل">تأخير في التوصيل</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+          </div>
 
-        <div>
-          <label className="block mb-2 font-medium">صورة 3 (اختياري)</label>
-          <input type="file" name="photo3" accept="image/*" capture="environment" className="w-full bg-white text-black" />
-        </div>
+          {/* الوصف */}
+          <div>
+            <label className="block mb-2 font-medium">وصف المشكلة</label>
+            <textarea
+              name="description"
+              required
+              rows="4"
+              className="w-full border rounded-md p-2 bg-white text-black"
+              placeholder="اكتب تفاصيل المشكلة هنا..."
+            ></textarea>
+          </div>
 
-        {/* الأزرار */}
-        <div className="flex items-center justify-between mt-8">
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 font-medium hover:bg-gray-300"
-          >
-            إلغاء
-          </button>
+          {/* رقم الطلب */}
+          <div>
+            <label className="block mb-2 font-medium">رقم الطلب (اختياري)</label>
+            <select name="orderId" className="w-full border rounded-md p-2 bg-white text-black">
+              <option value="">— بدون رقم طلب —</option>
+            </select>
+          </div>
 
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-md bg-gradient-to-r from-[#6A11CB] to-[#FF4E9A] text-white font-medium"
-          >
-            إرسال البلاغ
-          </button>
-        </div>
+          {/* رقم الواتساب */}
+          <div>
+            <label className="block mb-2 font-medium">رقم الواتساب للتواصل</label>
+            <input
+              type="tel"
+              name="whatsapp"
+              required
+              pattern="[0-9]{8}"
+              maxLength="8"
+              minLength="8"
+              className="w-full border rounded-md p-2 bg-white text-black"
+              placeholder="مثال: 03xxxxxx"
+            />
+          </div>
 
-      </form>
+          {/* الصور */}
+          <div className="space-y-4">
+            <div>
+              <label className="block mb-2 font-medium">صورة 1</label>
+              <input type="file" name="photo1" accept="image/*" className="w-full bg-white text-black" />
+            </div>
+
+            <div>
+              <label className="block mb-2 font-medium">صورة 2 (اختياري)</label>
+              <input type="file" name="photo2" accept="image/*" className="w-full bg-white text-black" />
+            </div>
+
+            <div>
+              <label className="block mb-2 font-medium">صورة 3 (اختياري)</label>
+              <input type="file" name="photo3" accept="image/*" className="w-full bg-white text-black" />
+            </div>
+          </div>
+
+          {/* الأزرار */}
+          <div className="flex items-center justify-between mt-8">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 font-medium hover:bg-gray-300"
+            >
+              إلغاء
+            </button>
+
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-md bg-gradient-to-r from-[#6A11CB] to-[#FF4E9A] text-white font-medium"
+            >
+              إرسال البلاغ
+            </button>
+          </div>
+
+        </form>
+      </div>
     </div>
   );
 }
