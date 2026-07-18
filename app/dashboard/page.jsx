@@ -82,7 +82,7 @@ export default function Dashboard() {
 
   // ⭐ تحديد آخر طلب Approved فقط
   const latestApproved = orders
-    .filter(o => o.status === "Approved")
+    .filter(j => j.status === "Approved")
     .slice(-1)[0];
 
   return (
