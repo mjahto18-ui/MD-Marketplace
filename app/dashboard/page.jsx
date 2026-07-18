@@ -279,25 +279,28 @@ export default function Dashboard() {
         </div>
 
         {/* ⭐ خريطة آخر طلب Approved فقط */}
-        {latestApproved && latestApproved.customerLat && latestApproved.customerLng && (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 mt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <MapPin className="w-5 h-5 text-purple-400" />
-              <h2 className="text-white font-bold">خريطة الطلب الحالي</h2>
-            </div>
+{latestApproved && latestApproved.customerLat && latestApproved.customerLng && (
+  <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 mt-4">
+    <div className="flex items-center gap-2 mb-3">
+      <MapPin className="w-5 h-5 text-purple-400" />
+      <h2 className="text-white font-bold">خريطة الطلب الحالي</h2>
+    </div>
 
-            <div className="h-48 rounded-xl overflow-hidden mb-3">
-              <Map
-                lat={parseFloat(latestApproved.customerLat)}
-                lng={parseFloat(latestApproved.customerLng)}
-              />
-            </div>
+    <div className="h-48 rounded-xl overflow-hidden mb-3">
+      <Map
+        customerLat={latestApproved.customerLat}
+        customerLng={latestApproved.customerLng}
+        driverLat={latestApproved.driverLat}
+        driverLng={latestApproved.driverLng}
+      />
+    </div>
 
-            <p className="text-purple-200 text-sm">
-              الطلب رقم #{latestApproved.requestID.slice(-6)}
-            </p>
-          </div>
-        )}
+    <p className="text-purple-200 text-sm">
+      الطلب رقم #{latestApproved.requestID.slice(-6)}
+      {latestApproved.driverLat && latestApproved.driverLng ? " - السائق في الطريق 🛵" : " - بانتظار السائق"}
+    </p>
+  </div>
+)}
 
         <button onClick={() => window.location.href = '/shop'} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition">
           <ShoppingBag className="w-5 h-5" />
