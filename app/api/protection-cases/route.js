@@ -43,7 +43,6 @@ async function getCustomerName(sheets, phone) {
 
   const rows = res.data.values || [];
 
-  // Normalize رقم العميل
   const normalizedInput = phone.toString().trim();
 
   for (let i = 1; i < rows.length; i++) {
@@ -51,10 +50,8 @@ async function getCustomerName(sheets, phone) {
 
     if (!userPhoneRaw) continue;
 
-    // Normalize رقم الشيت
     const normalizedSheetPhone = userPhoneRaw.toString().trim();
 
-    // مقارنة نصّية مباشرة
     if (normalizedSheetPhone === normalizedInput) {
       return userName;
     }
@@ -82,17 +79,18 @@ export async function POST(req) {
     const lastID = await getLastCaseID(sheets);
     const caseID = generateCaseID(lastID);
 
-    const customerName = await getCustomerName(sheets, body.customerId);
+    // أهم تعديل:
+    const customerName = await getCustomerName(sheets, body.whatsapp);
 
     const row = [
       caseID,
       body.orderId || "",
-      customerName, // اسم العميل أو زائر
+      customerName,
       body.storeId || "",
       body.driverId || "",
       body.caseType,
       body.description,
-      "", "", "", // الصور مخفية بالكامل
+      "", "", "", // الصور مخفية
       "",
       "Pending",
       "",
