@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
+import BackButton from './BackButton'
 
 export const metadata = {
   title: 'سياسة الخصوصية - MD Marketplace',
@@ -10,15 +11,9 @@ export default function PrivacyPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-[#0D0D21] text-white">
 
-      {/* زر الرجوع */}
+      {/* زر الرجوع الذكي */}
       <div className="max-w-4xl mx-auto px-4 pt-4">
-        <Link 
-          href="/about"
-          className="inline-flex items-center gap-1 text-purple-400/80 hover:text-white text-xs transition"
-        >
-          <ChevronRight className="w-3 h-3 rotate-180" />
-          رجوع
-        </Link>
+        <BackButton />
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
