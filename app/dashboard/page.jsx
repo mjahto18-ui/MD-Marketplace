@@ -175,8 +175,9 @@ export default function Dashboard() {
 
                 </div>
               )}
-              )}
-              </div>
+              
+           </div>
+            
             {needsLocationUpdate? (
               <button
                 onClick={() => setShowLocationModal(true)}
