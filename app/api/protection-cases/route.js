@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { Readable } from "stream";
 
-// 0) إعداد Google Drive عبر Service Account
+// إعداد Google Drive عبر Service Account
 const driveAuth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -32,7 +33,7 @@ async function uploadToDrive(base64, fileName) {
     },
     media: {
       mimeType: "image/png",
-      body: buffer,
+      body: Readable.from(buffer), // الحل النهائي للخطأ pipe()
     },
   });
 
@@ -51,7 +52,7 @@ async function uploadToDrive(base64, fileName) {
   return `https://drive.google.com/uc?export=view&id=${fileId}`;
 }
 
-// 1) الاتصال مع Google Sheets
+// الاتصال مع Google Sheets
 async function getSheet() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -65,7 +66,7 @@ async function getSheet() {
   return sheets;
 }
 
-// 2) قراءة آخر Case ID
+// قراءة آخر Case ID
 async function getLastCaseID(sheets) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.GOOGLE_SHEETS_ID,
@@ -82,14 +83,14 @@ async function getLastCaseID(sheets) {
   return last;
 }
 
-// 3) توليد Case ID جديد
+// توليد Case ID جديد
 function generateCaseID(lastID) {
   const number = parseInt(lastID.replace("REF-", ""), 10) + 1;
   const padded = number.toString().padStart(6, "0");
   return `REF-${padded}`;
 }
 
-// 4) كتابة صف جديد
+// كتابة صف جديد
 async function writeCase(sheets, data) {
   await sheets.spreadsheets.values.append({
     spreadsheetId: process.env.GOOGLE_SHEETS_ID,
@@ -101,7 +102,7 @@ async function writeCase(sheets, data) {
   });
 }
 
-// 5) الـ API الرئيسي
+// API الرئيسي
 export async function POST(req) {
   try {
     const body = await req.json();
