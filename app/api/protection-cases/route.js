@@ -43,13 +43,19 @@ async function getCustomerName(sheets, phone) {
 
   const rows = res.data.values || [];
 
+  // Normalize رقم العميل
+  const normalizedInput = phone.toString().trim();
+
   for (let i = 1; i < rows.length; i++) {
-    const [userName, userPhone] = rows[i];
+    const [userName, userPhoneRaw] = rows[i];
 
-    // نرجّع الصفر إذا ناقص
-    const normalizedPhone = userPhone.toString().padStart(8, "0");
+    if (!userPhoneRaw) continue;
 
-    if (normalizedPhone === phone) {
+    // Normalize رقم الشيت
+    const normalizedSheetPhone = userPhoneRaw.toString().trim();
+
+    // مقارنة مباشرة بدون padStart
+    if (normalizedSheetPhone === normalizedInput) {
       return userName;
     }
   }
@@ -86,7 +92,7 @@ export async function POST(req) {
       body.driverId || "",
       body.caseType,
       body.description,
-      "", "", "", // الصور مخفية
+      "", "", "", // الصور مخفية بالكامل
       "",
       "Pending",
       "",
