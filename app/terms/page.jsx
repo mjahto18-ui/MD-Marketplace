@@ -10,7 +10,7 @@ export default function TermsPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-[#0D0D21] text-white">
 
-      {/* زر الرجوع - مصلح */}
+      {/* زر  الرجوع - مصلح */}
       <div className="max-w-4xl mx-auto px-4 pt-6">
         <BackButton />
       </div>
