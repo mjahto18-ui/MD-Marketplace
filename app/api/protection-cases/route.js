@@ -54,7 +54,7 @@ async function getCustomerName(sheets, phone) {
     // Normalize رقم الشيت
     const normalizedSheetPhone = userPhoneRaw.toString().trim();
 
-    // مقارنة مباشرة بدون padStart
+    // مقارنة نصّية مباشرة
     if (normalizedSheetPhone === normalizedInput) {
       return userName;
     }
