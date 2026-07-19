@@ -1,21 +1,35 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { customerId } = body;
+    // ✅ جيب الـ customerId من الجلسة مش من الـ body
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    const decoded = token? verifyToken(token) : null;
 
-    if (!customerId) {
+    if (!decoded?.id) {
       return NextResponse.json({
         success: false,
-        message: "Missing customerId",
-      });
+        message: "Unauthorized",
+        notifications: []
+      }, { status: 401 });
     }
 
-    // -----------------------------
-    // Google Sheets Auth
-    // -----------------------------
+    const customerId = decoded.id; // من الجلسة الآمنة
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -27,30 +41,24 @@ export async function POST(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-    // -----------------------------
-    // Read Notifications Sheet
-    // -----------------------------
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Webhook!A:E", // غيّرها حسب اسم الشيت
+      range: "Webhook!A:E",
     });
 
     const rows = result.data.values || [];
 
-    // -----------------------------
-    // Filter by customerId
-    // -----------------------------
     const notifications = rows
-      .filter(r => r[0] === customerId)
-      .map(r => ({
+     .filter(r => r[0] === customerId)
+     .map(r => ({
         customerId: r[0],
         title: r[1],
         message: r[2],
         image: r[3],
         date: r[4],
       }))
-      .reverse() // أحدث إشعارات أول شي
-      .slice(0, 10); // آخر 10 فقط
+     .reverse()
+     .slice(0, 10);
 
     return NextResponse.json({
       success: true,
