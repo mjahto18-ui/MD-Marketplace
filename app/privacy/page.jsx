@@ -1,5 +1,3 @@
-import Link from 'next/link'
-import { ChevronRight } from 'lucide-react'
 import BackButton from './BackButton'
 
 export const metadata = {
@@ -11,8 +9,8 @@ export default function PrivacyPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-[#0D0D21] text-white">
 
-      {/* زر  الرجوع الذكي */}
-      <div className="max-w-4xl mx-auto px-4 pt-4">
+      {/* زر الرجوع الحلو نفس تبع terms */}
+      <div className="max-w-4xl mx-auto px-4 pt-6">
         <BackButton />
       </div>
 
@@ -26,7 +24,6 @@ export default function PrivacyPage() {
 
           <p className="text-sm text-purple-300">آخر تحديث: 7 تموز 2025</p>
 
-          {/* 1 */}
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">1. البيانات التي نجمعها</h2>
             <p>نجمع البيانات التالية بهدف تقديم خدمة دقيقة وآمنة:</p>
@@ -38,7 +35,6 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
-          {/* 2 */}
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">2. كيف نستخدم بياناتك</h2>
             <ul className="list-disc list-inside space-y-2">
@@ -50,7 +46,6 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
-          {/* 3 */}
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">3. مشاركة البيانات</h2>
             <p><strong>لا نبيع بياناتك ولا نشاركها مع أي طرف ثالث غير مخوّل.</strong></p>
@@ -62,7 +57,6 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
-          {/* 4 */}
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">4. أمان البيانات</h2>
             <p>
@@ -74,7 +68,6 @@ export default function PrivacyPage() {
             </p>
           </section>
 
-          {/* 5 */}
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">5. حقوقك</h2>
             <ul className="list-disc list-inside space-y-2">
@@ -86,7 +79,6 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
-          {/* 6 */}
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">6. الكوكيز</h2>
             <p>
@@ -97,7 +89,6 @@ export default function PrivacyPage() {
             </p>
           </section>
 
-          {/* 7 */}
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">7. التواصل معنا</h2>
             <p>لأي استفسار متعلق بالخصوصية: واتساب 9613000000</p>
