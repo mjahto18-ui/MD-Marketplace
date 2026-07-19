@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ChevronRight } from 'lucide-react'
+import BackButton from './BackButton'
 
 export const metadata = {
   title: 'الشروط والاحكام - MD-Marketplace',
@@ -10,18 +10,12 @@ export default function TermsPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-[#0D0D21] text-white">
 
-      {/* زر الرجوع */}
-      <div className="max-w-4xl mx-auto px-4 pt-4">
-        <Link 
-          href="/about"
-          className="inline-flex items-center gap-1 text-purple-400/80 hover:text-white text-xs transition"
-        >
-          <ChevronRight className="w-3 h-3 rotate-180" />
-          رجوع
-        </Link>
+      {/* زر الرجوع - مصلح */}
+      <div className="max-w-4xl mx-auto px-4 pt-6">
+        <BackButton />
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-6">
 
         <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-[#6A11CB] to-[#FF4E9A] bg-clip-text text-transparent">
           الشروط والاحكام
@@ -80,7 +74,6 @@ export default function TermsPage() {
 
             <div className="bg-gradient-to-r from-[#6A11CB]/20 to-[#FF4E9A]/20 border border-[#FF4E9A]/30 rounded-xl p-6">
 
-              {/* اللوغو داخل البوكس */}
               <div className="flex items-center gap-3 mb-4">
                 <img 
                   src="/icons/protection-shield.png"
@@ -99,7 +92,6 @@ export default function TermsPage() {
                 <li>الخدمة مجانية بالكامل ولا تتطلّب أي رسوم إضافية.</li>
               </ul>
 
-              {/* زر إرسال البلاغ داخل البوكس */}
               <div className="mt-6">
                 <Link 
                   href="/protection-cases"
