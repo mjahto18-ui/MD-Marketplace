@@ -145,8 +145,8 @@ export default function Dashboard() {
                 )}
               </button>
 
-              {openNotifications && (
-                <div className="absolute left-0 mt-3 w-80 bg-[#1a1a1a] text-white shadow-2xl rounded-xl p-3 z-50 border border-white/10 max-h- overflow-y-auto">
+                            {openNotifications && (
+                <div className="absolute left-0 top-full mt-3 w- max-w- bg-[#1a1a1a] text-white shadow-2xl rounded-xl p-3 z-50 border border-white/10 max-h- overflow-y-auto">
 
                   {notifications.length === 0 && (
                     <div className="text-center py-8 text-gray-400">
@@ -157,23 +157,24 @@ export default function Dashboard() {
                   {notifications.map((n, i) => (
                     <div
                       key={i}
-                      className={`border-b border-white/10 py-3 px-2 rounded-lg mb-1 ${
-                        i === 0 && hasNew? "bg-yellow-500/20 border border-yellow-500/30" : "bg-transparent"
+                      className={`border-b border-white/10 py-3 px-2 rounded-lg mb-2 last:border-0 ${
+                        i === 0 && hasNew? "bg-yellow-500/20 border border-yellow-500/30" : "bg-white/[0.03]"
                       }`}
                     >
-                      <div className={`font-bold text-sm ${i === 0 && hasNew? "text-yellow-300" : "text-white"}`}>
+                      <div className={`font-bold text-sm break-words ${i === 0 && hasNew? "text-yellow-300" : "text-white"}`}>
                         {n.title}
                       </div>
-                      <div className={`text-sm mt-1 ${i === 0 && hasNew? "text-yellow-100" : "text-gray-300"}`}>
+                      <div className={`text-sm mt-1 break-words whitespace-pre-wrap leading-relaxed ${i === 0 && hasNew? "text-yellow-100" : "text-gray-300"}`}>
                         {n.message}
                       </div>
-                      <div className="text- text-gray-500 mt-1">
+                      <div className="text- text-gray-500 mt-2">
                         {n.date}
                       </div>
                     </div>
                   ))}
 
                 </div>
+              )}
               )}
             </div>
 
