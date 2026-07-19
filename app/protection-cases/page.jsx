@@ -14,27 +14,16 @@ export default function ProtectionCasesPage() {
     const orderId = formData.get("orderId");
     const whatsapp = formData.get("whatsapp");
 
-    const photo1 = formData.get("photo1");
-    const photo2 = formData.get("photo2");
-    const photo3 = formData.get("photo3");
-
-    async function toBase64(file) {
-      if (!file || file.size === 0) return "";
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
-    }
-
+    // الصور معطّلة — ما في رفع
     const payload = {
       caseType,
       description,
       orderId,
       whatsapp,
-      photo1: await toBase64(photo1),
-      photo2: await toBase64(photo2),
-      photo3: await toBase64(photo3),
+
+      photo1: "",
+      photo2: "",
+      photo3: "",
 
       customerId: "CUSTOMER-ID-HERE",
       storeId: "",
@@ -69,10 +58,8 @@ export default function ProtectionCasesPage() {
       "
     >
 
-      {/* صندوق مركزي */}
       <div className="max-w-xl mx-auto bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
 
-        {/* الهيدر */}
         <div className="flex items-center gap-3 mb-6">
           <img 
             src="/icons/protection-shield.png"
@@ -84,10 +71,8 @@ export default function ProtectionCasesPage() {
           </h1>
         </div>
 
-        {/* النموذج */}
         <form onSubmit={handleSubmit} className="space-y-5 text-white">
 
-          {/* نوع البلاغ */}
           <div>
             <label className="block mb-2 font-medium">نوع البلاغ</label>
             <select name="caseType" required className="w-full border rounded-md p-2 bg-white text-black">
@@ -101,7 +86,6 @@ export default function ProtectionCasesPage() {
             </select>
           </div>
 
-          {/* الوصف */}
           <div>
             <label className="block mb-2 font-medium">وصف المشكلة</label>
             <textarea
@@ -113,7 +97,6 @@ export default function ProtectionCasesPage() {
             ></textarea>
           </div>
 
-          {/* رقم الطلب */}
           <div>
             <label className="block mb-2 font-medium">رقم الطلب (اختياري)</label>
             <select name="orderId" className="w-full border rounded-md p-2 bg-white text-black">
@@ -121,7 +104,6 @@ export default function ProtectionCasesPage() {
             </select>
           </div>
 
-          {/* رقم الواتساب */}
           <div>
             <label className="block mb-2 font-medium">رقم الواتساب للتواصل</label>
             <input
@@ -136,25 +118,59 @@ export default function ProtectionCasesPage() {
             />
           </div>
 
-          {/* الصور */}
+          {/* الصور — منظر فقط */}
           <div className="space-y-4">
+
             <div>
               <label className="block mb-2 font-medium">صورة 1</label>
-              <input type="file" name="photo1" accept="image/*" className="w-full bg-white text-black" />
+              <input
+                type="file"
+                name="photo1"
+                accept="image/*"
+                disabled
+                style={{
+                  opacity: 0.5,
+                  cursor: "not-allowed",
+                  pointerEvents: "none"
+                }}
+                className="w-full bg-white text-black"
+              />
             </div>
 
             <div>
               <label className="block mb-2 font-medium">صورة 2 (اختياري)</label>
-              <input type="file" name="photo2" accept="image/*" className="w-full bg-white text-black" />
+              <input
+                type="file"
+                name="photo2"
+                accept="image/*"
+                disabled
+                style={{
+                  opacity: 0.5,
+                  cursor: "not-allowed",
+                  pointerEvents: "none"
+                }}
+                className="w-full bg-white text-black"
+              />
             </div>
 
             <div>
               <label className="block mb-2 font-medium">صورة 3 (اختياري)</label>
-              <input type="file" name="photo3" accept="image/*" className="w-full bg-white text-black" />
+              <input
+                type="file"
+                name="photo3"
+                accept="image/*"
+                disabled
+                style={{
+                  opacity: 0.5,
+                  cursor: "not-allowed",
+                  pointerEvents: "none"
+                }}
+                className="w-full bg-white text-black"
+              />
             </div>
+
           </div>
 
-          {/* الأزرار */}
           <div className="flex items-center justify-between mt-8">
             <button
               type="button"
