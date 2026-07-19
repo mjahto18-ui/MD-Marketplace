@@ -11,42 +11,68 @@ export default function CartPage() {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [loading, setLoading] = useState(true);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [customerID, setCustomerID] = useState(null);
 
-  const customerID = "5482cbf7";
+  // 1- جيب اليوزر الحقيقي من api/me
+  useEffect(() => {
+    fetch('/api/me', { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) {
+          router.push('/login');
+          return;
+        }
+        const data = await res.json();
+        if (data.user?.phone || data.user?.id) {
+          // حسب شو بيرجعلك الـ API - اذا id هو نفسه يلي كنت تستخدمو قبل
+          // غيرها لـ data.user.id اذا لازم
+          setCustomerID(data.user.customerId);
+        } else {
+          router.push('/login');
+        }
+      })
+      .catch(() => router.push('/login'));
+  }, [router]);
 
   const fetchCart = async () => {
+    if (!customerID) return;
     setLoading(true);
-    const res = await fetch(`/api/cart?customerID=${customerID}`);
-    const data = await res.json();
+    try {
+      const res = await fetch(`/api/cart?customerID=${customerID}`);
+      const data = await res.json();
 
-    if (data.success) {
-      setCart(data.cart);
-      setTotalWeight(data.totalWeight);
-      setSubtotal(data.subtotal);
+      if (data.success) {
+        setCart(data.cart);
+        setTotalWeight(data.totalWeight);
+        setSubtotal(data.subtotal);
 
-      // ===== نفس منطق الـ checkout بالحرف =====
-      const totalPoints = data.totalWeight;
-      const freeRemaining = data.freeDeliveryRemaining || 0;
-      const lastDate = data.lastFreeDeliveryDate || "";
-      const today = new Date().toISOString().split('T')[0];
-      const baseFee = data.baseDeliveryFee || 0;
+        const totalPoints = data.totalWeight;
+        const freeRemaining = data.freeDeliveryRemaining || 0;
+        const lastDate = data.lastFreeDeliveryDate || "";
+        const today = new Date().toISOString().split('T')[0];
+        const baseFee = data.baseDeliveryFee || 0;
 
-      let finalFee;
-      if (freeRemaining === 0) {
-        finalFee = baseFee;
-      } else {
-        if (lastDate === today) {
+        let finalFee;
+        if (freeRemaining === 0) {
           finalFee = baseFee;
         } else {
-          finalFee = totalPoints <= 10 ? 0 : baseFee;
+          if (lastDate === today) {
+            finalFee = baseFee;
+          } else {
+            finalFee = totalPoints <= 10 ? 0 : baseFee;
+          }
         }
+        setDeliveryFee(finalFee);
       }
-      setDeliveryFee(finalFee);
+    } catch (e) {
+      console.error(e);
     }
     setLoading(false);
   };
 
-  useEffect(() => { fetchCart(); }, []);
+  // 2- بس يجي الـ customerID جيب السلة
+  useEffect(() => { 
+    if (customerID) fetchCart(); 
+  }, [customerID]);
 
   const updateQty = async (cartID, newQty) => {
     if (newQty < 1) return;
@@ -61,7 +87,7 @@ export default function CartPage() {
 
   const total = subtotal + deliveryFee;
 
-  if (loading) return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
+  if (!customerID || loading) return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
 
   if (cart.length === 0) return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
