@@ -13,7 +13,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "No session" }, { status: 401 });
     }
 
-    // اربط Google Sheets
+    // اربط Google Sheets بالطريقة الصحيحة
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -51,7 +51,7 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("UPDATE TERMS ERROR:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
