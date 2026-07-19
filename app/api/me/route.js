@@ -16,7 +16,7 @@ export async function GET() {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'), // ← ضفت?
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
@@ -66,7 +66,7 @@ export async function GET() {
       }
     }
 
-    // 3. اختار الاحداثيات: Current اذا موجود، اذا لا Registration
+    // 3. اختار الاحداثيات
     let lat = customerData['Current Latitude'] || customerData['Registration Latitude'] || null;
     let lng = customerData['Current Longtitude'] || customerData['Registration Longitude'] || null;
 
@@ -79,10 +79,13 @@ export async function GET() {
         email: userData['Email'],
         status: userData['Status'],
 
+        // ⭐⭐ المهم جداً
+        AcceptedTerms: userData['AcceptedTerms'],
+
         // من جدول Customers
         customerId: customerData['Customer ID'],
         area: customerData['Area'],
-        address: customerData['Adress'], // انتبه: Adress مش Address
+        address: customerData['Adress'],
         freeDeliveries: parseInt(customerData['Free Delivery Remaining']) || 0,
         lat: lat,
         lng: lng,
