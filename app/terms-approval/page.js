@@ -13,8 +13,11 @@ export default function TermsApproval() {
     // إرسال الموافقة إلى API
     await fetch("/api/update-terms", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ AcceptedTerms: true })
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",   // ← هون السحر
+      body: JSON.stringify({ AcceptedTerms: true }),
     });
 
     // دخول للتصفح
