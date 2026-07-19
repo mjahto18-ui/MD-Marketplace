@@ -145,7 +145,7 @@ export default function Dashboard() {
                 )}
               </button>
 
-                            {openNotifications && (
+                {openNotifications && (
                 <div className="absolute left-0 top-full mt-3 w- max-w- bg-[#1a1a1a] text-white shadow-2xl rounded-xl p-3 z-50 border border-white/10 max-h- overflow-y-auto">
 
                   {notifications.length === 0 && (
@@ -175,8 +175,7 @@ export default function Dashboard() {
 
                 </div>
               )}
-              )}
-            </div>
+         
 
             {needsLocationUpdate? (
               <button
