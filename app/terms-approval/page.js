@@ -17,8 +17,8 @@ export default function TermsApproval() {
       body: JSON.stringify({ AcceptedTerms: true })
     });
 
-    // دخول للداشبورد
-    window.location.href = "/dashboard";
+    // دخول للتصفح
+    window.location.href = "/shop";
   }
 
   return (
