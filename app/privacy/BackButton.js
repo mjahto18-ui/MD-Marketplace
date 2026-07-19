@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export default function BackButton() {
   const router = useRouter();
@@ -16,10 +16,10 @@ export default function BackButton() {
   return (
     <button
       onClick={handleBack}
-      className="inline-flex items-center gap-1 text-purple-400/80 hover:text-white text-xs transition"
+      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/15 hover:border-purple-400/50 transition-all group text-sm font-medium backdrop-blur-sm"
     >
-      <ChevronRight className="w-3 h-3 rotate-180" />
-      رجوع
+      <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+      <span>رجوع</span>
     </button>
   );
 }
