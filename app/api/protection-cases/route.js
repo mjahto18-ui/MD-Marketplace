@@ -19,16 +19,16 @@ async function getSheet() {
 async function getLastCaseID(sheets) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-    range: "Protection Cases!A:A", // عمود Case ID
+    range: "Protection Cases!A:A",
   });
 
   const rows = res.data.values || [];
 
   if (rows.length <= 1) {
-    return "REF-000000"; // أول مرة
+    return "REF-000000";
   }
 
-  const last = rows[rows.length - 1][0]; // آخر قيمة
+  const last = rows[rows.length - 1][0];
   return last;
 }
 
@@ -39,7 +39,27 @@ function generateCaseID(lastID) {
   return `REF-${padded}`;
 }
 
-// 4) كتابة صف جديد
+// 4) جلب اسم العميل من جدول Users
+async function getCustomerName(sheets, phone) {
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+    range: "Users!D:E", // E = Mobile, D = Name
+  });
+
+  const rows = res.data.values || [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const [userPhone, userName] = rows[i];
+
+    if (userPhone === phone) {
+      return userName;
+    }
+  }
+
+  return "زائر"; // إذا الرقم غير موجود
+}
+
+// 5) كتابة صف جديد
 async function writeCase(sheets, data) {
   await sheets.spreadsheets.values.append({
     spreadsheetId: process.env.GOOGLE_SHEETS_ID,
@@ -51,43 +71,42 @@ async function writeCase(sheets, data) {
   });
 }
 
-// 5) الـ API الرئيسي
+// 6) الـ API الرئيسي
 export async function POST(req) {
   try {
     const body = await req.json();
 
     const sheets = await getSheet();
 
-    // قراءة آخر Case ID
     const lastID = await getLastCaseID(sheets);
 
-    // توليد الجديد
     const caseID = generateCaseID(lastID);
 
-    // تجهيز البيانات للكتابة
+    // جلب اسم العميل أو "زائر"
+    const customerName = await getCustomerName(sheets, body.customerId);
+
     const row = [
-      caseID,                // Case ID
-      body.orderId || "",    // Order ID (اختياري)
-      body.customerId,       // Customer ID
-      body.storeId || "",    // Store ID
-      body.driverId || "",   // Driver ID
-      body.caseType,         // Case Type
-      body.description,      // Description
-      body.photo1 || "",     // Photo 1
-      body.photo2 || "",     // Photo 2
-      body.photo3 || "",     // Photo 3
-      "",                    // Video (مخفي)
-      "Pending",             // Status
-      "",                    // Decision
-      "",                    // Refund Amount
-      "",                    // Admin Note
-      body.whatsapp || "",   // WhatsApp Chat
-      new Date().toISOString(), // Created Date
-      "",                    // Close Date
-      "",                    // Responsible
+      caseID,
+      body.orderId || "",
+      customerName, // اسم العميل أو "زائر"
+      body.storeId || "",
+      body.driverId || "",
+      body.caseType,
+      body.description,
+      "", // Photo 1 مخفية
+      "", // Photo 2 مخفية
+      "", // Photo 3 مخفية
+      "",
+      "Pending",
+      "",
+      "",
+      "",
+      body.whatsapp || "",
+      new Date().toISOString(),
+      "",
+      "",
     ];
 
-    // كتابة الصف
     await writeCase(sheets, row);
 
     return NextResponse.json({
