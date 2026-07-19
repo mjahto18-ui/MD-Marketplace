@@ -5,13 +5,15 @@ export async function POST(request) {
   try {
     const { AcceptedTerms } = await request.json();
 
-    // جيب session من الكوكيز (رقم الهاتف)
+    // جيب session من الكوكيز (رقم الهاتف الحقيقي)
     const cookie = request.headers.get("cookie");
-    const session = cookie?.match(/session=([^;]+)/)?.[1];
+    const raw = cookie?.match(/session=([^;]+)/)?.[1];
 
-    if (!session) {
+    if (!raw) {
       return NextResponse.json({ error: "No session" }, { status: 401 });
     }
+
+    const { phone } = JSON.parse(raw);
 
     // اربط Google Sheets بالطريقة الصحيحة
     const auth = new google.auth.GoogleAuth({
@@ -32,8 +34,8 @@ export async function POST(request) {
 
     const rows = usersSheet.data.values;
 
-    // دور على الصف اللي فيه رقم الهاتف (Mobile = العمود الخامس = index 4)
-    const userRowIndex = rows.findIndex((row) => row[4] === session);
+    // دور على الصف اللي فيه رقم الهاتف الحقيقي
+    const userRowIndex = rows.findIndex((row) => row[4] === phone);
 
     if (userRowIndex === -1) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
