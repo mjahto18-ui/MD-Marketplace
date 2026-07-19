@@ -1,35 +1,34 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
-
-function verifyToken(token) {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
 
 export async function POST(req) {
   try {
-    // ✅ جيب الـ customerId من الجلسة مش من الـ body
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    const decoded = token? verifyToken(token) : null;
+    // ✅ نفس طريقة /api/me بالضبط
+    const cookieStore = cookies();
+    const session = cookieStore.get('session');
 
-    if (!decoded?.id) {
+    if (!session) {
       return NextResponse.json({
         success: false,
-        message: "Unauthorized",
+        message: "Not logged in",
         notifications: []
       }, { status: 401 });
     }
 
-    const customerId = decoded.id; // من الجلسة الآمنة
+    const { phone } = JSON.parse(session.value);
 
+    if (!phone) {
+       return NextResponse.json({
+        success: false,
+        message: "Invalid session",
+        notifications: []
+      }, { status: 401 });
+    }
+
+    // -----------------------------
+    // Google Sheets Auth
+    // -----------------------------
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -41,6 +40,23 @@ export async function POST(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
+    // 1. جيب الـ Customer ID من رقم الموبايل
+    const customersRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "Customers!A:Z",
+    });
+
+    const customersRows = customersRes.data.values || [];
+    const customersHeaders = customersRows[0];
+    const customerRow = customersRows.slice(1).find(row => row[customersHeaders.indexOf('Mobile')] === phone);
+
+    if (!customerRow) {
+      return NextResponse.json({ success: false, notifications: [], message: "Customer not found" });
+    }
+
+    const customerId = customerRow[customersHeaders.indexOf('Customer ID')];
+
+    // 2. جيب التنبيهات
     const result = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: "Webhook!A:E",
@@ -71,6 +87,7 @@ export async function POST(req) {
     return NextResponse.json({
       success: false,
       error: err.message,
+      notifications: []
     });
   }
 }
