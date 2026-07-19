@@ -1,58 +1,7 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
-import { Readable } from "stream";
 
-// إعداد Google Drive عبر Service Account
-const driveAuth = new google.auth.GoogleAuth({
-  credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-  },
-  scopes: ["https://www.googleapis.com/auth/drive"],
-});
-
-const drive = google.drive({ version: "v3", auth: driveAuth });
-
-// تحويل Base64 → Buffer
-function base64ToBuffer(base64) {
-  if (!base64) return null;
-  const base64Data = base64.split(";base64,").pop();
-  return Buffer.from(base64Data, "base64");
-}
-
-// رفع الصورة على Google Drive
-async function uploadToDrive(base64, fileName) {
-  if (!base64) return "";
-
-  const buffer = base64ToBuffer(base64);
-
-  const fileRes = await drive.files.create({
-    requestBody: {
-      name: fileName,
-      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID], // مجلد الصور
-    },
-    media: {
-      mimeType: "image/png",
-      body: Readable.from(buffer), // الحل النهائي للخطأ pipe()
-    },
-  });
-
-  const fileId = fileRes.data.id;
-
-  // جعل الصورة Public
-  await drive.permissions.create({
-    fileId,
-    requestBody: {
-      role: "reader",
-      type: "anyone",
-    },
-  });
-
-  // رابط مباشر
-  return `https://drive.google.com/uc?export=view&id=${fileId}`;
-}
-
-// الاتصال مع Google Sheets
+// 1) الاتصال مع Google Sheets
 async function getSheet() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -66,31 +15,31 @@ async function getSheet() {
   return sheets;
 }
 
-// قراءة آخر Case ID
+// 2) قراءة آخر Case ID
 async function getLastCaseID(sheets) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-    range: "Protection Cases!A:A",
+    range: "Protection Cases!A:A", // عمود Case ID
   });
 
   const rows = res.data.values || [];
 
   if (rows.length <= 1) {
-    return "REF-000000";
+    return "REF-000000"; // أول مرة
   }
 
-  const last = rows[rows.length - 1][0];
+  const last = rows[rows.length - 1][0]; // آخر قيمة
   return last;
 }
 
-// توليد Case ID جديد
+// 3) توليد Case ID جديد
 function generateCaseID(lastID) {
   const number = parseInt(lastID.replace("REF-", ""), 10) + 1;
   const padded = number.toString().padStart(6, "0");
   return `REF-${padded}`;
 }
 
-// كتابة صف جديد
+// 4) كتابة صف جديد
 async function writeCase(sheets, data) {
   await sheets.spreadsheets.values.append({
     spreadsheetId: process.env.GOOGLE_SHEETS_ID,
@@ -102,7 +51,7 @@ async function writeCase(sheets, data) {
   });
 }
 
-// API الرئيسي
+// 5) الـ API الرئيسي
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -115,32 +64,27 @@ export async function POST(req) {
     // توليد الجديد
     const caseID = generateCaseID(lastID);
 
-    // رفع الصور على Google Drive
-    const photo1Url = await uploadToDrive(body.photo1, `${caseID}-photo1.png`);
-    const photo2Url = await uploadToDrive(body.photo2, `${caseID}-photo2.png`);
-    const photo3Url = await uploadToDrive(body.photo3, `${caseID}-photo3.png`);
-
     // تجهيز البيانات للكتابة
     const row = [
-      caseID,
-      body.orderId || "",
-      body.customerId,
-      body.storeId || "",
-      body.driverId || "",
-      body.caseType,
-      body.description,
-      photo1Url, // رابط الصورة بدل Base64
-      photo2Url,
-      photo3Url,
-      "",
-      "Pending",
-      "",
-      "",
-      "",
-      body.whatsapp || "",
-      new Date().toISOString(),
-      "",
-      "",
+      caseID,                // Case ID
+      body.orderId || "",    // Order ID (اختياري)
+      body.customerId,       // Customer ID
+      body.storeId || "",    // Store ID
+      body.driverId || "",   // Driver ID
+      body.caseType,         // Case Type
+      body.description,      // Description
+      body.photo1 || "",     // Photo 1
+      body.photo2 || "",     // Photo 2
+      body.photo3 || "",     // Photo 3
+      "",                    // Video (مخفي)
+      "Pending",             // Status
+      "",                    // Decision
+      "",                    // Refund Amount
+      "",                    // Admin Note
+      body.whatsapp || "",   // WhatsApp Chat
+      new Date().toISOString(), // Created Date
+      "",                    // Close Date
+      "",                    // Responsible
     ];
 
     // كتابة الصف
