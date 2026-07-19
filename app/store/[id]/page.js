@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronRight, Search, ShoppingCart, Package, Check } from "lucide-react";
+import { ChevronRight, Search, ShoppingCart, Package, Check, Lock } from "lucide-react";
 
 export default function StorePage() {
   const { id: storeID } = useParams();
@@ -10,25 +10,21 @@ export default function StorePage() {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [customerID, setCustomerID] = useState(null);
+  const [user, setUser] = useState(null);
+  const [checkingUser, setCheckingUser] = useState(true);
   const [addingId, setAddingId] = useState(null);
   const [toast, setToast] = useState(null);
 
-  // جيب الـ customerId الحقيقي
   useEffect(() => {
-    fetch('/api/me', { credentials: 'include' })
+    fetch('/api/me', { credentials: 'include', cache: 'no-store' })
       .then(async (res) => {
-        if (!res.ok) {
-          router.push('/login');
-          return;
-        }
-        const data = await res.json();
-        if (data.user?.customerId) {
-          setCustomerID(data.user.customerId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) setUser(data.user);
         }
       })
-      .catch(() => {});
-  }, [router]);
+      .finally(() => setCheckingUser(false));
+  }, []);
 
   useEffect(() => {
     if (!storeID) return;
@@ -55,14 +51,23 @@ export default function StorePage() {
   }, [searchQuery, products]);
 
   const addToCart = async (productID) => {
-    if (!customerID || addingId) return;
+    if (addingId) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
     setAddingId(productID);
     try {
       const res = await fetch('/api/cart/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerID, productID, qty: 1 })
+        credentials: 'include',
+        body: JSON.stringify({ productID, qty: 1 })
       });
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       const data = await res.json();
       if (data.success || res.ok) {
         const prod = products.find(p => p.productID === productID);
@@ -80,7 +85,7 @@ export default function StorePage() {
     }
   };
 
-  if (loading) return (
+  if (loading || checkingUser) return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center text-white">
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -123,10 +128,17 @@ export default function StorePage() {
                   <p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p>
                   <p className="text-purple-300">الوزن: {product.weightPoint} نقطة</p>
                 </div>
-                <button onClick={() => addToCart(product.productID)} disabled={!!addingId} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60">
-                  {addingId === product.productID ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}
-                  {addingId === product.productID ? '...' : 'اضف للسلة'}
-                </button>
+                {user ? (
+                  <button onClick={() => addToCart(product.productID)} disabled={!!addingId} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60">
+                    {addingId === product.productID ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}
+                    {addingId === product.productID ? '...' : 'اضف للسلة'}
+                  </button>
+                ) : (
+                  <button onClick={() => router.push('/login')} className="w-full bg-white/10 border border-white/20 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    سجل دخول للطلب
+                  </button>
+                )}
               </div>
             </div>
           ))}
