@@ -18,7 +18,7 @@ export default function TermsApproval() {
     });
 
     // دخول للتصفح
-    window.location.href = "/shop";
+    window.location.href = "/dashboard";
   }
 
   return (
