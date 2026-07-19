@@ -146,7 +146,7 @@ export default function Dashboard() {
               </button>
 
                 {openNotifications && (
-                <div className="absolute left-0 top-full mt-3 w-[92vw] max-w-[150px] bg-[#1a1a1a] text-white shadow-2xl rounded-xl p-3 z-50 border border-white/10 max-h-[70vh] overflow-y-auto">
+                <div className="absolute left-0 top-full mt-3 w-[92vw] max-w-[185px] bg-[#1a1a1a] text-white shadow-2xl rounded-xl p-3 z-50 border border-white/10 max-h-[70vh] overflow-y-auto">
                   {notifications.length === 0 && (
                     <div className="text-center py-8 text-gray-400">
                       لا يوجد إشعارات بعد
