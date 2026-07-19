@@ -5,7 +5,7 @@ export default function TermsApproval() {
   const [loading, setLoading] = useState(false);
 
   async function handleApprove() {
-    const agree = document.getElementById("agree") as HTMLInputElement;
+    const agree = document.getElementById("agree");
 
     if (!agree?.checked) {
       alert("يجب الموافقة أولاً");
@@ -32,7 +32,6 @@ export default function TermsApproval() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" dir="rtl" style={{ background: "#1e1f6b" }}>
-      {/* خلفية بألوان اللوجو */}
       <div className="absolute inset-0">
         <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-30" style={{ background: "linear-gradient(135deg, #a855f7, #ec4899)" }}></div>
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-20" style={{ background: "linear-gradient(135deg, #6366f1, #a855f7)" }}></div>
@@ -40,7 +39,6 @@ export default function TermsApproval() {
 
       <div className="bg-white shadow-2xl rounded-[24px] p-8 w-full max-w-[420px] relative z-10">
         
-        {/* شعار MD-Marketplace */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-lg" style={{ background: "linear-gradient(135deg, #a78bfa 0%, #a855f7 30%, #ec4899 100%)" }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -60,7 +58,6 @@ export default function TermsApproval() {
           للمتابعة في تصفح المتجر، يرجى الاطلاع والموافقة على سياساتنا
         </p>
 
-        {/* روابط الشروط ككروت */}
         <div className="space-y-3 mb-7">
           <a href="/terms" className="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 hover:border-violet-200 transition group">
             <div className="flex items-center gap-3">
@@ -89,7 +86,6 @@ export default function TermsApproval() {
           </a>
         </div>
 
-        {/* شيك بوكس مرتب */}
         <div className="flex items-start gap-3 mb-7 p-3 rounded-xl bg-violet-50/50 border border-violet-100">
           <input type="checkbox" id="agree" className="w-[18px] h-[18px] mt-0.5 rounded accent-violet-600 cursor-pointer" />
           <label htmlFor="agree" className="text-[13px] leading-5 text-slate-700 cursor-pointer select-none">
