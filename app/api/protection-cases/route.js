@@ -79,7 +79,7 @@ export async function POST(req) {
     const lastID = await getLastCaseID(sheets);
     const caseID = generateCaseID(lastID);
 
-    // أهم تعديل:
+    // أهم تعديل: المقارنة مع رقم الواتساب
     const customerName = await getCustomerName(sheets, body.whatsapp);
 
     const row = [
@@ -90,7 +90,10 @@ export async function POST(req) {
       body.driverId || "",
       body.caseType,
       body.description,
-      "", "", "", // الصور مخفية
+
+      // الصور منظر فقط — ما بتنرفع نهائياً
+      "", "", "",
+
       "",
       "Pending",
       "",
