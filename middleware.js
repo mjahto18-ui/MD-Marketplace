@@ -17,15 +17,23 @@ export async function middleware(request) {
 
     // إذا المستخدم مسجّل (مش guest)
     if (session && !isGuest) {
-      const me = await fetch(`${request.nextUrl.origin}/api/me`, {
-        headers: { Cookie: request.headers.get('cookie') }
-      });
+      try {
+        const me = await fetch(`${request.nextUrl.origin}/api/me`, {
+          headers: { Cookie: request.headers.get('cookie') || '' }
+        });
 
-      const data = await me.json();
+        const data = await me.json();
 
-      // إذا ما وافق على الشروط → رجّعو على صفحة الموافقة
-      if (!data.user?.AcceptedTerms) {
-        return NextResponse.redirect(new URL('/terms-approval', request.url));
+        // هون كان الغلط - عم نفحص كنص
+        const accepted = String(data.user?.AcceptedTerms || "").toUpperCase().trim();
+        
+        if (accepted !== "TRUE") {
+          return NextResponse.redirect(new URL('/terms-approval', request.url));
+        }
+
+      } catch (e) {
+        // اذا فشل api/me رجعو login
+        return NextResponse.redirect(new URL('/login', request.url));
       }
     }
   }
