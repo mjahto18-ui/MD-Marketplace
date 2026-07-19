@@ -1,18 +1,22 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { cookies } from "next/headers";
 
 export async function POST(req) {
   try {
-    const { customerID, productID, qty = 1 } = await req.json();
+    const { productID, qty = 1 } = await req.json();
+    if (!productID) return NextResponse.json({ success: false, message: "Missing product" }, { status: 400 });
 
-    if (!customerID || !productID) {
-      return NextResponse.json({
-        success: false,
-        message: "Missing data",
-      });
-    }
+    // جيب الجلسة
+    const sessionCookie = cookies().get('session')?.value;
+    if (!sessionCookie) return NextResponse.json({ success: false, message: "لازم تسجل دخول" }, { status: 401 });
 
-    // Google Auth
+    let phone;
+    try {
+      const s = JSON.parse(sessionCookie);
+      phone = s.phone || s.Mobile || s.user?.phone || sessionCookie;
+    } catch { phone = sessionCookie; }
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -20,112 +24,64 @@ export async function POST(req) {
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
-
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-    // ============================
-    // 1) جلب جدول Products
-    // ============================
-    const productsRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Products!A:L",
-    });
+    // جيب الـ customerID من الـ Sheets حسب التلفون
+    const customersRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Customers!A:Z" });
+    const customers = customersRes.data.values || [];
+    const header = customers[0] || [];
+    const mobileIdx = header.findIndex(h => h.toLowerCase().includes('mobile') || h.toLowerCase().includes('phone'));
+    const custIdIdx = header.findIndex(h => h.toLowerCase().includes('customer') && h.toLowerCase().includes('id'));
 
-    const products = productsRes.data.values?.slice(1) || [];
-
-    const product = products.find((row) => row[0] === productID);
-
-    if (!product) {
-      return NextResponse.json({
-        success: false,
-        message: "المنتج غير موجود",
-      });
+    let customerID = null;
+    for (let i = 1; i < customers.length; i++) {
+      if (customers[i][mobileIdx] === phone || customers[i][1] === phone) {
+        customerID = customers[i][custIdIdx >=0? custIdIdx : 0] || customers[i][0];
+        break;
+      }
     }
+    if (!customerID) return NextResponse.json({ success: false, message: "حسابك مش موجود" }, { status: 401 });
 
-    const unitPrice = Number(product[5]);        // السعر الصحيح
-    const storeID = product[1];                 // Store ID
-    const linePoints = Number(product[11]);     // Weight Point
+    // باقي الكود نفسه
+    const productsRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Products!A:L" });
+    const products = productsRes.data.values?.slice(1) || [];
+    const product = products.find((row) => row[0] === productID);
+    if (!product) return NextResponse.json({ success: false, message: "المنتج غير موجود" });
 
-    // ============================
-    // 2) جلب جدول Cart
-    // ============================
-    const cartRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Cart!A:Z",
-    });
+    const unitPrice = Number(product[5]);
+    const storeID = product[1];
+    const linePoints = Number(product[11]);
 
+    const cartRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Cart!A:Z" });
     const cartRows = cartRes.data.values?.slice(1) || [];
+    const existingIndex = cartRows.findIndex((row) => row[1] === customerID && row[2] === productID && row[6] === "FALSE");
 
-    // ============================
-    // 3) هل المنتج موجود بالسلة؟
-    // ============================
-    const existingIndex = cartRows.findIndex(
-      (row) =>
-        row[1] === customerID &&
-        row[2] === productID &&
-        row[6] === "FALSE"
-    );
-
-    // ============================
-    // 4) إذا موجود → زيد الكمية
-    // ============================
-    if (existingIndex !== -1) {
+    if (existingIndex!== -1) {
       const row = cartRows[existingIndex];
-      const oldQty = Number(row[3]);
-      const newQty = oldQty + qty;
-
-      row[3] = newQty;                 // Qty
-      row[5] = newQty * unitPrice;     // Line Total
-
+      row[3] = Number(row[3]) + qty;
+      row[5] = row[3] * unitPrice;
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `Cart!A${existingIndex + 2}:Z${existingIndex + 2}`,
         valueInputOption: "USER_ENTERED",
         requestBody: { values: [row] },
       });
-
-      return NextResponse.json({
-        success: true,
-        message: "تم تحديث الكمية بالسلة",
-      });
+      return NextResponse.json({ success: true, message: "تم تحديث الكمية" });
     }
 
-    // ============================
-    // 5) إذا مش موجود → ضيف سطر جديد
-    // ============================
     const cartID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
-
-    const newRow = [
-      cartID,          // Cart ID
-      customerID,      // Customer ID
-      productID,       // Product ID
-      qty,             // Qty
-      storeID,         // Store ID
-      qty * unitPrice, // Line Total
-      "FALSE",         // Checked Out
-      "FALSE",         // Check Out Flagge
-      "",              // Request ID
-      linePoints       // Line Points
-    ];
-
+    const newRow = [cartID, customerID, productID, qty, storeID, qty * unitPrice, "FALSE", "FALSE", "", linePoints];
     await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: "Cart!A:Z",
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [newRow] },
     });
-
-    return NextResponse.json({
-      success: true,
-      message: "تمت الإضافة للسلة",
-    });
+    return NextResponse.json({ success: true, message: "تمت الإضافة" });
 
   } catch (err) {
-    console.error("Cart API Error:", err);
-    return NextResponse.json(
-      { success: false, message: "خطأ بالاضافة" },
-      { status: 500 }
-    );
+    console.error(err);
+    return NextResponse.json({ success: false, message: "خطأ بالاضافة" }, { status: 500 });
   }
 }
