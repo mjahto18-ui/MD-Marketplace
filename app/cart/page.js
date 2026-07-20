@@ -13,24 +13,36 @@ export default function CartPage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [customerID, setCustomerID] = useState(null);
 
+  // --- الريموت كونترول الجديد ---
+  const [globalCfg, setGlobalCfg] = useState(null);
+  const [configLoading, setConfigLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/global-config')
+     .then(r => r.json())
+     .then(data => {
+        setGlobalCfg(data);
+        setConfigLoading(false);
+      })
+     .catch(() => setConfigLoading(false));
+  }, []);
+
   // 1- جيب اليوزر الحقيقي من api/me
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-      .then(async (res) => {
+     .then(async (res) => {
         if (!res.ok) {
           router.push('/login');
           return;
         }
         const data = await res.json();
         if (data.user?.phone || data.user?.id) {
-          // حسب شو بيرجعلك الـ API - اذا id هو نفسه يلي كنت تستخدمو قبل
-          // غيرها لـ data.user.id اذا لازم
           setCustomerID(data.user.customerId);
         } else {
           router.push('/login');
         }
       })
-      .catch(() => router.push('/login'));
+     .catch(() => router.push('/login'));
   }, [router]);
 
   const fetchCart = async () => {
@@ -58,7 +70,7 @@ export default function CartPage() {
           if (lastDate === today) {
             finalFee = baseFee;
           } else {
-            finalFee = totalPoints <= 10 ? 0 : baseFee;
+            finalFee = totalPoints <= 10? 0 : baseFee;
           }
         }
         setDeliveryFee(finalFee);
@@ -69,9 +81,8 @@ export default function CartPage() {
     setLoading(false);
   };
 
-  // 2- بس يجي الـ customerID جيب السلة
-  useEffect(() => { 
-    if (customerID) fetchCart(); 
+  useEffect(() => {
+    if (customerID) fetchCart();
   }, [customerID]);
 
   const updateQty = async (cartID, newQty) => {
@@ -87,7 +98,30 @@ export default function CartPage() {
 
   const total = subtotal + deliveryFee;
 
-  if (!customerID || loading) return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
+  // --- واجهة التحميل ---
+  if (!customerID || loading || configLoading) return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
+
+  // --- اذا المنصة مسكرة من الشيت - هون بتنحط ---
+  if (globalCfg?.isCartClosed || globalCfg?.isLocked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white flex flex-col items-center justify-center px-6" style={{ direction: 'rtl' }}>
+        <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/20 text-center max-w-md w-full">
+          <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">🔒</div>
+          <h1 className="text-2xl font-bold mb-3">
+            {globalCfg.isLocked? globalCfg.emergency_lock?.message : globalCfg.cart_enabled?.message || 'السلة مغلقة حالياً'}
+          </h1>
+          {globalCfg.isComingSoon && (
+            <div className="mt-4 bg-black/20 p-4 rounded-2xl">
+              <p className="text-purple-300 text-sm">الافتتاح الكبير</p>
+              <p className="text-4xl font-black text-fuchsia-400 mt-1">{globalCfg.daysLeft} يوم</p>
+              <p className="text-sm mt-2">باقي {globalCfg.daysLeft} يوم للافتتاح الكبير 🔥</p>
+            </div>
+          )}
+          <button onClick={() => router.push('/shop')} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-3 rounded-2xl font-bold mt-6">تصفح المتاجر</button>
+        </div>
+      </div>
+    );
+  }
 
   if (cart.length === 0) return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
@@ -98,6 +132,12 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
+      {/* بانر صغير اذا باقي كم يوم */}
+      {globalCfg?.isComingSoon && (
+        <div className="bg-orange-500 text-white text-center py-2 text-sm font-bold">
+          🔥 باقي {globalCfg.daysLeft} يوم للافتتاح - تقدر تضيف للسلة بس الطلب بيتأكد بعد الافتتاح
+        </div>
+      )}
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-3"><button onClick={() => router.back()}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/50"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div>
         <div className="text-center"><h1 className="text-xl font-bold">MD Marketplace</h1></div>
@@ -129,7 +169,7 @@ export default function CartPage() {
           <h3 className="text-lg font-bold mb-4 text-center">ملخص الطلب</h3>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between items-center"><span className="text-purple-200">المجموع الفرعي</span><span>{subtotal.toLocaleString()} LBP</span></div>
-            <div className="flex justify-between items-center"><span className="text-purple-200">رسوم التوصيل {deliveryFee === 0 && totalWeight > 0 ? '(مجاني)' : ''}</span><span className={deliveryFee === 0 ? 'text-green-400 font-bold' : ''}>{deliveryFee === 0 && totalWeight > 0 ? 'مجاني' : `${deliveryFee.toLocaleString()} LBP`}</span></div>
+            <div className="flex justify-between items-center"><span className="text-purple-200">رسوم التوصيل {deliveryFee === 0 && totalWeight > 0? '(مجاني)' : ''}</span><span className={deliveryFee === 0? 'text-green-400 font-bold' : ''}>{deliveryFee === 0 && totalWeight > 0? 'مجاني' : `${deliveryFee.toLocaleString()} LBP`}</span></div>
             <div className="border-t border-dashed border-white/20 my-3"></div>
             <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
           </div>
