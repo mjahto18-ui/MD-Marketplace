@@ -6,6 +6,9 @@ export async function POST(req) {
   try {
     const { phone, pin } = await req.json();
 
+    // مهم: خليه نص مشان الصفر
+    const phoneStr = String(phone).trim();
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -23,8 +26,8 @@ export async function POST(req) {
 
     const users = res.data.values || [];
 
-    // A=0 | B=1 | C=2 | D=3 | E=4 Mobile | F=5 Active | G=6 Email | H=7 | I=8 | J=9 Status | K=10 PIN | O=14 failedAttempts | P=15 isLocked
-    const userIndex = users.findIndex(row => row[4] === phone);
+    // A=0 | B=1 | C=2 | D=3 | E=4 Mobile | F=5 Active | G=6 Email | H=7 | I=8 | J=9 Status | K=10 PIN | O=14 failedAttempts | P=15 isLocked | R=17 AcceptedTerms
+    const userIndex = users.findIndex(row => String(row[4]).trim() === phoneStr);
     const user = users[userIndex];
 
     if (!user) {
@@ -40,7 +43,7 @@ export async function POST(req) {
     }
 
     // الحساب غير مفعل
-    if (user[9] !== "Active") {
+    if (user[9]!== "Active") {
       return NextResponse.json({
         success: false,
         message: "لا يمكن تسجيل الدخول لأن الحساب غير مفعل. يرجى التواصل مع فريق الدعم لتفعيل الحساب."
@@ -48,7 +51,7 @@ export async function POST(req) {
     }
 
     // PIN صحيح؟
-    if (user[10] === pin) {
+    if (String(user[10]).trim() === String(pin).trim()) {
 
       // إعادة ضبط المحاولات الفاشلة
       user[14] = "0";
@@ -61,13 +64,18 @@ export async function POST(req) {
         requestBody: { values: [user] }
       });
 
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       cookieStore.delete('md_guest');
+
+      // قراءة الموافقة من العمود R
+      const acceptedTermsValue = (user[17] || "").toString().toUpperCase().trim();
 
       cookieStore.set('session', JSON.stringify({
         customerId: user[0],
         name: user[3],
-        phone: user[4]
+        phone: String(user[4]).trim(),
+        AcceptedTerms: acceptedTermsValue,
+        acceptedTerms: acceptedTermsValue
       }), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -77,26 +85,28 @@ export async function POST(req) {
       });
 
       return NextResponse.json({
-  success: true,
-  message: "تم تسجيل الدخول بنجاح",
-  user: {
-    userId: user[0],        // User ID من العمود A
-    customerId: user[7],    // Customer ID من العمود H
-    name: user[3],          // الاسم
-    phone: user[4],         // الهاتف
-    role: user[2],          // الدور (اختياري)
-    email: user[6],         // البريد (اختياري)
-  }
-});
-}   
+        success: true,
+        message: "تم تسجيل الدخول بنجاح",
+        user: {
+          userId: user[0],
+          customerId: user[7],
+          name: user[3],
+          phone: String(user[4]).trim(),
+          role: user[2],
+          email: user[6],
+          AcceptedTerms: acceptedTermsValue
+        }
+      });
+    }
+
     // PIN غلط → زيد المحاولات
     let attempts = parseInt(user[14] || "0") + 1;
     user[14] = attempts.toString();
 
     // إذا صاروا 3 → اقفل الحساب
     if (attempts >= 3) {
-      user[10] = "";        // مسح PIN
-      user[15] = "Locked";  // قفل الحساب
+      user[10] = "";
+      user[15] = "Locked";
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: process.env.GOOGLE_SHEETS_ID,
