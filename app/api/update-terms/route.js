@@ -11,9 +11,9 @@ export async function POST(request) {
       return NextResponse.json({ error: "No session" }, { status: 401 });
     }
 
-    // Fix: decode cookie
     const decoded = decodeURIComponent(raw);
-    const { phone } = JSON.parse(decoded);
+    const sessionData = JSON.parse(decoded);
+    const phone = sessionData.phone;
 
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -37,8 +37,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Save as TEXT "TRUE" / "FALSE" to match your sheet
-    const valueToSave = AcceptedTerms ? "TRUE" : "FALSE";
+    const valueToSave = AcceptedTerms? "TRUE" : "FALSE";
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
@@ -49,7 +48,18 @@ export async function POST(request) {
       },
     });
 
-    return NextResponse.json({ success: true });
+    // *** الحل هون - حدث الـ session ***
+    const newSession = {...sessionData, AcceptedTerms: true, acceptedTerms: true };
+    const response = NextResponse.json({ success: true });
+
+    response.cookies.set('session', JSON.stringify(newSession), {
+      httpOnly: false,
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30 // 30 يوم
+    });
+
+    return response;
+
   } catch (err) {
     console.error("UPDATE TERMS ERROR:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
