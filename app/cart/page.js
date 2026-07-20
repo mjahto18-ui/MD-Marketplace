@@ -80,7 +80,7 @@ export default function CartPage() {
             <div className="mt-4 bg-black/30 p-4 rounded-2xl">
               <p className="text-purple-300 text-sm">الافتتاح الكبير</p>
               <p className="text-5xl font-black text-fuchsia-400 mt-1">{globalCfg.daysLeft}</p>
-              <p className="text-sm mt-2">يوم باقي للافتتاح 🔥</p>
+              <p className="text-sm mt-2"> يوم باقي للافتتاح 🔥</p>
             </div>
           )}
           <button onClick={() => router.push('/shop')} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-3 rounded-2xl font-bold mt-6">تصفح المتاجر</button>
