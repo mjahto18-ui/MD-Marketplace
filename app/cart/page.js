@@ -65,11 +65,8 @@ export default function CartPage() {
 
   const total = subtotal + deliveryFee;
 
-  // === الترتيب الجديد المهم ===
-  // 1- كونفيج
   if (configLoading) return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
 
-  // 2- اذا مسكرة - اطلع فورا قبل اي شي تاني
   if (globalCfg?.isCartClosed || globalCfg?.isLocked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white flex flex-col items-center justify-center px-6" style={{ direction: 'rtl' }}>
@@ -89,7 +86,6 @@ export default function CartPage() {
     );
   }
 
-  // 3- بعدين اليوزر والتحميل
   if (!customerID || loading) return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
 
   if (cart.length === 0) return (
@@ -134,6 +130,7 @@ export default function CartPage() {
             <div className="border-t border-dashed border-white/20 my-3"></div>
             <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
           </div>
+        </div>
         <h3 className="text-lg font-bold mb-3 text-center">طريقة الدفع</h3>
         <div className="w-full bg-white/5 backdrop-blur-xl p-4 rounded-2xl border-2 border-fuchsia-500 shadow-lg shadow-fuchsia-500/30 mb-3 flex items-center gap-3 text-right">
           <div className="bg-white/10 p-3 rounded-xl"><Banknote className="w-6 h-6" /></div>
