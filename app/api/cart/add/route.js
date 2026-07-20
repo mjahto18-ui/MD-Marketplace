@@ -1,13 +1,25 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { cookies } from "next/headers";
+import { getGlobalConfig } from "@/lib/getGlobalConfig";
 
 export async function POST(req) {
   try {
+    // 1- فحص الريموت قبل أي شي
+    const config = await getGlobalConfig();
+    if(config.isLocked) {
+      return NextResponse.json({ success: false, message: config.emergency_lock?.message || "المنصة متوقفة حداداً" }, { status: 403 });
+    }
+    if(config.isComingSoon) {
+      return NextResponse.json({ success: false, message: "المنصة قريباً" }, { status: 403 });
+    }
+    if(config.isCartClosed) {
+      return NextResponse.json({ success: false, message: config.cart_enabled?.message || config.cart_enabled?.message_ar || "السلة مغلقة حالياً" }, { status: 403 });
+    }
+
     const { productID, qty = 1 } = await req.json();
     if (!productID) return NextResponse.json({ success: false, message: "Missing product" }, { status: 400 });
 
-    // جيب الجلسة
     const sessionCookie = cookies().get('session')?.value;
     if (!sessionCookie) return NextResponse.json({ success: false, message: "لازم تسجل دخول" }, { status: 401 });
 
@@ -27,7 +39,6 @@ export async function POST(req) {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-    // جيب الـ customerID من الـ Sheets حسب التلفون
     const customersRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Customers!A:Z" });
     const customers = customersRes.data.values || [];
     const header = customers[0] || [];
@@ -43,7 +54,6 @@ export async function POST(req) {
     }
     if (!customerID) return NextResponse.json({ success: false, message: "حسابك مش موجود" }, { status: 401 });
 
-    // باقي الكود نفسه
     const productsRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Products!A:L" });
     const products = productsRes.data.values?.slice(1) || [];
     const product = products.find((row) => row[0] === productID);
