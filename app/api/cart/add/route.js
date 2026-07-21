@@ -5,10 +5,9 @@ import { getGlobalConfig } from "@/lib/getGlobalConfig";
 
 export async function POST(req) {
   try {
-    // 1- فحص الريموت
     const config = await getGlobalConfig();
 
-    // حداد - قفل كامل
+    // 1- حداد - قفل كامل المنصة
     if (config.isLocked) {
       return NextResponse.json({
         success: false,
@@ -16,14 +15,16 @@ export async function POST(req) {
       }, { status: 403 });
     }
 
-    // سلة + افتتاح = نفس الشي = السلة متوقفة - رسالة ثابتة
-    if (config.isCartClosed || config.isComingSoon) {
+    // 2- السلة مسكرة فقط هي يلي بتمنع الاضافة
+    if (config.isCartClosed) {
       return NextResponse.json({
         success: false,
         isClosed: true,
-        message: "السلة متوقفة حالياً"
+        message: config.cart_closed_message || "السلة مغلقة حالياً"
       }, { status: 403 });
     }
+
+    // 3- coming soon ما الها دخل بالسلة - ما منسكر هون
 
     const { productID, qty = 1 } = await req.json();
     if (!productID) return NextResponse.json({ success: false, message: "Missing product" }, { status: 400 });
