@@ -3,7 +3,16 @@ import { NextResponse } from 'next/server';
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith('/api/') || pathname.startsWith('/_next/') || pathname.includes('.') || pathname.startsWith('/login') || pathname.startsWith('/terms-approval') || pathname.startsWith('/closed') || pathname.startsWith('/coming-soon')) {
+  // لا تدقق بهالصفحات
+  if (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.includes('.') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/terms-approval') ||
+    pathname.startsWith('/closed') ||
+    pathname.startsWith('/coming-soon')
+  ) {
     return NextResponse.next();
   }
 
@@ -11,30 +20,27 @@ export async function middleware(request) {
   try {
     const res = await fetch(`${request.nextUrl.origin}/api/global-config`, { cache: 'no-store' });
     cfg = await res.json();
-  } catch { cfg = {}; }
+  } catch {
+    cfg = {};
+  }
 
+  // 1- حداد فقط = قفل كامل
   if (cfg.isLocked && pathname !== '/closed') {
     return NextResponse.redirect(new URL('/closed', request.url));
   }
   if (cfg.isLocked) return NextResponse.next();
 
-  if (cfg.isComingSoon) {
-    const allowed = ['/coming-soon', '/closed'];
-    if (!allowed.some(p => pathname.startsWith(p)) && pathname !== '/') {
-      return NextResponse.redirect(new URL('/coming-soon', request.url));
-    }
-    return NextResponse.next();
-  }
+  // 2- شلنا coming-soon نهائيا - ما عاد يرد حدا
+  // 3- شلنا isCartClosed من هون - السلة بتسكر لحالها من جوا cart/page.jsx
 
-  if (cfg.isCartClosed && pathname.startsWith('/checkout')) {
-    return NextResponse.redirect(new URL('/cart?closed=1', request.url));
-  }
-
+  // حماية الصفحات
   const protectedRoutes = ['/shop', '/cart', '/profile', '/orders', '/checkout'];
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
     const session = request.cookies.get('session');
     const isGuest = request.cookies.get('md_guest');
-    if (!session && !isGuest) return NextResponse.redirect(new URL('/login', request.url));
+    if (!session && !isGuest) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
 
     if (session) {
       try {
@@ -43,15 +49,15 @@ export async function middleware(request) {
         catch { data = JSON.parse(decodeURIComponent(session.value)); }
         
         const accepted = String(data.AcceptedTerms || data.acceptedTerms || "TRUE").toUpperCase();
-        if (accepted !== "TRUE") {
+        if (accepted !== "TRUE" && pathname !== '/terms-approval') {
           return NextResponse.redirect(new URL('/terms-approval', request.url));
         }
       } catch {
-        // لا تطلعو - خليه يمر
         return NextResponse.next();
       }
     }
   }
+
   return NextResponse.next();
 }
 
