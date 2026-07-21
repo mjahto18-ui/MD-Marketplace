@@ -16,19 +16,17 @@ export default function CartPage() {
   const [configLoading, setConfigLoading] = useState(true);
   const hasRedirected = useRef(false);
 
-  // 1- جيب الكونفيغ
   useEffect(() => {
     fetch('/api/global-config', { cache: 'no-store' })
-     .then(r=>r.json())
-     .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
-     .catch(()=>setConfigLoading(false));
+    .then(r=>r.json())
+    .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
+    .catch(()=>setConfigLoading(false));
   }, []);
 
-  // 2- جيب اليوزر مرة وحدة بس - ما بقا يطردك مرتين
   useEffect(() => {
     let cancelled = false;
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-     .then(async (res) => {
+    .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -47,13 +45,13 @@ export default function CartPage() {
           }
         }
       })
-     .catch(()=> {
+    .catch(()=> {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
-     .finally(()=> { if(!cancelled) setLoading(false); });
+    .finally(()=> { if(!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [router]);
 
@@ -101,8 +99,10 @@ export default function CartPage() {
 
   const total = subtotal + deliveryFee;
   const isCartBlocked = globalCfg?.isCartClosed;
+  const isComingSoon = globalCfg?.isComingSoon;
 
-  if (configLoading || (loading &&!customerID)) {
+  // === هون كان الغلط - صلحناه ===
+  if (configLoading || loading) {
     return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
   }
 
@@ -120,13 +120,17 @@ export default function CartPage() {
     );
   }
 
-  // السلة فاضية - بس مع بانر اذا مسكرة
-  if (!loading && cart.length === 0) {
+  if (cart.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
         {isCartBlocked && (
           <div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">
             {globalCfg.cart_closed_message || "السلة مغلقة حالياً"}
+          </div>
+        )}
+        {isComingSoon && (
+          <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-3 px-4 font-bold">
+            ⏰ {globalCfg.coming_soon?.message || globalCfg.cart_enabled?.message || "باقي يومين لـ Black Friday"}
           </div>
         )}
         <header className="px-4 pt-6 pb-4"><div className="flex items-center justify-between mb-3"><button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div></header>
@@ -140,6 +144,11 @@ export default function CartPage() {
       {isCartBlocked && (
         <div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">
           {globalCfg.cart_closed_message || "السلة مغلقة حالياً"}
+        </div>
+      )}
+      {isComingSoon && (
+        <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-2 px-4 font-bold text-sm">
+          ⏰ {globalCfg.coming_soon?.message || "عرض قادم"}
         </div>
       )}
       <header className="px-4 pt-6 pb-4">
@@ -161,7 +170,6 @@ export default function CartPage() {
                   <button disabled={isCartBlocked} onClick={() => updateQty(item.cartID, item.qty + 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90 disabled:opacity-30"><Plus className="w-3.5 h-3.5" /></button>
                   <button disabled={isCartBlocked} onClick={() => removeItem(item.productID)} className="mr-auto text-red-400 p-1.5 disabled:opacity-30"><Trash2 className="w-4 h-4" /></button>
                 </div>
-              </div>
               <div className="text-left font-bold">{item.lineTotal.toLocaleString()} LBP</div>
             </div>
           ))}
