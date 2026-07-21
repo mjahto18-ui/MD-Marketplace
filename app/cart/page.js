@@ -17,15 +17,15 @@ export default function CartPage() {
 
   useEffect(() => {
     fetch('/api/global-config', { cache: 'no-store' })
-    .then(r=>r.json())
-    .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
-    .catch(()=>setConfigLoading(false));
+   .then(r=>r.json())
+   .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
+   .catch(()=>setConfigLoading(false));
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-    .then(async (res) => {
+   .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -44,13 +44,13 @@ export default function CartPage() {
           }
         }
       })
-    .catch(()=> {
+   .catch(()=> {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
-    .finally(()=> { if(!cancelled) setLoading(false); });
+   .finally(()=> { if(!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [router]);
 
@@ -81,13 +81,21 @@ export default function CartPage() {
   const updateQty = async (cartID, newQty) => {
     if (globalCfg?.isCartClosed) return;
     if (newQty < 1) return;
-    await fetch('/api/cart/update', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cartID, qty: newQty }) });
+    await fetch('/api/cart/update', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cartID, qty: newQty })
+    });
     fetchCart();
   };
 
   const removeItem = async (productID) => {
     if (globalCfg?.isCartClosed) return;
-    await fetch(`/api/cart/remove?customerID=${customerID}&productID=${productID}`, { method: 'DELETE' });
+    await fetch(`/api/cart/remove?customerID=${customerID}&productID=${productID}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
     fetchCart();
   };
 
@@ -109,7 +117,7 @@ export default function CartPage() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white flex flex-col items-center justify-center px-6" style={{ direction: 'rtl' }}>
         <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/20 text-center max-w-md w-full">
           <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🔒</div>
-          <h1 className="text-2xl font-bold mb-3">{globalCfg.emergency_lock?.message || 'المنصة متوقفة حداداً'}</h1>
+          <h1 className="text-2xl font-bold mb-3">{globalCfg.emergency_lock?.message || globalCfg.emergency_lock?.raw || 'المنصة متوقفة حداداً'}</h1>
           <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold mt-6 flex items-center justify-center gap-2">
             <ArrowLeft className="w-4 h-4"/> رجوع
           </button>
@@ -123,12 +131,12 @@ export default function CartPage() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
         {isCartBlocked && (
           <div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">
-            {globalCfg.cart_closed_message || "السلة مغلقة حالياً"}
+            {globalCfg.cart_closed_message}
           </div>
         )}
         {isComingSoon && (
           <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-3 px-4 font-bold">
-            ⏰ {globalCfg.coming_soon?.message || globalCfg.cart_enabled?.message || "باقي يومين لـ Black Friday"}
+            ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
           </div>
         )}
         <header className="px-4 pt-6 pb-4"><div className="flex items-center justify-between mb-3"><button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div></header>
@@ -141,12 +149,12 @@ export default function CartPage() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
       {isCartBlocked && (
         <div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">
-          {globalCfg.cart_closed_message || "السلة مغلقة حالياً"}
+          {globalCfg.cart_closed_message}
         </div>
       )}
       {isComingSoon && (
         <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-2 px-4 font-bold text-sm">
-          ⏰ {globalCfg.coming_soon?.message || "عرض قادم"}
+          ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
         </div>
       )}
       <header className="px-4 pt-6 pb-4">
@@ -186,7 +194,7 @@ export default function CartPage() {
         {isCartBlocked? (
           <>
             <button disabled className="w-full bg-gray-600 py-4 rounded-2xl text-white font-bold text-lg cursor-not-allowed">
-              {globalCfg.cart_closed_message || "السلة مغلقة حالياً"}
+              {globalCfg.cart_closed_message}
             </button>
             <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold mt-3 flex items-center justify-center gap-2">
               <ArrowLeft className="w-4 h-4"/> رجوع
