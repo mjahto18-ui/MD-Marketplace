@@ -1,30 +1,44 @@
 import { getGlobalConfig } from '@/lib/getGlobalConfig';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
+
+let cache = { data: null, time: 0 };
+const TTL = 60 * 1000;
 
 export async function GET() {
   try {
+    const now = Date.now();
+    if (cache.data && (now - cache.time) < TTL) {
+      return new Response(JSON.stringify(cache.data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const config = await getGlobalConfig();
-    
-    // اطبع بالـ logs شو قرا
-    console.log("CONFIG FROM SHEET:", JSON.stringify(config));
-    
+    cache = { data: config, time: now };
+
     return new Response(JSON.stringify(config), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
   } catch (e) {
-    console.log("API ERROR:", e);
-    return new Response(JSON.stringify({ error: e.message, isCartClosed: false }), {
-      status: 500,
-      headers: { 'Cache-Control': 'no-store' }
+    if (cache.data) {
+      return new Response(JSON.stringify(cache.data), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    return new Response(JSON.stringify({ 
+      isLocked: false, 
+      isCartClosed: false, 
+      isComingSoon: false,
+      cart_closed_message: "",
+      emergency_lock_message: "",
+      coming_soon_message: ""
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 }
