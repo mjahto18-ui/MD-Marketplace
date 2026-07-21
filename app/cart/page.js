@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, ChevronRight, Plus, Minus, Trash2, Banknote, Wallet, Check, ArrowLeft } from 'lucide-react';
 
@@ -14,28 +14,59 @@ export default function CartPage() {
   const [customerID, setCustomerID] = useState(null);
   const [globalCfg, setGlobalCfg] = useState(null);
   const [configLoading, setConfigLoading] = useState(true);
+  const hasRedirected = useRef(false);
 
+  // 1- جيب الكونفيغ
   useEffect(() => {
-    fetch('/api/global-config').then(r=>r.json()).then(d=>{setGlobalCfg(d); setConfigLoading(false);}).catch(()=>setConfigLoading(false));
+    fetch('/api/global-config', { cache: 'no-store' })
+     .then(r=>r.json())
+     .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
+     .catch(()=>setConfigLoading(false));
   }, []);
 
+  // 2- جيب اليوزر مرة وحدة بس - ما بقا يطردك مرتين
   useEffect(() => {
-    fetch('/api/me', { credentials: 'include' }).then(async (res) => {
-      if (!res.ok) { setLoading(false); router.push('/login'); return; }
-      const data = await res.json();
-      if (data.user?.customerId) setCustomerID(data.user.customerId);
-      else { setLoading(false); router.push('/login'); }
-    }).catch(()=>{setLoading(false); router.push('/login');});
+    let cancelled = false;
+    fetch('/api/me', { credentials: 'include', cache: 'no-store' })
+     .then(async (res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          if (!hasRedirected.current) {
+            hasRedirected.current = true;
+            router.replace('/login');
+          }
+          return;
+        }
+        const data = await res.json();
+        if (data.user?.customerId) {
+          setCustomerID(data.user.customerId);
+        } else {
+          if (!hasRedirected.current) {
+            hasRedirected.current = true;
+            router.replace('/login');
+          }
+        }
+      })
+     .catch(()=> {
+        if (!hasRedirected.current) {
+          hasRedirected.current = true;
+          router.replace('/login');
+        }
+      })
+     .finally(()=> { if(!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [router]);
 
   const fetchCart = async () => {
     if (!customerID) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/cart?customerID=${customerID}`);
+      const res = await fetch(`/api/cart?customerID=${customerID}`, { credentials: 'include', cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
-        setCart(data.cart); setTotalWeight(data.totalWeight); setSubtotal(data.subtotal);
+        setCart(data.cart || []);
+        setTotalWeight(data.totalWeight);
+        setSubtotal(data.subtotal);
         const totalPoints = data.totalWeight;
         const freeRemaining = data.freeDeliveryRemaining || 0;
         const lastDate = data.lastFreeDeliveryDate || "";
@@ -63,19 +94,25 @@ export default function CartPage() {
     fetchCart();
   };
 
+  const handleBack = () => {
+    if (window.history.length > 1) router.back();
+    else router.push('/shop');
+  };
+
   const total = subtotal + deliveryFee;
-  const isCartBlocked = globalCfg?.isCartClosed; // شلنا isComingSoon نهائيا
+  const isCartBlocked = globalCfg?.isCartClosed;
 
-  if (configLoading) return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
+  if (configLoading || (loading &&!customerID)) {
+    return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
+  }
 
-  // حداد فقط
   if (globalCfg?.isLocked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white flex flex-col items-center justify-center px-6" style={{ direction: 'rtl' }}>
         <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/20 text-center max-w-md w-full">
           <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🔒</div>
           <h1 className="text-2xl font-bold mb-3">{globalCfg.emergency_lock?.message || 'المنصة متوقفة حداداً'}</h1>
-          <button onClick={() => router.back()} className="w-full bg-white/10 py-3 rounded-2xl font-bold mt-6 flex items-center justify-center gap-2">
+          <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold mt-6 flex items-center justify-center gap-2">
             <ArrowLeft className="w-4 h-4"/> رجوع
           </button>
         </div>
@@ -83,14 +120,20 @@ export default function CartPage() {
     );
   }
 
-  if (!customerID || loading) return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
-
-  if (cart.length === 0) return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
-      <header className="px-4 pt-6 pb-4"><div className="flex items-center justify-between mb-3"><button onClick={() => router.back()}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div></header>
-      <div className="flex flex-col items-center justify-center mt-20 px-4"><ShoppingCart className="w-20 h-20 text-purple-400 mb-4" /><p className="text-xl font-bold mb-2">السلة فاضية</p><button onClick={() => router.back()} className="bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 rounded-2xl font-bold mt-4">رجوع</button></div>
-    </div>
-  );
+  // السلة فاضية - بس مع بانر اذا مسكرة
+  if (!loading && cart.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
+        {isCartBlocked && (
+          <div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">
+            {globalCfg.cart_closed_message || "السلة مغلقة حالياً"}
+          </div>
+        )}
+        <header className="px-4 pt-6 pb-4"><div className="flex items-center justify-between mb-3"><button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div></header>
+        <div className="flex flex-col items-center justify-center mt-20 px-4"><ShoppingCart className="w-20 h-20 text-purple-400 mb-4" /><p className="text-xl font-bold mb-2">السلة فاضية</p><button onClick={handleBack} className="bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 rounded-2xl font-bold mt-4">رجوع</button></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
@@ -99,9 +142,8 @@ export default function CartPage() {
           {globalCfg.cart_closed_message || "السلة مغلقة حالياً"}
         </div>
       )}
-
       <header className="px-4 pt-6 pb-4">
-        <div className="flex items-center justify-between mb-3"><button onClick={() => router.back()}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/50"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div>
+        <div className="flex items-center justify-between mb-3"><button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/50"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div>
         <div className="text-center"><h1 className="text-xl font-bold">MD Marketplace</h1></div>
       </header>
       <div className="px-4 pb-6">
@@ -139,7 +181,7 @@ export default function CartPage() {
             <button disabled className="w-full bg-gray-600 py-4 rounded-2xl text-white font-bold text-lg cursor-not-allowed">
               {globalCfg.cart_closed_message || "السلة مغلقة حالياً"}
             </button>
-            <button onClick={() => router.back()} className="w-full bg-white/10 py-3 rounded-2xl font-bold mt-3 flex items-center justify-center gap-2">
+            <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold mt-3 flex items-center justify-center gap-2">
               <ArrowLeft className="w-4 h-4"/> رجوع
             </button>
           </>
