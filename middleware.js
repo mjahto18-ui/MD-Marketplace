@@ -16,12 +16,27 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  // --- هون الكاش ---
   let cfg = {};
   try {
-    const res = await fetch(`${request.nextUrl.origin}/api/global-config`, { cache: 'no-store' });
-    cfg = await res.json();
+    const now = Date.now();
+    // اذا في كاش وعمرو اقل من دقيقة - خدو منو
+    if (globalThis.__MD_CFG && globalThis.__MD_CFG_TIME && (now - globalThis.__MD_CFG_TIME) < 60000) {
+      cfg = globalThis.__MD_CFG;
+    } else {
+      // اذا ما في كاش - جيبو من جوجل مرة وحدة
+      const res = await fetch(`${request.nextUrl.origin}/api/global-config`, { cache: 'no-store' });
+      if (res.ok) {
+        cfg = await res.json();
+        globalThis.__MD_CFG = cfg;
+        globalThis.__MD_CFG_TIME = now;
+      } else {
+        cfg = globalThis.__MD_CFG || {};
+      }
+    }
   } catch {
-    cfg = {};
+    // اذا جوجل وقع - خد القديم ولا تكب حدا برا
+    cfg = globalThis.__MD_CFG || {};
   }
 
   // 1- حداد فقط = قفل كامل
@@ -29,9 +44,6 @@ export async function middleware(request) {
     return NextResponse.redirect(new URL('/closed', request.url));
   }
   if (cfg.isLocked) return NextResponse.next();
-
-  // 2- شلنا coming-soon نهائيا - ما عاد يرد حدا
-  // 3- شلنا isCartClosed من هون - السلة بتسكر لحالها من جوا cart/page.jsx
 
   // حماية الصفحات
   const protectedRoutes = ['/shop', '/cart', '/profile', '/orders', '/checkout'];
@@ -53,7 +65,7 @@ export async function middleware(request) {
           return NextResponse.redirect(new URL('/terms-approval', request.url));
         }
       } catch {
-        return NextResponse.next();
+        return NextResponse.next(); // اذا الكوكي خربان لا تكبو برا - خليه يفوت
       }
     }
   }
