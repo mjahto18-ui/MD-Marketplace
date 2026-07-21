@@ -15,50 +15,15 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // --- كاش محسن + ما بيدق على حالو ---
-  let cfg = {};
+  // فحص الحداد الخفيف - بس من الكاش اذا موجود، ما بيدق على جوجل
   try {
-    const now = Date.now();
-    if (globalThis.__MD_CFG && globalThis.__MD_CFG_TIME && (now - globalThis.__MD_CFG_TIME) < 60000) {
-      cfg = globalThis.__MD_CFG;
-    } else {
-      // جيب مباشرة من جوجل بتايم اوت 500ms - لا تدق على /api/global-config
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 500);
-      const SHEET_URL = process.env.GLOBAL_CONFIG_URL || process.env.NEXT_PUBLIC_SHEET_CONFIG_URL;
-      
-      if (SHEET_URL) {
-        const res = await fetch(SHEET_URL, { signal: controller.signal, cache: 'no-store' });
-        clearTimeout(t);
-        if (res.ok) {
-          const text = await res.text();
-          // حلل بسرعة اذا في حداد
-          cfg = { isLocked: text.includes('TRUE') && text.toLowerCase().includes('lock') };
-          globalThis.__MD_CFG = cfg;
-          globalThis.__MD_CFG_TIME = now;
-        }
-      } else {
-        // اذا ما في رابط شيت، جيب من ال API بس بتايم اوت
-        const res = await fetch(`${request.nextUrl.origin}/api/global-config`, { 
-          signal: AbortSignal.timeout(500),
-          cache: 'no-store' 
-        });
-        if (res.ok) {
-          cfg = await res.json();
-          globalThis.__MD_CFG = cfg;
-          globalThis.__MD_CFG_TIME = now;
-        }
-      }
+    const cfg = globalThis.__MD_CFG || null;
+    if (cfg && cfg.isLocked && pathname !== '/closed') {
+      return NextResponse.redirect(new URL('/closed', request.url));
     }
   } catch {
-    // اهم سطر: اذا فشل - لا تكب حدا، خد القديم
-    cfg = globalThis.__MD_CFG || {};
+    // اذا فشل لا تكب حدا
   }
-
-  if (cfg.isLocked && pathname !== '/closed') {
-    return NextResponse.redirect(new URL('/closed', request.url));
-  }
-  if (cfg.isLocked) return NextResponse.next();
 
   const protectedRoutes = ['/shop', '/cart', '/profile', '/orders', '/checkout'];
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
