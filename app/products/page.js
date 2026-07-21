@@ -12,11 +12,15 @@ export default function ProductsPage() {
   const [toast, setToast] = useState(null);
   const [addingId, setAddingId] = useState(null);
   const [customerID, setCustomerID] = useState(null);
+  const [globalCfg, setGlobalCfg] = useState(null);
 
-  // 1- جيب الـ customerId الحقيقي
+  useEffect(() => {
+    fetch('/api/global-config', { cache: 'no-store' }).then(r=>r.json()).then(d=>setGlobalCfg(d)).catch(()=>{});
+  }, []);
+
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-      .then(async (res) => {
+     .then(async (res) => {
         if (!res.ok) {
           router.push('/login');
           return;
@@ -28,13 +32,13 @@ export default function ProductsPage() {
           router.push('/login');
         }
       })
-      .catch(() => router.push('/login'));
+     .catch(() => router.push('/login'));
   }, [router]);
 
   useEffect(() => {
     fetch('/api/products')
-    .then(res => res.json())
-    .then(data => {
+  .then(res => res.json())
+  .then(data => {
         if (data.success) {
           setProducts(data.products);
           setFiltered(data.products);
@@ -54,19 +58,54 @@ export default function ProductsPage() {
   }, [search, products]);
 
   const addToCart = async (productID) => {
-    if (addingId || !customerID) return;
+    if (addingId) return;
+
+    // فحص السلة من الجدول قبل ما نضيف
+    if (globalCfg?.isCartClosed) {
+      setToast(globalCfg.cart_closed_message || "السلة مغلقة حالياً");
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    if (!customerID) {
+      router.push('/login');
+      return;
+    }
+
     setAddingId(productID);
-    await fetch('/api/cart/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerID, productID, qty: 1 })
-    });
-    const prod = products.find(p => p.productID === productID);
-    setToast(prod ? prod.name : 'المنتج');
-    setTimeout(() => {
-      setToast(null);
-      setAddingId(null);
-    }, 2000);
+    try {
+      const res = await fetch('/api/cart/add', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productID, qty: 1 })
+      });
+      const data = await res.json();
+
+      if (!res.ok ||!data.success) {
+        // اذا السلة مسكرة او خطأ - اعرض المسج الحقيقي من الجدول
+        setToast(data.message || "فشل الاضافة");
+        setTimeout(() => {
+          setToast(null);
+          setAddingId(null);
+        }, 3000);
+        return;
+      }
+
+      const prod = products.find(p => p.productID === productID);
+      setToast(prod? `${prod.name} - تمت الإضافة` : 'تمت الإضافة');
+      setTimeout(() => {
+        setToast(null);
+        setAddingId(null);
+      }, 2000);
+
+    } catch (e) {
+      setToast("خطأ بالاتصال");
+      setTimeout(() => {
+        setToast(null);
+        setAddingId(null);
+      }, 2000);
+    }
   };
 
   if (loading) return (
@@ -80,6 +119,16 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
+      {globalCfg?.isCartClosed && (
+        <div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">
+          {globalCfg.cart_closed_message}
+        </div>
+      )}
+      {globalCfg?.isComingSoon && (
+        <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-2 px-4 font-bold text-sm">
+          ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
+        </div>
+      )}
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => router.back()} className="bg-white/10 p-2 rounded-xl active:scale-90 transition">
@@ -94,7 +143,7 @@ export default function ProductsPage() {
       </header>
 
       <div className="px-4 pb-6">
-        {filtered.length === 0 && !loading && (
+        {filtered.length === 0 &&!loading && (
           <div className="text-center py-20">
             <Package className="w-16 h-16 text-purple-400 mx-auto mb-4" />
             <p className="text-xl font-bold mb-2">ما لقينا منتجات</p>
@@ -113,9 +162,9 @@ export default function ProductsPage() {
                   <p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p>
                   <p className="text-purple-300">الوزن: {product.weightPoint} نقطة</p>
                 </div>
-                <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60">
-                  {addingId === product.productID ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}
-                  {addingId === product.productID ? '...' : 'اضف للسلة'}
+                <button onClick={() => addToCart(product.productID)} disabled={globalCfg?.isCartClosed} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                  {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}
+                  {addingId === product.productID? '...' : 'اضف للسلة'}
                 </button>
               </div>
             </div>
@@ -126,7 +175,7 @@ export default function ProductsPage() {
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white text-black px-5 py-3 rounded-full shadow-2xl z-[999] flex items-center gap-2">
           <div className="bg-green-500 rounded-full p-1"><Check className="w-3 h-3 text-white" /></div>
-          <span className="text-sm font-bold">{toast} - تمت الإضافة</span>
+          <span className="text-sm font-bold">{toast}</span>
         </div>
       )}
     </div>
