@@ -15,43 +15,25 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // --- كاش محسن + ما بيدق على حالو ---
-  let cfg = {};
+  let cfg = globalThis.__MD_CFG || {};
   try {
     const now = Date.now();
     if (globalThis.__MD_CFG && globalThis.__MD_CFG_TIME && (now - globalThis.__MD_CFG_TIME) < 60000) {
       cfg = globalThis.__MD_CFG;
     } else {
-      // جيب مباشرة من جوجل بتايم اوت 500ms - لا تدق على /api/global-config
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 500);
-      const SHEET_URL = process.env.GLOBAL_CONFIG_URL || process.env.NEXT_PUBLIC_SHEET_CONFIG_URL;
-      
-      if (SHEET_URL) {
-        const res = await fetch(SHEET_URL, { signal: controller.signal, cache: 'no-store' });
-        clearTimeout(t);
-        if (res.ok) {
-          const text = await res.text();
-          // حلل بسرعة اذا في حداد
-          cfg = { isLocked: text.includes('TRUE') && text.toLowerCase().includes('lock') };
-          globalThis.__MD_CFG = cfg;
-          globalThis.__MD_CFG_TIME = now;
-        }
-      } else {
-        // اذا ما في رابط شيت، جيب من ال API بس بتايم اوت
+      try {
         const res = await fetch(`${request.nextUrl.origin}/api/global-config`, { 
-          signal: AbortSignal.timeout(500),
-          cache: 'no-store' 
+          cache: 'no-store',
+          signal: AbortSignal.timeout(500)
         });
         if (res.ok) {
           cfg = await res.json();
           globalThis.__MD_CFG = cfg;
           globalThis.__MD_CFG_TIME = now;
         }
-      }
+      } catch {}
     }
   } catch {
-    // اهم سطر: اذا فشل - لا تكب حدا، خد القديم
     cfg = globalThis.__MD_CFG || {};
   }
 
@@ -60,7 +42,11 @@ export async function middleware(request) {
   }
   if (cfg.isLocked) return NextResponse.next();
 
+  // هون مبارح شلنا checkout - اذا بدك يضل مفتوح وقت الحداد شيلو من هالليستا
   const protectedRoutes = ['/shop', '/cart', '/profile', '/orders', '/checkout'];
+  // اذا بدك checkout يضل مفتوح حتى بالحداد، خليها هيك:
+  // const protectedRoutes = ['/shop', '/cart', '/profile', '/orders'];
+
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
     const session = request.cookies.get('session');
     const isGuest = request.cookies.get('md_guest');
