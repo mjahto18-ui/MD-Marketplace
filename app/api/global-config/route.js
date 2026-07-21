@@ -3,7 +3,7 @@ import { getGlobalConfig } from '@/lib/getGlobalConfig';
 export const dynamic = 'force-dynamic';
 
 let cache = { data: null, time: 0 };
-const TTL = 60 * 1000;
+const TTL = 10 * 1000;
 
 export async function GET() {
   try {
