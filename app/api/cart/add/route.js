@@ -5,16 +5,24 @@ import { getGlobalConfig } from "@/lib/getGlobalConfig";
 
 export async function POST(req) {
   try {
-    // 1- فحص الريموت قبل أي شي
+    // 1- فحص الريموت
     const config = await getGlobalConfig();
-    if(config.isLocked) {
-      return NextResponse.json({ success: false, message: config.emergency_lock?.message || "المنصة متوقفة حداداً" }, { status: 403 });
+
+    // حداد - قفل كامل
+    if (config.isLocked) {
+      return NextResponse.json({
+        success: false,
+        message: config.emergency_lock?.message || "المنصة متوقفة حداداً"
+      }, { status: 403 });
     }
-    if(config.isComingSoon) {
-      return NextResponse.json({ success: false, message: "المنصة قريباً" }, { status: 403 });
-    }
-    if(config.isCartClosed) {
-      return NextResponse.json({ success: false, message: config.cart_enabled?.message || config.cart_enabled?.message_ar || "السلة مغلقة حالياً" }, { status: 403 });
+
+    // سلة + افتتاح = نفس الشي = السلة متوقفة - رسالة ثابتة
+    if (config.isCartClosed || config.isComingSoon) {
+      return NextResponse.json({
+        success: false,
+        isClosed: true,
+        message: "السلة متوقفة حالياً"
+      }, { status: 403 });
     }
 
     const { productID, qty = 1 } = await req.json();
