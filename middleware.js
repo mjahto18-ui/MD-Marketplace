@@ -15,11 +15,18 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // فحص الحداد الخفيف - بس من الكاش اذا موجود، ما بيدق على جوجل
+  // فحص الحداد - صار يقرا من الشيت مباشرة
   try {
-    const cfg = globalThis.__MD_CFG || null;
-    if (cfg && cfg.isLocked && pathname !== '/closed') {
-      return NextResponse.redirect(new URL('/closed', request.url));
+    const baseUrl = request.nextUrl.origin;
+    const res = await fetch(`${baseUrl}/api/global-config`, { 
+      cache: 'no-store',
+      headers: { 'x-middleware': '1' }
+    });
+    if (res.ok) {
+      const cfg = await res.json();
+      if ((cfg?.isLocked === true || cfg?.emergency_lock?.value === 'TRUE') && pathname !== '/closed') {
+        return NextResponse.redirect(new URL('/closed', request.url));
+      }
     }
   } catch {
     // اذا فشل لا تكب حدا
