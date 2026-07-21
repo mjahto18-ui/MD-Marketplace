@@ -23,6 +23,10 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
+    // لا تجيب معلومات العميل اذا المنصة حداد
+    if(configLoading) return;
+    if(globalCfg?.isLocked) { setLoading(false); return; }
+
     let cancelled = false;
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
    .then(async (res) => {
@@ -52,10 +56,12 @@ export default function CartPage() {
       })
    .finally(()=> { if(!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [router]);
+  }, [router, configLoading, globalCfg]);
 
   const fetchCart = async () => {
     if (!customerID) return;
+    // اذا السلة مسكرة لا تجيبها اصلا - هون حل اللمحة
+    if(globalCfg?.isCartClosed) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/cart?customerID=${customerID}`, { credentials: 'include', cache: 'no-store' });
@@ -76,7 +82,7 @@ export default function CartPage() {
     setLoading(false);
   };
 
-  useEffect(()=>{ if(customerID) fetchCart(); }, [customerID]);
+  useEffect(()=>{ if(customerID && !globalCfg?.isCartClosed) fetchCart(); }, [customerID, globalCfg]);
 
   const updateQty = async (cartID, newQty) => {
     if (globalCfg?.isCartClosed) return;
@@ -104,11 +110,8 @@ export default function CartPage() {
     else router.push('/shop');
   };
 
-  const total = subtotal + deliveryFee;
-  const isCartBlocked = globalCfg?.isCartClosed;
-  const isComingSoon = globalCfg?.isComingSoon;
-
-  if (configLoading || loading) {
+  // 1- اهم شي: لا تعرض شي لحد ما يخلص الكونفج
+  if (configLoading) {
     return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
   }
 
@@ -126,37 +129,39 @@ export default function CartPage() {
     );
   }
 
+  // 2- اذا السلة مسكرة - اعرض صفحة مسكرة كاملة بلا ما تجيب المنتجات
+  if (globalCfg?.isCartClosed) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white flex flex-col items-center justify-center px-6" style={{ direction: 'rtl' }}>
+        <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/20 text-center max-w-md w-full">
+          <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🛒</div>
+          <h1 className="text-2xl font-bold mb-3">السلة مغلقة حالياً</h1>
+          <p className="text-white/70 mb-6">{globalCfg.cart_closed_message || 'السلة مغلقة حاليا'}</p>
+          <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold flex items-center justify-center gap-2">
+            <ArrowLeft className="w-4 h-4"/> رجوع للمتجر
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 flex items-center justify-center text-white">جاري التحميل...</div>;
+  }
+
   if (cart.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
-        {isCartBlocked && (
-          <div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">
-            {globalCfg.cart_closed_message}
-          </div>
-        )}
-        {isComingSoon && (
-          <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-3 px-4 font-bold">
-            ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
-          </div>
-        )}
         <header className="px-4 pt-6 pb-4"><div className="flex items-center justify-between mb-3"><button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div></header>
         <div className="flex flex-col items-center justify-center mt-20 px-4"><ShoppingCart className="w-20 h-20 text-purple-400 mb-4" /><p className="text-xl font-bold mb-2">السلة فاضية</p><button onClick={handleBack} className="bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 rounded-2xl font-bold mt-4">رجوع</button></div>
       </div>
     );
   }
 
+  const total = subtotal + deliveryFee;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
-      {isCartBlocked && (
-        <div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">
-          {globalCfg.cart_closed_message}
-        </div>
-      )}
-      {isComingSoon && (
-        <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-2 px-4 font-bold text-sm">
-          ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
-        </div>
-      )}
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-3"><button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/50"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div>
         <div className="text-center"><h1 className="text-xl font-bold">MD Marketplace</h1></div>
@@ -171,10 +176,10 @@ export default function CartPage() {
                 <h3 className="font-bold text-sm">{item.name}</h3>
                 <p className="text-xs text-purple-300">{item.unitPrice.toLocaleString()} LBP • الكمية {item.qty}</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <button disabled={isCartBlocked} onClick={() => updateQty(item.cartID, item.qty - 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90 disabled:opacity-30"><Minus className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => updateQty(item.cartID, item.qty - 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90"><Minus className="w-3.5 h-3.5" /></button>
                   <span className="font-bold text-sm w-6 text-center">{item.qty}</span>
-                  <button disabled={isCartBlocked} onClick={() => updateQty(item.cartID, item.qty + 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90 disabled:opacity-30"><Plus className="w-3.5 h-3.5" /></button>
-                  <button disabled={isCartBlocked} onClick={() => removeItem(item.productID)} className="mr-auto text-red-400 p-1.5 disabled:opacity-30"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => updateQty(item.cartID, item.qty + 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90"><Plus className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => removeItem(item.productID)} className="mr-auto text-red-400 p-1.5"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
               <div className="text-left font-bold">{item.lineTotal.toLocaleString()} LBP</div>
@@ -190,19 +195,7 @@ export default function CartPage() {
             <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
           </div>
         </div>
-
-        {isCartBlocked? (
-          <>
-            <button disabled className="w-full bg-gray-600 py-4 rounded-2xl text-white font-bold text-lg cursor-not-allowed">
-              {globalCfg.cart_closed_message}
-            </button>
-            <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold mt-3 flex items-center justify-center gap-2">
-              <ArrowLeft className="w-4 h-4"/> رجوع
-            </button>
-          </>
-        ) : (
-          <button onClick={() => router.push('/checkout')} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP</button>
-        )}
+        <button onClick={() => router.push('/checkout')} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP</button>
       </div>
     </div>
   );
