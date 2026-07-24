@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw } from "lucide-react";
+import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw, Gift } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 
@@ -22,7 +22,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-     .then(async (res) => {
+    .then(async (res) => {
         if (!res.ok) { window.location.href = '/login'; return; }
         const data = await res.json();
         setUser(data.user);
@@ -38,12 +38,12 @@ export default function Dashboard() {
         // ✅ شلنا api/notifications/count القديم يلي فيه ثغرة
 
         fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-         .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0 }));
+        .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0 }));
 
         fetch(`/api/my-orders?customerID=${data.user.customerId}`, { credentials: 'include' })
-         .then(r => r.json()).then(o => setOrders(o.orders || []));
+        .then(r => r.json()).then(o => setOrders(o.orders || []));
       })
-     .catch(() => { window.location.href = '/login'; });
+    .catch(() => { window.location.href = '/login'; });
   }, []);
 
   useEffect(() => {
@@ -98,8 +98,8 @@ export default function Dashboard() {
   if (!user) return null;
 
   const latestApproved = orders
- .filter(o => o.approvalStatus === "Approved")
- .slice(-1)[0];
+.filter(o => o.approvalStatus === "Approved")
+.slice(-1)[0];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950" style={{ direction: "rtl" }}>
@@ -174,9 +174,9 @@ export default function Dashboard() {
 
                 </div>
               )}
-              
+
            </div>
-            
+
             {needsLocationUpdate? (
               <button
                 onClick={() => setShowLocationModal(true)}
@@ -203,7 +203,7 @@ export default function Dashboard() {
 
       <div className="max-w-6xl mx-auto p-4 space-y-4 pb-24">
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${user?.freeDeliveries > 0? 'grid-cols-3' : 'grid-cols-2'}`}>
           <div className="bg-gradient-to-br from-yellow-500/20 to-amber-500/20 backdrop-blur-xl border border-yellow-500/20 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-1">
               <Star className="w-4 h-4 text-yellow-300" />
@@ -221,6 +221,17 @@ export default function Dashboard() {
             <p className="text-white text-xl font-bold">{Number(balance.wallet).toLocaleString()}</p>
             <p className="text-emerald-200/60 text-xs mt-1">ل.ل</p>
           </div>
+
+          {user?.freeDeliveries > 0 && (
+            <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-xl border border-green-500/30 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Gift className="w-4 h-4 text-green-300" />
+                <p className="text-green-200 text-xs">فري دلفري</p>
+              </div>
+              <p className="text-white text-2xl font-bold">{user.freeDeliveries}</p>
+              <p className="text-green-200/60 text-xs mt-1">مجاني</p>
+            </div>
+          )}
         </div>
 
         {user?.lat && user?.lng? (
