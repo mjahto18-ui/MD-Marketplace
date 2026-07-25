@@ -135,7 +135,7 @@ export async function POST(req) {
     );
       console.log("HTTP Status =", response.status);
     const result = await response.json();
-    consile.log("OneSignal Result =", result);
+    console.log("OneSignal Result =", result);
 
     console.log(result);
 
