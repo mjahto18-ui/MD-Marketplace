@@ -9,7 +9,7 @@ export default function HomePage() {
       <div className="flex justify-between items-start p-4 md:p-6">
         <div className="flex flex-col">
           <h1 className="text-white font-black tracking-wider text-[13px] md:text-sm">MD-MARKETPLACE</h1>
-          <p className="text-white/40 text-[10px] md:text-xs mt-0.5 tracking-wide">one app for everything?</p>
+          <p className="text-white/40 text-[10px] md:text-xs mt-0.5 tracking-wide">One App For Everything</p>
         </div>
         <div className="flex gap-2">
           <Link href="/shop" className="bg-white text-black px-5 py-2 rounded-full text-sm font-black hover:bg-white/90 transition">Shop</Link>
