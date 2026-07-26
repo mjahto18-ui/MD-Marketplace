@@ -1,14 +1,8 @@
 import { NextResponse } from 'next/server';
 
-export function middleware(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // 1. جوجل وكل العالم فيه يفوت على الرئيسية - ممنوع تحويلها
-  if (pathname === '/') {
-    return NextResponse.next();
-  }
-
-  // 2. الصفحات يلي ما بدها حماية
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
@@ -21,14 +15,43 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // 3. بس الصفحات المحمية بدها تسجيل دخول
+  // فحص الحداد - صار يقرا من الشيت مباشرة
+  try {
+    const baseUrl = request.nextUrl.origin;
+    const res = await fetch(`${baseUrl}/api/global-config`, { 
+      cache: 'no-store',
+      headers: { 'x-middleware': '1' }
+    });
+    if (res.ok) {
+      const cfg = await res.json();
+      if ((cfg?.isLocked === true || cfg?.emergency_lock?.value === 'TRUE') && pathname !== '/closed') {
+        return NextResponse.redirect(new URL('/closed', request.url));
+      }
+    }
+  } catch {
+    // اذا فشل لا تكب حدا
+  }
+
   const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout'];
-  
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
     const session = request.cookies.get('session');
     const isGuest = request.cookies.get('md_guest');
     if (!session && !isGuest) {
       return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    if (session) {
+      try {
+        let data;
+        try { data = JSON.parse(session.value); } 
+        catch { data = JSON.parse(decodeURIComponent(session.value)); }
+        const accepted = String(data.AcceptedTerms || data.acceptedTerms || "TRUE").toUpperCase();
+        if (accepted !== "TRUE" && pathname !== '/terms-approval') {
+          return NextResponse.redirect(new URL('/terms-approval', request.url));
+        }
+      } catch {
+        return NextResponse.next();
+      }
     }
   }
 
