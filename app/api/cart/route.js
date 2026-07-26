@@ -21,13 +21,13 @@ async function getCustomerIDFromSession(sheets, spreadsheetId) {
   const customerIdIdx = header.findIndex(h => h.toLowerCase().includes('customer') && h.toLowerCase().includes('id'));
   for (let i = 1; i < customers.length; i++) {
     if (customers[i][mobileIdx] === phone || customers[i][1] === phone || customers[i][2] === phone) {
-      return customers[i][customerIdIdx >=0? customerIdIdx : 0] || customers[i][0];
+      return customers[i][customerIdIdx >=0 ? customerIdIdx : 0] || customers[i][0];
     }
   }
   const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Users!A:Z" });
   const users = usersRes.data.values?.slice(1) || [];
   const user = users.find(row => row.includes(phone));
-  return user? user[0] : null;
+  return user ? user[0] : null;
 }
 
 export async function GET(req) {
@@ -44,6 +44,7 @@ export async function GET(req) {
 
     const customerID = await getCustomerIDFromSession(sheets, spreadsheetId);
     if (!customerID) {
+      // زائر - رجع سلة فاضية بدل ما ترجع 400
       return NextResponse.json({ success: true, cart: [], totalWeight: 0, subtotal: 0, baseDeliveryFee: 0, deliveryFee: 0, freeDeliveryRemaining: 0 });
     }
 
@@ -69,9 +70,9 @@ export async function GET(req) {
       return {
         cartID: row[0],
         productID: row[2],
-        name: product? product[2] : "منتج محذوف",
-        image: product? product[6] : "",
-        unitPrice: qty? lineTotal / qty : 0,
+        name: product ? product[2] : "منتج محذوف",
+        image: product ? product[6] : "",
+        unitPrice: qty ? lineTotal / qty : 0,
         qty,
         lineTotal,
         linePoints: Number(row[9]),
@@ -81,21 +82,8 @@ export async function GET(req) {
     const totalWeight = cartItems.reduce((s, i) => s + i.qty * i.linePoints, 0);
     const subtotal = cartItems.reduce((s, i) => s + i.lineTotal, 0);
 
-    // --- بداية التعديل الصح ---
     const customerRow = customersRows.find((r) => r[0] === customerID);
-    const freeDeliveryRemaining = customerRow? Number(customerRow[8] || 0) : 0;
-    const lastFreeDeliveryDateRaw = customerRow? (customerRow[23] || "") : "";
-
-    let alreadyUsedFreeToday = false;
-    if (lastFreeDeliveryDateRaw) {
-      const parsedDate = new Date(lastFreeDeliveryDateRaw);
-      const now = new Date();
-      if (!isNaN(parsedDate)) {
-        alreadyUsedFreeToday = parsedDate.getDate() === now.getDate() &&
-                               parsedDate.getMonth() === now.getMonth() &&
-                               parsedDate.getFullYear() === now.getFullYear();
-      }
-    }
+    const freeDeliveryRemaining = customerRow ? Number(customerRow[8] || 0) : 0;
 
     let baseDeliveryFee = 0;
     const rateRow = ratesRows.find((r) => {
@@ -106,12 +94,11 @@ export async function GET(req) {
     if (rateRow) baseDeliveryFee = Number(rateRow[4]);
 
     let finalDeliveryFee;
-    if (freeDeliveryRemaining === 0 || alreadyUsedFreeToday) {
+    if (freeDeliveryRemaining === 0) {
       finalDeliveryFee = baseDeliveryFee;
     } else {
-      finalDeliveryFee = totalWeight <= 10? 0 : baseDeliveryFee;
+      finalDeliveryFee = totalWeight <= 10 ? 0 : baseDeliveryFee;
     }
-    // --- نهاية التعديل ---
 
     return NextResponse.json({
       success: true,
