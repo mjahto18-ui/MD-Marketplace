@@ -54,12 +54,12 @@ export default function OrderSuccessContent() {
         <CheckCircle2 className="w-12 h-12" />
       </div>
 
-      <h1 className="text-3xl font-bold mb-3">تم تأكيد طلبك بنجاح!</h1>
+      <h1 className="text-3xl font-bold mb-3 text-white">تم تأكيد طلبك بنجاح!</h1>
 
-      {/* رقم الطلب - بتجيبه من الـAPI */}
-      <p className="text-lg mb-2">
-        طلب رقم <span className="font-bold">#{order.requestID}</span>
-      </p>
+{/* رقم الطلب - بتجيبه من الـAPI */}
+<p className="text-lg mb-2 text-white">
+  طلب رقم <span className="font-bold text-white">#{order.requestID}</span>
+</p>
 
       {/* الوقت المتوقع للتوصيل - ثابت 15-25 زي ما طلبت */}
       <p className="text-purple-200 mb-8">
