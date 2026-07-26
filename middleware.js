@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getGlobalConfig } from '@/lib/getGlobalConfig';
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -15,16 +16,13 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // فحص الحداد - صار يقرا من الشيت مباشرة
+  // فحص الطوارئ - صار يقرا مباشر بدون fetch
   try {
-    const baseUrl = request.nextUrl.origin;
-    const res = await fetch(`${baseUrl}/api/global-config`, { 
-      cache: 'no-store',
-      headers: { 'x-middleware': '1' }
-    });
-    if (res.ok) {
-      const cfg = await res.json();
-      if ((cfg?.isLocked === true || cfg?.emergency_lock?.value === 'TRUE') && pathname !== '/closed') {
+    const cfg = await getGlobalConfig();
+    if ((cfg?.isLocked === true || cfg?.emergency_lock?.value === 'TRUE') && pathname !== '/closed') {
+      // لا تعمل redirect لجوجل بوت مشان الأرشفة
+      const userAgent = request.headers.get('user-agent') || '';
+      if (!userAgent.toLowerCase().includes('googlebot') && !userAgent.toLowerCase().includes('inspectiontool')) {
         return NextResponse.redirect(new URL('/closed', request.url));
       }
     }
