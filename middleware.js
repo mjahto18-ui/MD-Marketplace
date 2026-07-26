@@ -10,7 +10,8 @@ export async function middleware(request) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/terms-approval') ||
     pathname.startsWith('/closed') ||
-    pathname.startsWith('/coming-soon')
+    pathname.startsWith('/coming-soon') ||
+    pathname.startsWith=== '/'
   ) {
     return NextResponse.next();
   }
