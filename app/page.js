@@ -1,24 +1,16 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
-    <div style={{ padding: '50px', textAlign: 'center' }}>
-      <h1 style={{ fontSize: '40px', fontWeight: 'bold' }}>MD Marketplace</h1>
-      <p style={{ marginTop: '20px', fontSize: '20px' }}>
-        Welcome to MD Marketplace - Your store for everything
-      </p>
-      <a 
-        href="/shop" 
-        style={{ 
-          display: 'inline-block', 
-          marginTop: '30px', 
-          padding: '15px 30px', 
-          background: 'black', 
-          color: 'white', 
-          borderRadius: '10px',
-          textDecoration: 'none'
-        }}
-      >
+    <div style={{minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20}}>
+      <h1 style={{fontSize:40, fontWeight:'bold'}}>Welcome to MD Marketplace</h1>
+      <p>Discover products from multiple stores</p>
+      <Link href="/shop" style={{background:'black', color:'white', padding:'12px 24px', borderRadius:8}}>
         Go to Shop
-      </a>
+      </Link>
+      <Link href="/login" style={{border:'1px solid black', padding:'12px 24px', borderRadius:8}}>
+        Login
+      </Link>
     </div>
   )
 }
