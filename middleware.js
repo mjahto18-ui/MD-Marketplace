@@ -32,6 +32,16 @@ export async function middleware(request) {
     // اذا فشل لا تكب حدا
   }
 
+  // اذا مسجل دخول وفايت على / -> وديه دغري على /shop
+  if (pathname === '/') {
+    const session = request.cookies.get('session');
+    const isGuest = request.cookies.get('md_guest');
+    if (session || isGuest) {
+      return NextResponse.redirect(new URL('/shop', request.url));
+    }
+    return NextResponse.next();
+  }
+
   const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout'];
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
     const session = request.cookies.get('session');
