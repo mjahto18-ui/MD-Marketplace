@@ -22,7 +22,7 @@ export function middleware(request) {
   }
 
   // 3. بس الصفحات المحمية بدها تسجيل دخول
-  const protectedRoutes = ['/shop', '/cart', '/profile', '/orders', '/checkout'];
+  const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout'];
   
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
     const session = request.cookies.get('session');
