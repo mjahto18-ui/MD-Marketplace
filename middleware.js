@@ -11,7 +11,7 @@ export async function middleware(request) {
     pathname.startsWith('/terms-approval') ||
     pathname.startsWith('/closed') ||
     pathname.startsWith('/coming-soon') ||
-    pathname.startsWith=== '/'
+    pathname === '/'
   ) {
     return NextResponse.next();
   }
