@@ -88,7 +88,7 @@ export async function POST(req) {
     }
 
     const freeDeliveryRemaining = Number(customer[8]) || 0;
-    const lastFreeDeliveryDate = customer[13] || "";
+    const lastFreeDeliveryDate = customer[23] || "";
     const today = new Date().toLocaleDateString("en-GB");
 
     const rateRow = deliveryRatesRows.find((row) => {
