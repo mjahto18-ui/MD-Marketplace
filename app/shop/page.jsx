@@ -119,7 +119,13 @@ export default function ShopPage() {
         <div className="grid grid-cols-3 gap-3 mb-8">
           <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30 active:scale-95"><Store className="w-7 h-7 text-purple-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المتاجر</h3></Link>
           <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95"><Package className="w-7 h-7 text-pink-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المنتجات</h3></Link>
-          <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95"><Sparkles className="w-7 h-7 text-yellow-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">طلب خاص</h3></button>
+          
+          {user ? (
+            <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95"><Sparkles className="w-7 h-7 text-yellow-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">طلب خاص</h3></button>
+          ) : (
+            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Sparkles className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 طلب خاص</h3></button>
+          )}
+
         </div>
         {search ? (
           <div className="space-y-6">
