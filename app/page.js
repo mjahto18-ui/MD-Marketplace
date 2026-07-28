@@ -26,8 +26,8 @@ export default function HomePage() {
           <Image
             src="/icon.png"
             alt="MD Logo"
-            width={90}
-            height={90}
+            width={75}
+            height={75}
             className="drop-shadow-[0_0_20px_rgba(168,85,247,0.5)]"
           />
         </div>
