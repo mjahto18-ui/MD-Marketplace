@@ -1,5 +1,6 @@
 "use client";
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
@@ -19,6 +20,18 @@ export default function HomePage() {
 
       {/* HERO - بالنص تماما */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-center -mt-10 md:-mt-20">
+
+        {/* الصورة الجديدة بالنص */}
+        <div className="mb-6">
+          <Image
+            src="/icon.png"
+            alt="MD Logo"
+            width={90}
+            height={90}
+            className="drop-shadow-[0_0_20px_rgba(168,85,247,0.5)]"
+          />
+        </div>
+
         <h1 className="text-[32px] md:text-7xl font-black text-white leading-[1.05] max-w-4xl">
           Everything You Need<br/>
           <span className="bg-gradient-to-r from-purple-300 to-pink-400 bg-clip-text text-transparent">
@@ -40,7 +53,7 @@ export default function HomePage() {
 
       {/* FOOTER - رجعتو */}
       <div className="text-center py-6 text-white/20 text-[11px] tracking-widest">
-        © 2026 MD Marketplace - All Rights Reserved
+        ©️ 2020 MD Marketplace - All Rights Reserved
       </div>
     </div>
   );
