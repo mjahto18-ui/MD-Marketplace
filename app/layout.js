@@ -6,9 +6,7 @@ export const metadata = {
     
   title: "MD-Marketplace | One App For Everything",
   description: "MD Marketplace - أول تطبيق شامل بلبنان: تسوق سوبرماركت، خضرة، لحمة، مواد غذائية، وتوصيل سريع لكل مناطق طرابلس ولبنان. محفظة إلكترونية، جوائز، تتبع مباشر للطلبات.",
-
   applicationName: "MD-Marketplace",
-
   keywords: [
     "MD Marketplace",
     "Marketplace",
@@ -19,13 +17,6 @@ export const metadata = {
     "Rewards",
     "Tracking"
   ],
-
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/logo.png",
-  },
-
   openGraph: {
     title: "MD-Marketplace",
     description: "One App For Everything",
@@ -42,7 +33,6 @@ export const metadata = {
     locale: "ar_LB",
     type: "website",
   },
-
   twitter: {
     card: "summary_large_image",
     title: "MD-Marketplace",
