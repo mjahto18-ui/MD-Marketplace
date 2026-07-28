@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, ChevronRight, Plus, Minus, Trash2, ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
 
 export default function CartPage() {
   const router = useRouter();
@@ -17,9 +18,9 @@ export default function CartPage() {
 
   useEffect(() => {
     fetch('/api/global-config', { cache: 'no-store' })
-   .then(r=>r.json())
-   .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
-   .catch(()=>setConfigLoading(false));
+  .then(r=>r.json())
+  .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
+  .catch(()=>setConfigLoading(false));
   }, []);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export default function CartPage() {
 
     let cancelled = false;
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-   .then(async (res) => {
+  .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -47,13 +48,13 @@ export default function CartPage() {
           }
         }
       })
-   .catch(()=> {
+  .catch(()=> {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
-   .finally(()=> { if(!cancelled) setLoading(false); });
+  .finally(()=> { if(!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [router, configLoading, globalCfg]);
 
@@ -80,7 +81,7 @@ export default function CartPage() {
     setLoading(false);
   };
 
-  useEffect(()=>{ if(customerID && !globalCfg?.isCartClosed) fetchCart(); }, [customerID, globalCfg]);
+  useEffect(()=>{ if(customerID &&!globalCfg?.isCartClosed) fetchCart(); }, [customerID, globalCfg]);
 
   const updateQty = async (cartID, newQty) => {
     if (globalCfg?.isCartClosed) return;
@@ -160,8 +161,22 @@ export default function CartPage() {
             ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
           </div>
         )}
-        <header className="px-4 pt-6 pb-4"><div className="flex items-center justify-between mb-3"><button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div></header>
-        <div className="flex flex-col items-center justify-center mt-20 px-4"><ShoppingCart className="w-20 h-20 text-purple-400 mb-4" /><p className="text-xl font-bold mb-2">السلة فاضية</p><button onClick={handleBack} className="bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 rounded-2xl font-bold mt-4">رجوع</button></div>
+        {/* الهيدر - هون غيرنا اللوغو الصغير */}
+        <header className="px-4 pt-6 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button>
+            <div className="bg-white p-2 rounded-[16px] shadow-lg">
+              <Image src="/icon.png" alt="MD Marketplace" width={40} height={40} />
+            </div>
+            <div className="w-6"></div>
+          </div>
+        </header>
+        {/* هيدا الكبير منخليه - اشارة */}
+        <div className="flex flex-col items-center justify-center mt-20 px-4">
+          <ShoppingCart className="w-20 h-20 text-purple-400 mb-4" />
+          <p className="text-xl font-bold mb-2">السلة فاضية</p>
+          <button onClick={handleBack} className="bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-3 rounded-2xl font-bold mt-4">رجوع</button>
+        </div>
       </div>
     );
   }
@@ -175,8 +190,15 @@ export default function CartPage() {
           ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
         </div>
       )}
+      {/* هيدر الصفحة المليانة - كمان غيرنا اللوغو الصغير */}
       <header className="px-4 pt-6 pb-4">
-        <div className="flex items-center justify-between mb-3"><button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button><div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/50"><ShoppingCart className="w-7 h-7" /></div><div className="w-6"></div></div>
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button>
+          <div className="bg-white p-2 rounded-[16px] shadow-lg">
+            <Image src="/icon.png" alt="MD Marketplace" width={40} height={40} />
+          </div>
+          <div className="w-6"></div>
+        </div>
         <div className="text-center"><h1 className="text-xl font-bold">MD Marketplace</h1></div>
       </header>
       <div className="px-4 pb-6">
