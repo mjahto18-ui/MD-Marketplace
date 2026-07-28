@@ -24,8 +24,8 @@ export default function AboutPage() {
             <Image
               src="/icon.png"
               alt="MD-Marketplace"
-              width={115}
-              height={115}
+              width={125}
+              height={125}
             />
           </div>
         </div>
