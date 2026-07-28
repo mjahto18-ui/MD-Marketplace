@@ -1,13 +1,14 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function AboutPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
-      
+
       {/* زر العودة لتسجيل الدخول */}
       <div className="absolute top-4 left-4 z-50">
-        <Link 
+        <Link
           href="/login"
           className="bg-gradient-to-l from-[#6A11CB] to-[#FF4E9A] text-white px-6 py-2 rounded-full font-semibold shadow-lg hover:opacity-90 transition"
         >
@@ -17,23 +18,16 @@ export default function AboutPage() {
 
       <div className="container mx-auto px-4 py-16">
 
-        {/* اللوغو الرسمي */}
+        {/* اللوغو الرسمي الجديد - نفس الهوم */}
         <div className="flex flex-col items-center mb-12">
-          <div className="relative w-24 h-24 mb-4">
-            <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center shadow-xl">
-              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-              </svg>
-            </div>
-            <div className="absolute -top-1 -right-1 w-6 h-6 rounded-lg bg-gradient-to-br from-[#FF4E9A] to-[#6A11CB] opacity-90"></div>
+          <div className="bg-white p-4 rounded-[32px] shadow-xl mb-5">
+            <Image
+              src="/icon.png"
+              alt="MD-Marketplace"
+              width={115}
+              height={115}
+            />
           </div>
-
-          <h1 className="text-4xl font-bold text-[#0D0D21] mb-1">MD</h1>
-          <p className="text-lg text-[#0D0D21] mb-1 tracking-wider">MARKETPLACE</p>
-          <p className="text-base">
-            <span className="text-[#0D0D21]">One App For </span>
-            <span className="text-[#FF4E9A] font-semibold">Everything</span>
-          </p>
         </div>
 
         {/* النص الرسمي الجديد */}
@@ -53,7 +47,7 @@ export default function AboutPage() {
               MD Marketplace هو نظام رقمي موحّد يسهّل عملية الشراء والتوصيل بين العميل والتاجر والسائق، ويقدّم خدمات مرنة تلائم احتياجات المستخدم اليومية.
             </p>
             <ul className="space-y-4 text-[#0D0D21]">
-              <li>✓ خيارات دفع مناسبة: الدفع نقداً عند الاستلام أو عبر تطبيق Wish لضمان الحق</li>
+              <li>✓ خيارات دفع مناسبة: الدفع نقداً عند الاستلام أو عبر نظام Wish لضمان الحقوق</li>
               <li>✓ خمس توصيلات مجانية لأول خمسة طلبات حتى وزن 10 كغ</li>
               <li>✓ تتبّع مباشر لحالة الطلب لحظة بلحظة عبر نظام الخرائط</li>
             </ul>
@@ -85,9 +79,8 @@ export default function AboutPage() {
             <p className="text-[#0D0D21]/70 mb-6">
               نرحّب بجميع الاستفسارات والملاحظات، ونتعهّد بالرد خلال 24 ساعة عبر قنوات التواصل التالية:
             </p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {/* info */}
               <a href="mailto:info@md-marketplace.store" className="group bg-gradient-to-br from-purple-50 to-pink-50 border border-[#6A11CB]/10 rounded-2xl p-5 text-center hover:shadow-md hover:border-[#6A11CB]/20 transition-all">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,7 +91,6 @@ export default function AboutPage() {
                 <p className="text-xs text-[#6A11CB] font-medium group-hover:text-[#FF4E9A] transition break-all">info@md-marketplace.store</p>
               </a>
 
-              {/* support */}
               <a href="mailto:support@md-marketplace.store" className="group bg-gradient-to-br from-purple-50 to-pink-50 border border-[#6A11CB]/10 rounded-2xl p-5 text-center hover:shadow-md hover:border-[#6A11CB]/20 transition-all">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,7 +101,6 @@ export default function AboutPage() {
                 <p className="text-xs text-[#6A11CB] font-medium group-hover:text-[#FF4E9A] transition break-all">support@md-marketplace.store</p>
               </a>
 
-              {/* sales - مع ايقونة بريد مفتوح */}
               <a href="mailto:sales@md-marketplace.store" className="group bg-gradient-to-br from-purple-50 to-pink-50 border border-[#6A11CB]/10 rounded-2xl p-5 text-center hover:shadow-md hover:border-[#6A11CB]/20 transition-all">
                 <div className="w-10 h-10 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,7 +115,7 @@ export default function AboutPage() {
             <div className="flex flex-col sm:flex-row gap-4 text-sm border-t border-gray-100 pt-4">
               <a href="https://wa.me/9613177653" target="_blank" className="flex items-center gap-2 text-[#0D0D21] hover:text-[#25D366] transition font-medium">
                 <span className="w-6 h-6 rounded-full bg-[#25D366] flex items-center justify-center text-white">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.05 4.94A9.91 9.91 0 0012.04 2C6.58 2 2.15 6.43 2.15 10.9c0 1.57.41 3.1 1.19 4.46L2 22l6.82-1.78a9.93 9.93 0 004.22 1.08h.01c5.46 0 9.9-4.43 9.9-9.89a9.86 9.86 0 00-2.9-7.47zm-7.01 12.6a8.17 8.17 0 01-4.17-1.14l-.3-.18-4.05 1.06 1.08-3.95-.2-.4a8.18 8.18 0 01-1.26-4.44c0-4.54 3.7-8.23 8.24-8.23a8.2 8.2 0 015.82 2.4 8.18 8.18 0 012.4 5.82c0 4.53-3.7 8.23-8.23 8.23zm4.52-6.16c-.25-.12-1.47-.73-1.7-.81-.23-.09-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.22-1.45-1.36-1.7-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.15.16-.25.25-.42.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.84-.86 2.05 0 1.21.88 2.38 1 2.55.12.17 1.73 2.65 4.2 3.71.59.25 1.05.4 1.41.52.59.19 1.13.16 1.55.1.47-.07 1.47-.6 1.68-1.18.2-.58.2-1.08.14-1.18-.06-.11-.23-.17-.48-.29z"/></svg>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.05 4.94A9.91 9.91 0 0012.04 2C6.58 2 2.15 6.43 2.15 10.9c0 1.57.41 3.1 1.19 4.46L2 22l6.82-1.78a9.93 9.93 0 004.22 1.08h.01c5.46 0 9.9-4.43 9.9-9.89a9.86 9.86 0 00-2.9-7.47zm-7.01 12.6a8.17 0 01-4.17-1.14l-.3-.18-4.05 1.06 1.08-3.95-.2-.4a8.18 8.18 0 01-1.26-4.44c0-4.54 3.7-8.23 8.24-8.23a8.2 8.2 0 015.82 2.4 8.18 0 012.4 5.82c0 4.53-3.7 8.23-8.23 8.23zm4.52-6.16c-.25-.12-1.47-.73-1.7-.81-.23-.09-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.22-1.45-1.36-1.7-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.15.16-.25.25-.42.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.84-.86 2.05 0 1.21.88 2.38 1 2.55.12.17 1.73 2.65 4.2 3.71.59.25 1.05.4 1.41.52.59.19 1.13.16 1.55.1.47-.07 1.47-.6 1.68-1.18.2-.58.2-1.08.14-1.18-.06-.11-.23-.17-.48-.29z"/></svg>
                 </span>
                 واتساب: فريق الدعم
               </a>
@@ -169,7 +160,7 @@ export default function AboutPage() {
               <span className="text-[#6A11CB]/30">|</span>
               <Link href="/terms" className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium">الشروط والاحكام</Link>
             </div>
-            <p className="text-xs text-[#0D0D21]/60 mt-4">© 2020 MD-Marketplace. جميع الحقوق محفوظة</p>
+            <p className="text-xs text-[#0D0D21]/60 mt-4">©️ 2020 MD-Marketplace. جميع الحقوق محفوظة</p>
           </div>
 
         </div>
