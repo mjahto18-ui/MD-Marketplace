@@ -1,4 +1,5 @@
 import BackButton from './BackButton'
+import Image from 'next/image'
 
 export const metadata = {
   title: 'سياسة الخصوصية - MD Marketplace',
@@ -9,14 +10,26 @@ export default function PrivacyPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-[#0D0D21] text-white">
 
-      {/* زر الرجوع الحلو نفس تبع terms */}
       <div className="max-w-4xl mx-auto px-4 pt-6">
         <BackButton />
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        
-        <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-[#6A11CB] to-[#FF4E9A] bg-clip-text text-transparent">
+
+        {/* اللوغو بالنص - بلا طراف بيض */}
+        <div className="flex justify-center mb-8">
+          <div className="w-[140px] h-[140px] rounded-[28px] overflow-hidden shadow-[0_0_40px_rgba(255,78,154,0.4)]">
+            <Image
+              src="/icon-dark.png"
+              alt="MD Marketplace"
+              width={140}
+              height={140}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+
+        <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-[#6A11CB] to-[#FF4E9A] bg-clip-text text-transparent text-center">
           سياسة الخصوصية
         </h1>
 
