@@ -22,12 +22,12 @@ export default function HomePage() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-center -mt-10 md:-mt-20">
 
         {/* الصورة الجديدة بالنص */}
-        <div className="mb-8 bg-white p-5 rounded-[28px] shadow-[0_0_40px_rgba(168,85,247,0.6)]">
+        <div className="mb-8 bg-white p-4 rounded-[32px] shadow-[0_0_40px_rgba(168,85,247,0.6)]">
           <Image
             src="/icon.png"
             alt="MD Logo"
-            width={100}
-            height={100}
+            width={120}
+            height={120}
             
           />
         </div>
