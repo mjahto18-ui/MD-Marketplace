@@ -118,7 +118,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">8. حدود المسؤولية</h2>
-            <p>MD Marketplace غير مسؤولة عن:</p>
+            <p>MD-Marketplace غير مسؤولة عن:</p>
             <ul className="list-disc list-inside space-y-2 mt-3">
               <li>جودة المنتجات — مسؤولية التاجر</li>
               <li>التأخير الناتج عن ظروف قاهرة مثل الطقس، الحرب، أو قطع الطرقات</li>
@@ -139,7 +139,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">11. التواصل</h2>
-            <p>لأي استفسار قانوني أو حقوقي: واتساب 9613000000</p>
+            <p>لأي استفسار قانوني أو حقوقي: واتساب 9613177653</p>
           </section>
 
         </div>
