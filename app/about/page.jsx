@@ -42,9 +42,9 @@ export default function AboutPage() {
 
           {/* MD-Marketplace */}
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
-            <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">MD Marketplace؟</h3>
+            <h3 className="text-2xl font-bold text-[#6A11CB] mb-6">MD-Marketplace</h3>
             <p className="text-[#0D0D21] mb-4">
-              MD Marketplace هو نظام رقمي موحّد يسهّل عملية الشراء والتوصيل بين العميل والتاجر والسائق، ويقدّم خدمات مرنة تلائم احتياجات المستخدم اليومية.
+              MD-Marketplace هو نظام رقمي موحّد يسهّل عملية الشراء والتوصيل بين العميل والتاجر والسائق، ويقدّم خدمات مرنة تلائم احتياجات المستخدم اليومية.
             </p>
             <ul className="space-y-4 text-[#0D0D21]">
               <li>✓ خيارات دفع مناسبة: الدفع نقداً عند الاستلام أو عبر نظام Wish لضمان الحق</li>
