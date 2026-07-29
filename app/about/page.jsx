@@ -169,19 +169,19 @@ export default function AboutPage() {
           {/* الاحصائيات */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-12 mb-12">
             <div className="text-center">
-              <p className="text-3xl font-bold text-[#6A11CB]">+500</p>
+              <p className="text-3xl font-bold text-[#6A11CB]">+30</p>
               <p className="text-sm text-[#0D0D21]">متجر متعاقد</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-[#6A11CB]">+25K</p>
+              <p className="text-3xl font-bold text-[#6A11CB]">+1350</p>
               <p className="text-sm text-[#0D0D21]">عميل مسجل</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-[#6A11CB]">+150</p>
+              <p className="text-3xl font-bold text-[#6A11CB]">+25</p>
               <p className="text-sm text-[#0D0D21]">سائق نشط</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-[#6A11CB]">+100K</p>
+              <p className="text-3xl font-bold text-[#6A11CB]">+1200</p>
               <p className="text-sm text-[#0D0D21]">طلب مكتمل</p>
             </div>
             <div className="text-center">
