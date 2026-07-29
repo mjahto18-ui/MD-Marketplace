@@ -39,9 +39,9 @@ export default function TermsPage() {
           <p className="text-sm text-purple-300 text-center">آخر تحديث: 7 تموز 2025</p>
 
           <section>
-            <h2 className="text-2xl font-bold text-white mb-4">1. عن MD Marketplace</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">1. عن MD-Marketplace</h2>
             <p>
-              MD Marketplace هي منصّة رقمية تربط بين العملاء، التجار، والسائقين داخل لبنان.
+              MD-Marketplace هي منصّة رقمية تربط بين العملاء، التجار، والسائقين داخل لبنان.
               نحن <strong>وسيط تقني فقط</strong> ولا نبيع المنتجات مباشرة.
               كل تاجر مسؤول عن جودة منتجاته، أسعارها، وتوفيرها.
             </p>
