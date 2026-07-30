@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Search, Store } from 'lucide-react';
+import Image from 'next/image';
 
 export default function StoresPage() {
   const [stores, setStores] = useState([]);
@@ -117,12 +118,13 @@ export default function StoresPage() {
             return (
               <Link key={store.storeID} href={`/store/${store.storeID}`}>
                 <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden active:scale-95 transition cursor-pointer hover:border-purple-500/50">
-                  {/* هون التصليح - لوغو المتجر بيبين كامل */}
-                  <div className="w-full h-28 md:h-32 bg-white flex items-center justify-center p-2 overflow-hidden">
-                    <img 
+                  <div className="relative w-full h-28 md:h-32 bg-white flex items-center justify-center overflow-hidden">
+                    <Image
                       src={store.image}
                       alt={store.storeName}
-                      className="max-w-full max-h-full object-contain"
+                      fill
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                      className="object-contain p-2"
                       loading="lazy"
                     />
                   </div>
