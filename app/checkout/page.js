@@ -14,11 +14,11 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [customerID, setCustomerID] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [cartData, setCartData] = useState(null);
 
-  // جيب الـ customerId الحقيقي من api/me
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-      .then(async (res) => {
+     .then(async (res) => {
         if (!res.ok) {
           router.push('/login');
           return;
@@ -30,8 +30,8 @@ export default function CheckoutPage() {
           router.push('/login');
         }
       })
-      .catch(() => router.push('/login'))
-      .finally(() => setAuthLoading(false));
+     .catch(() => router.push('/login'))
+     .finally(() => setAuthLoading(false));
   }, [router]);
 
   useEffect(() => {
@@ -49,6 +49,19 @@ export default function CheckoutPage() {
     }
     fetchAreas();
   }, []);
+
+  // 👇 نجيب السلة لنعرف السعر الحقيقي
+  useEffect(() => {
+    if (!customerID) return;
+    fetch(`/api/cart?customerID=${customerID}`, { credentials: 'include', cache: 'no-store' })
+     .then(r => r.json())
+     .then(d => {
+        if (d.success) {
+          setCartData(d);
+        }
+      })
+     .catch(()=>{});
+  }, [customerID]);
 
   const handleConfirm = async () => {
     if (!addressType) {
@@ -100,6 +113,21 @@ export default function CheckoutPage() {
     setLoading(false);
 
     if (data.success) {
+      // 👇 هيدا الجديد - اهم حدث بيجيب مصاري! CompletePayment بـ LBP
+      if (typeof window!== 'undefined' && window.ttq && cartData) {
+        const total = (cartData.subtotal || 0) + (cartData.baseDeliveryFee || 0);
+        window.ttq.track('CompletePayment', {
+          value: total,
+          currency: 'LBP',
+          contents: (cartData.cart || []).map(item => ({
+            content_id: String(item.productID),
+            content_name: item.name,
+            quantity: item.qty,
+            price: item.unitPrice
+          }))
+        });
+      }
+
       router.push(`/order-success?id=${data.request_id}`);
     } else {
       alert(data.message || "صار خطأ");
@@ -123,8 +151,8 @@ export default function CheckoutPage() {
       </header>
 
       <div className="px-4 pb-4 flex flex-col gap-3">
-        <button onClick={() => setAddressType("fixed")} className={`w-full py-3 rounded-xl font-bold ${addressType === "fixed" ? "bg-pink-600" : "bg-white/10"}`}>عنواني الثابت</button>
-        <button onClick={() => setAddressType("new")} className={`w-full py-3 rounded-xl font-bold ${addressType === "new" ? "bg-pink-600" : "bg-white/10"}`}>عنوان جديد</button>
+        <button onClick={() => setAddressType("fixed")} className={`w-full py-3 rounded-xl font-bold ${addressType === "fixed"? "bg-pink-600" : "bg-white/10"}`}>عنواني الثابت</button>
+        <button onClick={() => setAddressType("new")} className={`w-full py-3 rounded-xl font-bold ${addressType === "new"? "bg-pink-600" : "bg-white/10"}`}>عنوان جديد</button>
       </div>
 
       {addressType === "new" && (
@@ -149,7 +177,7 @@ export default function CheckoutPage() {
       )}
 
       <div className="px-4">
-        <button onClick={handleConfirm} disabled={loading} className="w-full bg-pink-600 py-4 rounded-2xl text-white font-bold text-lg mt-6">{loading ? "جاري الإرسال..." : "تأكيد الطلب"}</button>
+        <button onClick={handleConfirm} disabled={loading} className="w-full bg-pink-600 py-4 rounded-2xl text-white font-bold text-lg mt-6">{loading? "جاري الإرسال..." : "تأكيد الطلب"}</button>
       </div>
     </div>
   );
