@@ -1,5 +1,6 @@
 import './globals.css'
 import OneSignalInit from "@/components/onesignal/OneSignalInit";
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata = {
   metadataBase: new URL("https://www.md-marketplace.store"),
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
       <body>
         <OneSignalInit />
         {children}
+        <Analytics />
       </body>
     </html>
   );
