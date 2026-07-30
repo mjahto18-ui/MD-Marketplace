@@ -107,11 +107,11 @@ export default function CartPage() {
   // 👇 هيدا الجديد - تيك توك InitiateCheckout بـ LBP
   const handleConfirmOrder = () => {
     const total = subtotal + deliveryFee;
-    if (typeof window!== 'undefined' && (window as any).ttq) {
-      (window as any).ttq.track('InitiateCheckout', {
+    if (typeof window!== 'undefined' && (window.ttq) {
+      (window.ttq.track('InitiateCheckout', {
         value: total,
         currency: 'LBP',
-        contents: cart.map((item: any) => ({
+        contents: cart.map(item => ({
           content_id: String(item.productID),
           content_name: item.name,
           quantity: item.qty,
