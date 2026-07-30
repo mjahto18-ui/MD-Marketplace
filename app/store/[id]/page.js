@@ -17,20 +17,20 @@ export default function StorePage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-      .then(async (res) => {
+     .then(async (res) => {
         if (res.ok) {
           const data = await res.json();
           if (data.user) setUser(data.user);
         }
       })
-      .finally(() => setCheckingUser(false));
+     .finally(() => setCheckingUser(false));
   }, []);
 
   useEffect(() => {
     if (!storeID) return;
     fetch(`/api/products/by-store?id=${storeID}`)
-     .then(res => res.json())
-     .then(data => {
+   .then(res => res.json())
+   .then(data => {
         if (data.success) {
           setProducts(data.products);
           setFilteredProducts(data.products);
@@ -71,7 +71,7 @@ export default function StorePage() {
       const data = await res.json();
       if (data.success || res.ok) {
         const prod = products.find(p => p.productID === productID);
-        setToast(prod ? prod.name : 'المنتج');
+        setToast(prod? prod.name : 'المنتج');
         setTimeout(() => {
           setToast(null);
           setAddingId(null);
@@ -110,7 +110,7 @@ export default function StorePage() {
       </header>
 
       <div className="px-4 pb-6">
-        {filteredProducts.length === 0 && !loading && (
+        {filteredProducts.length === 0 &&!loading && (
           <div className="text-center py-20">
             <Package className="w-16 h-16 text-purple-400 mx-auto mb-4" />
             <p className="text-xl font-bold mb-2">ما لقينا منتجات</p>
@@ -121,17 +121,20 @@ export default function StorePage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filteredProducts.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              <img src={product.image} alt={product.name} className="w-full h-32 md:h-36 object-cover bg-white/5" />
+              {/* تم التصليح هون - ما بقا يقص الصورة */}
+              <div className="w-full h-[140px] md:h-[180px] bg-white flex items-center justify-center p-3 overflow-hidden">
+                <img src={product.image} alt={product.name} className="max-w-full max-h-full object-contain" loading="lazy" />
+              </div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-2 truncate">{product.name}</h3>
                 <div className="space-y-1 text-xs mb-3">
                   <p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p>
                   <p className="text-purple-300">الوزن: {product.weightPoint} نقطة</p>
                 </div>
-                {user ? (
+                {user? (
                   <button onClick={() => addToCart(product.productID)} disabled={!!addingId} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60">
-                    {addingId === product.productID ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}
-                    {addingId === product.productID ? '...' : 'اضف للسلة'}
+                    {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}
+                    {addingId === product.productID? '...' : 'اضف للسلة'}
                   </button>
                 ) : (
                   <button onClick={() => router.push('/login')} className="w-full bg-white/10 border border-white/20 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2">
