@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, Search, Store } from "lucide-react";
+import Image from 'next/image';
 
 export default function CategoryPage() {
   const { id } = useParams();
@@ -106,12 +107,13 @@ export default function CategoryPage() {
                 key={storeId}
               >
                 <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden active:scale-95 transition cursor-pointer hover:border-purple-500/50">
-                  {/* تصليح الصورة - ما بقا تنقص */}
-                  <div className="w-full h-28 md:h-32 bg-white flex items-center justify-center p-3 overflow-hidden">
-                    <img
+                  <div className="relative w-full h-28 md:h-32 bg-white flex items-center justify-center overflow-hidden">
+                    <Image
                       src={storeLogo || 'https://via.placeholder.com/200x200?text=No+Image'}
                       alt={storeName}
-                      className="max-w-full max-h-full object-contain"
+                      fill
+                      sizes="25vw"
+                      className="object-contain p-3"
                       loading="lazy"
                     />
                   </div>
