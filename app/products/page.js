@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Search, ShoppingCart, Package, Check } from 'lucide-react';
+import Image from 'next/image';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-   .then(async (res) => {
+  .then(async (res) => {
         if (!res.ok) {
           router.push('/login');
           return;
@@ -32,7 +33,7 @@ export default function ProductsPage() {
           router.push('/login');
         }
       })
-   .catch(() => router.push('/login'));
+  .catch(() => router.push('/login'));
   }, [router]);
 
   useEffect(() => {
@@ -42,7 +43,6 @@ export default function ProductsPage() {
         if (data.success) {
           setProducts(data.products);
           setFiltered(data.products);
-          // 👇 ViewContent - بس تتحمل المنتجات
           if (typeof window!== 'undefined' && window.ttq && data.products.length > 0) {
             window.ttq.track('ViewContent', {
               value: data.products.reduce((sum, p) => sum + Number(p.price || 0), 0),
@@ -99,7 +99,6 @@ export default function ProductsPage() {
         return;
       }
 
-      // 👇 AddToCart بـ LBP - هيدا اهم واحد بيخلي الـ Critical يروح!
       if (typeof window!== 'undefined' && window.ttq && prod) {
         window.ttq.track('AddToCart', {
           value: Number(prod.price),
@@ -171,8 +170,15 @@ export default function ProductsPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filtered.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              <div className="w-full h-[140px] bg-white flex items-center justify-center p-2 overflow-hidden">
-                <img src={product.image} alt={product.name} className="max-w-full max-h-full object-contain" />
+              <div className="relative w-full h-[140px] bg-white flex items-center justify-center overflow-hidden">
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className="object-contain p-2"
+                  loading="lazy"
+                />
               </div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
