@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChevronRight, Search, ShoppingCart, Package, Check, Lock } from "lucide-react";
+import Image from 'next/image';
 
 export default function StorePage() {
   const { id: storeID } = useParams();
@@ -17,20 +18,20 @@ export default function StorePage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-     .then(async (res) => {
+    .then(async (res) => {
         if (res.ok) {
           const data = await res.json();
           if (data.user) setUser(data.user);
         }
       })
-     .finally(() => setCheckingUser(false));
+    .finally(() => setCheckingUser(false));
   }, []);
 
   useEffect(() => {
     if (!storeID) return;
     fetch(`/api/products/by-store?id=${storeID}`)
-   .then(res => res.json())
-   .then(data => {
+  .then(res => res.json())
+  .then(data => {
         if (data.success) {
           setProducts(data.products);
           setFilteredProducts(data.products);
@@ -121,9 +122,15 @@ export default function StorePage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filteredProducts.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              {/* تم التصليح هون - ما بقا يقص الصورة */}
-              <div className="w-full h-[140px] md:h-[180px] bg-white flex items-center justify-center p-3 overflow-hidden">
-                <img src={product.image} alt={product.name} className="max-w-full max-h-full object-contain" loading="lazy" />
+              <div className="relative w-full h-[140px] md:h-[180px] bg-white flex items-center justify-center overflow-hidden">
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className="object-contain p-3"
+                  loading="lazy"
+                />
               </div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-2 truncate">{product.name}</h3>
