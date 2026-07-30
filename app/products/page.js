@@ -20,7 +20,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-     .then(async (res) => {
+    .then(async (res) => {
         if (!res.ok) {
           router.push('/login');
           return;
@@ -32,13 +32,13 @@ export default function ProductsPage() {
           router.push('/login');
         }
       })
-     .catch(() => router.push('/login'));
+    .catch(() => router.push('/login'));
   }, [router]);
 
   useEffect(() => {
     fetch('/api/products')
-  .then(res => res.json())
-  .then(data => {
+ .then(res => res.json())
+ .then(data => {
         if (data.success) {
           setProducts(data.products);
           setFiltered(data.products);
@@ -59,19 +59,15 @@ export default function ProductsPage() {
 
   const addToCart = async (productID) => {
     if (addingId) return;
-
-    // فحص السلة من الجدول قبل ما نضيف
     if (globalCfg?.isCartClosed) {
       setToast(globalCfg.cart_closed_message || "السلة مغلقة حالياً");
       setTimeout(() => setToast(null), 3000);
       return;
     }
-
     if (!customerID) {
       router.push('/login');
       return;
     }
-
     setAddingId(productID);
     try {
       const res = await fetch('/api/cart/add', {
@@ -81,9 +77,7 @@ export default function ProductsPage() {
         body: JSON.stringify({ productID, qty: 1 })
       });
       const data = await res.json();
-
       if (!res.ok ||!data.success) {
-        // اذا السلة مسكرة او خطأ - اعرض المسج الحقيقي من الجدول
         setToast(data.message || "فشل الاضافة");
         setTimeout(() => {
           setToast(null);
@@ -91,14 +85,12 @@ export default function ProductsPage() {
         }, 3000);
         return;
       }
-
       const prod = products.find(p => p.productID === productID);
       setToast(prod? `${prod.name} - تمت الإضافة` : 'تمت الإضافة');
       setTimeout(() => {
         setToast(null);
         setAddingId(null);
       }, 2000);
-
     } catch (e) {
       setToast("خطأ بالاتصال");
       setTimeout(() => {
@@ -154,7 +146,10 @@ export default function ProductsPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filtered.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              <img src={product.image} alt={product.name} className="w-full h-[120px] object-cover bg-white/5" />
+              {/* هون التصليح - ما بقا يقص الصورة */}
+              <div className="w-full h-[140px] bg-white flex items-center justify-center p-2 overflow-hidden">
+                <img src={product.image} alt={product.name} className="max-w-full max-h-full object-contain" />
+              </div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-2 truncate">المتجر: {product.storeName}</p>
