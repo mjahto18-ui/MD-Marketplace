@@ -20,7 +20,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-    .then(async (res) => {
+   .then(async (res) => {
         if (!res.ok) {
           router.push('/login');
           return;
@@ -32,16 +32,28 @@ export default function ProductsPage() {
           router.push('/login');
         }
       })
-    .catch(() => router.push('/login'));
+   .catch(() => router.push('/login'));
   }, [router]);
 
   useEffect(() => {
     fetch('/api/products')
- .then(res => res.json())
- .then(data => {
+.then(res => res.json())
+.then(data => {
         if (data.success) {
           setProducts(data.products);
           setFiltered(data.products);
+          // 👇 ViewContent - بس تتحمل المنتجات
+          if (typeof window!== 'undefined' && window.ttq && data.products.length > 0) {
+            window.ttq.track('ViewContent', {
+              value: data.products.reduce((sum, p) => sum + Number(p.price || 0), 0),
+              currency: 'LBP',
+              contents: data.products.slice(0,5).map(p => ({
+                content_id: String(p.productID),
+                content_name: p.name,
+                price: Number(p.price)
+              }))
+            });
+          }
         }
         setLoading(false);
       });
@@ -70,6 +82,7 @@ export default function ProductsPage() {
     }
     setAddingId(productID);
     try {
+      const prod = products.find(p => p.productID === productID);
       const res = await fetch('/api/cart/add', {
         method: 'POST',
         credentials: 'include',
@@ -85,7 +98,19 @@ export default function ProductsPage() {
         }, 3000);
         return;
       }
-      const prod = products.find(p => p.productID === productID);
+
+      // 👇 AddToCart بـ LBP - هيدا اهم واحد بيخلي الـ Critical يروح!
+      if (typeof window!== 'undefined' && window.ttq && prod) {
+        window.ttq.track('AddToCart', {
+          value: Number(prod.price),
+          currency: 'LBP',
+          content_id: String(prod.productID),
+          content_name: prod.name,
+          quantity: 1,
+          price: Number(prod.price)
+        });
+      }
+
       setToast(prod? `${prod.name} - تمت الإضافة` : 'تمت الإضافة');
       setTimeout(() => {
         setToast(null);
@@ -146,7 +171,6 @@ export default function ProductsPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filtered.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              {/* هون التصليح - ما بقا يقص الصورة */}
               <div className="w-full h-[140px] bg-white flex items-center justify-center p-2 overflow-hidden">
                 <img src={product.image} alt={product.name} className="max-w-full max-h-full object-contain" />
               </div>
