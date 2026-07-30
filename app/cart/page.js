@@ -18,9 +18,9 @@ export default function CartPage() {
 
   useEffect(() => {
     fetch('/api/global-config', { cache: 'no-store' })
-  .then(r=>r.json())
-  .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
-  .catch(()=>setConfigLoading(false));
+ .then(r=>r.json())
+ .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
+ .catch(()=>setConfigLoading(false));
   }, []);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function CartPage() {
 
     let cancelled = false;
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-  .then(async (res) => {
+ .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -48,13 +48,13 @@ export default function CartPage() {
           }
         }
       })
-  .catch(()=> {
+ .catch(()=> {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
-  .finally(()=> { if(!cancelled) setLoading(false); });
+ .finally(()=> { if(!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [router, configLoading, globalCfg]);
 
@@ -102,6 +102,24 @@ export default function CartPage() {
       credentials: 'include'
     });
     fetchCart();
+  };
+
+  // 👇 هيدا الجديد - تيك توك InitiateCheckout بـ LBP
+  const handleConfirmOrder = () => {
+    const total = subtotal + deliveryFee;
+    if (typeof window!== 'undefined' && (window as any).ttq) {
+      (window as any).ttq.track('InitiateCheckout', {
+        value: total,
+        currency: 'LBP',
+        contents: cart.map((item: any) => ({
+          content_id: String(item.productID),
+          content_name: item.name,
+          quantity: item.qty,
+          price: item.unitPrice
+        }))
+      });
+    }
+    router.push('/checkout');
   };
 
   const handleBack = () => {
@@ -161,7 +179,6 @@ export default function CartPage() {
             ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
           </div>
         )}
-        {/* الهيدر - هون غيرنا اللوغو الصغير */}
         <header className="px-4 pt-6 pb-4">
           <div className="flex items-center justify-between mb-3">
             <button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button>
@@ -171,7 +188,6 @@ export default function CartPage() {
             <div className="w-6"></div>
           </div>
         </header>
-        {/* هيدا الكبير منخليه - اشارة */}
         <div className="flex flex-col items-center justify-center mt-20 px-4">
           <ShoppingCart className="w-20 h-20 text-purple-400 mb-4" />
           <p className="text-xl font-bold mb-2">السلة فاضية</p>
@@ -190,7 +206,6 @@ export default function CartPage() {
           ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
         </div>
       )}
-      {/* هيدر الصفحة المليانة - كمان غيرنا اللوغو الصغير */}
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-3">
           <button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button>
@@ -229,8 +244,7 @@ export default function CartPage() {
             <div className="border-t border-dashed border-white/20 my-3"></div>
             <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
           </div>
-        </div>
-        <button onClick={() => router.push('/checkout')} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP</button>
+        <button onClick={handleConfirmOrder} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP</button>
       </div>
     </div>
   );
