@@ -26,7 +26,6 @@ export default function CartPage() {
   useEffect(() => {
     if(configLoading) return;
     if(globalCfg?.isLocked) { setLoading(false); return; }
-
     let cancelled = false;
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
  .then(async (res) => {
@@ -104,11 +103,10 @@ export default function CartPage() {
     fetchCart();
   };
 
-  // 👇 هيدا الجديد - تيك توك InitiateCheckout بـ LBP
   const handleConfirmOrder = () => {
     const total = subtotal + deliveryFee;
-    if (typeof window!== 'undefined' && (window.ttq) {
-      (window.ttq.track('InitiateCheckout', {
+    if (typeof window!== 'undefined' && window.ttq) {
+      window.ttq.track('InitiateCheckout', {
         value: total,
         currency: 'LBP',
         contents: cart.map(item => ({
@@ -244,6 +242,7 @@ export default function CartPage() {
             <div className="border-t border-dashed border-white/20 my-3"></div>
             <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
           </div>
+        </div>
         <button onClick={handleConfirmOrder} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP</button>
       </div>
     </div>
