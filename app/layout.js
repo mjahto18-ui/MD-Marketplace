@@ -1,6 +1,7 @@
 import './globals.css'
 import OneSignalInit from "@/components/onesignal/OneSignalInit";
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import Script from 'next/script';
 
 export const metadata = {
@@ -93,6 +94,7 @@ export default function RootLayout({ children }) {
         <OneSignalInit />
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
