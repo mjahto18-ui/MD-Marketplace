@@ -15,24 +15,26 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // فحص الحداد - صار يقرا من الشيت مباشرة
-  try {
-    const baseUrl = request.nextUrl.origin;
-    const res = await fetch(`${baseUrl}/api/global-config`, { 
-      cache: 'no-store',
-      headers: { 'x-middleware': '1' }
-    });
-    if (res.ok) {
-      const cfg = await res.json();
-      if ((cfg?.isLocked === true || cfg?.emergency_lock?.value === 'TRUE') && pathname !== '/closed') {
-        return NextResponse.redirect(new URL('/closed', request.url));
+  // صفحة الحداد - نفس المنطق تبعك بس مع cache 10 ثواني
+  // قبل كنت no-store يعني 0 ثواني، هلا 10 ثواني متل ما بدك
+  if (pathname !== '/closed') {
+    try {
+      const baseUrl = request.nextUrl.origin;
+      const res = await fetch(`${baseUrl}/api/global-config`, { 
+        next: { revalidate: 10 }, // <--- هون التصحيح: 10 ثواني مش 0
+        headers: { 'x-middleware': '1' }
+      });
+      if (res.ok) {
+        const cfg = await res.json();
+        if ((cfg?.isLocked === true || cfg?.emergency_lock?.value === 'TRUE')) {
+          return NextResponse.redirect(new URL('/closed', request.url));
+        }
       }
+    } catch {
+      // اذا فشل الشيت لا تقفل الموقع على العالم
     }
-  } catch {
-    // اذا فشل لا تكب حدا
   }
 
-  // اذا مسجل دخول وفايت على / -> وديه دغري على /shop
   if (pathname === '/') {
     const session = request.cookies.get('session');
     const isGuest = request.cookies.get('md_guest');
@@ -42,7 +44,8 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout'];
+  // ضفنا /products و /shop للحماية - صار صمام الأمان الحقيقي
+  const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout', '/products', '/shop'];
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
     const session = request.cookies.get('session');
     const isGuest = request.cookies.get('md_guest');
