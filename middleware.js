@@ -45,7 +45,7 @@ export async function middleware(request) {
   }
 
   // ضفنا /products و /shop للحماية - صار صمام الأمان الحقيقي
-  const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout', '/products', '/shop'];
+  const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout', '/products'];
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
     const session = request.cookies.get('session');
     const isGuest = request.cookies.get('md_guest');
