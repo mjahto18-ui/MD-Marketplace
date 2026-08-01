@@ -128,7 +128,6 @@ export default function ShopPage() {
         {search ? (
           <div className="space-y-6">
             {searchResults.products.length === 0 && searchResults.stores.length === 0 && searchResults.categories.length === 0 && (<div className="text-center py-20"><Search className="w-16 h-16 text-purple-400 mx-auto mb-4" /><p className="text-white text-xl font-bold mb-2">ما لقينا شي</p><p className="text-purple-300">جرب تبحث بكلمة تانية</p></div>)}
-            
             {searchResults.products.length > 0 && (
               <div>
                 <h2 className="text-white font-bold text-lg mb-3">📦 منتجات - {searchResults.products.length}</h2>
@@ -136,15 +135,7 @@ export default function ShopPage() {
                   {searchResults.products.slice(0, 8).map((product, index) => (
                     <div key={product.productID} className="glass rounded-xl p-3 active:scale-95 transition">
                       <div className="relative w-full h-24 rounded-lg mb-2 bg-white/5 overflow-hidden">
-                        <Image 
-                          src={product.image} 
-                          alt={product.name} 
-                          fill 
-                          sizes="25vw" 
-                          className="object-cover" 
-                          priority={index < 4}
-                          loading={index < 4 ? "eager" : "lazy"}
-                        />
+                        <Image src={product.image} alt={product.name} fill sizes="25vw" className="object-cover" priority={index < 4} loading={index < 4 ? "eager" : "lazy"} />
                       </div>
                       <p className="text-white text-xs font-bold truncate">{product.name}</p>
                       <p className="text-pink-400 text-sm font-bold">{product.price} ل.ل</p>
@@ -153,7 +144,6 @@ export default function ShopPage() {
                 </div>
               </div>
             )}
-
             {searchResults.stores.length > 0 && (
               <div>
                 <h2 className="text-white font-bold text-lg mb-3 mt-6">🏪 متاجر - {searchResults.stores.length}</h2>
@@ -161,15 +151,7 @@ export default function ShopPage() {
                   {searchResults.stores.slice(0, 8).map((store, index) => (
                     <Link key={store.store_id} href={`/store/${store.store_id}`} className="glass rounded-xl p-3 active:scale-95 transition">
                       <div className="relative w-full h-20 rounded-lg mb-2 bg-white/5 overflow-hidden">
-                        <Image 
-                          src={store.logo || '/placeholder.png'} 
-                          alt={store.store_name} 
-                          fill 
-                          sizes="25vw" 
-                          className="object-cover" 
-                          loading={index < 4 ? "eager" : "lazy"}
-                          priority={index < 4}
-                        />
+                        <Image src={store.logo || '/placeholder.png'} alt={store.store_name} fill sizes="25vw" className="object-cover" loading={index < 4 ? "eager" : "lazy"} priority={index < 4} />
                       </div>
                       <p className="text-white text-xs font-bold truncate">{store.store_name}</p>
                     </Link>
@@ -177,7 +159,6 @@ export default function ShopPage() {
                 </div>
               </div>
             )}
-
             {searchResults.categories.length > 0 && (
               <div>
                 <h2 className="text-white font-bold text-lg mb-3 mt-6">📂 أقسام - {searchResults.categories.length}</h2>
@@ -185,17 +166,7 @@ export default function ShopPage() {
                   {searchResults.categories.map((cat, index) => (
                     <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-xl p-3 text-center active:scale-95 transition">
                       <div className="relative aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
-                        {cat.image && (
-                          <Image 
-                            src={cat.image} 
-                            alt={cat.name} 
-                            fill 
-                            sizes="20vw" 
-                            className="object-contain p-2" 
-                            priority={index < 6}
-                            loading={index < 6 ? "eager" : "lazy"}
-                          />
-                        )}
+                        {cat.image && (<Image src={cat.image} alt={cat.name} fill sizes="20vw" className="object-contain p-2" priority={index < 6} loading={index < 6 ? "eager" : "lazy"} />)}
                       </div>
                       <p className="text-white text-xs font-semibold">{cat.name}</p>
                     </Link>
@@ -203,7 +174,6 @@ export default function ShopPage() {
                 </div>
               </div>
             )}
-
           </div>
         ) : (
           <>
@@ -212,18 +182,7 @@ export default function ShopPage() {
               {categories.map((cat, index) => (
                 <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group active:scale-95">
                   <div className="relative aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
-                    {cat.image && (
-                      <Image 
-                        src={cat.image} 
-                        alt={cat.name} 
-                        fill 
-                        sizes="20vw" 
-                        className="object-contain p-2 group-hover:scale-110 transition-all duration-300" 
-                        priority={index < 6}
-                        loading={index < 6 ? "eager" : "lazy"}
-                        fetchPriority={index < 6 ? "high" : "auto"}
-                      />
-                    )}
+                    {cat.image && (<Image src={cat.image} alt={cat.name} fill sizes="20vw" className="object-contain p-2 group-hover:scale-110 transition-all duration-300" priority={index < 6} loading={index < 6 ? "eager" : "lazy"} fetchPriority={index < 6 ? "high" : "auto"} />)}
                   </div>
                   <h3 className="text-white font-semibold text-xs">{cat.name}</h3>
                 </Link>
