@@ -53,7 +53,7 @@ export default function HomePage() {
 
       {/* FOOTER - رجعتو */}
       <div className="text-center py-6 text-white/20 text-[11px] tracking-widest">
-        ©️ 2020 MD Marketplace - All Rights Reserved
+        ©️ 2020-2026 MD Marketplace - All Rights Reserved
       </div>
     </div>
   );
