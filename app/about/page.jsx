@@ -197,7 +197,7 @@ export default function AboutPage() {
               <span className="text-[#6A11CB]/30">|</span>
               <Link href="/terms" className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium">الشروط والاحكام</Link>
             </div>
-            <p className="text-xs text-[#0D0D21]/60 mt-4">© 2020 MD-Marketplace. جميع الحقوق محفوظة</p>
+            <p className="text-xs text-[#0D0D21]/60 mt-4">©️ 2020-2026 MD Marketplace . جميع الحقوق محفوظة</p>
           </div>
 
         </div>
