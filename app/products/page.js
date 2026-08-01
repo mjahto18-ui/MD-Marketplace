@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Search, ShoppingCart, Package, Check } from 'lucide-react';
 import Image from 'next/image';
@@ -8,7 +8,8 @@ export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState([]);
   const [filtered, setFiltered] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // بس أول مرة
+  const [isSearching, setIsSearching] = useState(false); // للبحث بس
   const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState(null);
@@ -17,31 +18,29 @@ export default function ProductsPage() {
   const [globalCfg, setGlobalCfg] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const firstLoad = useRef(true);
 
-  // 1. الحداد - نفس منطقك بس مع cache 10 ثواني بدل no-store
   useEffect(() => {
     fetch('/api/global-config', { next: { revalidate: 10 } }).then(r=>r.json()).then(d=>setGlobalCfg(d)).catch(()=>{});
   }, []);
 
-  // 2. معلومات العميل - نفس كودك الحساس ما لمسناه ابداً
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-   .then(async (res) => {
+  .then(async (res) => {
         if (!res.ok) { router.push('/login'); return; }
         const data = await res.json();
-        if (data.user?.customerId) {
-          setCustomerID(data.user.customerId);
-        } else {
-          router.push('/login');
-        }
+        if (data.user?.customerId) setCustomerID(data.user.customerId);
+        else router.push('/login');
       })
-   .catch(() => router.push('/login'));
+  .catch(() => router.push('/login'));
   }, [router]);
 
-  // 3. التحسين الوحيد: نجيب المنتجات على دفعات + بحث سيرفري
   const fetchProducts = useCallback(async (pageNum, searchText, isNewSearch = false) => {
-    if (isNewSearch) setLoading(true);
-    else if (pageNum > 1) setLoadingMore(true);
+    // هون الفرق - ما منعمل loading للبحث
+    if (isNewSearch) {
+      if (firstLoad.current) setLoading(true);
+      else setIsSearching(true);
+    } else if (pageNum > 1) setLoadingMore(true);
 
     try {
       const params = new URLSearchParams();
@@ -60,45 +59,33 @@ export default function ProductsPage() {
           setProducts(prev => [...prev,...data.products]);
           setFiltered(prev => [...prev,...data.products]);
         }
-        setHasMore(data.products.length === 20); // اذا اجو 20 يعني في بعد
-
-        // تيك توك - نفس كودك
-        if (typeof window!== 'undefined' && window.ttq && pageNum === 1 && data.products.length > 0) {
-          window.ttq.track('ViewContent', {
-            value: data.products.reduce((sum, p) => sum + Number(p.price || 0), 0),
-            currency: 'LBP',
-            contents: data.products.slice(0,5).map(p => ({
-              content_id: String(p.productID),
-              content_name: p.name,
-              price: Number(p.price)
-            }))
-          });
-        }
+        setHasMore(data.products.length === 20);
+        if (firstLoad.current) firstLoad.current = false;
       }
     } finally {
       setLoading(false);
       setLoadingMore(false);
+      setIsSearching(false);
     }
   }, []);
 
-  // تحميل اول 20
   useEffect(() => {
     fetchProducts(1, "", true);
   }, [fetchProducts]);
 
-  // بحث سيرفري - بيجيب حتى منتج 720
+  // بحث سلس - ما بيمحي المنتجات
   useEffect(() => {
+    if (firstLoad.current) return; // أول تحميل ما نرجع نبحث
     const timer = setTimeout(() => {
       setPage(1);
       fetchProducts(1, search, true);
-    }, 400); // debounce 400ms
+    }, 400);
     return () => clearTimeout(timer);
   }, [search, fetchProducts]);
 
-  // نزول لتحت بيجيب لوحدو
   useEffect(() => {
     const handleScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 && hasMore &&!loadingMore &&!loading) {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 && hasMore &&!loading &&!isSearching) {
         const nextPage = page + 1;
         setPage(nextPage);
         fetchProducts(nextPage, search, false);
@@ -106,9 +93,8 @@ export default function ProductsPage() {
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [page, hasMore, loadingMore, loading, search, fetchProducts]);
+  }, [page, hasMore, loadingMore, loading, isSearching, search, fetchProducts]);
 
-  // 4. السلة - نفس كودك الحساس بالحرف ما لمسناه
   const addToCart = async (productID) => {
     if (addingId) return;
     if (globalCfg?.isCartClosed) {
@@ -116,16 +102,12 @@ export default function ProductsPage() {
       setTimeout(() => setToast(null), 3000);
       return;
     }
-    if (!customerID) {
-      router.push('/login');
-      return;
-    }
+    if (!customerID) { router.push('/login'); return; }
     setAddingId(productID);
     try {
       const prod = [...products,...filtered].find(p => p.productID === productID);
       const res = await fetch('/api/cart/add', {
-        method: 'POST',
-        credentials: 'include',
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productID, qty: 1 })
       });
@@ -134,12 +116,6 @@ export default function ProductsPage() {
         setToast(data.message || "فشل الاضافة");
         setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
         return;
-      }
-      if (typeof window!== 'undefined' && window.ttq && prod) {
-        window.ttq.track('AddToCart', {
-          value: Number(prod.price), currency: 'LBP', content_id: String(prod.productID),
-          content_name: prod.name, quantity: 1, price: Number(prod.price)
-        });
       }
       setToast(prod? `${prod.name} - تمت الإضافة` : 'تمت الإضافة');
       setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
@@ -155,11 +131,9 @@ export default function ProductsPage() {
     </div>
   );
 
-  // باقي الـ return نفسه تبعك 100% ما تغير
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
       {globalCfg?.isCartClosed && (<div className="bg-amber-500 text-black text-center py-3 px-4 font-bold sticky top-0 z-50">{globalCfg.cart_closed_message}</div>)}
-      {globalCfg?.isComingSoon && (<div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-2 px-4 font-bold text-sm">⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}</div>)}
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => router.back()} className="bg-white/10 p-2 rounded-xl active:scale-90 transition"><ChevronRight className="w-5 h-5" /></button>
@@ -167,20 +141,22 @@ export default function ProductsPage() {
         </div>
         <div className="relative">
           <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
-          <input type="text" placeholder="ابحث عن منتج... (بيدور بكل المنتجات حتى 720)" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl py-3.5 pr-12 pl-4 text-white placeholder:text-purple-300 focus:border-purple-500 focus:outline-none transition" />
+          <input type="text" placeholder="ابحث عن منتج..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl py-3.5 pr-12 pl-4 text-white placeholder:text-purple-300 focus:border-purple-500 focus:outline-none transition" />
+          {isSearching && <div className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>}
         </div>
+        {isSearching && <p className="text-xs text-purple-300 mt-2 mr-2">عم دوّر...</p>}
       </header>
       <div className="px-4 pb-6">
-        {filtered.length === 0 &&!loading && (<div className="text-center py-20"><Package className="w-16 h-16 text-purple-400 mx-auto mb-4" /><p className="text-xl font-bold mb-2">ما لقينا منتجات</p><p className="text-purple-300">جرب تبحث باسم تاني</p></div>)}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        {filtered.length === 0 &&!isSearching && (<div className="text-center py-20"><Package className="w-16 h-16 text-purple-400 mx-auto mb-4" /><p className="text-xl font-bold mb-2">ما لقينا منتجات</p></div>)}
+        <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
           {filtered.map(product => (
-            <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
+            <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
               <div className="relative w-full h-[140px] bg-white flex items-center justify-center overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-2 truncate">المتجر: {product.storeName}</p>
-                <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p><p className="text-purple-300">الوزن: {product.weightPoint} نقطة</p></div>
-                <button onClick={() => addToCart(product.productID)} disabled={globalCfg?.isCartClosed} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p></div>
+                <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
                   {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
                 </button>
               </div>
