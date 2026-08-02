@@ -114,8 +114,18 @@ export default function ShopPage() {
             <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group active:scale-95">
               <div className="relative aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
                 {cat.image && (
-                  <Image src={cat.image} alt={cat.name} fill sizes="(max-width: 768px) 33vw, 20vw" className="object-contain p-2 group-hover:scale-110 transition-all duration-300" priority={index === 0} loading={index === 0 ? "eager" : "lazy"} />
-                )}
+  <Image 
+    src={cat.image} 
+    alt={cat.name} 
+    fill 
+    sizes="200px"
+    className="object-contain p-2 group-hover:scale-110 transition-all duration-300" 
+    unoptimized
+    loading="eager"
+    priority={index < 3}
+    fetchPriority={index < 3 ? "high" : "low"}
+  />
+)}
               </div>
               <h3 className="text-white font-semibold text-xs">{cat.name}</h3>
             </Link>
