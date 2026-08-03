@@ -8,13 +8,14 @@ export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState([]);
   const [filtered, setFiltered] = useState([]);
-  const [loading, setLoading] = useState(true); // بس أول مرة
-  const [isSearching, setIsSearching] = useState(false); // للبحث بس
+  const [loading, setLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState(null);
   const [addingId, setAddingId] = useState(null);
   const [customerID, setCustomerID] = useState(null);
+  const [isCustomer, setIsCustomer] = useState(false); // جديد
   const [globalCfg, setGlobalCfg] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -26,17 +27,24 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-  .then(async (res) => {
+ .then(async (res) => {
         if (!res.ok) { router.push('/login'); return; }
         const data = await res.json();
-        if (data.user?.customerId) setCustomerID(data.user.customerId);
-        else router.push('/login');
+        if (!data.user) { router.push('/login'); return; }
+
+        // هون التعديل - اذا مسجل بيخليك تشوف
+        if (data.user?.customerId) {
+          setCustomerID(data.user.customerId);
+          setIsCustomer(true);
+        } else {
+          // مسجل بس مش كوستيمر - ادمن - بيقدر يشوف بس بلا سلة
+          setIsCustomer(false);
+        }
       })
-  .catch(() => router.push('/login'));
+ .catch(() => router.push('/login'));
   }, [router]);
 
   const fetchProducts = useCallback(async (pageNum, searchText, isNewSearch = false) => {
-    // هون الفرق - ما منعمل loading للبحث
     if (isNewSearch) {
       if (firstLoad.current) setLoading(true);
       else setIsSearching(true);
@@ -73,9 +81,8 @@ export default function ProductsPage() {
     fetchProducts(1, "", true);
   }, [fetchProducts]);
 
-  // بحث سلس - ما بيمحي المنتجات
   useEffect(() => {
-    if (firstLoad.current) return; // أول تحميل ما نرجع نبحث
+    if (firstLoad.current) return;
     const timer = setTimeout(() => {
       setPage(1);
       fetchProducts(1, search, true);
@@ -96,6 +103,7 @@ export default function ProductsPage() {
   }, [page, hasMore, loadingMore, loading, isSearching, search, fetchProducts]);
 
   const addToCart = async (productID) => {
+    if (!isCustomer) return; // حماية اضافية
     if (addingId) return;
     if (globalCfg?.isCartClosed) {
       setToast(globalCfg.cart_closed_message || "السلة مغلقة حالياً");
@@ -137,7 +145,7 @@ export default function ProductsPage() {
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => router.back()} className="bg-white/10 p-2 rounded-xl active:scale-90 transition"><ChevronRight className="w-5 h-5" /></button>
-          <h1 className="text-2xl font-bold">كل المنتجات</h1>
+          <h1 className="text-2xl font-bold">كل المنتجات {!isCustomer && <span className="text-sm font-normal text-purple-300">(عرض فقط)</span>}</h1>
         </div>
         <div className="relative">
           <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
@@ -156,9 +164,15 @@ export default function ProductsPage() {
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-2 truncate">المتجر: {product.storeName}</p>
                 <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p></div>
-                <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
-                  {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
-                </button>
+
+                {isCustomer? (
+                  <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
+                    {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
+                  </button>
+                ) : (
+                  <div className="w-full bg-white/5 py-2.5 rounded-xl text-center text-xs text-purple-300">عرض فقط - للكوستيمر</div>
+                )}
+
               </div>
             </div>
           ))}
