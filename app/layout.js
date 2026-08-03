@@ -8,7 +8,7 @@ export const metadata = {
   metadataBase: new URL("https://www.md-marketplace.store"),
     
   title: "MD-Marketplace | One App For Everything",
-  description: "MD Marketplace - أول تطبيق شامل بلبنان: تسوق سوبرماركت، خضرة، لحمة، مواد غذائية، وتوصيل سريع لكل مناطق طرابلس ولبنان. محفظة إلكترونية، جوائز، تتبع مباشر للطلبات.",
+  description: "MD Marketplace - أول موقع شامل بلبنان: تسوق سوبرماركت، خضرة، لحمة، البسة، وتوصيل سريع لكل مناطق طرابلس ولبنان. محفظة إلكترونية، جوائز، تتبع مباشر للطلبات.",
   applicationName: "MD-Marketplace",
   keywords: [
     "MD Marketplace",
