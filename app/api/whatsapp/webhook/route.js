@@ -4,7 +4,7 @@ const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
 const GROQ_KEY = process.env.GROQ_API_KEY;
 
 async function sendMessage(to, text) {
-  await fetch(`https://graph.facebook.com/v20.0/${PHONE_ID}/messages`, {
+  await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
