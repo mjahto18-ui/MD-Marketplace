@@ -1,36 +1,40 @@
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'mjahto123';
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_ID = process.env.WHATSAPP_PHONE_ID || '1180849365118543'; // الرقم الأمريكي الاختباري
+const PHONE_ID = process.env.WHATSAPP_PHONE_ID || '1180849365118543'; // رقم Meta الاختباري
 const GROQ_KEY = process.env.GROQ_API_KEY;
 const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
 const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
 
-// 1. دالة إرسال الرد للزبون عبر واتساب
+// 1. دالة إرسال الرسالة إلى الواتساب
 async function sendMessage(to, text) {
   if (!WHATSAPP_TOKEN) {
-    console.error("❌ خطأ: WHATSAPP_TOKEN غير مضاف في Vercel");
+    console.error("❌ WHATSAPP_TOKEN غير موجود!");
     return;
   }
-  
-  const res = await fetch(`https://graph.facebook.com/v20.0/${PHONE_ID}/messages`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: to,
-      type: 'text',
-      text: { body: text }
-    })
-  });
-  
-  const resData = await res.json();
-  console.log("📤 نتيجة إرسال الواتساب:", JSON.stringify(resData));
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'text',
+        text: { body: text }
+      })
+    });
+
+    const data = await res.json();
+    console.log("📤 نتيجة الإرسال للواتساب:", JSON.stringify(data));
+  } catch (e) {
+    console.error("❌ خطأ إرسال واتساب:", e);
+  }
 }
 
-// 2. دالة حفظ المحادثة تلقائياً في AppSheet
+// 2. دالة الحفظ في AppSheet
 async function saveToAppSheet(from, userMessage, aiReply) {
   if (!APPSHEET_APP_ID || !APPSHEET_API_KEY) return;
 
@@ -55,17 +59,15 @@ async function saveToAppSheet(from, userMessage, aiReply) {
         ]
       })
     });
+    console.log("💾 تم الحفظ بنجاح في AppSheet");
   } catch (e) {
     console.error("❌ خطأ AppSheet:", e);
   }
 }
 
-// 3. دالة توليد الرد من Groq AI (معدلة ومحميّة)
+// 3. دالة توليد الرد عبر Groq AI
 async function getAIReply(userMessage) {
-  if (!GROQ_KEY) {
-    console.error("❌ خطأ: GROQ_API_KEY غير مضاف في Vercel!");
-    return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
-  }
+  if (!GROQ_KEY) return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
 
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -81,11 +83,9 @@ async function getAIReply(userMessage) {
             role: 'system',
             content: `انت موظف خدمة عملاء ب MD-Marketplace بلبنان.
 احكي لبناني عامي، مهضوم، و محترم.
-- استعمل كلمات لبنانية: هلا، تكرم، حبيبي، كيف بقدر ساعدك، ولو، يلا
-- لا تحكي سوري ابدا!
+- استعمل كلمات لبنانية: هلا، تكرم، حبيبي، كيف بقدر ساعدك
 - خليك قصير و مفيد
-- اذا سألوك عن التوصيل: عنا توصيل لكل لبنان 1-3 ايام والدفع عند الاستلام
-- متجرنا: md-marketplace.store`
+- توصيلنا لكل لبنان خلال 1-3 ايام والدفع عند الاستلام`
           },
           { role: 'user', content: userMessage }
         ],
@@ -94,20 +94,14 @@ async function getAIReply(userMessage) {
     });
 
     const data = await res.json();
-
-    if (!res.ok) {
-      console.error("❌ خطأ قادم من Groq API:", JSON.stringify(data));
-      return "هلا والله! تكرم عينك، كيف بقدر ساعدك؟";
-    }
-
-    return data.choices?.[0]?.message?.content || "هلا! كيف بقدر ساعدك اليوم؟";
+    return data.choices?.[0]?.message?.content || "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
   } catch (e) {
-    console.error("❌ خطأ أثناء الاتصال بـ Groq:", e);
-    return "هلا والله! صار عنا ضغط شوي، بس كيف بقدر ساعدك؟ 🙏";
+    console.error("❌ خطأ اتصال Groq:", e);
+    return "أهلا بك! كيف بقدر ساعدك؟";
   }
 }
 
-// 4. دالة التحقق من ميتا (GET)
+// 4. التحقق (GET)
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get('hub.mode');
@@ -120,28 +114,31 @@ export async function GET(req) {
   return new Response('Forbidden', { status: 403 });
 }
 
-// 5. دالة استقبال الرسائل (POST)
+// 5. الاستقبال والتنفيذ (POST)
 export async function POST(req) {
   try {
     const body = await req.json();
+
+    // قراءة الرسالة وتوليد الرد
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const userText = message?.text?.body || body.text || "مرحبا";
+    
+    // ⚠️ ضع رقم هاتفك هنا مع مفتاح الدولة بدلاً من الرقم المؤقت (مثلاً: "9613177653" أو "9613177653")
+    const targetPhone = message?.from || body.from || "9613177653";
 
-    if (message) {
-      const from = message.from;
-      const text = message.text?.body || '';
-      console.log(`📩 رسالة من ${from}: ${text}`);
+    console.log(`📩 استقبال رسالة من: ${targetPhone} | النص: ${userText}`);
 
-      // 1. الحصول على الرد
-      const reply = await getAIReply(text);
-      console.log(`🤖 رد الـ AI: ${reply}`);
+    // توليد الرد من الذكاء الاصطناعي
+    const aiReply = await getAIReply(userText);
+    console.log(`🤖 الرد المولّد: ${aiReply}`);
 
-      // 2. إرسال للواتساب وحفظ في AppSheet
-      await sendMessage(from, reply);
-      await saveToAppSheet(from, text, reply);
-    }
+    // إرسال للواتساب وتخزين في AppSheet
+    await sendMessage(targetPhone, aiReply);
+    await saveToAppSheet(targetPhone, userText, aiReply);
+
     return Response.json({ status: 'ok' }, { status: 200 });
   } catch (e) {
-    console.error("❌ خطأ في POST Handler:", e);
+    console.error("❌ خطأ POST:", e);
     return Response.json({ status: 'ok' }, { status: 200 });
   }
 }
