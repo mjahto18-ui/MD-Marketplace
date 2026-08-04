@@ -119,22 +119,24 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    // قراءة الرسالة وتوليد الرد
+    // قراءة البيانات ديناميكياً من Meta أو من اختبار AppSheet المباشر
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-    const userText = message?.text?.body || body.text || "مرحبا";
-    
-    // ⚠️ ضع رقم هاتفك هنا مع مفتاح الدولة بدلاً من الرقم المؤقت (مثلاً: "9613177653" أو "9613177653")
-    const targetPhone = message?.from || body.from || "9613177653";
+    const from = message?.from || body.from || "9613177653";
+    const userText = message?.text?.body || body.text;
 
-    console.log(`📩 استقبال رسالة من: ${targetPhone} | النص: ${userText}`);
+    console.log(`📩 استقبال رسالة من: ${from} | النص: ${userText}`);
 
-    // توليد الرد من الذكاء الاصطناعي
-    const aiReply = await getAIReply(userText);
-    console.log(`🤖 الرد المولّد: ${aiReply}`);
+    if (userText) {
+      // 1. توليد الرد من الذكاء الاصطناعي
+      const aiReply = await getAIReply(userText);
+      console.log(`🤖 الرد المولّد: ${aiReply}`);
 
-    // إرسال للواتساب وتخزين في AppSheet
-    await sendMessage(targetPhone, aiReply);
-    await saveToAppSheet(targetPhone, userText, aiReply);
+      // 2. إرسال الرسالة إلى المُرسِل على الواتساب
+      await sendMessage(from, aiReply);
+
+      // 3. تخزين المحادثة في AppSheet
+      await saveToAppSheet(from, userText, aiReply);
+    }
 
     return Response.json({ status: 'ok' }, { status: 200 });
   } catch (e) {
