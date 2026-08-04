@@ -12,6 +12,14 @@ async function sendMessage(to, text) {
     return;
   }
 
+  // تنظيف الرقم وإضافة المفتاح الدولي اللبناني تلقائياً إذا كان محلياً
+  let cleanPhone = String(to).replace(/\D/g, '');
+  if (cleanPhone.startsWith('03')) {
+    cleanPhone = '9613' + cleanPhone.substring(2);
+  } else if (cleanPhone.length === 8 && cleanPhone.startsWith('3')) {
+    cleanPhone = '961' + cleanPhone;
+  }
+
   try {
     const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
       method: 'POST',
@@ -21,7 +29,7 @@ async function sendMessage(to, text) {
       },
       body: JSON.stringify({
         messaging_product: 'whatsapp',
-        to: to,
+        to: cleanPhone,
         type: 'text',
         text: { body: text }
       })
@@ -119,22 +127,39 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    // قراءة البيانات ديناميكياً من Meta أو من اختبار AppSheet المباشر
+    // قراءة القيم بأسماء أعمدتك الدقيقة: Mobile, Name, PIN
+    const Name = body.name || body.Name;
+    const PIN = body.password || body.PIN;
+    const Mobile = body.from || body.Mobile;
+
+    // حالة 1: إذا كان الطلب قادماً لإرسال بيانات مستخدم جديد من AppSheet
+    if (body.type === 'new_user_welcome' || Name || PIN) {
+      const targetPhone = Mobile || "03177653";
+      const customerName = Name || "عميلنا العزيز";
+      const customerPIN = PIN || "";
+
+      const welcomeMessage = `أهلاً بك يا ${customerName} في MD-Marketplace! 🌸\n\nتم إنشاء حسابك بنجاح.\nرمز الـ PIN الخاص بك هو: *${customerPIN}*\n\nنتمنى لك تجربة تسوق ممتعة! 😊`;
+
+      console.log(`📩 ترحيب بمستخدم جديد: ${customerName} | Mobile: ${targetPhone} | PIN: ${customerPIN}`);
+
+      await sendMessage(targetPhone, welcomeMessage);
+      await saveToAppSheet(targetPhone, "تسجيل حساب جديد", welcomeMessage);
+
+      return Response.json({ status: 'ok' }, { status: 200 });
+    }
+
+    // حالة 2: محادثة نصية مباشرة قادمة من الواتساب عبر Groq AI
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-    const from = message?.from || body.from || "9613177653";
+    const from = message?.from || Mobile;
     const userText = message?.text?.body || body.text;
 
     console.log(`📩 استقبال رسالة من: ${from} | النص: ${userText}`);
 
-    if (userText) {
-      // 1. توليد الرد من الذكاء الاصطناعي
+    if (from && userText) {
       const aiReply = await getAIReply(userText);
       console.log(`🤖 الرد المولّد: ${aiReply}`);
 
-      // 2. إرسال الرسالة إلى المُرسِل على الواتساب
       await sendMessage(from, aiReply);
-
-      // 3. تخزين المحادثة في AppSheet
       await saveToAppSheet(from, userText, aiReply);
     }
 
