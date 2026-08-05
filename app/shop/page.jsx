@@ -103,7 +103,7 @@ export default function ShopPage() {
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Package className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 جميع المنتجات</h3></button>
           )}
           {user ? (
-            <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95"><Sparkles className="w-7 h-7 text-yellow-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">طلب خاص</h3></button>
+            <button onClick={() => window.open(`https://wa.me/15556581131?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95"><Sparkles className="w-7 h-7 text-yellow-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">طلب خاص</h3></button>
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Sparkles className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 طلب خاص</h3></button>
           )}
