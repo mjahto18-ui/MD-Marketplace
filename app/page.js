@@ -114,7 +114,7 @@ export default function HomePage() {
             </div>
             <div>
               <h3 className="font-black mb-4 text-[#13113a]">عنواننا</h3>
-              <p className="text-gray-600 leading-relaxed text-[13px]">{SITE.address}<br/>نخدم كل لبنان من عكار لصور</p>
+              <p className="text-gray-600 leading-relaxed text-[13px]">{SITE.address}<br/>نخدم كل لبنان من عكار للجنوب</p>
               <div className="flex gap-4 mt-4 text-[12px]">
                 <Link href={SITE.links.privacy} className="text-purple-600 font-bold hover:underline">سياسة الخصوصية</Link>
                 <Link href={SITE.links.terms} className="text-purple-600 font-bold hover:underline">الشروط والأحكام</Link>
