@@ -98,7 +98,7 @@ export default function HomePage() {
           </div>
 
           {/* مخفي - كيف بتحط الصور: روح على public/images/ ونزل صورك باسماء 1.jpg الى 6.jpg */}
-       
+          </div>
 
         {/* الفوتر - نفس الروابط */}
         <div className="border-t border-gray-100">
