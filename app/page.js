@@ -331,58 +331,43 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
 
-            {categories.map((category, i) => (
+                    {categories.map((category, i) => (
 
-              <Link
-                href="/shop"
-                key={i}
-                className="group relative h-[190px] md:h-[260px] rounded-[24px] md:rounded-[30px] overflow-hidden shadow-sm hover:shadow-2xl transition-all"
-              >
+          <Link
+            href="/shop"
+            key={i}
+            className="group relative h-[190px] md:h-[260px] rounded-[24px] md:rounded-[30px] overflow-hidden shadow-sm hover:shadow-2xl transition-all"
+          >
 
-                <Image
-                  src={category.image}
-                  alt={category.title}
-                  fill
-                  className="object-cover group-hover:scale-110 transition duration-700"
-                />
+            <Image
+              src={category.image}
+              alt={category.title}
+              fill
+              className="object-cover group-hover:scale-110 transition duration-700"
+            />
 
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          </Link>
 
-                <div className="absolute bottom-0 right-0 left-0 p-5 md:p-7 text-white">
+        ))}
 
-                  <h3 className="font-black text-[15px] md:text-xl">
-                    {category.title}
-                  </h3>
-
-                  <p className="text-white/70 text-[10px] md:text-xs mt-1">
-                    {category.desc}
-                  </p>
-
-                </div>
-
-              </Link>
-
-            ))}
-
-          </div>
+      </div>
 
 
-          <div className="text-center mt-9">
+      <div className="text-center mt-9">
 
-            <Link
-              href="/shop"
-              className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text-[13px] hover:bg-purple-700 transition"
-            >
-              اكتشف كل المتاجر
-              <ArrowRight size={16} />
-            </Link>
+        <Link
+          href="/shop"
+          className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text-[13px] hover:bg-purple-700 transition"
+        >
+          اكتشف كل المتاجر
+          <ArrowRight size={16} />
+        </Link>
 
-          </div>
+      </div>
 
-        </div>
+    </div>
 
-      </section>
+  </section>
 
 
       {/* =====================================================
