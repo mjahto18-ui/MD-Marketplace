@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 
 const SITE = {
-  phone: "+966551653968",
+  phone: "sales@md-marketplace.store",
   emails: {
     support: "support@md-marketplace.store",
     info: "info@md-marketplace.store",
