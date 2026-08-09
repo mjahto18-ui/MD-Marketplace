@@ -538,17 +538,13 @@ export default function HomePage() {
 
       <style jsx>{`
   .coming-soon-marquee {
-    padding-left: 100%;
-    animation: comingSoonMove 20s linear infinite;
+    padding-right: 100%;
+    animation: comingSoonMoveReverse 20s linear infinite;
     direction: rtl;
   }
-  @keyframes comingSoonMove {
-    0% {
-      transform: translateX(0);
-    }
-    100% {
-      transform: translateX(-100%);
-    }
+  @keyframes comingSoonMoveReverse {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 `}</style>
 
