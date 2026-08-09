@@ -1,133 +1,573 @@
 "use client";
-import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
+
+import Link from "next/link";
+import Image from "next/image";
+import { ArrowRight, ShoppingBag, MapPin, Truck, ShieldCheck, Headphones } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const SITE = {
-  phone: "sales@md-marketplace.store",
   emails: {
+    sales: "sales@md-marketplace.store",
     support: "support@md-marketplace.store",
     info: "info@md-marketplace.store",
   },
+
   address: "طرابلس، لبنان - القبة",
+
   social: {
     facebook: "https://facebook.com/mdmarketplaceofficial",
     tiktok: "https://tiktok.com/@mdmarketplace.store",
     youtube: "https://youtube.com/@md-marketplace",
   },
+
   links: {
     privacy: "/privacy",
     terms: "/terms",
   },
-  gallery: [
-    { title: "متاجرنا المحلية", desc: "أكثر من 43 متجر" },
-    { title: "منتجات متنوعة", desc: "من الأكل للتياب" },
-    { title: "توصيل سريع", desc: "خلال 25 دقيقة" },
-    { title: "عروض يومية", desc: "خصومات حصرية" },
-    { title: "دفع آمن", desc: "عند الاستلام" },
-    { title: "دعم متواصل", desc: "24/7 جاهزين" },
-  ]
 };
 
 export default function HomePage() {
+  const [comingSoonMessage, setComingSoonMessage] = useState("");
+  const [bannerVisible, setBannerVisible] = useState(false);
+
+  /*
+   * قراءة حالة المنصة والرسالة من Global Config
+   * لازم يكون عندك API endpoint يرجع getGlobalConfig()
+   *
+   * مثال:
+   * /api/global-config
+   */
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const res = await fetch("/api/global-config", {
+          cache: "no-store",
+        });
+
+        if (!res.ok) return;
+
+        const cfg = await res.json();
+
+        const message =
+          cfg?.coming_soon_message ||
+          cfg?.platform_status_message ||
+          "";
+
+        const isComingSoon =
+          cfg?.isComingSoon === true ||
+          cfg?.platform_status?.value === "COMING_SOON";
+
+        setComingSoonMessage(message);
+        setBannerVisible(isComingSoon && !!message);
+      } catch (error) {
+        console.error("Global config error:", error);
+      }
+    }
+
+    loadConfig();
+  }, []);
+
+  const categories = [
+    {
+      title: "مطاعم وأكل",
+      desc: "وجباتك المفضلة",
+      image: "/home-food.jpg",
+    },
+    {
+      title: "سوبرماركت",
+      desc: "كل حاجات البيت",
+      image: "/home-market.jpg",
+    },
+    {
+      title: "ألبسة وأزياء",
+      desc: "ستايلك بمكان واحد",
+      image: "/home-fashion.jpg",
+    },
+    {
+      title: "حلويات",
+      desc: "شي طيب لكل مناسبة",
+      image: "/home-sweets.jpg",
+    },
+    {
+      title: "صيدليات",
+      desc: "احتياجاتك الصحية",
+      image: "/home-pharmacy.jpg",
+    },
+    {
+      title: "والمزيد...",
+      desc: "اكتشف متاجرنا",
+      image: "/home-more.jpg",
+    },
+  ];
+
+  const features = [
+    {
+      icon: <ShoppingBag size={24} />,
+      title: "كل شي بمكان واحد",
+      desc: "متاجر ومنتجات متنوعة",
+    },
+    {
+      icon: <Truck size={24} />,
+      title: "توصيل سريع",
+      desc: "طلبك بيوصلك لباب البيت",
+    },
+    {
+      icon: <ShieldCheck size={24} />,
+      title: "دفع عند الاستلام",
+      desc: "ادفع وقت تستلم طلبك",
+    },
+    {
+      icon: <Headphones size={24} />,
+      title: "دعم متواصل",
+      desc: "نحنا حدك وقت تحتاجنا",
+    },
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#0f0e24]">
-      <div className="h-[68px] md:h-[80px] flex justify-between items-center px-5 md:px-8 bg-[#13113a] shrink-0 z-20">
-        <div className="flex flex-col">
-          <h1 className="text-white font-black tracking-wider text-[13px] md:text-[14px]">MD-MARKETPLACE</h1>
-          <p className="text-white/40 text-[10px] md:text-[11px] mt-0.5">One App For Everything</p>
-        </div>
-        <div className="flex gap-2 md:gap-3">
-          <Link href="/shop" className="bg-white text-black px-5 md:px-6 py-2 md:py-2.5 rounded-full text-[13px] md:text-sm font-black hover:bg-white/90 transition">Shop</Link>
-          <Link href="/login" className="border border-white/15 text-white/70 px-5 md:px-6 py-2 md:py-2.5 rounded-full text-[13px] md:text-sm font-bold hover:bg-white/10 transition">Login</Link>
-        </div>
-      </div>
+    <div className="min-h-screen bg-white overflow-hidden">
 
-      <div className="relative flex-1 bg-gradient-to-br from-[#1e1b4b] via-[#221a5e] to-[#2d1b69] flex flex-col items-center justify-center px-5 py-10 md:py-20 text-center overflow-hidden">
-        <div className="absolute w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[120px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-        <div className="relative mb-6 md:mb-8 bg-white p-3 md:p-4 rounded-[24px] md:rounded-[32px] shadow-[0_0_50px_rgba(168,85,247,0.5)]">
-          <Image src="/icon.png" alt="MD Logo" width={120} height={120} className="w-[72px] h-[72px] md:w-[120px] md:h-[120px] object-contain" />
+      {/* =====================================================
+          NAVBAR
+      ===================================================== */}
+
+      <nav className="absolute top-0 left-0 right-0 z-50 px-5 md:px-10 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+
+          {/* Logo */}
+          <div className="text-white text-right">
+            <div className="font-black text-[18px] md:text-[22px] tracking-wide">
+              MD-MARKETPLACE
+            </div>
+
+            <div className="text-white/50 text-[10px] md:text-xs mt-1">
+              One App For Everything
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex items-center gap-2">
+
+            <Link
+              href="/shop"
+              className="bg-white text-[#17144d] px-5 md:px-7 py-2.5 rounded-full font-black text-[13px] md:text-sm shadow-lg hover:scale-105 transition"
+            >
+              Shop
+            </Link>
+
+            <Link
+              href="/login"
+              className="border border-white/20 bg-white/5 backdrop-blur-md text-white px-5 md:px-7 py-2.5 rounded-full font-bold text-[13px] md:text-sm hover:bg-white/10 transition"
+            >
+              Login
+            </Link>
+
+          </div>
         </div>
-        <h1 className="relative text-[26px] leading-[1.1] md:text-7xl font-black text-white max-w-4xl">
-          Everything You Need<br/>
-          <span className="bg-gradient-to-r from-purple-300 to-pink-400 bg-clip-text text-transparent">In One Place</span>
+      </nav>
+
+
+      {/* =====================================================
+          HERO
+      ===================================================== */}
+
+      <section className="relative min-h-[720px] md:min-h-[820px] bg-gradient-to-br from-[#171442] via-[#21185b] to-[#32166c] flex flex-col items-center justify-center px-5 pt-28 pb-16 text-center overflow-hidden">
+
+        {/* Background glow */}
+        <div className="absolute w-[650px] h-[650px] bg-purple-600/20 rounded-full blur-[140px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+
+        <div className="absolute w-[300px] h-[300px] bg-pink-500/10 rounded-full blur-[100px] top-20 right-0 pointer-events-none" />
+
+
+        {/* =================================================
+            COMING SOON BANNER
+        ================================================= */}
+
+        {bannerVisible && comingSoonMessage && (
+          <div className="relative w-full max-w-3xl mb-8 overflow-hidden rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl shadow-[0_0_35px_rgba(168,85,247,0.25)]">
+
+            <div className="flex items-center min-h-[52px]">
+
+              {/* ثابت صغير */}
+              <div className="relative z-10 shrink-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-3 font-black text-[11px] md:text-xs">
+                MD-MARKETPLACE
+              </div>
+
+              {/* النص المتحرك */}
+              <div className="relative flex-1 overflow-hidden whitespace-nowrap">
+
+                <div className="coming-soon-marquee inline-block text-white font-bold text-[12px] md:text-sm">
+                  {comingSoonMessage}
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        )}
+
+
+        {/* Logo */}
+        <div className="relative mb-7 md:mb-9 bg-white p-3 md:p-4 rounded-[26px] md:rounded-[32px] shadow-[0_0_55px_rgba(168,85,247,0.55)]">
+
+          <Image
+            src="/icon.png"
+            alt="MD Marketplace"
+            width={120}
+            height={120}
+            priority
+            className="w-[78px] h-[78px] md:w-[120px] md:h-[120px] object-contain"
+          />
+
+        </div>
+
+
+        {/* Main title */}
+        <h1 className="relative text-[34px] md:text-7xl font-black text-white leading-[1.05] max-w-5xl">
+
+          Everything You Need
+
+          <br />
+
+          <span className="bg-gradient-to-r from-purple-300 via-pink-400 to-purple-300 bg-clip-text text-transparent">
+            In One Place
+          </span>
+
         </h1>
-        <p className="relative text-white/50 mt-4 md:mt-5 text-[12.5px] md:text-[16px] max-w-[320px] md:max-w-md leading-relaxed">
-          Discover products from multiple stores. Shop from your favorite local stores in one checkout.
+
+
+        <p className="relative text-white/55 mt-5 text-[13px] md:text-[17px] max-w-xl leading-relaxed">
+          Discover products from multiple local stores.
+          <br className="hidden md:block" />
+          Shop your favorite stores in one simple checkout.
         </p>
-        <Link href="/shop" className="relative mt-6 md:mt-8 bg-gradient-to-br from-purple-500 to-pink-500 text-white px-7 md:px-8 py-3 md:py-3.5 rounded-full font-bold flex items-center gap-2 text-[13px] md:text-[14px] shadow-[0_0_30px_rgba(168,85,247,0.5)] hover:scale-105 active:scale-95 transition">
-          Start Shopping <ArrowRight size={18}/>
+
+
+        {/* Shop button */}
+        <Link
+          href="/shop"
+          className="relative mt-8 bg-gradient-to-br from-purple-500 to-pink-500 text-white px-8 md:px-10 py-4 rounded-full font-black flex items-center gap-3 text-[14px] md:text-base shadow-[0_0_35px_rgba(168,85,247,0.45)] hover:scale-105 active:scale-95 transition"
+        >
+          Start Shopping
+          <ArrowRight size={19} />
         </Link>
-      </div>
 
-      <div className="bg-white w-full" dir="rtl">
-        <div className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-20">
-          <div className="text-center mb-8 md:mb-12">
-            <h2 className="text-[22px] md:text-4xl font-black text-[#13113a]">كل شي بدك ياه بمكان واحد</h2>
-            <p className="text-gray-500 text-[13px] md:text-sm mt-3">اختار من متاجرنا المحلية</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-            {SITE.gallery.map((item, i) => (
-              <div key={i} className="group bg-[#f8f7fb] border border-gray-100 rounded-[20px] md:rounded-[28px] p-5 md:p-8 h-[150px] md:h-[200px] flex flex-col justify-between hover:bg-white hover:shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:border-purple-100 transition-all cursor-pointer">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition">
-                  <span className="text-[18px]">🛍️</span>
+
+        {/* Small trust line */}
+        <div className="relative mt-6 flex items-center gap-2 text-white/35 text-[11px]">
+          <MapPin size={14} />
+          <span>من متاجرنا المحلية إلى باب بيتك</span>
+        </div>
+
+      </section>
+
+
+      {/* =====================================================
+          FEATURES
+      ===================================================== */}
+
+      <section className="relative bg-white py-10 md:py-14 border-b border-gray-100">
+
+        <div className="max-w-6xl mx-auto px-5">
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
+
+            {features.map((feature, i) => (
+
+              <div
+                key={i}
+                className="rounded-2xl md:rounded-3xl bg-[#faf9fd] border border-gray-100 p-5 md:p-7 text-center hover:bg-white hover:shadow-[0_12px_35px_rgba(0,0,0,0.06)] transition"
+              >
+
+                <div className="mx-auto mb-4 w-11 h-11 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center">
+                  {feature.icon}
                 </div>
-                <div>
-                  <h3 className="font-black text-[13px] md:text-[15px] text-[#13113a]">{item.title}</h3>
-                  <p className="text-[11px] md:text-xs text-gray-500 mt-1">{item.desc}</p>
-                </div>
+
+                <h3 className="font-black text-[#17144d] text-[13px] md:text-[15px]">
+                  {feature.title}
+                </h3>
+
+                <p className="text-gray-500 text-[10px] md:text-xs mt-2">
+                  {feature.desc}
+                </p>
+
               </div>
+
             ))}
+
           </div>
+
         </div>
 
-        <div className="border-t border-gray-100">
-          <div className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-16 grid md:grid-cols-3 gap-10 text-sm">
-            <div>
-              <h3 className="font-black mb-4 text-[#13113a]">تواصل معنا</h3>
-              <p className="text-gray-600 mb-1">{SITE.phone}</p>
-              <p className="text-gray-600 text-[13px]">{SITE.emails.support}</p>
-              <p className="text-gray-600 text-[13px]">{SITE.emails.info}</p>
+      </section>
+
+
+      {/* =====================================================
+          CATEGORIES
+      ===================================================== */}
+
+      <section
+        className="bg-white py-14 md:py-20"
+        dir="rtl"
+      >
+
+        <div className="max-w-6xl mx-auto px-5 md:px-8">
+
+          <div className="text-center mb-9 md:mb-12">
+
+            <div className="inline-block bg-purple-50 text-purple-600 px-4 py-2 rounded-full text-[11px] font-black mb-4">
+              MD-MARKETPLACE
             </div>
-            <div>
-              <h3 className="font-black mb-4 text-[#13113a]">عنواننا</h3>
-              <p className="text-gray-600 leading-relaxed text-[13px]">{SITE.address}<br/>نخدم كل لبنان من عكار للجنوب</p>
-              <div className="flex gap-4 mt-4 text-[12px]">
-                <Link href={SITE.links.privacy} className="text-purple-600 font-bold hover:underline">سياسة الخصوصية</Link>
-                <Link href={SITE.links.terms} className="text-purple-600 font-bold hover:underline">الشروط والأحكام</Link>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-black mb-5 text-[#13113a]">تابعنا على</h3>
-              <div className="flex flex-col gap-3">
-                {/* Facebook */}
-                <a href={SITE.social.facebook} target="_blank" className="flex items-center gap-3 group">
-                  <div className="w-9 h-9 bg-[#1877F2] rounded-full flex items-center justify-center text-white group-hover:scale-110 transition">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                  </div>
-                  <span className="text-[13px] font-bold text-gray-700 group-hover:text-[#1877F2]">Facebook</span>
-                </a>
-                {/* TikTok */}
-                <a href={SITE.social.tiktok} target="_blank" className="flex items-center gap-3 group">
-                  <div className="w-9 h-9 bg-black rounded-full flex items-center justify-center text-white group-hover:scale-110 transition">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
-                  </div>
-                  <span className="text-[13px] font-bold text-gray-700 group-hover:text-black">TikTok</span>
-                </a>
-                {/* YouTube */}
-                <a href={SITE.social.youtube} target="_blank" className="flex items-center gap-3 group">
-                  <div className="w-9 h-9 bg-[#FF0000] rounded-full flex items-center justify-center text-white group-hover:scale-110 transition">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                  </div>
-                  <span className="text-[13px] font-bold text-gray-700 group-hover:text-[#FF0000]">YouTube</span>
-                </a>
-              </div>
-              <p className="text-gray-400 text-[11px] mt-5">www.md-marketplace.store</p>
-            </div>
+
+            <h2 className="text-[25px] md:text-4xl font-black text-[#13113a]">
+              كل شي بدك ياه بمكان واحد
+            </h2>
+
+            <p className="text-gray-500 text-[13px] md:text-sm mt-3">
+              اكتشف مجموعة متنوعة من المتاجر والمنتجات
+            </p>
+
           </div>
-          <div className="text-center py-6 border-t border-gray-50 text-gray-400 text-[11px]">© 2020-2026 MD Marketplace - جميع الحقوق محفوظة</div>
+
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+
+            {categories.map((category, i) => (
+
+              <Link
+                href="/shop"
+                key={i}
+                className="group relative h-[190px] md:h-[260px] rounded-[24px] md:rounded-[30px] overflow-hidden shadow-sm hover:shadow-2xl transition-all"
+              >
+
+                <Image
+                  src={category.image}
+                  alt={category.title}
+                  fill
+                  className="object-cover group-hover:scale-110 transition duration-700"
+                />
+
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                <div className="absolute bottom-0 right-0 left-0 p-5 md:p-7 text-white">
+
+                  <h3 className="font-black text-[15px] md:text-xl">
+                    {category.title}
+                  </h3>
+
+                  <p className="text-white/70 text-[10px] md:text-xs mt-1">
+                    {category.desc}
+                  </p>
+
+                </div>
+
+              </Link>
+
+            ))}
+
+          </div>
+
+
+          <div className="text-center mt-9">
+
+            <Link
+              href="/shop"
+              className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text-[13px] hover:bg-purple-700 transition"
+            >
+              اكتشف كل المتاجر
+              <ArrowRight size={16} />
+            </Link>
+
+          </div>
+
         </div>
-      </div>
+
+      </section>
+
+
+      {/* =====================================================
+          BRAND / DELIVERY IMAGE
+      ===================================================== */}
+
+      <section className="bg-[#f7f5fb] py-12 md:py-20">
+
+        <div className="max-w-6xl mx-auto px-5 md:px-8">
+
+          <div className="relative overflow-hidden rounded-[30px] md:rounded-[40px] shadow-xl">
+
+            <Image
+              src="/home-delivery.jpg"
+              alt="MD Marketplace Delivery"
+              width={1400}
+              height={800}
+              className="w-full h-auto object-cover"
+            />
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* =====================================================
+          FOOTER
+      ===================================================== */}
+
+      <footer
+        className="bg-[#121033] text-white"
+        dir="rtl"
+      >
+
+        <div className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-16">
+
+          <div className="grid md:grid-cols-3 gap-10">
+
+            {/* Contact */}
+            <div>
+
+              <h3 className="font-black mb-5">
+                تواصل معنا
+              </h3>
+
+              <a
+                href={`mailto:${SITE.emails.sales}`}
+                className="block text-white/60 text-sm mb-2 hover:text-white"
+              >
+                {SITE.emails.sales}
+              </a>
+
+              <a
+                href={`mailto:${SITE.emails.support}`}
+                className="block text-white/60 text-sm mb-2 hover:text-white"
+              >
+                {SITE.emails.support}
+              </a>
+
+              <a
+                href={`mailto:${SITE.emails.info}`}
+                className="block text-white/60 text-sm hover:text-white"
+              >
+                {SITE.emails.info}
+              </a>
+
+            </div>
+
+
+            {/* Address */}
+            <div>
+
+              <h3 className="font-black mb-5">
+                عن MD-Marketplace
+              </h3>
+
+              <p className="text-white/55 text-sm leading-relaxed">
+                منصة تجمع المتاجر المحلية والزبائن بمكان واحد،
+                لتجعل التسوق والطلب والتوصيل أسهل وأسرع.
+              </p>
+
+              <p className="text-white/40 text-xs mt-4">
+                {SITE.address}
+              </p>
+
+              <div className="flex gap-4 mt-5">
+
+                <Link
+                  href={SITE.links.privacy}
+                  className="text-purple-300 text-xs hover:text-white"
+                >
+                  سياسة الخصوصية
+                </Link>
+
+                <Link
+                  href={SITE.links.terms}
+                  className="text-purple-300 text-xs hover:text-white"
+                >
+                  الشروط والأحكام
+                </Link>
+
+              </div>
+
+            </div>
+
+
+            {/* Social */}
+            <div>
+
+              <h3 className="font-black mb-5">
+                تابعنا على
+              </h3>
+
+              <div className="flex flex-wrap gap-3">
+
+                <a
+                  href={SITE.social.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-[#1877F2] transition text-xs font-bold"
+                >
+                  Facebook
+                </a>
+
+                <a
+                  href={SITE.social.tiktok}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-black transition text-xs font-bold"
+                >
+                  TikTok
+                </a>
+
+                <a
+                  href={SITE.social.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-[#FF0000] transition text-xs font-bold"
+                >
+                  YouTube
+                </a>
+
+              </div>
+
+              <p className="text-white/30 text-[11px] mt-6">
+                www.md-marketplace.store
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div className="border-t border-white/10 text-center py-6 text-white/30 text-[11px]">
+          © 2020-2026 MD Marketplace - جميع الحقوق محفوظة
+        </div>
+
+      </footer>
+
+
+      {/* =====================================================
+          MARQUEE ANIMATION
+      ===================================================== */}
+
+      <style jsx>{`
+        .coming-soon-marquee {
+          padding-left: 100%;
+          animation: comingSoonMove 13s linear infinite;
+        }
+
+        @keyframes comingSoonMove {
+          0% {
+            transform: translateX(0);
+          }
+
+          100% {
+            transform: translateX(-100%);
+          }
+        }
+      `}</style>
+
     </div>
   );
 }
