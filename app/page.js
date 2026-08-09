@@ -189,7 +189,7 @@ export default function HomePage() {
 
               {/* ثابت صغير */}
               <div className="relative z-10 shrink-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-3 font-black text-[11px] md:text-xs">
-                MD-MARKETPLACE
+                أحدث العروض
               </div>
 
               {/* النص المتحرك */}
