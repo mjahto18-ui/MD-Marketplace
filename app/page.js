@@ -103,7 +103,7 @@ export default function HomePage() {
   <b>كيف بتحط صورك؟</b> روح على مجلد <code>public/images/</code> ونزل صورك باسماء 1.jpg الى 6.jpg وبعدين غير الكود من <code>🛍</code> الى <code>&lt;Image src=&quot;/images/1.jpg&quot;... /&gt;</code>
 </div>
 */}
-        </div>
+       
 
         {/* الفوتر - نفس الروابط */}
         <div className="border-t border-gray-100">
