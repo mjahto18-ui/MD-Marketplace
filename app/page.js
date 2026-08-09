@@ -539,7 +539,7 @@ export default function HomePage() {
       <style jsx>{`
   .coming-soon-marquee {
     padding-right: 100%;
-    animation: comingSoonMoveReverse 30s linear infinite;
+    animation: comingSoonMoveReverse 18s linear infinite;
     direction: rtl;
   }
   @keyframes comingSoonMoveReverse {
