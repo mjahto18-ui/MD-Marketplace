@@ -71,32 +71,32 @@ export default function HomePage() {
     {
       title: "مطاعم وأكل",
       desc: "وجباتك المفضلة",
-      image: "/home-food.jpg",
+      image: "/home-food.jpeg",
     },
     {
       title: "سوبرماركت",
       desc: "كل حاجات البيت",
-      image: "/home-market.jpg",
+      image: "/home-market.jpeg",
     },
     {
       title: "ألبسة وأزياء",
       desc: "ستايلك بمكان واحد",
-      image: "/home-fashion.jpg",
+      image: "/home-fashion.jpeg",
     },
     {
       title: "حلويات",
       desc: "شي طيب لكل مناسبة",
-      image: "/home-sweets.jpg",
+      image: "/home-sweets.jpeg",
     },
     {
       title: "صيدليات",
       desc: "احتياجاتك الصحية",
-      image: "/home-pharmacy.jpg",
+      image: "/home-pharmacy.jpeg",
     },
     {
       title: "والمزيد...",
       desc: "اكتشف متاجرنا",
-      image: "/home-more.jpg",
+      image: "/home-more.jpeg",
     },
   ];
 
@@ -396,7 +396,7 @@ export default function HomePage() {
           <div className="relative overflow-hidden rounded-[30px] md:rounded-[40px] shadow-xl">
 
             <Image
-              src="/home-delivery.jpg"
+              src="/home-delivery.jpeg"
               alt="MD Marketplace Delivery"
               width={1400}
               height={800}
