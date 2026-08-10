@@ -18,6 +18,7 @@ const SITE = {
     facebook: "https://facebook.com/mdmarketplaceofficial",
     tiktok: "https://tiktok.com/@mdmarketplace.store",
     youtube: "https://youtube.com/@md-marketplace",
+    x: "https://x.com/md_marketplace",
   },
 
   links: {
@@ -511,6 +512,14 @@ export default function HomePage() {
                 >
                   YouTube
                 </a>
+                    <a
+  href={SITE.social.x}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-black transition text-xs font-bold"
+>
+  𝕏 X
+</a>
 
               </div>
 
