@@ -24,6 +24,7 @@ const APPSHEET_APP_ID =
 const APPSHEET_API_KEY =
   process.env.APPSHEET_API_KEY;
 
+// Google Sheets
 const GOOGLE_SHEETS_ID =
   process.env.GOOGLE_SHEETS_ID;
 
@@ -35,16 +36,20 @@ const GOOGLE_PRIVATE_KEY =
 
 
 // ======================================================
-// 1. توحيد رقم واتساب
+// 1. توحيد رقم WhatsApp
 // ======================================================
 
 function normalizeWhatsAppNumber(phone) {
 
-  let clean = String(phone || "").replace(/\D/g, "");
+  let clean =
+    String(phone || "").replace(/\D/g, "");
 
   // 03177653
   if (clean.startsWith("03")) {
-    clean = "9613" + clean.substring(2);
+
+    clean =
+      "9613" + clean.substring(2);
+
   }
 
   // 3177653
@@ -52,13 +57,10 @@ function normalizeWhatsAppNumber(phone) {
     clean.length === 7 &&
     clean.startsWith("3")
   ) {
-    clean = "961" + clean;
-  }
 
-  // +9613177653
-  // 009613177653
-  else if (clean.startsWith("00961")) {
-    clean = clean.substring(2);
+    clean =
+      "961" + clean;
+
   }
 
   return clean;
@@ -72,8 +74,13 @@ function normalizeWhatsAppNumber(phone) {
 async function sendMessage(to, text) {
 
   if (!WHATSAPP_TOKEN) {
-    console.error("❌ WHATSAPP_TOKEN غير موجود");
+
+    console.error(
+      "❌ WHATSAPP_TOKEN غير موجود"
+    );
+
     return;
+
   }
 
   const cleanPhone =
@@ -87,11 +94,13 @@ async function sendMessage(to, text) {
         method: "POST",
 
         headers: {
+
           Authorization:
             `Bearer ${WHATSAPP_TOKEN}`,
 
           "Content-Type":
             "application/json"
+
         },
 
         body: JSON.stringify({
@@ -99,15 +108,21 @@ async function sendMessage(to, text) {
           messaging_product:
             "whatsapp",
 
-          to: cleanPhone,
+          to:
+            cleanPhone,
 
-          type: "text",
+          type:
+            "text",
 
           text: {
-            body: text
+
+            body:
+              text
+
           }
 
         })
+
       }
     );
 
@@ -127,6 +142,7 @@ async function sendMessage(to, text) {
     );
 
   }
+
 }
 
 
@@ -147,6 +163,7 @@ function getGoogleSheetsClient() {
     );
 
     return null;
+
   }
 
   try {
@@ -168,14 +185,20 @@ function getGoogleSheetsClient() {
         },
 
         scopes: [
+
           "https://www.googleapis.com/auth/spreadsheets.readonly"
+
         ]
 
       });
 
     return google.sheets({
-      version: "v4",
+
+      version:
+        "v4",
+
       auth
+
     });
 
   } catch (error) {
@@ -186,18 +209,26 @@ function getGoogleSheetsClient() {
     );
 
     return null;
+
   }
+
 }
 
 
 // ======================================================
-// 4. قراءة Sheet كاملة
+// 4. قراءة أي جدول Google Sheets
 // ======================================================
 
 async function getSheetRows(
-  sheets,
   sheetName
 ) {
+
+  const sheets =
+    getGoogleSheetsClient();
+
+  if (!sheets) {
+    return [];
+  }
 
   try {
 
@@ -216,12 +247,19 @@ async function getSheetRows(
       response.data.values || [];
 
     if (!rows.length) {
+
+      console.log(
+        `⚠️ جدول ${sheetName} فارغ`
+      );
+
       return [];
+
     }
 
     const headers =
       rows[0].map(
-        h => String(h || "").trim()
+        h =>
+          String(h || "").trim()
       );
 
     return rows
@@ -240,34 +278,45 @@ async function getSheetRows(
         );
 
         return obj;
+
       });
 
   } catch (error) {
 
     console.error(
-      `❌ خطأ قراءة ${sheetName}:`,
+      `❌ خطأ قراءة جدول ${sheetName}:`,
       error.message
     );
 
     return [];
+
   }
+
 }
 
 
 // ======================================================
-// 5. Users
+// 5. تطبيع النص للبحث
+// ======================================================
+
+function normalizeText(text) {
+
+  return String(text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[؟?!.,،]/g, " ")
+    .replace(/\s+/g, " ");
+
+}
+
+
+// ======================================================
+// 6. التعرف على المستخدم
 // ======================================================
 
 async function getUserByWhatsAppNumber(
   whatsappNumber
 ) {
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return null;
-  }
 
   const normalized =
     normalizeWhatsAppNumber(
@@ -279,21 +328,18 @@ async function getUserByWhatsAppNumber(
   );
 
   const rows =
-    await getSheetRows(
-      sheets,
-      "Users"
-    );
+    await getSheetRows("Users");
 
   console.log(
-    "📋 عدد مستخدمي Users:",
-    rows.length
+    `📋 عدد مستخدمي Users: ${rows.length}`
   );
 
   for (const row of rows) {
 
     const rowWhatsApp =
       normalizeWhatsAppNumber(
-        row["WhatsApp Number"] || ""
+        row["WhatsApp Number"] ||
+        ""
       );
 
     if (
@@ -318,7 +364,19 @@ async function getUserByWhatsAppNumber(
           row["Customer ID"] || "",
 
         whatsappNumber:
-          row["WhatsApp Number"] || ""
+          row["WhatsApp Number"] || "",
+
+        storeId:
+          row["Store ID"] || "",
+
+        area:
+          row["Area"] || "",
+
+        status:
+          row["Status"] || "",
+
+        active:
+          row["Active"] || ""
 
       };
 
@@ -328,7 +386,9 @@ async function getUserByWhatsAppNumber(
       );
 
       return user;
+
     }
+
   }
 
   console.log(
@@ -336,178 +396,12 @@ async function getUserByWhatsAppNumber(
   );
 
   return null;
+
 }
 
 
 // ======================================================
-// 6. قراءة المحادثة السابقة من Messages
-// ======================================================
-
-async function getConversationHistory(
-  phone
-) {
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return [];
-  }
-
-  const rows =
-    await getSheetRows(
-      sheets,
-      "Messages"
-    );
-
-  const normalized =
-    normalizeWhatsAppNumber(phone);
-
-  const conversation =
-    rows
-      .filter(row => {
-
-        const rowPhone =
-          normalizeWhatsAppNumber(
-            row["Phone"] || ""
-          );
-
-        return rowPhone === normalized;
-
-      })
-      .slice(-12);
-
-  console.log(
-    `💬 عدد رسائل المحادثة السابقة المستخدمة: ${conversation.length}`
-  );
-
-  return conversation;
-}
-
-
-// ======================================================
-// 7. Products
-// ======================================================
-
-async function getProducts() {
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return [];
-  }
-
-  const rows =
-    await getSheetRows(
-      sheets,
-      "Products"
-    );
-
-  return rows.filter(row => {
-
-    const active =
-      String(row["Active"] || "")
-        .toLowerCase();
-
-    const available =
-      String(row["Available"] || "")
-        .toLowerCase();
-
-    return (
-      active === "true" &&
-      (
-        available === "yes" ||
-        available === "true"
-      )
-    );
-
-  });
-}
-
-
-// ======================================================
-// 8. Stores
-// ======================================================
-
-async function getStores() {
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return [];
-  }
-
-  return await getSheetRows(
-    sheets,
-    "Stores"
-  );
-}
-
-
-// ======================================================
-// 9. Categories
-// ======================================================
-
-async function getCategories() {
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return [];
-  }
-
-  return await getSheetRows(
-    sheets,
-    "Categories"
-  );
-}
-
-
-// ======================================================
-// 10. Areas
-// ======================================================
-
-async function getAreas() {
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return [];
-  }
-
-  return await getSheetRows(
-    sheets,
-    "Areas"
-  );
-}
-
-
-// ======================================================
-// 11. Drivers
-// ======================================================
-
-async function getDrivers() {
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return [];
-  }
-
-  return await getSheetRows(
-    sheets,
-    "Drivers"
-  );
-}
-
-
-// ======================================================
-// 12. البحث عن المنتجات
+// 7. البحث عن Products
 // ======================================================
 
 async function searchProducts(
@@ -515,90 +409,117 @@ async function searchProducts(
 ) {
 
   const products =
-    await getProducts();
+    await getSheetRows(
+      "Products"
+    );
 
   const stores =
-    await getStores();
+    await getSheetRows(
+      "Stores"
+    );
 
   const categories =
-    await getCategories();
+    await getSheetRows(
+      "Categories"
+    );
+
+  const areas =
+    await getSheetRows(
+      "Areas"
+    );
 
   const message =
-    String(userMessage || "")
-      .toLowerCase()
-      .trim();
+    normalizeText(
+      userMessage
+    );
 
-  if (!message) {
-    return [];
-  }
+  // كلمات لا نريد البحث عنها كاسم منتج
+  const stopWords = [
+
+    "بدي",
+    "بدّي",
+    "اريد",
+    "أريد",
+    "اعرف",
+    "معرفة",
+    "سعر",
+    "السعر",
+    "وين",
+    "موجود",
+    "موجودة",
+    "باي",
+    "بأي",
+    "متجر",
+    "عند",
+    "شو",
+    "هو",
+    "هي",
+    "عن",
+    "المنتج",
+    "منتج",
+    "لوين",
+    "في"
+
+  ];
 
   const words =
     message
-      .split(/\s+/)
-      .filter(word =>
-        word.length >= 2
+      .split(" ")
+      .filter(
+        word =>
+          word.length >= 2 &&
+          !stopWords.includes(word)
       );
 
-  const matches = [];
+  if (!words.length) {
+
+    console.log(
+      "🔎 لا يوجد اسم منتج واضح في الرسالة"
+    );
+
+    return [];
+
+  }
+
+  const results = [];
 
   for (const product of products) {
 
     const productName =
-      String(
-        product["Product Name"] || ""
-      ).toLowerCase();
+      normalizeText(
+        product["Product Name"]
+      );
 
-    const description =
-      String(
-        product["Description"] || ""
-      ).toLowerCase();
-
-    const barcode =
-      String(
-        product["Products_Base_ID"] || ""
-      ).toLowerCase();
+    if (!productName) {
+      continue;
+    }
 
     let score = 0;
 
-    // الاسم الكامل
-    if (
-      productName &&
-      message.includes(productName)
-    ) {
-      score += 100;
-    }
-
-    // الباركود
-    if (
-      barcode &&
-      message.includes(barcode)
-    ) {
-      score += 150;
-    }
-
-    // كلمات المنتج
     for (const word of words) {
 
       if (
         productName.includes(word)
       ) {
-        score += 10;
+
+        score += 2;
+
       }
 
-      if (
-        description.includes(word)
-      ) {
-        score += 3;
-      }
+    }
+
+    if (
+      normalizeText(message)
+        .includes(productName)
+    ) {
+
+      score += 5;
+
     }
 
     if (score <= 0) {
       continue;
     }
-
-    // ------------------------------------------
-    // المتجر
-    // ------------------------------------------
 
     const storeId =
       product["Store ID"] || "";
@@ -606,31 +527,39 @@ async function searchProducts(
     const store =
       stores.find(
         s =>
-          String(s["Store ID"] || "") ===
-          String(storeId)
+          String(
+            s["Store ID"] || ""
+          ) === String(storeId)
       );
 
-    // ------------------------------------------
-    // التصنيف
-    // ------------------------------------------
-
     const categoryId =
-      store?.["Category"] || "";
+      product["Category"] ||
+      "";
 
     const category =
       categories.find(
         c =>
-          String(c["Category ID"] || "") ===
-          String(categoryId)
+          String(
+            c["Category ID"] || ""
+          ) === String(categoryId)
       );
 
-    matches.push({
+    const areaId =
+      product["Area"] ||
+      store?.["Area"] ||
+      "";
 
-      productId:
-        product["Product ID"] || "",
+    const area =
+      areas.find(
+        a =>
+          String(
+            a["Area ID"] || ""
+          ) === String(areaId)
+      );
 
-      productBaseId:
-        product["Products_Base_ID"] || "",
+    results.push({
+
+      score,
 
       productName:
         product["Product Name"] || "",
@@ -644,129 +573,416 @@ async function searchProducts(
       description:
         product["Description"] || "",
 
+      available:
+        product["Available"] || "",
+
+      active:
+        product["Active"] || "",
+
       storeName:
-        store?.["Store Name"] || "غير معروف",
+        store?.["Store Name"] ||
+        "غير معروف",
 
       categoryName:
-        category?.["Category Name"] || "",
-
-      area:
-        store?.["Area"] || "",
+        category?.["Category Name"] ||
+        "",
 
       address:
-        store?.["Adress"] || "",
+        store?.["Adress"] ||
+        "",
+
+      areaName:
+        area?.["Area Name"] ||
+        "",
 
       openTime:
-        store?.["Open Time"] || "",
+        store?.["Open Time"] ||
+        "",
 
       closeTime:
-        store?.["Close Time"] || "",
-
-      score
+        store?.["Close Time"] ||
+        ""
 
     });
+
   }
 
-  matches.sort(
+  results.sort(
     (a, b) =>
       b.score - a.score
   );
 
-  const result =
-    matches
-      .slice(0, 10)
-      .map(item => {
-
-        const copy = {
-          ...item
-        };
-
-        // لا نرسل الأكواد الداخلية إلى Groq
-        delete copy.productId;
-        delete copy.productBaseId;
-        delete copy.score;
-        delete copy.area;
-
-        return copy;
-      });
+  const finalResults =
+    results.slice(0, 10);
 
   console.log(
     "🔎 نتائج البحث عن المنتجات:",
+    JSON.stringify(
+      finalResults
+    )
+  );
+
+  return finalResults;
+
+}
+
+
+// ======================================================
+// 8. جلب طلبات المستخدم
+// ======================================================
+
+async function getUserOrders(
+  user
+) {
+
+  if (!user) {
+    return [];
+  }
+
+  const orders =
+    await getSheetRows(
+      "Order Requuest"
+    );
+
+  const isAdmin =
+    String(user.role || "")
+      .toLowerCase()
+      .includes("admin");
+
+  const customerId =
+    String(
+      user.customerId || ""
+    ).trim();
+
+  const userMobile =
+    normalizeWhatsAppNumber(
+      user.mobile || ""
+    );
+
+  const results = [];
+
+  for (const order of orders) {
+
+    const orderCustomerId =
+      String(
+        order["Customer ID"] || ""
+      ).trim();
+
+    const orderMobile =
+      normalizeWhatsAppNumber(
+        order["Mobile"] || ""
+      );
+
+    // Admin يستطيع رؤية الطلبات
+    // للإدارة والاختبار
+    if (isAdmin) {
+
+      results.push(order);
+      continue;
+
+    }
+
+    // العميل يرى طلباته فقط
+    if (
+      customerId &&
+      orderCustomerId === customerId
+    ) {
+
+      results.push(order);
+      continue;
+
+    }
+
+    // fallback على Mobile
+    if (
+      userMobile &&
+      orderMobile &&
+      userMobile === orderMobile
+    ) {
+
+      results.push(order);
+      continue;
+
+    }
+
+  }
+
+  console.log(
+    `📦 عدد الطلبات المسموح بها للمستخدم: ${results.length}`
+  );
+
+  return results;
+
+}
+
+
+// ======================================================
+// 9. جلب تفاصيل طلب
+// ======================================================
+
+async function getOrderDetails(
+  requestId
+) {
+
+  const details =
+    await getSheetRows(
+      "Order Details"
+    );
+
+  const products =
+    await getSheetRows(
+      "Products"
+    );
+
+  const stores =
+    await getSheetRows(
+      "Stores"
+    );
+
+  const areas =
+    await getSheetRows(
+      "Areas"
+    );
+
+  const result = [];
+
+  for (const detail of details) {
+
+    if (
+      String(
+        detail["Request ID"] || ""
+      ).trim() !==
+      String(requestId || "").trim()
+    ) {
+
+      continue;
+
+    }
+
+    const productId =
+      detail["Product ID"] || "";
+
+    const storeId =
+      detail["Store ID"] || "";
+
+    const areaId =
+      detail["Area"] || "";
+
+    const product =
+      products.find(
+        p =>
+          String(
+            p["Product ID"] || ""
+          ) === String(productId)
+      );
+
+    const store =
+      stores.find(
+        s =>
+          String(
+            s["Store ID"] || ""
+          ) === String(storeId)
+      );
+
+    const area =
+      areas.find(
+        a =>
+          String(
+            a["Area ID"] || ""
+          ) === String(areaId)
+      );
+
+    result.push({
+
+      productName:
+        product?.["Product Name"] ||
+        "منتج غير معروف",
+
+      qty:
+        detail["Qty"] || "",
+
+      unitPrice:
+        detail["Unit Price"] || "",
+
+      storeName:
+        store?.["Store Name"] ||
+        "متجر غير معروف",
+
+      areaName:
+        area?.["Area Name"] ||
+        "منطقة غير معروفة"
+
+    });
+
+  }
+
+  console.log(
+    `🧾 تفاصيل الطلب ${requestId}:`,
     JSON.stringify(result)
   );
 
   return result;
+
 }
 
 
 // ======================================================
-// 13. تجهيز بيانات المنتج لـ Groq
+// 10. تجهيز بيانات الطلبات للـAI
 // ======================================================
 
-async function getProductContext(
+async function buildOrderContext(
+  user,
   userMessage
 ) {
 
-  const products =
-    await searchProducts(
+  const orders =
+    await getUserOrders(
+      user
+    );
+
+  if (!orders.length) {
+
+    return {
+
+      orders: [],
+
+      selectedOrder:
+        null,
+
+      details: []
+
+    };
+
+  }
+
+  const message =
+    normalizeText(
       userMessage
     );
 
-  if (!products.length) {
+  let selectedOrder =
+    null;
 
-    return `
-لا توجد حالياً نتيجة مؤكدة من جدول Products
-مطابقة لسؤال المستخدم.
+  // البحث عن رقم طلب واضح
+  for (const order of orders) {
 
-ممنوع اختراع منتج أو سعر أو متجر.
-`;
+    const requestId =
+      normalizeText(
+        order["Request ID"]
+      );
+
+    if (
+      requestId &&
+      message.includes(
+        requestId
+      )
+    ) {
+
+      selectedOrder =
+        order;
+
+      break;
+
+    }
+
   }
 
-  return `
-نتائج مؤكدة من قاعدة بيانات MD-Marketplace:
+  // إذا ما حدد طلب،
+  // نعتبر الأحدث أولاً
+  if (!selectedOrder) {
 
-${JSON.stringify(
-  products,
-  null,
-  2
-)}
+    selectedOrder =
+      orders[orders.length - 1];
 
-استخدم فقط المعلومات الموجودة هنا.
-`;
+  }
+
+  const details =
+    await getOrderDetails(
+      selectedOrder["Request ID"]
+    );
+
+  const safeOrders =
+    orders.map(
+      order => ({
+
+        requestId:
+          order["Request ID"] || "",
+
+        area:
+          order["Area"] || "",
+
+        deliveryAddress:
+          order["Delivery Adress"] || "",
+
+        deliveryFee:
+          order["Delivery Fee"] || "",
+
+        assignedDriver:
+          order["Assigned Driver"] || "",
+
+        approvalStatus:
+          order["Approval Status"] || "",
+
+        deliveryStatus:
+          order["Delivery Status"] || "",
+
+        itemsCost:
+          order["Items Cost"] || "",
+
+        totalAmount:
+          order["Total Amount"] || ""
+
+      })
+    );
+
+  return {
+
+    orders:
+      safeOrders,
+
+    selectedOrder:
+      selectedOrder
+        ? {
+
+            requestId:
+              selectedOrder["Request ID"] || "",
+
+            area:
+              selectedOrder["Area"] || "",
+
+            deliveryAddress:
+              selectedOrder["Delivery Adress"] || "",
+
+            deliveryFee:
+              selectedOrder["Delivery Fee"] || "",
+
+            assignedDriver:
+              selectedOrder["Assigned Driver"] || "",
+
+            approvalStatus:
+              selectedOrder["Approval Status"] || "",
+
+            deliveryStatus:
+              selectedOrder["Delivery Status"] || "",
+
+            itemsCost:
+              selectedOrder["Items Cost"] || "",
+
+            totalAmount:
+              selectedOrder["Total Amount"] || ""
+
+          }
+        : null,
+
+    details
+
+  };
+
 }
 
 
 // ======================================================
-// 14. تجهيز المحادثة السابقة
-// ======================================================
-
-function buildConversationContext(
-  conversation
-) {
-
-  if (!conversation.length) {
-
-    return "لا توجد محادثة سابقة مسجلة.";
-  }
-
-  return conversation
-    .map(row => {
-
-      return `
-العميل:
-${row["CustomerMessage"] || ""}
-
-البوت:
-${row["AIReply"] || ""}
-`;
-
-    })
-    .join("\n");
-}
-
-
-// ======================================================
-// 15. حفظ الرسالة في Messages
+// 11. حفظ الرسالة في Messages
 // ======================================================
 
 async function saveToAppSheet(
@@ -785,6 +1001,7 @@ async function saveToAppSheet(
     );
 
     return;
+
   }
 
   try {
@@ -803,7 +1020,9 @@ async function saveToAppSheet(
       await fetch(
         `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/Messages/Action`,
         {
-          method: "POST",
+
+          method:
+            "POST",
 
           headers: {
 
@@ -815,36 +1034,40 @@ async function saveToAppSheet(
 
           },
 
-          body: JSON.stringify({
+          body:
+            JSON.stringify({
 
-            Action: "Add",
+              Action:
+                "Add",
 
-            Properties: {
-              TimeZone:
-                "Asia/Beirut"
-            },
+              Properties: {
 
-            Rows: [
+                TimeZone:
+                  "Asia/Beirut"
 
-              {
+              },
 
-                Phone:
-                  from,
+              Rows: [
 
-                CustomerMessage:
-                  userMessage,
+                {
 
-                AIReply:
-                  aiReply,
+                  Phone:
+                    from,
 
-                Date:
-                  today
+                  CustomerMessage:
+                    userMessage,
 
-              }
+                  AIReply:
+                    aiReply,
 
-            ]
+                  Date:
+                    today
 
-          })
+                }
+
+              ]
+
+            })
 
         }
       );
@@ -866,23 +1089,64 @@ async function saveToAppSheet(
     );
 
   }
+
 }
 
 
 // ======================================================
-// 16. Groq AI
+// 12. قراءة آخر المحادثة
+// ======================================================
+
+async function getConversationHistory(
+  from
+) {
+
+  const messages =
+    await getSheetRows(
+      "Messages"
+    );
+
+  const normalized =
+    normalizeWhatsAppNumber(
+      from
+    );
+
+  const userMessages =
+    messages
+      .filter(
+        row =>
+          normalizeWhatsAppNumber(
+            row["Phone"] || ""
+          ) === normalized
+      )
+      .slice(-10);
+
+  console.log(
+    `💬 عدد رسائل المحادثة السابقة المستخدمة: ${userMessages.length}`
+  );
+
+  return userMessages;
+
+}
+
+
+// ======================================================
+// 13. Groq AI
 // ======================================================
 
 async function getAIReply(
   userMessage,
   user,
-  conversation,
-  productContext
+  productResults,
+  orderContext,
+  history
 ) {
 
   if (!GROQ_KEY) {
 
-    return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
+    return
+      "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
+
   }
 
   try {
@@ -894,7 +1158,7 @@ async function getAIReply(
 
       userContext = `
 
-بيانات المستخدم الموثوقة من Users:
+بيانات المستخدم الموثوقة:
 
 الاسم:
 ${user.name || "غير معروف"}
@@ -915,126 +1179,249 @@ ${user.whatsappNumber || "غير موجود"}
 
     }
 
-    const conversationContext =
-      buildConversationContext(
-        conversation
-      );
+
+    const productContext =
+      productResults.length
+        ? JSON.stringify(
+            productResults
+          )
+        : "لا توجد نتائج منتجات مؤكدة.";
+
+
+    const orderData =
+      orderContext.orders.length
+        ? JSON.stringify(
+            orderContext.orders
+          )
+        : "لا توجد طلبات متاحة لهذا المستخدم.";
+
+
+    const selectedOrder =
+      orderContext.selectedOrder
+        ? JSON.stringify(
+            orderContext.selectedOrder
+          )
+        : "لا يوجد طلب محدد.";
+
+
+    const orderDetails =
+      orderContext.details.length
+        ? JSON.stringify(
+            orderContext.details
+          )
+        : "لا توجد تفاصيل للطلب المحدد.";
+
+
+    const historyText =
+      history.length
+        ? history
+            .map(
+              m =>
+                `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`
+            )
+            .join("\n")
+        : "لا توجد محادثة سابقة.";
+
 
     const systemPrompt = `
 
 أنت موظف خدمة العملاء في MD-Marketplace.
 
-تحدث مع المستخدم باللهجة اللبنانية الودودة والطبيعية.
+تحدث باللهجة اللبنانية الودودة والطبيعية.
 
 ${userContext}
+
+
+==============================
+قواعد الهوية والأمان
+==============================
+
+1. إذا كان المستخدم معروفاً، استخدم اسمه عند الحاجة.
+
+2. لا تنادِ المستخدم برقم الهاتف.
+
+3. إذا كان المستخدم غير موجود في Users:
+   ممنوع إعطاؤه أي معلومات عن الطلبات.
+
+4. لا تسمح للمستخدم بالوصول إلى طلبات شخص آخر.
+
+5. بيانات الطلبات الموجودة أدناه تم تجهيزها من الكود بعد تطبيق صلاحيات المستخدم.
+   اعتبرها بيانات موثوقة.
+
+6. لا تخترع أي طلب.
+
+7. لا تخترع أي سعر.
+
+8. لا تخترع أي منتج.
+
+9. لا تخترع أي متجر.
+
+10. لا تخترع أي منطقة.
+
+11. لا تخترع أي حالة طلب.
+
+
+==============================
+قواعد المنتجات
+==============================
+
+إذا كانت بيانات المنتجات تحتوي على نتيجة مؤكدة:
+
+استخدم:
+Product Name
+Price
+Store Name
+Category
+Address
+Area
+
+ولا تظهر:
+Product ID
+Store ID
+Area ID
+Category ID
+
+إذا لم توجد نتيجة مؤكدة:
+قل للمستخدم إنك لم تجد المنتج حالياً.
+
+
+==============================
+قواعد الطلبات
+==============================
+
+إذا سأل المستخدم عن طلب:
+
+استخدم بيانات Order Request.
+
+يمكنك ذكر:
+
+Request ID
+Delivery Status
+Approval Status
+Items Cost
+Delivery Fee
+Total Amount
+Delivery Address
+Assigned Driver
+Area
+
+لكن لا تعرض أي IDs داخلية غير ضرورية.
+
+إذا سأل:
+"شو بقلب الطلب؟"
+
+استخدم Order Details.
+
+حوّل:
+
+Product ID
+→ Product Name
+
+Store ID
+→ Store Name
+
+Area
+→ Area Name
+
+
+==============================
+حالة الطلب
+==============================
+
+Delivery Status مهم جداً.
+
+إذا كانت البيانات:
+
+في الطريق
+أو
+بيك اب
+أو
+تم التوصيل
+
+استخدم الحالة كما هي أو بصياغة لبنانية واضحة.
+
+لا تغير حالة الطلب من عندك.
+
+
+==============================
+السائق
+==============================
+
+إذا كان Assigned Driver موجوداً:
+يمكن ذكر اسم السائق.
+
+لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك بشكل واضح.
+
+
+==============================
+أسلوب المحادثة
+==============================
+
+لا تعيد الترحيب في كل رسالة.
+
+لا تقل:
+"أنا ذكاء اصطناعي"
+إلا إذا سأل المستخدم.
+
+لا تقل:
+"حسب البيانات التي لدي..."
+في كل رد.
+
+أجب مباشرة.
+
+إذا السؤال يحتاج توضيح:
+اسأل سؤالاً واحداً فقط.
+
+إذا المستخدم قال مرحبا:
+رحب به بشكل طبيعي.
+
+لا تكرر معلومات قديمة بدون داع.
+
 
 ==============================
 المحادثة السابقة
 ==============================
 
-${conversationContext}
+${historyText}
+
 
 ==============================
-بيانات المنتجات
+نتائج المنتجات
 ==============================
 
 ${productContext}
 
+
 ==============================
-قواعد صارمة جداً
+طلبات المستخدم
 ==============================
 
-1. لا تخترع أي معلومة.
+${orderData}
 
-2. لا تخترع أسعاراً.
 
-3. لا تخترع منتجات.
+==============================
+الطلب المحدد
+==============================
 
-4. لا تخترع متاجر.
+${selectedOrder}
 
-5. لا تخترع مناطق.
 
-6. لا تخترع أوقات فتح أو إغلاق.
+==============================
+تفاصيل الطلب المحدد
+==============================
 
-7. عندما تكون بيانات المنتج متوفرة في "بيانات المنتجات"،
-   استخدمها كما هي.
-
-8. السعر يجب أن يأتي فقط من Price الموجود في بيانات المنتجات.
-
-9. اسم المتجر يجب أن يأتي فقط من Store Name.
-
-10. ممنوع ذكر Product ID أو Store ID أو Category ID
-    أو أي كود داخلي للعميل.
-
-11. إذا وجدت منتجاً في البيانات،
-    يمكنك إخبار العميل باسمه وسعره ومتجره وتصنيفه
-    حسب البيانات المتوفرة.
-
-12. إذا لم تجد المنتج في البيانات،
-    لا تقل إنه موجود.
-
-13. إذا لم تجد سعراً،
-    لا تخترع سعراً.
-
-14. إذا كان السؤال عن طلب Order،
-    لا تعطِ أي معلومات عن الطلب إذا كان المستخدم
-    غير موجود في Users.
-
-15. إذا كان المستخدم معروفاً،
-    استخدم اسمه الحقيقي الموجود في Users كما هو.
-    لا تترجمه ولا تختصره ولا تغيّره.
-
-16. لا تنادِ المستخدم برقم الهاتف.
-
-17. اقرأ المحادثة السابقة.
-    إذا قال المستخدم مثلاً:
-    "عنو"
-    أو "قديش سعره"
-    أو "بدي 2"
-    افهم المقصود من سياق المحادثة السابقة.
-
-18. لا تعيد الترحيب أو تعريف MD-Marketplace
-    في كل رسالة.
-
-19. أجب مباشرة على آخر رسالة.
-
-20. إذا كان السؤال غير واضح فعلاً،
-    اسأل سؤالاً واحداً فقط.
-
-21. إذا قال المستخدم "مرحبا" أو "كيفك"،
-    رد بشكل طبيعي ومختصر.
-
-22. لا تقل إنك ذكاء اصطناعي إلا إذا سأل المستخدم.
-
-23. لا تذكر للمستخدم أنك قرأت Google Sheets
-    أو قاعدة بيانات أو AppSheet.
-
-24. لا تقل "حسب قاعدة البيانات".
-    تحدث معه بشكل طبيعي.
-
-25. لا تقل إن منتجاً موجود إلا إذا كانت البيانات
-    المقدمة لك تؤكد ذلك.
-
-26. لا تستنتج معلومات غير موجودة في البيانات.
-
-27. لا تستخدم معلومات قديمة من ذاكرتك إذا تعارضت
-    مع البيانات المقدمة في هذه الرسالة.
-
-28. إذا كانت هناك نتائج منتجات متعددة،
-    اعرض الخيارات بوضوح واطلب منه تحديد المنتج
-    إذا كان غير واضح أي واحد يقصد.
-
-29. حالياً لا توجد لديك بيانات Order Requuest
-    أو Order Details.
-    لذلك لا تجيب عن تفاصيل الطلبات من التخمين.
+${orderDetails}
 
 `;
+
 
     const res =
       await fetch(
         "https://api.groq.com/openai/v1/chat/completions",
         {
-          method: "POST",
+
+          method:
+            "POST",
 
           headers: {
 
@@ -1046,39 +1433,48 @@ ${productContext}
 
           },
 
-          body: JSON.stringify({
+          body:
+            JSON.stringify({
 
-            model:
-              "llama-3.3-70b-versatile",
+              model:
+                "llama-3.3-70b-versatile",
 
-            messages: [
+              messages: [
 
-              {
-                role: "system",
+                {
 
-                content:
-                  systemPrompt
-              },
+                  role:
+                    "system",
 
-              {
-                role: "user",
+                  content:
+                    systemPrompt
 
-                content:
-                  userMessage
-              }
+                },
 
-            ],
+                {
 
-            temperature:
-              0.3
+                  role:
+                    "user",
 
-          })
+                  content:
+                    userMessage
+
+                }
+
+              ],
+
+              temperature:
+                0.3
+
+            })
 
         }
       );
 
+
     const data =
       await res.json();
+
 
     if (data.error) {
 
@@ -1089,13 +1485,19 @@ ${productContext}
         )
       );
 
-      return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
+      return
+        "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
+
     }
 
+
     return (
-      data.choices?.[0]?.message?.content ||
+      data.choices?.[0]
+        ?.message?.content ||
+
       "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
     );
+
 
   } catch (error) {
 
@@ -1104,20 +1506,24 @@ ${productContext}
       error
     );
 
-    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
+    return
+      "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
+
   }
+
 }
 
 
 // ======================================================
-// 17. WhatsApp Verification GET
+// 14. WhatsApp GET Verification
 // ======================================================
 
 export async function GET(req) {
 
   const {
     searchParams
-  } = new URL(req.url);
+  } =
+    new URL(req.url);
 
   const mode =
     searchParams.get(
@@ -1134,6 +1540,7 @@ export async function GET(req) {
       "hub.challenge"
     );
 
+
   if (
     mode === "subscribe" &&
     token === VERIFY_TOKEN
@@ -1142,22 +1549,27 @@ export async function GET(req) {
     return new Response(
       challenge,
       {
-        status: 200
+        status:
+          200
       }
     );
+
   }
+
 
   return new Response(
     "Forbidden",
     {
-      status: 403
+      status:
+        403
     }
   );
+
 }
 
 
 // ======================================================
-// 18. WhatsApp POST
+// 15. WhatsApp POST
 // ======================================================
 
 export async function POST(req) {
@@ -1204,11 +1616,14 @@ export async function POST(req) {
         PIN ||
         "";
 
+
       const welcomeMessage =
         `أهلاً بك يا ${customerName} في MD-Marketplace! 🌸
 
 تم إنشاء حسابك بنجاح.
-رمز الـ PIN الخاص بك هو: *${customerPIN}*
+
+رمز الـ PIN الخاص بك هو:
+*${customerPIN}*
 
 نتمنى لك تجربة تسوق ممتعة! 😊`;
 
@@ -1233,24 +1648,26 @@ export async function POST(req) {
 
       return Response.json(
         {
-          status: "ok"
+          status:
+            "ok"
         },
         {
-          status: 200
+          status:
+            200
         }
       );
+
     }
 
 
     // ==================================================
-    // قراءة رسالة WhatsApp
+    // قراءة WhatsApp Message
     // ==================================================
 
     const message =
       body.entry?.[0]
         ?.changes?.[0]
-        ?.value
-        ?.messages?.[0];
+        ?.value?.messages?.[0];
 
 
     const from =
@@ -1270,12 +1687,15 @@ export async function POST(req) {
 
       return Response.json(
         {
-          status: "ok"
+          status:
+            "ok"
         },
         {
-          status: 200
+          status:
+            200
         }
       );
+
     }
 
 
@@ -1320,26 +1740,55 @@ export async function POST(req) {
       console.log(
         "⚠️ المستخدم غير موجود في Users"
       );
+
     }
 
 
     // ==================================================
-    // قراءة المحادثة السابقة
+    // الأمان:
+    // إذا المستخدم غير معروف، لا نقرأ Orders
     // ==================================================
 
-    const conversation =
+    let productResults = [];
+
+    let orderContext = {
+
+      orders: [],
+
+      selectedOrder:
+        null,
+
+      details: []
+
+    };
+
+
+    if (user) {
+
+      // البحث عن المنتجات
+      productResults =
+        await searchProducts(
+          userText
+        );
+
+
+      // البحث عن الطلبات
+      orderContext =
+        await buildOrderContext(
+          user,
+          userText
+        );
+
+    }
+
+
+    // ==================================================
+    // المحادثة السابقة
+    // ==================================================
+
+    const history =
       await getConversationHistory(
-        whatsappNumber
-      );
-
-
-    // ==================================================
-    // البحث عن المنتج
-    // ==================================================
-
-    const productContext =
-      await getProductContext(
-        userText
+        from
       );
 
 
@@ -1349,20 +1798,28 @@ export async function POST(req) {
 
     const aiReply =
       await getAIReply(
+
         userText,
+
         user,
-        conversation,
-        productContext
+
+        productResults,
+
+        orderContext,
+
+        history
+
       );
 
 
     console.log(
-      `🤖 الرد المولّد: ${aiReply}`
+      "🤖 الرد المولّد:",
+      aiReply
     );
 
 
     // ==================================================
-    // WhatsApp
+    // إرسال WhatsApp
     // ==================================================
 
     await sendMessage(
@@ -1372,7 +1829,7 @@ export async function POST(req) {
 
 
     // ==================================================
-    // Messages
+    // حفظ الرسالة
     // ==================================================
 
     await saveToAppSheet(
@@ -1384,10 +1841,12 @@ export async function POST(req) {
 
     return Response.json(
       {
-        status: "ok"
+        status:
+          "ok"
       },
       {
-        status: 200
+        status:
+          200
       }
     );
 
@@ -1400,14 +1859,18 @@ export async function POST(req) {
     );
 
 
-    // مهم حتى Meta لا تعيد إرسال الرسالة
+    // 200 حتى لا تعيد Meta إرسال الرسالة
     return Response.json(
       {
-        status: "ok"
+        status:
+          "ok"
       },
       {
-        status: 200
+        status:
+          200
       }
     );
+
   }
+
 }
