@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import LRU from "lru-cache";   // ← أضفنا الكاش هون
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +90,7 @@ async function sendMessage(to, text) {
   try {
 
     const res = await fetch(
-      `https://graph.facebook.com/v20.0/${PHONE_ID}/messages`,
+      `https://graph.facebook.com/v26.0/${PHONE_ID}/messages`,   // ← عدّلنا النسخة
       {
         method: "POST",
 
@@ -165,6 +166,117 @@ function getGoogleSheetsClient() {
     return null;
 
   }
+
+  try {
+
+    const auth =
+      new google.auth.GoogleAuth({
+
+        credentials: {
+
+          client_email:
+            GOOGLE_CLIENT_EMAIL,
+
+          private_key:
+            GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n")
+
+        },
+
+        scopes: [
+          "https://www.googleapis.com/auth/spreadsheets.readonly"
+        ]
+
+      });
+
+    return google.sheets({
+      version: "v4",
+      auth
+    });
+
+  } catch (error) {
+
+    console.error(
+      "❌ خطأ إنشاء Google Sheets client:",
+      error
+    );
+
+    return null;
+
+  }
+
+}
+
+
+// ======================================================
+// CACHE LAYER — أهم تعديل
+// ======================================================
+
+const cache = new LRU({
+  max: 50,               // عدد الجداول المخزّنة
+  ttl: 1000 * 60 * 5     // 5 دقائق
+});
+
+
+// ======================================================
+// 4. قراءة أي جدول Google Sheets (مع كاش)
+// ======================================================
+
+async function getSheetRows(sheetName) {
+
+  // 1) جرّب تجيب الجدول من الكاش
+  const cached = cache.get(sheetName);
+  if (cached) {
+    return cached;
+  }
+
+  const sheets = getGoogleSheetsClient();
+  if (!sheets) return [];
+
+  try {
+
+    const response =
+      await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEETS_ID,
+        range: `${sheetName}!A:Z`
+      });
+
+    const rows =
+      response.data.values || [];
+
+    if (!rows.length) {
+      console.log(`⚠️ جدول ${sheetName} فارغ`);
+      return [];
+    }
+
+    const headers =
+      rows[0].map(h => String(h || "").trim());
+
+    const mapped =
+      rows.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((header, index) => {
+          obj[header] = row[index] || "";
+        });
+        return obj;
+      });
+
+    // 3) خزّن النتيجة بالكاش
+    cache.set(sheetName, mapped);
+
+    return mapped;
+
+  } catch (error) {
+
+    console.error(
+      `❌ خطأ قراءة جدول ${sheetName}:`,
+      error.message
+    );
+
+    return [];
+
+  }
+
+}
 
   try {
 
