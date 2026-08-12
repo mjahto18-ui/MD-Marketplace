@@ -34,44 +34,111 @@ const GOOGLE_CLIENT_EMAIL =
 const GOOGLE_PRIVATE_KEY =
   process.env.GOOGLE_PRIVATE_KEY;
 
+
 // ======================================================
-// CACHE ONLY - الإضافة الوحيدة
+// CACHE
+// فقط للجداول الثابتة نسبياً
+//
+// Products / Stores / Categories / Areas
+//
+//
+// Users / Orders / Order Details / Messages
+// تبقى LIVE بدون Cache
 // ======================================================
+
 const SHEETS_CACHE = new Map();
-const CACHE_TTL = 1000 * 60 * 5; // 5 دقايق
+
+const CACHE_TTL =
+  1000 * 60 * 5; // 5 دقائق
+
+const CACHEABLE_SHEETS =
+  new Set([
+    "Products",
+    "Stores",
+    "Categories",
+    "Areas"
+  ]);
 
 function getCache(key) {
-  const item = SHEETS_CACHE.get(key);
-  if (!item) return null;
-  if (Date.now() - item.t > CACHE_TTL) {
-    SHEETS_CACHE.delete(key);
+
+  const item =
+    SHEETS_CACHE.get(key);
+
+  if (!item) {
+
     return null;
+
   }
+
+  if (
+    Date.now() - item.t >
+    CACHE_TTL
+  ) {
+
+    SHEETS_CACHE.delete(key);
+
+    return null;
+
+  }
+
   return item.v;
+
 }
-function setCache(key, v) {
-  SHEETS_CACHE.set(key, { v, t: Date.now() });
+
+
+function setCache(
+  key,
+  value
+) {
+
+  SHEETS_CACHE.set(
+    key,
+    {
+      v: value,
+      t: Date.now()
+    }
+  );
+
 }
+
 
 // ======================================================
 // 1. توحيد رقم WhatsApp
 // ======================================================
 
-function normalizeWhatsAppNumber(phone) {
+function normalizeWhatsAppNumber(
+  phone
+) {
+
   let clean =
-    String(phone || "").replace(/\D/g, "");
-  if (clean.startsWith("03")) {
+    String(phone || "")
+      .replace(/\D/g, "");
+
+  // 03177653 → 9613177653
+  if (
+    clean.startsWith("03")
+  ) {
+
     clean =
-      "9613" + clean.substring(2);
+      "9613" +
+      clean.substring(2);
+
   }
+
+  // 3177653 → 9613177653
   else if (
     clean.length === 7 &&
     clean.startsWith("3")
   ) {
+
     clean =
-      "961" + clean;
+      "961" +
+      clean;
+
   }
+
   return clean;
+
 }
 
 
@@ -79,52 +146,85 @@ function normalizeWhatsAppNumber(phone) {
 // 2. إرسال WhatsApp
 // ======================================================
 
-async function sendMessage(to, text) {
+async function sendMessage(
+  to,
+  text
+) {
+
   if (!WHATSAPP_TOKEN) {
+
     console.error(
       "❌ WHATSAPP_TOKEN غير موجود"
     );
+
     return;
+
   }
+
   const cleanPhone =
-    normalizeWhatsAppNumber(to);
-  try {
-    const res = await fetch(
-      `https://graph.facebook.com/v21.0/${PHONE_ID}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization:
-            `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type":
-            "application/json"
-        },
-        body: JSON.stringify({
-          messaging_product:
-            "whatsapp",
-          to:
-            cleanPhone,
-          type:
-            "text",
-          text: {
-            body:
-              text
-          }
-        })
-      }
+    normalizeWhatsAppNumber(
+      to
     );
+
+  try {
+
+    const res =
+      await fetch(
+        `https://graph.facebook.com/v21.0/${PHONE_ID}/messages`,
+        {
+          method: "POST",
+
+          headers: {
+
+            Authorization:
+              `Bearer ${WHATSAPP_TOKEN}`,
+
+            "Content-Type":
+              "application/json"
+
+          },
+
+          body:
+            JSON.stringify({
+
+              messaging_product:
+                "whatsapp",
+
+              to:
+                cleanPhone,
+
+              type:
+                "text",
+
+              text: {
+
+                body:
+                  text
+
+              }
+
+            })
+
+        }
+      );
+
     const data =
       await res.json();
+
     console.log(
       "📤 نتيجة الإرسال للواتساب:",
       JSON.stringify(data)
     );
+
   } catch (error) {
+
     console.error(
       "❌ خطأ إرسال واتساب:",
       error
     );
+
   }
+
 }
 
 
@@ -133,114 +233,328 @@ async function sendMessage(to, text) {
 // ======================================================
 
 function getGoogleSheetsClient() {
+
   if (
     !GOOGLE_SHEETS_ID ||
     !GOOGLE_CLIENT_EMAIL ||
     !GOOGLE_PRIVATE_KEY
   ) {
+
     console.error(
       "❌ Google Sheets credentials ناقصة"
     );
+
     return null;
+
   }
+
   try {
+
     const auth =
       new google.auth.GoogleAuth({
+
         credentials: {
+
           client_email:
             GOOGLE_CLIENT_EMAIL,
+
           private_key:
             GOOGLE_PRIVATE_KEY.replace(
               /\\n/g,
               "\n"
             )
+
         },
+
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets.readonly"
         ]
+
       });
+
     return google.sheets({
-      version:
-        "v4",
+      version: "v4",
       auth
     });
+
   } catch (error) {
+
     console.error(
       "❌ خطأ إنشاء Google Sheets client:",
       error
     );
+
     return null;
+
   }
+
 }
 
 
+
 // ======================================================
-// 4. قراءة أي جدول Google Sheets - مع كاش فقط
+// 4. قراءة جدول Google Sheets
+//
+// Cache:
+// Products / Stores / Categories / Areas
+//
+// Live:
+// Users / Order Requuest / Order Details / Messages
+//
+// مع حماية من تكرار نفس القراءة إذا وصل أكثر
+// من طلب بنفس الوقت والـCache فاضي.
 // ======================================================
+
+const SHEETS_LOADING = new Map();
 
 async function getSheetRows(
   sheetName
 ) {
-  const cached = getCache(sheetName);
-  if (cached) {
-    console.log(`⚡ كاش: ${sheetName} (${cached.length})`);
-    return cached;
+
+  const useCache =
+    CACHEABLE_SHEETS.has(
+      sheetName
+    );
+
+
+  // ====================================================
+  // 1. محاولة القراءة من Cache
+  // ====================================================
+
+  if (useCache) {
+
+    const cached =
+      getCache(
+        sheetName
+      );
+
+    if (cached) {
+
+      console.log(
+        `⚡ Cache: ${sheetName} (${cached.length})`
+      );
+
+      return cached;
+
+    }
+
   }
+
+
+  // ====================================================
+  // 2. إذا في قراءة جارية لنفس الجدول
+  //    ننتظر نفس الطلب بدل ما نعمل طلب جديد
+  // ====================================================
+
+  if (useCache) {
+
+    const loading =
+      SHEETS_LOADING.get(
+        sheetName
+      );
+
+    if (loading) {
+
+      console.log(
+        `⏳ انتظار قراءة جارية: ${sheetName}`
+      );
+
+      try {
+
+        return await loading;
+
+      } catch (error) {
+
+        console.error(
+          `❌ فشل الطلب المشترك: ${sheetName}`,
+          error.message
+        );
+
+        return [];
+
+      }
+
+    }
+
+  }
+
+
+  // ====================================================
+  // 3. Google Sheets Client
+  // ====================================================
 
   const sheets =
     getGoogleSheetsClient();
+
   if (!sheets) {
+
     return [];
+
   }
-  try {
-    const response =
-      await sheets.spreadsheets.values.get({
-        spreadsheetId:
-          GOOGLE_SHEETS_ID,
-        range:
-          `${sheetName}!A:Z`
-      });
-    const rows =
-      response.data.values || [];
-    if (!rows.length) {
-      console.log(
-        `⚠ جدول ${sheetName} فارغ`
-      );
-      return [];
-    }
-    const headers =
-      rows[0].map(
-        h =>
-          String(h || "").trim()
-      );
-    const result = rows
-      .slice(1)
-      .map(row => {
-        const obj = {};
-        headers.forEach(
-          (header, index) => {
-            obj[header] =
-              row[index] || "";
-          }
+
+
+  // ====================================================
+  // 4. تنفيذ القراءة
+  // ====================================================
+
+  const loadPromise =
+    (async () => {
+
+      try {
+
+        console.log(
+          `📡 قراءة Live من Google Sheets: ${sheetName}`
         );
-        return obj;
-      });
-    setCache(sheetName, result);
-    return result;
-  } catch (error) {
-    console.error(
-      `❌ خطأ قراءة جدول ${sheetName}:`,
-      error.message
+
+
+        const response =
+          await sheets.spreadsheets.values.get({
+
+            spreadsheetId:
+              GOOGLE_SHEETS_ID,
+
+            range:
+              `${sheetName}!A:Z`
+
+          });
+
+
+        const rows =
+          response.data.values || [];
+
+
+        if (!rows.length) {
+
+          console.log(
+            `⚠️ جدول ${sheetName} فارغ`
+          );
+
+          return [];
+
+        }
+
+
+        // ==================================================
+        // Headers
+        // ==================================================
+
+        const headers =
+          rows[0].map(
+            h =>
+              String(
+                h || ""
+              ).trim()
+          );
+
+
+        // ==================================================
+        // تحويل الصفوف إلى Objects
+        // ==================================================
+
+        const result =
+          rows
+            .slice(1)
+            .map(
+              row => {
+
+                const obj = {};
+
+                headers.forEach(
+                  (
+                    header,
+                    index
+                  ) => {
+
+                    obj[header] =
+                      row[index] ||
+                      "";
+
+                  }
+                );
+
+                return obj;
+
+              }
+            );
+
+
+        // ==================================================
+        // تخزين Cache
+        //
+        // فقط للجداول الموجودة في CACHEABLE_SHEETS
+        // ==================================================
+
+        if (useCache) {
+
+          setCache(
+            sheetName,
+            result
+          );
+
+          console.log(
+            `💾 تم تخزين ${sheetName} في Cache لمدة 5 دقائق`
+          );
+
+        }
+
+
+        return result;
+
+
+      } catch (error) {
+
+        console.error(
+          `❌ خطأ قراءة جدول ${sheetName}:`,
+          error.message
+        );
+
+        return [];
+
+      }
+
+    })();
+
+
+  // ====================================================
+  // 5. تسجيل القراءة الجارية
+  // ====================================================
+
+  if (useCache) {
+
+    SHEETS_LOADING.set(
+      sheetName,
+      loadPromise
     );
-    return [];
+
   }
+
+
+  try {
+
+    return await loadPromise;
+
+  } finally {
+
+    // ==================================================
+    // حذف حالة Loading بعد انتهاء القراءة
+    // ==================================================
+
+    if (useCache) {
+
+      SHEETS_LOADING.delete(
+        sheetName
+      );
+
+    }
+
+  }
+
 }
 
 
 // ======================================================
 // 5. تطبيع النص للبحث
 // ======================================================
-
 function normalizeText(text) {
   return String(text || "")
     .toLowerCase()
