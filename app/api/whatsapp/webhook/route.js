@@ -89,7 +89,7 @@ async function sendMessage(to, text) {
   try {
 
     const res = await fetch(
-      `https://graph.facebook.com/v26.0/${PHONE_ID}/messages`,
+      `https://graph.facebook.com/v20.0/${PHONE_ID}/messages`,
       {
         method: "POST",
 
