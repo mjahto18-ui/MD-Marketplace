@@ -276,8 +276,6 @@ async function getSheetRows(sheetName) {
 
   }
 
-}
-
   try {
 
     const auth =
