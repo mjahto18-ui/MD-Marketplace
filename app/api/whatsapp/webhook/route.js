@@ -34,35 +34,43 @@ const GOOGLE_CLIENT_EMAIL =
 const GOOGLE_PRIVATE_KEY =
   process.env.GOOGLE_PRIVATE_KEY;
 
+// ======================================================
+// CACHE ONLY - الإضافة الوحيدة
+// ======================================================
+const SHEETS_CACHE = new Map();
+const CACHE_TTL = 1000 * 60 * 5; // 5 دقايق
+
+function getCache(key) {
+  const item = SHEETS_CACHE.get(key);
+  if (!item) return null;
+  if (Date.now() - item.t > CACHE_TTL) {
+    SHEETS_CACHE.delete(key);
+    return null;
+  }
+  return item.v;
+}
+function setCache(key, v) {
+  SHEETS_CACHE.set(key, { v, t: Date.now() });
+}
 
 // ======================================================
 // 1. توحيد رقم WhatsApp
 // ======================================================
 
 function normalizeWhatsAppNumber(phone) {
-
   let clean =
     String(phone || "").replace(/\D/g, "");
-
-  // 03177653
   if (clean.startsWith("03")) {
-
     clean =
       "9613" + clean.substring(2);
-
   }
-
-  // 3177653
   else if (
     clean.length === 7 &&
     clean.startsWith("3")
   ) {
-
     clean =
       "961" + clean;
-
   }
-
   return clean;
 }
 
@@ -72,77 +80,51 @@ function normalizeWhatsAppNumber(phone) {
 // ======================================================
 
 async function sendMessage(to, text) {
-
   if (!WHATSAPP_TOKEN) {
-
     console.error(
       "❌ WHATSAPP_TOKEN غير موجود"
     );
-
     return;
-
   }
-
   const cleanPhone =
     normalizeWhatsAppNumber(to);
-
   try {
-
     const res = await fetch(
-      `https://graph.facebook.com/v20.0/${PHONE_ID}/messages`,
+      `https://graph.facebook.com/v21.0/${PHONE_ID}/messages`,
       {
         method: "POST",
-
         headers: {
-
           Authorization:
             `Bearer ${WHATSAPP_TOKEN}`,
-
           "Content-Type":
             "application/json"
-
         },
-
         body: JSON.stringify({
-
           messaging_product:
             "whatsapp",
-
           to:
             cleanPhone,
-
           type:
             "text",
-
           text: {
-
             body:
               text
-
           }
-
         })
-
       }
     );
-
     const data =
       await res.json();
-
     console.log(
       "📤 نتيجة الإرسال للواتساب:",
       JSON.stringify(data)
     );
-
   } catch (error) {
-
     console.error(
       "❌ خطأ إرسال واتساب:",
       error
     );
-
   }
-
 }
 
 
@@ -151,146 +133,107 @@ async function sendMessage(to, text) {
 // ======================================================
 
 function getGoogleSheetsClient() {
-
   if (
     !GOOGLE_SHEETS_ID ||
     !GOOGLE_CLIENT_EMAIL ||
     !GOOGLE_PRIVATE_KEY
   ) {
-
     console.error(
       "❌ Google Sheets credentials ناقصة"
     );
-
     return null;
-
   }
   try {
-
     const auth =
       new google.auth.GoogleAuth({
-
         credentials: {
-
           client_email:
             GOOGLE_CLIENT_EMAIL,
-
           private_key:
             GOOGLE_PRIVATE_KEY.replace(
               /\\n/g,
               "\n"
             )
-
         },
-
         scopes: [
-
           "https://www.googleapis.com/auth/spreadsheets.readonly"
-
         ]
-
       });
-
     return google.sheets({
-
       version:
         "v4",
-
       auth
-
     });
-
   } catch (error) {
-
     console.error(
       "❌ خطأ إنشاء Google Sheets client:",
       error
     );
-
     return null;
-
   }
-
 }
 
 
 // ======================================================
-// 4. قراءة أي جدول Google Sheets
+// 4. قراءة أي جدول Google Sheets - مع كاش فقط
 // ======================================================
 
 async function getSheetRows(
   sheetName
 ) {
+  const cached = getCache(sheetName);
+  if (cached) {
+    console.log(`⚡ كاش: ${sheetName} (${cached.length})`);
+    return cached;
+  }
 
   const sheets =
     getGoogleSheetsClient();
-
   if (!sheets) {
     return [];
   }
-
   try {
-
     const response =
       await sheets.spreadsheets.values.get({
-
         spreadsheetId:
           GOOGLE_SHEETS_ID,
-
         range:
           `${sheetName}!A:Z`
-
       });
-
     const rows =
       response.data.values || [];
-
     if (!rows.length) {
-
       console.log(
-        `⚠️ جدول ${sheetName} فارغ`
+        `⚠ جدول ${sheetName} فارغ`
       );
-
       return [];
-
     }
-
     const headers =
       rows[0].map(
         h =>
           String(h || "").trim()
       );
-
-    return rows
+    const result = rows
       .slice(1)
       .map(row => {
-
         const obj = {};
-
         headers.forEach(
           (header, index) => {
-
             obj[header] =
               row[index] || "";
-
           }
         );
-
         return obj;
-
       });
-
+    setCache(sheetName, result);
+    return result;
   } catch (error) {
-
     console.error(
       `❌ خطأ قراءة جدول ${sheetName}:`,
       error.message
     );
-
     return [];
-
   }
-
 }
 
 
@@ -299,13 +242,11 @@ async function getSheetRows(
 // ======================================================
 
 function normalizeText(text) {
-
   return String(text || "")
     .toLowerCase()
     .trim()
     .replace(/[؟?!.,،]/g, " ")
     .replace(/\s+/g, " ");
-
 }
 
 
@@ -316,86 +257,60 @@ function normalizeText(text) {
 async function getUserByWhatsAppNumber(
   whatsappNumber
 ) {
-
   const normalized =
     normalizeWhatsAppNumber(
       whatsappNumber
     );
-
   console.log(
     `🔎 البحث في Users | WhatsApp Number: ${normalized}`
   );
-
   const rows =
     await getSheetRows("Users");
-
   console.log(
     `📋 عدد مستخدمي Users: ${rows.length}`
   );
-
   for (const row of rows) {
-
     const rowWhatsApp =
       normalizeWhatsAppNumber(
         row["WhatsApp Number"] ||
         ""
       );
-
     if (
       rowWhatsApp === normalized
     ) {
-
       const user = {
-
         userId:
           row["User ID"] || "",
-
         role:
           row["Role"] || "",
-
         name:
           row["Name"] || "",
-
         mobile:
           row["Mobile"] || "",
-
         customerId:
           row["Customer ID"] || "",
-
         whatsappNumber:
           row["WhatsApp Number"] || "",
-
         storeId:
           row["Store ID"] || "",
-
         area:
           row["Area"] || "",
-
         status:
           row["Status"] || "",
-
         active:
           row["Active"] || ""
-
       };
-
       console.log(
         "🎯 تم التعرف على المستخدم:",
         JSON.stringify(user)
       );
-
       return user;
-
     }
-
   }
-
   console.log(
-    `⚠️ الرقم ${normalized} غير موجود في Users`
+    `⚠ الرقم ${normalized} غير موجود في Users`
   );
-
   return null;
-
 }
 
 
@@ -406,35 +321,27 @@ async function getUserByWhatsAppNumber(
 async function searchProducts(
   userMessage
 ) {
-
   const products =
     await getSheetRows(
       "Products"
     );
-
   const stores =
     await getSheetRows(
       "Stores"
     );
-
   const categories =
     await getSheetRows(
       "Categories"
     );
-
   const areas =
     await getSheetRows(
       "Areas"
     );
-
   const message =
     normalizeText(
       userMessage
     );
-
-  // كلمات لا نريد البحث عنها كاسم منتج
   const stopWords = [
-
     "بدي",
     "بدّي",
     "اريد",
@@ -458,9 +365,7 @@ async function searchProducts(
     "منتج",
     "لوين",
     "في"
-
   ];
-
   const words =
     message
       .split(" ")
@@ -469,60 +374,40 @@ async function searchProducts(
           word.length >= 2 &&
           !stopWords.includes(word)
       );
-
   if (!words.length) {
-
     console.log(
       "🔎 لا يوجد اسم منتج واضح في الرسالة"
     );
-
     return [];
-
   }
-
   const results = [];
-
   for (const product of products) {
-
     const productName =
       normalizeText(
         product["Product Name"]
       );
-
     if (!productName) {
       continue;
     }
-
     let score = 0;
-
     for (const word of words) {
-
       if (
         productName.includes(word)
       ) {
-
         score += 2;
-
       }
-
     }
-
     if (
       normalizeText(message)
         .includes(productName)
     ) {
-
       score += 5;
-
     }
-
     if (score <= 0) {
       continue;
     }
-
     const storeId =
       product["Store ID"] || "";
-
     const store =
       stores.find(
         s =>
@@ -530,11 +415,9 @@ async function searchProducts(
             s["Store ID"] || ""
           ) === String(storeId)
       );
-
     const categoryId =
       product["Category"] ||
       "";
-
     const category =
       categories.find(
         c =>
@@ -542,12 +425,10 @@ async function searchProducts(
             c["Category ID"] || ""
           ) === String(categoryId)
       );
-
     const areaId =
       product["Area"] ||
       store?.["Area"] ||
       "";
-
     const area =
       areas.find(
         a =>
@@ -555,74 +436,53 @@ async function searchProducts(
             a["Area ID"] || ""
           ) === String(areaId)
       );
-
     results.push({
-
       score,
-
       productName:
         product["Product Name"] || "",
-
       unit:
         product["Unit"] || "",
-
       price:
         product["Price"] || "",
-
       description:
         product["Description"] || "",
-
       available:
         product["Available"] || "",
-
       active:
         product["Active"] || "",
-
       storeName:
         store?.["Store Name"] ||
         "غير معروف",
-
       categoryName:
         category?.["Category Name"] ||
         "",
-
       address:
         store?.["Adress"] ||
         "",
-
       areaName:
         area?.["Area Name"] ||
         "",
-
       openTime:
         store?.["Open Time"] ||
         "",
-
       closeTime:
         store?.["Close Time"] ||
         ""
-
     });
-
   }
-
   results.sort(
     (a, b) =>
       b.score - a.score
   );
-
   const finalResults =
     results.slice(0, 10);
-
   console.log(
     "🔎 نتائج البحث عن المنتجات:",
     JSON.stringify(
       finalResults
     )
   );
-
   return finalResults;
-
 }
 
 
@@ -633,85 +493,59 @@ async function searchProducts(
 async function getUserOrders(
   user
 ) {
-
   if (!user) {
     return [];
   }
-
   const orders =
     await getSheetRows(
       "Order Requuest"
     );
-
   const isAdmin =
     String(user.role || "")
       .toLowerCase()
       .includes("admin");
-
   const customerId =
     String(
       user.customerId || ""
     ).trim();
-
   const userMobile =
     normalizeWhatsAppNumber(
       user.mobile || ""
     );
-
   const results = [];
-
   for (const order of orders) {
-
     const orderCustomerId =
       String(
         order["Customer ID"] || ""
       ).trim();
-
     const orderMobile =
       normalizeWhatsAppNumber(
         order["Mobile"] || ""
       );
-
-    // Admin يستطيع رؤية الطلبات
-    // للإدارة والاختبار
     if (isAdmin) {
-
       results.push(order);
       continue;
-
     }
-
-    // العميل يرى طلباته فقط
     if (
       customerId &&
       orderCustomerId === customerId
     ) {
-
       results.push(order);
       continue;
-
     }
-
-    // fallback على Mobile
     if (
       userMobile &&
       orderMobile &&
       userMobile === orderMobile
     ) {
-
       results.push(order);
       continue;
-
     }
-
   }
-
   console.log(
     `📦 عدد الطلبات المسموح بها للمستخدم: ${results.length}`
   );
-
   return results;
-
 }
 
 
@@ -722,51 +556,38 @@ async function getUserOrders(
 async function getOrderDetails(
   requestId
 ) {
-
   const details =
     await getSheetRows(
       "Order Details"
     );
-
   const products =
     await getSheetRows(
       "Products"
     );
-
   const stores =
     await getSheetRows(
       "Stores"
     );
-
   const areas =
     await getSheetRows(
       "Areas"
     );
-
   const result = [];
-
   for (const detail of details) {
-
     if (
       String(
         detail["Request ID"] || ""
       ).trim() !==
       String(requestId || "").trim()
     ) {
-
       continue;
-
     }
-
     const productId =
       detail["Product ID"] || "";
-
     const storeId =
       detail["Store ID"] || "";
-
     const areaId =
       detail["Area"] || "";
-
     const product =
       products.find(
         p =>
@@ -774,7 +595,6 @@ async function getOrderDetails(
             p["Product ID"] || ""
           ) === String(productId)
       );
-
     const store =
       stores.find(
         s =>
@@ -782,7 +602,6 @@ async function getOrderDetails(
             s["Store ID"] || ""
           ) === String(storeId)
       );
-
     const area =
       areas.find(
         a =>
@@ -790,38 +609,27 @@ async function getOrderDetails(
             a["Area ID"] || ""
           ) === String(areaId)
       );
-
     result.push({
-
       productName:
         product?.["Product Name"] ||
         "منتج غير معروف",
-
       qty:
         detail["Qty"] || "",
-
       unitPrice:
         detail["Unit Price"] || "",
-
       storeName:
         store?.["Store Name"] ||
         "متجر غير معروف",
-
       areaName:
         area?.["Area Name"] ||
         "منطقة غير معروفة"
-
     });
-
   }
-
   console.log(
     `🧾 تفاصيل الطلب ${requestId}:`,
     JSON.stringify(result)
   );
-
   return result;
-
 }
 
 
@@ -833,150 +641,99 @@ async function buildOrderContext(
   user,
   userMessage
 ) {
-
   const orders =
     await getUserOrders(
       user
     );
-
   if (!orders.length) {
-
     return {
-
       orders: [],
-
       selectedOrder:
         null,
-
       details: []
-
     };
-
   }
-
   const message =
     normalizeText(
       userMessage
     );
-
   let selectedOrder =
     null;
-
-  // البحث عن رقم طلب واضح
   for (const order of orders) {
-
     const requestId =
       normalizeText(
         order["Request ID"]
       );
-
     if (
       requestId &&
       message.includes(
         requestId
       )
     ) {
-
       selectedOrder =
         order;
-
       break;
-
     }
-
   }
-
-  // إذا ما حدد طلب،
-  // نعتبر الأحدث أولاً
   if (!selectedOrder) {
-
     selectedOrder =
       orders[orders.length - 1];
-
   }
-
   const details =
     await getOrderDetails(
       selectedOrder["Request ID"]
     );
-
   const safeOrders =
     orders.map(
       order => ({
-
         requestId:
           order["Request ID"] || "",
-
         area:
           order["Area"] || "",
-
         deliveryAddress:
           order["Delivery Adress"] || "",
-
         deliveryFee:
           order["Delivery Fee"] || "",
-
         assignedDriver:
           order["Assigned Driver"] || "",
-
         approvalStatus:
           order["Approval Status"] || "",
-
         deliveryStatus:
           order["Delivery Status"] || "",
-
         itemsCost:
           order["Items Cost"] || "",
-
         totalAmount:
           order["Total Amount"] || ""
-
       })
     );
-
   return {
-
     orders:
       safeOrders,
-
     selectedOrder:
       selectedOrder
         ? {
-
             requestId:
               selectedOrder["Request ID"] || "",
-
             area:
               selectedOrder["Area"] || "",
-
             deliveryAddress:
               selectedOrder["Delivery Adress"] || "",
-
             deliveryFee:
               selectedOrder["Delivery Fee"] || "",
-
             assignedDriver:
               selectedOrder["Assigned Driver"] || "",
-
             approvalStatus:
               selectedOrder["Approval Status"] || "",
-
             deliveryStatus:
               selectedOrder["Delivery Status"] || "",
-
             itemsCost:
               selectedOrder["Items Cost"] || "",
-
             totalAmount:
               selectedOrder["Total Amount"] || ""
-
           }
         : null,
-
     details
-
   };
-
 }
 
 
@@ -989,22 +746,16 @@ async function saveToAppSheet(
   userMessage,
   aiReply
 ) {
-
   if (
     !APPSHEET_APP_ID ||
     !APPSHEET_API_KEY
   ) {
-
     console.error(
       "❌ AppSheet credentials ناقصة"
     );
-
     return;
-
   }
-
   try {
-
     const today =
       new Date()
         .toLocaleDateString(
@@ -1014,81 +765,54 @@ async function saveToAppSheet(
               "Asia/Beirut"
           }
         );
-
     const res =
       await fetch(
         `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/Messages/Action`,
         {
-
           method:
             "POST",
-
           headers: {
-
             ApplicationAccessKey:
               APPSHEET_API_KEY,
-
             "Content-Type":
               "application/json"
-
           },
-
           body:
             JSON.stringify({
-
               Action:
                 "Add",
-
               Properties: {
-
                 TimeZone:
                   "Asia/Beirut"
-
               },
-
               Rows: [
-
                 {
-
                   Phone:
                     from,
-
                   CustomerMessage:
                     userMessage,
-
                   AIReply:
                     aiReply,
-
                   Date:
                     today
-
                 }
-
               ]
-
             })
-
         }
       );
-
     const result =
       await res.text();
-
     console.log(
       "💾 نتيجة الحفظ في AppSheet:",
       res.status,
       result
     );
-
   } catch (error) {
-
     console.error(
       "❌ خطأ AppSheet:",
       error
     );
-
   }
-
 }
 
 
@@ -1099,17 +823,14 @@ async function saveToAppSheet(
 async function getConversationHistory(
   from
 ) {
-
   const messages =
     await getSheetRows(
       "Messages"
     );
-
   const normalized =
     normalizeWhatsAppNumber(
       from
     );
-
   const userMessages =
     messages
       .filter(
@@ -1119,13 +840,10 @@ async function getConversationHistory(
           ) === normalized
       )
       .slice(-10);
-
   console.log(
     `💬 عدد رسائل المحادثة السابقة المستخدمة: ${userMessages.length}`
   );
-
   return userMessages;
-
 }
 
 
@@ -1140,23 +858,15 @@ async function getAIReply(
   orderContext,
   history
 ) {
-
   if (!GROQ_KEY) {
-
     return
       "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
-
   }
-
   try {
-
     let userContext =
       "المستخدم غير معروف في نظام Users.";
-
     if (user) {
-
       userContext = `
-
 بيانات المستخدم الموثوقة:
 
 الاسم:
@@ -1175,7 +885,6 @@ ${user.userId || "غير موجود"}
 ${user.whatsappNumber || "غير موجود"}
 
 `;
-
     }
 
 
@@ -1223,7 +932,6 @@ ${user.whatsappNumber || "غير موجود"}
 
 
     const systemPrompt = `
-
 أنت موظف خدمة العملاء في MD-Marketplace.
 
 تحدث باللهجة اللبنانية الودودة والطبيعية.
@@ -1418,55 +1126,35 @@ ${orderDetails}
       await fetch(
         "https://api.groq.com/openai/v1/chat/completions",
         {
-
           method:
             "POST",
-
           headers: {
-
             Authorization:
               `Bearer ${GROQ_KEY}`,
-
             "Content-Type":
               "application/json"
-
           },
-
           body:
             JSON.stringify({
-
               model:
                 "llama-3.3-70b-versatile",
-
               messages: [
-
                 {
-
                   role:
                     "system",
-
                   content:
                     systemPrompt
-
                 },
-
                 {
-
                   role:
                     "user",
-
                   content:
                     userMessage
-
                 }
-
               ],
-
               temperature:
                 0.3
-
             })
-
         }
       );
 
@@ -1476,40 +1164,32 @@ ${orderDetails}
 
 
     if (data.error) {
-
       console.error(
         "❌ Groq Error:",
         JSON.stringify(
           data.error
         )
       );
-
       return
         "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
-
     }
 
 
     return (
       data.choices?.[0]
         ?.message?.content ||
-
       "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
     );
 
 
   } catch (error) {
-
     console.error(
       "❌ خطأ اتصال Groq:",
       error
     );
-
     return
       "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
-
   }
-
 }
 
 
@@ -1518,22 +1198,18 @@ ${orderDetails}
 // ======================================================
 
 export async function GET(req) {
-
   const {
     searchParams
   } =
     new URL(req.url);
-
   const mode =
     searchParams.get(
       "hub.mode"
     );
-
   const token =
     searchParams.get(
       "hub.verify_token"
     );
-
   const challenge =
     searchParams.get(
       "hub.challenge"
@@ -1544,7 +1220,6 @@ export async function GET(req) {
     mode === "subscribe" &&
     token === VERIFY_TOKEN
   ) {
-
     return new Response(
       challenge,
       {
@@ -1552,7 +1227,6 @@ export async function GET(req) {
           200
       }
     );
-
   }
 
 
@@ -1563,7 +1237,6 @@ export async function GET(req) {
         403
     }
   );
-
 }
 
 
@@ -1572,9 +1245,7 @@ export async function GET(req) {
 // ======================================================
 
 export async function POST(req) {
-
   try {
-
     const body =
       await req.json();
 
@@ -1602,15 +1273,12 @@ export async function POST(req) {
       Name ||
       PIN
     ) {
-
       const targetPhone =
         Mobile ||
         "03177653";
-
       const customerName =
         Name ||
         "عميلنا العزيز";
-
       const customerPIN =
         PIN ||
         "";
@@ -1655,7 +1323,6 @@ export async function POST(req) {
             200
         }
       );
-
     }
 
 
@@ -1683,7 +1350,6 @@ export async function POST(req) {
       !from ||
       !userText
     ) {
-
       return Response.json(
         {
           status:
@@ -1694,7 +1360,6 @@ export async function POST(req) {
             200
         }
       );
-
     }
 
 
@@ -1729,17 +1394,13 @@ export async function POST(req) {
 
 
     if (user) {
-
       console.log(
         `👤 المستخدم: ${user.name} | Role: ${user.role} | Customer ID: ${user.customerId}`
       );
-
     } else {
-
       console.log(
-        "⚠️ المستخدم غير موجود في Users"
+        "⚠ المستخدم غير موجود في Users"
       );
-
     }
 
 
@@ -1751,33 +1412,23 @@ export async function POST(req) {
     let productResults = [];
 
     let orderContext = {
-
       orders: [],
-
       selectedOrder:
         null,
-
       details: []
-
     };
 
 
     if (user) {
-
-      // البحث عن المنتجات
       productResults =
         await searchProducts(
           userText
         );
-
-
-      // البحث عن الطلبات
       orderContext =
         await buildOrderContext(
           user,
           userText
         );
-
     }
 
 
@@ -1797,17 +1448,11 @@ export async function POST(req) {
 
     const aiReply =
       await getAIReply(
-
         userText,
-
         user,
-
         productResults,
-
         orderContext,
-
         history
-
       );
 
 
@@ -1851,14 +1496,10 @@ export async function POST(req) {
 
 
   } catch (error) {
-
     console.error(
       "❌ خطأ POST:",
       error
     );
-
-
-    // 200 حتى لا تعيد Meta إرسال الرسالة
     return Response.json(
       {
         status:
@@ -1869,7 +1510,5 @@ export async function POST(req) {
           200
       }
     );
-
   }
-
 }
