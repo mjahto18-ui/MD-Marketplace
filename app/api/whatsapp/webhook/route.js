@@ -13,7 +13,7 @@ const WHATSAPP_TOKEN =
   process.env.WHATSAPP_TOKEN;
 
 const PHONE_ID =
-  process.env.WHATSAPP_PHONE_ID || "1180849365118543";
+  process.env.WHATSAPP_PHONE_ID || "1183824331491327";
 
 const GROQ_KEY =
   process.env.GROQ_API_KEY;
