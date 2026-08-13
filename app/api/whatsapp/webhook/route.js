@@ -34,18 +34,8 @@ const GOOGLE_CLIENT_EMAIL =
 const GOOGLE_PRIVATE_KEY =
   process.env.GOOGLE_PRIVATE_KEY;
 
-// ======================================================
-// NEW - موقع و ايميلات حسب الاتفاق
-// ======================================================
-
 const WEBSITE_URL =
   "www.md-marketplace.store";
-
-const SALES_EMAIL =
-  "sales@md-marketplace.store";
-
-const SUPPORT_EMAIL =
-  "support@md-marketplace.store";
 
 const INFO_EMAIL =
   "info@md-marketplace.store";
@@ -93,83 +83,6 @@ function setCache(
       v: value,
       t: Date.now()
     }
-  );
-}
-
-// ======================================================
-// NEW - فلتر النظام + منع التكرار + تحية فقط
-// ======================================================
-
-const processedIds =
-  new Set();
-
-function isSystemNudge(text) {
-  const t =
-    String(text || "")
-     .toLowerCase();
-  return (
-    t.includes("nudge&business") ||
-    t.includes("nav%5fref") ||
-    t.includes("continue setting up") ||
-    t.includes("16465894168")
-  );
-}
-
-function isEndingIntent(text) {
-  const t =
-    String(text || "")
-     .toLowerCase()
-     .trim();
-  return [
-    "ما بدي شي",
-    "ما بدي",
-    "خلص",
-    "بطلت",
-    "شكرا",
-    "باي",
-    "bye",
-    "thanks",
-    "ما بقا بدي",
-    "خلصنا"
-  ].some(
-    w =>
-      t === w ||
-      t.includes(w)
-  );
-}
-
-function isGreetingOnly(
-  text
-) {
-  const t =
-    String(text || "")
-     .toLowerCase()
-     .trim()
-     .replace(/[؟?!.,،]/g, " ")
-     .replace(/\s+/g, " ");
-
-  return [
-    "مرحبا",
-    "مرحباا",
-    "اهلا",
-    "أهلا",
-    "هلا",
-    "سلام",
-    "السلام عليكم",
-    "hi",
-    "hello",
-    "hey",
-    "مين معي",
-    "ممكن اعرف مين معي",
-    "مين انت",
-    "شو اسمك",
-    "من انت",
-    "مين عم يحكي",
-    "عرفني عن حالك"
-  ].some(
-    w =>
-      t === w ||
-      t.includes(w)
   );
 }
 
@@ -548,7 +461,7 @@ async function getUserByWhatsAppNumber(
     }
   }
   console.log(
-    `⚠ الرقم ${normalized} غير موجود في Users - Guest`
+    `⚠ الرقم ${normalized} غير موجود في Users`
   );
   return null;
 }
@@ -973,7 +886,7 @@ async function buildOrderContext(
 }
 
 // ======================================================
-// 11. حفظ الرسالة في Messages
+// 11. حفظ الرسالة في Messages - تم التعديل هنا
 // ======================================================
 
 async function saveToAppSheet(
@@ -991,6 +904,7 @@ async function saveToAppSheet(
     return;
   }
   try {
+    // تعديل: من en-GB إلى en-US عشان AppSheet يقبل التاريخ
     const today =
       new Date()
        .toLocaleDateString(
@@ -1081,7 +995,7 @@ async function getConversationHistory(
 }
 
 // ======================================================
-// 13. Groq AI - المحدث فقط لمنع التكرار والخربطة
+// 13. Groq AI - التعديل الوحيد: اضافة الموقع والايميل
 // ======================================================
 
 async function getAIReply(
@@ -1097,11 +1011,10 @@ async function getAIReply(
   }
   try {
     let userContext =
-      "المستخدم Guest غير مسجل - ما عندو طلبات - مسموح يشوف Products فقط";
-
+      "المستخدم غير معروف في نظام Users.";
     if (user) {
       userContext = `
-بيانات المستخدم الموثوقة - مسجل:
+بيانات المستخدم الموثوقة:
 
 الاسم:
 ${user.name || "غير معروف"}
@@ -1118,7 +1031,6 @@ ${user.userId || "غير موجود"}
 رقم WhatsApp:
 ${user.whatsappNumber || "غير موجود"}
 
-هذا المستخدم مسجل، اعطيه خدمة كاملة متل المنطق القديم
 `;
     }
 
@@ -1127,7 +1039,7 @@ ${user.whatsappNumber || "غير موجود"}
        ? JSON.stringify(
             productResults
           )
-        : "لا يوجد بحث منتجات - رسالة تحية او سؤال عام";
+        : "لا توجد نتائج منتجات مؤكدة.";
 
     const orderData =
       orderContext.orders.length
@@ -1158,7 +1070,7 @@ ${user.whatsappNumber || "غير موجود"}
                 `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`
             )
            .join("\n")
-        : "لا توجد محادثة سابقة - اول رسالة";
+        : "لا توجد محادثة سابقة.";
 
     const systemPrompt = `
 أنت موظف خدمة العملاء في MD-Marketplace.
@@ -1168,42 +1080,45 @@ ${user.whatsappNumber || "غير موجود"}
 موقعنا الرسمي:
 ${WEBSITE_URL}
 
-ايميلاتنا:
-- للاستفسار العام: ${INFO_EMAIL}
-- للدعم: ${SUPPORT_EMAIL}
-- للمبيعات: ${SALES_EMAIL}
+ايميلنا للتواصل:
+${INFO_EMAIL}
 
 ${userContext}
 
-قواعد مهمة لمنع التكرار والخربطة - التزم فيها حرفيا:
+قواعد الهوية والأمان
 
 
-1. اذا كانت المحادثة السابقة فيها ترحيب منك في آخر رسالتين، لا تعيد نفس الترحيب "أهلا وسهلا كيف بقدر ساعدك؟" مرة تانية. شوف التاريخ:
-   ${historyText}
-   اذا شفت انك قلت أهلا وسهلا قبل، لا تعيدها.
+1. إذا كان المستخدم معروفاً، استخدم اسمه عند الحاجة.
 
-2. اذا المستخدم قال "مرحبا" فقط: رد مرة وحدة "أهلا وسهلا! أنا موظف خدمة العملاء في MD-Marketplace، كيف بقدر ساعدك؟"
+2. لا تنادِ المستخدم برقم الهاتف.
 
-3. اذا قال "مين معي / شو اسمك / مين انت": جاوب "أنا موظف خدمة العملاء في MD-Marketplace، كيف بقدر ساعدك؟" ولا تقل "كيف بقدر ساعدك" 3 مرات.
+3. إذا كان المستخدم غير موجود في Users:
+   ممنوع إعطاؤه أي معلومات عن الطلبات.
 
-4. ممنوع تذكر للزبون كلمة "جدول المنتجات" او "productContext" او "لحظة عالو". احكي طبيعي كموظف.
+4. لا تسمح للمستخدم بالوصول إلى طلبات شخص آخر.
 
-5. ممنوع تخلط الموقع والايميل بنفس الجملة - هذا اللي عم يخربط اللينك ويطلع حروف صيني:
-   - اذا بدو سعر: قل "فيك تشوف السعر على موقعنا ${WEBSITE_URL}" فقط
-   - اذا بدو يتواصل مبيعات: قل "فيك تتواصل مع المبيعات على ${SALES_EMAIL}" فقط
-   - اذا بدو دعم: قل "فيك تتواصل مع الدعم على ${SUPPORT_EMAIL}" فقط
-   - لا تقل "سجل على الموقع واحكي الايميل" مع بعض - جملة واحدة فقط
+5. بيانات الطلبات الموجودة أدناه تم تجهيزها من الكود بعد تطبيق صلاحيات المستخدم.
+   اعتبرها بيانات موثوقة.
 
-6. اذا Guest سأل عن منتج:
-   - اذا productContext فيه نتائج: قل "اي موجود عنا" واذكر المتجر
-   - اذا productContext يقول "لا يوجد بحث منتجات" او فاضي: لا تخترع، قل "شو المنتج اللي بدك ياه؟"
-   - اذا المنتج مش موجود: قل "مش موجود حاليا، فيك تشوف البدائل على ${WEBSITE_URL}"
+6. لا تخترع أي طلب.
 
-7. اذا Guest: هو ما عندو طلبات فلا تقل "ما بقدر اعطيك طلبات" - هو بيعرف. اذا سأل عن طلبي قل "انت مش مسجل، لمتابعة الطلبات سجل على ${WEBSITE_URL}"
+7. لا تخترع أي سعر.
 
-8. اذا المستخدم مسجل: اعطيه خدمة كاملة متل القديم - اسعار، طلبات، سائق، كلشي.
+8. لا تخترع أي منتج.
 
-9. اذا قال باي/شكرا/خلص: انهي "شكرا لتواصلك مع MD-Marketplace! 🌸 نحن موجودين على ${WEBSITE_URL} - يوم سعيد!" ولا ترجع تسأل كيف اساعدك.
+9. لا تخترع أي متجر.
+
+10. لا تخترع أي منطقة.
+
+11. لا تخترع أي حالة طلب.
+
+قواعد الموقع والعنوان والايميل - جديد
+
+- اذا سأل المستخدم "شو موقعكم / وين العنوان / شو عنوانكم / وين محلكم / رابط الموقع / الموقع": جاوب "موقعنا هو ${WEBSITE_URL} فيك تشوف كل المنتجات والفروع هناك"
+
+- اذا سأل "كيف بقدر اتواصل / شو ايميلكم / بدي احكي الادارة / كيف احكيكم": جاوب "فيك تتواصل معنا على ${INFO_EMAIL}"
+
+- اذا سأل عن الموقع والتواصل مع بعض: جاوب "موقعنا ${WEBSITE_URL} وايميلنا ${INFO_EMAIL}"
 
 قواعد المنتجات
 
@@ -1212,25 +1127,107 @@ ${userContext}
 
 استخدم:
 Product Name
+Price
 Store Name
+Category
+Address
 Area
 
 ولا تظهر:
 Product ID
 Store ID
 Area ID
+Category ID
 
 إذا لم توجد نتيجة مؤكدة:
-لا تخترع منتج.
+قل للمستخدم إنك لم تجد المنتج حالياً.
 
-قواعد الطلبات للمسجل فقط
+قواعد الطلبات
 
 
-إذا سأل المستخدم المسجل عن طلب:
+إذا سأل المستخدم عن طلب:
 
 استخدم بيانات Order Request.
 
-المحادثة السابقة - انتبه لا تكرر الترحيب
+يمكنك ذكر:
+
+Request ID
+Delivery Status
+Approval Status
+Items Cost
+Delivery Fee
+Total Amount
+Delivery Address
+Assigned Driver
+Area
+
+لكن لا تعرض أي IDs داخلية غير ضرورية.
+
+إذا سأل:
+"شو بقلب الطلب؟"
+
+استخدم Order Details.
+
+حوّل:
+
+Product ID
+→ Product Name
+
+Store ID
+→ Store Name
+
+Area
+→ Area Name
+
+حالة الطلب
+
+
+Delivery Status مهم جداً.
+
+إذا كانت البيانات:
+
+في الطريق
+أو
+بيك اب
+أو
+تم التوصيل
+
+استخدم الحالة كما هي أو بصياغة لبنانية واضحة.
+
+لا تغير حالة الطلب من عندك.
+
+السائق
+
+
+إذا كان Assigned Driver موجوداً:
+يمكن ذكر اسم السائق.
+
+لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك بشكل واضح.
+
+أسلوب المحادثة
+
+
+لا تعيد الترحيب في كل رسالة.
+
+لا تقل:
+"أنا ذكاء اصطناعي"
+إلا إذا سأل المستخدم.
+
+لا تقل:
+"حسب البيانات التي لدي..."
+في كل رد.
+
+أجب مباشرة.
+
+إذا السؤال يحتاج توضيح:
+اسأل سؤالاً واحداً فقط.
+
+إذا المستخدم قال مرحبا:
+رحب به بشكل طبيعي.
+
+لا تكرر معلومات قديمة بدون داع.
+
+المحادثة السابقة
 
 
 ${historyText}
@@ -1240,7 +1237,7 @@ ${historyText}
 
 ${productContext}
 
-طلبات المستخدم - للمسجل فقط
+طلبات المستخدم
 
 
 ${orderData}
@@ -1304,7 +1301,7 @@ ${orderDetails}
         )
       );
       return
-        "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية او تواصل مع " + INFO_EMAIL;
+        "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
     }
 
     return (
@@ -1368,7 +1365,7 @@ export async function GET(req) {
 }
 
 // ======================================================
-// 15. WhatsApp POST
+// 15. WhatsApp POST - تم التعديل هنا
 // ======================================================
 
 export async function POST(req) {
@@ -1377,76 +1374,7 @@ export async function POST(req) {
       await req.json();
 
     // ==================================================
-    // NEW - فلتر statuses و nudge
-    // ==================================================
-
-    const value =
-      body.entry?.[0]
-       ?.changes?.[0]
-       ?.value;
-
-    if (
-      value?.statuses
-    ) {
-      console.log(
-        "ℹ️ Status update - ignoring"
-      );
-      return Response.json(
-        {
-          status:
-            "ok"
-        },
-        {
-          status:
-            200
-        }
-      );
-    }
-
-    if (
-      value &&
-     !value.messages &&
-     !body.name &&
-      body.type !==
-        "new_user_welcome"
-    ) {
-      console.log(
-        "ℹ️ No messages - ignoring"
-      );
-      return Response.json(
-        {
-          status:
-            "ok"
-        },
-        {
-          status:
-            200
-        }
-      );
-    }
-
-    if (
-      isSystemNudge(
-        JSON.stringify(body)
-      )
-    ) {
-      console.log(
-        "🚫 تجاهل رسالة نظام Nudge - 16465"
-      );
-      return Response.json(
-        {
-          status:
-            "ok"
-        },
-        {
-          status:
-            200
-        }
-      );
-    }
-
-    // ==================================================
-    // AppSheet → إنشاء مستخدم جديد
+    // AppSheet → إنشاء مستخدم جديد - تم التعديل هنا
     // ==================================================
 
     const Name =
@@ -1461,12 +1389,13 @@ export async function POST(req) {
       body.from ||
       body.Mobile;
 
+    // تعديل: كان الشرط || Name || PIN وهاد كان يخلي اي رسالة واتساب تروح ترحيب
     if (
       body.type ===
         "new_user_welcome"
     ) {
       const targetPhone =
-        Mobile;
+        Mobile; // تعديل: شلنا الرقم الثابت 03177653
 
       if (!targetPhone) {
         console.error("❌ Mobile ناقص لرسالة الترحيب");
@@ -1496,8 +1425,6 @@ export async function POST(req) {
 
 رمز الـ PIN الخاص بك هو:
 *${customerPIN}*
-
-موقعنا: ${WEBSITE_URL}
 
 نتمنى لك تجربة تسوق ممتعة! 😊`;
 
@@ -1561,46 +1488,6 @@ export async function POST(req) {
       );
     }
 
-    // منع التكرار
-    if (
-      message?.id
-    ) {
-      if (
-        processedIds.has(
-          message.id
-        )
-      ) {
-        console.log(
-          `♻️ رسالة مكررة: ${message.id}`
-        );
-        return Response.json(
-          {
-            status:
-              "ok"
-          },
-          {
-            status:
-              200
-          }
-        );
-      }
-      processedIds.add(
-        message.id
-      );
-      if (
-        processedIds.size >
-        200
-      ) {
-        const first =
-          processedIds
-           .values()
-           .next().value;
-        processedIds.delete(
-          first
-        );
-      }
-    }
-
     console.log(
       `📩 استقبال رسالة من: ${from} | النص: ${userText}`
     );
@@ -1614,35 +1501,6 @@ export async function POST(req) {
       `📱 WhatsApp Number بعد التوحيد: ${whatsappNumber}`
     );
 
-    // انهاء طبيعي اذا قال باي / شكرا
-    if (
-      isEndingIntent(
-        userText
-      )
-    ) {
-      const endMsg =
-        `شكرا لتواصلك مع MD-Marketplace! 🌸 نحن موجودين على ${WEBSITE_URL} ومع خدمة العملاء ${INFO_EMAIL} - يوم سعيد!`;
-      await sendMessage(
-        whatsappNumber,
-        endMsg
-      );
-      await saveToAppSheet(
-        from,
-        userText,
-        endMsg
-      );
-      return Response.json(
-        {
-          status:
-            "ok"
-        },
-        {
-          status:
-            200
-        }
-      );
-    }
-
     const user =
       await getUserByWhatsAppNumber(
         whatsappNumber
@@ -1654,28 +1512,11 @@ export async function POST(req) {
       );
     } else {
       console.log(
-        "⚠ المستخدم غير موجود في Users - Guest مسموح يشوف Products"
+        "⚠ المستخدم غير موجود في Users"
       );
     }
 
-    // NEW - اذا تحية فقط ما تفتش منتجات - هذا بيحل مشكلة التكرار
-    let productResults =
-      [];
-
-    if (
-     !isGreetingOnly(
-        userText
-      )
-    ) {
-      productResults =
-        await searchProducts(
-          userText
-        );
-    } else {
-      console.log(
-        "👋 تحية فقط - تخطي البحث عن المنتجات"
-      );
-    }
+    let productResults = [];
 
     let orderContext = {
       orders: [],
@@ -1684,8 +1525,11 @@ export async function POST(req) {
       details: []
     };
 
-    // بس المسجل مسموح يشوف طلباتو - المنطق القديم نفسه ما تغير
     if (user) {
+      productResults =
+        await searchProducts(
+          userText
+        );
       orderContext =
         await buildOrderContext(
           user,
