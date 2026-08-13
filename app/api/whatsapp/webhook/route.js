@@ -34,16 +34,8 @@ const GOOGLE_CLIENT_EMAIL =
 const GOOGLE_PRIVATE_KEY =
   process.env.GOOGLE_PRIVATE_KEY;
 
-
 // ======================================================
 // CACHE
-// فقط للجداول الثابتة نسبياً
-//
-// Products / Stores / Categories / Areas
-//
-//
-// Users / Orders / Order Details / Messages
-// تبقى LIVE بدون Cache
 // ======================================================
 
 const SHEETS_CACHE = new Map();
@@ -60,37 +52,25 @@ const CACHEABLE_SHEETS =
   ]);
 
 function getCache(key) {
-
   const item =
     SHEETS_CACHE.get(key);
-
   if (!item) {
-
     return null;
-
   }
-
   if (
     Date.now() - item.t >
     CACHE_TTL
   ) {
-
     SHEETS_CACHE.delete(key);
-
     return null;
-
   }
-
   return item.v;
-
 }
-
 
 function setCache(
   key,
   value
 ) {
-
   SHEETS_CACHE.set(
     key,
     {
@@ -98,9 +78,7 @@ function setCache(
       t: Date.now()
     }
   );
-
 }
-
 
 // ======================================================
 // 1. توحيد رقم WhatsApp
@@ -109,38 +87,46 @@ function setCache(
 function normalizeWhatsAppNumber(
   phone
 ) {
-
   let clean =
     String(phone || "")
-      .replace(/\D/g, "");
+     .replace(/\D/g, "");
 
-  // 03177653 → 9613177653
+  // سعودي: 05xxxxxxxx → 9665xxxxxxxx (إضافة جديدة)
   if (
+    clean.startsWith("05")
+  ) {
+    clean =
+      "966" +
+      clean.substring(1);
+  }
+  else if (
+    clean.length === 9 &&
+    clean.startsWith("5")
+  ) {
+    clean =
+      "966" +
+      clean;
+  }
+  // لبناني: 03177653 → 9613177653 (الأصلي)
+  else if (
     clean.startsWith("03")
   ) {
-
     clean =
       "9613" +
       clean.substring(2);
-
   }
-
-  // 3177653 → 9613177653
+  // لبناني: 3177653 → 9613177653 (الأصلي)
   else if (
     clean.length === 7 &&
     clean.startsWith("3")
   ) {
-
     clean =
       "961" +
       clean;
-
   }
 
   return clean;
-
 }
-
 
 // ======================================================
 // 2. إرسال WhatsApp
@@ -150,15 +136,11 @@ async function sendMessage(
   to,
   text
 ) {
-
   if (!WHATSAPP_TOKEN) {
-
     console.error(
       "❌ WHATSAPP_TOKEN غير موجود"
     );
-
     return;
-
   }
 
   const cleanPhone =
@@ -167,44 +149,30 @@ async function sendMessage(
     );
 
   try {
-
     const res =
       await fetch(
         `https://graph.facebook.com/v26.0/${PHONE_ID}/messages`,
         {
           method: "POST",
-
           headers: {
-
             Authorization:
               `Bearer ${WHATSAPP_TOKEN}`,
-
             "Content-Type":
               "application/json"
-
           },
-
           body:
             JSON.stringify({
-
               messaging_product:
                 "whatsapp",
-
               to:
                 cleanPhone,
-
               type:
                 "text",
-
               text: {
-
                 body:
                   text
-
               }
-
             })
-
         }
       );
 
@@ -217,59 +185,44 @@ async function sendMessage(
     );
 
   } catch (error) {
-
     console.error(
       "❌ خطأ إرسال واتساب:",
       error
     );
-
   }
-
 }
-
 
 // ======================================================
 // 3. Google Sheets Client
 // ======================================================
 
 function getGoogleSheetsClient() {
-
   if (
-    !GOOGLE_SHEETS_ID ||
-    !GOOGLE_CLIENT_EMAIL ||
-    !GOOGLE_PRIVATE_KEY
+   !GOOGLE_SHEETS_ID ||
+   !GOOGLE_CLIENT_EMAIL ||
+   !GOOGLE_PRIVATE_KEY
   ) {
-
     console.error(
       "❌ Google Sheets credentials ناقصة"
     );
-
     return null;
-
   }
 
   try {
-
     const auth =
       new google.auth.GoogleAuth({
-
         credentials: {
-
           client_email:
             GOOGLE_CLIENT_EMAIL,
-
           private_key:
             GOOGLE_PRIVATE_KEY.replace(
               /\\n/g,
               "\n"
             )
-
         },
-
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets.readonly"
         ]
-
       });
 
     return google.sheets({
@@ -278,31 +231,16 @@ function getGoogleSheetsClient() {
     });
 
   } catch (error) {
-
     console.error(
       "❌ خطأ إنشاء Google Sheets client:",
       error
     );
-
     return null;
-
   }
-
 }
-
-
 
 // ======================================================
 // 4. قراءة جدول Google Sheets
-//
-// Cache:
-// Products / Stores / Categories / Areas
-//
-// Live:
-// Users / Order Requuest / Order Details / Messages
-//
-// مع حماية من تكرار نفس القراءة إذا وصل أكثر
-// من طلب بنفس الوقت والـCache فاضي.
 // ======================================================
 
 const SHEETS_LOADING = new Map();
@@ -310,133 +248,76 @@ const SHEETS_LOADING = new Map();
 async function getSheetRows(
   sheetName
 ) {
-
   const useCache =
     CACHEABLE_SHEETS.has(
       sheetName
     );
 
-
-  // ====================================================
-  // 1. محاولة القراءة من Cache
-  // ====================================================
-
   if (useCache) {
-
     const cached =
       getCache(
         sheetName
       );
-
     if (cached) {
-
       console.log(
         `⚡ Cache: ${sheetName} (${cached.length})`
       );
-
       return cached;
-
     }
-
   }
 
-
-  // ====================================================
-  // 2. إذا في قراءة جارية لنفس الجدول
-  //    ننتظر نفس الطلب بدل ما نعمل طلب جديد
-  // ====================================================
-
   if (useCache) {
-
     const loading =
       SHEETS_LOADING.get(
         sheetName
       );
-
     if (loading) {
-
       console.log(
         `⏳ انتظار قراءة جارية: ${sheetName}`
       );
-
       try {
-
         return await loading;
-
       } catch (error) {
-
         console.error(
           `❌ فشل الطلب المشترك: ${sheetName}`,
           error.message
         );
-
         return [];
-
       }
-
     }
-
   }
-
-
-  // ====================================================
-  // 3. Google Sheets Client
-  // ====================================================
 
   const sheets =
     getGoogleSheetsClient();
 
   if (!sheets) {
-
     return [];
-
   }
-
-
-  // ====================================================
-  // 4. تنفيذ القراءة
-  // ====================================================
 
   const loadPromise =
     (async () => {
-
       try {
-
         console.log(
           `📡 قراءة Live من Google Sheets: ${sheetName}`
         );
 
-
         const response =
           await sheets.spreadsheets.values.get({
-
             spreadsheetId:
               GOOGLE_SHEETS_ID,
-
             range:
               `${sheetName}!A:Z`
-
           });
-
 
         const rows =
           response.data.values || [];
 
-
         if (!rows.length) {
-
           console.log(
-            `⚠️ جدول ${sheetName} فارغ`
+            `⚠ جدول ${sheetName} فارغ`
           );
-
           return [];
-
         }
-
-
-        // ==================================================
-        // Headers
-        // ==================================================
 
         const headers =
           rows[0].map(
@@ -446,123 +327,75 @@ async function getSheetRows(
               ).trim()
           );
 
-
-        // ==================================================
-        // تحويل الصفوف إلى Objects
-        // ==================================================
-
         const result =
           rows
-            .slice(1)
-            .map(
+           .slice(1)
+           .map(
               row => {
-
                 const obj = {};
-
                 headers.forEach(
                   (
                     header,
                     index
                   ) => {
-
                     obj[header] =
                       row[index] ||
                       "";
-
                   }
                 );
-
                 return obj;
-
               }
             );
 
-
-        // ==================================================
-        // تخزين Cache
-        //
-        // فقط للجداول الموجودة في CACHEABLE_SHEETS
-        // ==================================================
-
         if (useCache) {
-
           setCache(
             sheetName,
             result
           );
-
           console.log(
             `💾 تم تخزين ${sheetName} في Cache لمدة 5 دقائق`
           );
-
         }
-
 
         return result;
 
-
       } catch (error) {
-
         console.error(
           `❌ خطأ قراءة جدول ${sheetName}:`,
           error.message
         );
-
         return [];
-
       }
-
     })();
 
-
-  // ====================================================
-  // 5. تسجيل القراءة الجارية
-  // ====================================================
-
   if (useCache) {
-
     SHEETS_LOADING.set(
       sheetName,
       loadPromise
     );
-
   }
 
-
   try {
-
     return await loadPromise;
-
   } finally {
-
-    // ==================================================
-    // حذف حالة Loading بعد انتهاء القراءة
-    // ==================================================
-
     if (useCache) {
-
       SHEETS_LOADING.delete(
         sheetName
       );
-
     }
-
   }
-
 }
-
 
 // ======================================================
 // 5. تطبيع النص للبحث
 // ======================================================
 function normalizeText(text) {
   return String(text || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[؟?!.,،]/g, " ")
-    .replace(/\s+/g, " ");
+   .toLowerCase()
+   .trim()
+   .replace(/[؟?!.,،]/g, " ")
+   .replace(/\s+/g, " ");
 }
-
 
 // ======================================================
 // 6. التعرف على المستخدم
@@ -627,7 +460,6 @@ async function getUserByWhatsAppNumber(
   return null;
 }
 
-
 // ======================================================
 // 7. البحث عن Products
 // ======================================================
@@ -682,11 +514,11 @@ async function searchProducts(
   ];
   const words =
     message
-      .split(" ")
-      .filter(
+     .split(" ")
+     .filter(
         word =>
           word.length >= 2 &&
-          !stopWords.includes(word)
+         !stopWords.includes(word)
       );
   if (!words.length) {
     console.log(
@@ -713,7 +545,7 @@ async function searchProducts(
     }
     if (
       normalizeText(message)
-        .includes(productName)
+       .includes(productName)
     ) {
       score += 5;
     }
@@ -799,7 +631,6 @@ async function searchProducts(
   return finalResults;
 }
 
-
 // ======================================================
 // 8. جلب طلبات المستخدم
 // ======================================================
@@ -816,8 +647,8 @@ async function getUserOrders(
     );
   const isAdmin =
     String(user.role || "")
-      .toLowerCase()
-      .includes("admin");
+     .toLowerCase()
+     .includes("admin");
   const customerId =
     String(
       user.customerId || ""
@@ -862,7 +693,6 @@ async function getUserOrders(
   return results;
 }
 
-
 // ======================================================
 // 9. جلب تفاصيل طلب
 // ======================================================
@@ -891,7 +721,7 @@ async function getOrderDetails(
     if (
       String(
         detail["Request ID"] || ""
-      ).trim() !==
+      ).trim()!==
       String(requestId || "").trim()
     ) {
       continue;
@@ -945,7 +775,6 @@ async function getOrderDetails(
   );
   return result;
 }
-
 
 // ======================================================
 // 10. تجهيز بيانات الطلبات للـAI
@@ -1025,7 +854,7 @@ async function buildOrderContext(
       safeOrders,
     selectedOrder:
       selectedOrder
-        ? {
+       ? {
             requestId:
               selectedOrder["Request ID"] || "",
             area:
@@ -1050,9 +879,8 @@ async function buildOrderContext(
   };
 }
 
-
 // ======================================================
-// 11. حفظ الرسالة في Messages
+// 11. حفظ الرسالة في Messages - تم التعديل هنا
 // ======================================================
 
 async function saveToAppSheet(
@@ -1061,8 +889,8 @@ async function saveToAppSheet(
   aiReply
 ) {
   if (
-    !APPSHEET_APP_ID ||
-    !APPSHEET_API_KEY
+   !APPSHEET_APP_ID ||
+   !APPSHEET_API_KEY
   ) {
     console.error(
       "❌ AppSheet credentials ناقصة"
@@ -1070,10 +898,11 @@ async function saveToAppSheet(
     return;
   }
   try {
+    // تعديل: من en-GB إلى en-US عشان AppSheet يقبل التاريخ
     const today =
       new Date()
-        .toLocaleDateString(
-          "en-GB",
+       .toLocaleDateString(
+          "en-US",
           {
             timeZone:
               "Asia/Beirut"
@@ -1129,7 +958,6 @@ async function saveToAppSheet(
   }
 }
 
-
 // ======================================================
 // 12. قراءة آخر المحادثة
 // ======================================================
@@ -1147,19 +975,18 @@ async function getConversationHistory(
     );
   const userMessages =
     messages
-      .filter(
+     .filter(
         row =>
           normalizeWhatsAppNumber(
             row["Phone"] || ""
           ) === normalized
       )
-      .slice(-10);
+     .slice(-10);
   console.log(
     `💬 عدد رسائل المحادثة السابقة المستخدمة: ${userMessages.length}`
   );
   return userMessages;
 }
-
 
 // ======================================================
 // 13. Groq AI
@@ -1201,49 +1028,43 @@ ${user.whatsappNumber || "غير موجود"}
 `;
     }
 
-
     const productContext =
       productResults.length
-        ? JSON.stringify(
+       ? JSON.stringify(
             productResults
           )
         : "لا توجد نتائج منتجات مؤكدة.";
 
-
     const orderData =
       orderContext.orders.length
-        ? JSON.stringify(
+       ? JSON.stringify(
             orderContext.orders
           )
         : "لا توجد طلبات متاحة لهذا المستخدم.";
 
-
     const selectedOrder =
       orderContext.selectedOrder
-        ? JSON.stringify(
+       ? JSON.stringify(
             orderContext.selectedOrder
           )
         : "لا يوجد طلب محدد.";
 
-
     const orderDetails =
       orderContext.details.length
-        ? JSON.stringify(
+       ? JSON.stringify(
             orderContext.details
           )
         : "لا توجد تفاصيل للطلب المحدد.";
 
-
     const historyText =
       history.length
-        ? history
-            .map(
+       ? history
+           .map(
               m =>
                 `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`
             )
-            .join("\n")
+           .join("\n")
         : "لا توجد محادثة سابقة.";
-
 
     const systemPrompt = `
 أنت موظف خدمة العملاء في MD-Marketplace.
@@ -1252,10 +1073,8 @@ ${user.whatsappNumber || "غير موجود"}
 
 ${userContext}
 
-
-==============================
 قواعد الهوية والأمان
-==============================
+
 
 1. إذا كان المستخدم معروفاً، استخدم اسمه عند الحاجة.
 
@@ -1281,10 +1100,8 @@ ${userContext}
 
 11. لا تخترع أي حالة طلب.
 
-
-==============================
 قواعد المنتجات
-==============================
+
 
 إذا كانت بيانات المنتجات تحتوي على نتيجة مؤكدة:
 
@@ -1305,10 +1122,8 @@ Category ID
 إذا لم توجد نتيجة مؤكدة:
 قل للمستخدم إنك لم تجد المنتج حالياً.
 
-
-==============================
 قواعد الطلبات
-==============================
+
 
 إذا سأل المستخدم عن طلب:
 
@@ -1344,10 +1159,8 @@ Store ID
 Area
 → Area Name
 
-
-==============================
 حالة الطلب
-==============================
+
 
 Delivery Status مهم جداً.
 
@@ -1363,20 +1176,16 @@ Delivery Status مهم جداً.
 
 لا تغير حالة الطلب من عندك.
 
-
-==============================
 السائق
-==============================
+
 
 إذا كان Assigned Driver موجوداً:
 يمكن ذكر اسم السائق.
 
 لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك بشكل واضح.
 
-
-==============================
 أسلوب المحادثة
-==============================
+
 
 لا تعيد الترحيب في كل رسالة.
 
@@ -1398,43 +1207,32 @@ Delivery Status مهم جداً.
 
 لا تكرر معلومات قديمة بدون داع.
 
-
-==============================
 المحادثة السابقة
-==============================
+
 
 ${historyText}
 
-
-==============================
 نتائج المنتجات
-==============================
+
 
 ${productContext}
 
-
-==============================
 طلبات المستخدم
-==============================
+
 
 ${orderData}
 
-
-==============================
 الطلب المحدد
-==============================
+
 
 ${selectedOrder}
 
-
-==============================
 تفاصيل الطلب المحدد
-==============================
+
 
 ${orderDetails}
 
 `;
-
 
     const res =
       await fetch(
@@ -1472,10 +1270,8 @@ ${orderDetails}
         }
       );
 
-
     const data =
       await res.json();
-
 
     if (data.error) {
       console.error(
@@ -1488,13 +1284,11 @@ ${orderDetails}
         "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
     }
 
-
     return (
       data.choices?.[0]
-        ?.message?.content ||
+       ?.message?.content ||
       "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
     );
-
 
   } catch (error) {
     console.error(
@@ -1505,7 +1299,6 @@ ${orderDetails}
       "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
   }
 }
-
 
 // ======================================================
 // 14. WhatsApp GET Verification
@@ -1529,7 +1322,6 @@ export async function GET(req) {
       "hub.challenge"
     );
 
-
   if (
     mode === "subscribe" &&
     token === VERIFY_TOKEN
@@ -1543,7 +1335,6 @@ export async function GET(req) {
     );
   }
 
-
   return new Response(
     "Forbidden",
     {
@@ -1553,9 +1344,8 @@ export async function GET(req) {
   );
 }
 
-
 // ======================================================
-// 15. WhatsApp POST
+// 15. WhatsApp POST - تم التعديل هنا
 // ======================================================
 
 export async function POST(req) {
@@ -1563,9 +1353,8 @@ export async function POST(req) {
     const body =
       await req.json();
 
-
     // ==================================================
-    // AppSheet → إنشاء مستخدم جديد
+    // AppSheet → إنشاء مستخدم جديد - تم التعديل هنا
     // ==================================================
 
     const Name =
@@ -1580,23 +1369,34 @@ export async function POST(req) {
       body.from ||
       body.Mobile;
 
-
+    // تعديل: كان الشرط || Name || PIN وهاد كان يخلي اي رسالة واتساب تروح ترحيب
     if (
       body.type ===
-        "new_user_welcome" ||
-      Name ||
-      PIN
+        "new_user_welcome"
     ) {
       const targetPhone =
-        Mobile ||
-        "03177653";
+        Mobile; // تعديل: شلنا الرقم الثابت 03177653
+
+      if (!targetPhone) {
+        console.error("❌ Mobile ناقص لرسالة الترحيب");
+        return Response.json(
+          {
+            status:
+              "ok"
+          },
+          {
+            status:
+              200
+          }
+        );
+      }
+
       const customerName =
         Name ||
         "عميلنا العزيز";
       const customerPIN =
         PIN ||
         "";
-
 
       const welcomeMessage =
         `أهلاً بك يا ${customerName} في MD-Marketplace! 🌸
@@ -1608,24 +1408,20 @@ export async function POST(req) {
 
 نتمنى لك تجربة تسوق ممتعة! 😊`;
 
-
       console.log(
         `📩 ترحيب بمستخدم جديد: ${customerName} | Mobile: ${targetPhone}`
       );
-
 
       await sendMessage(
         targetPhone,
         welcomeMessage
       );
 
-
       await saveToAppSheet(
         targetPhone,
         "تسجيل حساب جديد",
         welcomeMessage
       );
-
 
       return Response.json(
         {
@@ -1639,30 +1435,26 @@ export async function POST(req) {
       );
     }
 
-
     // ==================================================
     // قراءة WhatsApp Message
     // ==================================================
 
     const message =
       body.entry?.[0]
-        ?.changes?.[0]
-        ?.value?.messages?.[0];
-
+       ?.changes?.[0]
+       ?.value?.messages?.[0];
 
     const from =
       message?.from ||
       Mobile;
 
-
     const userText =
       message?.text?.body ||
       body.text;
 
-
     if (
-      !from ||
-      !userText
+     !from ||
+     !userText
     ) {
       return Response.json(
         {
@@ -1676,36 +1468,23 @@ export async function POST(req) {
       );
     }
 
-
     console.log(
       `📩 استقبال رسالة من: ${from} | النص: ${userText}`
     );
-
-
-    // ==================================================
-    // توحيد الرقم
-    // ==================================================
 
     const whatsappNumber =
       normalizeWhatsAppNumber(
         from
       );
 
-
     console.log(
       `📱 WhatsApp Number بعد التوحيد: ${whatsappNumber}`
     );
-
-
-    // ==================================================
-    // التعرف على المستخدم
-    // ==================================================
 
     const user =
       await getUserByWhatsAppNumber(
         whatsappNumber
       );
-
 
     if (user) {
       console.log(
@@ -1717,12 +1496,6 @@ export async function POST(req) {
       );
     }
 
-
-    // ==================================================
-    // الأمان:
-    // إذا المستخدم غير معروف، لا نقرأ Orders
-    // ==================================================
-
     let productResults = [];
 
     let orderContext = {
@@ -1731,7 +1504,6 @@ export async function POST(req) {
         null,
       details: []
     };
-
 
     if (user) {
       productResults =
@@ -1745,20 +1517,10 @@ export async function POST(req) {
         );
     }
 
-
-    // ==================================================
-    // المحادثة السابقة
-    // ==================================================
-
     const history =
       await getConversationHistory(
         from
       );
-
-
-    // ==================================================
-    // Groq
-    // ==================================================
 
     const aiReply =
       await getAIReply(
@@ -1769,33 +1531,21 @@ export async function POST(req) {
         history
       );
 
-
     console.log(
       "🤖 الرد المولّد:",
       aiReply
     );
-
-
-    // ==================================================
-    // إرسال WhatsApp
-    // ==================================================
 
     await sendMessage(
       whatsappNumber,
       aiReply
     );
 
-
-    // ==================================================
-    // حفظ الرسالة
-    // ==================================================
-
     await saveToAppSheet(
       from,
       userText,
       aiReply
     );
-
 
     return Response.json(
       {
@@ -1807,7 +1557,6 @@ export async function POST(req) {
           200
       }
     );
-
 
   } catch (error) {
     console.error(
