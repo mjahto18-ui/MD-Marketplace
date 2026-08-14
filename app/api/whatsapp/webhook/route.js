@@ -894,7 +894,7 @@ async function getConversationHistory(
             row["Phone"] || ""
           ) === normalized
       )
-     .slice(-10);
+     .slice(-4);
   console.log(
     `💬 عدد رسائل المحادثة السابقة المستخدمة: ${userMessages.length}`
   );
