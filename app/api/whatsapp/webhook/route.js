@@ -1222,25 +1222,18 @@ ${orderDetails}
         }
       );
 
-    const data =
-      await res.json();
+    const data = await res.json();
 
-    if (data.error) {
-      console.error(
-        "❌ Groq Error:",
-        JSON.stringify(
-          data.error
-        )
-      );
-      return
-        "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
-    }
+// ⭐⭐⭐⭐⭐ التعديل المهم جداً — حماية Rate Limit ⭐⭐⭐⭐⭐
+if (data.error || !data.choices?.[0]?.message?.content) {
+  console.error("❌ Groq Error:", JSON.stringify(data.error));
+  return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
+}
 
-    return (
-      data.choices?.[0]
-       ?.message?.content ||
-      "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
-    );
+return (
+  data.choices?.[0]?.message?.content ||
+  "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
+);
 
   } catch (error) {
     console.error(
