@@ -1197,7 +1197,7 @@ ${orderDetails}
             "POST",
           headers: {
             Authorization:
-              `Bearer ${GROQ_KEY}`,
+              `Bearer ${CEREBRAS_API_KEY}`,
             "Content-Type":
               "application/json"
           },
