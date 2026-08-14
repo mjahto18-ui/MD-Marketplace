@@ -18,9 +18,6 @@ const PHONE_ID =
 const GROQ_KEY =
   process.env.GROQ_API_KEY;
 
-const CEREBRAS_KEY =
-  process.env.CEREBRAS_API_KEY;
-
 const APPSHEET_APP_ID =
   process.env.APPSHEET_APP_ID;
 
@@ -1191,15 +1188,15 @@ ${orderDetails}
 
     const res =
       await fetch(
-        "https://api.cerebras.ai/v1/chat/completions",
+        "https://api.groq.com/openai/v1/chat/completions",
         {
           method:
             "POST",
           headers: {
             Authorization:
-              `Bearer ${process.env.CEREBRAS_API_KEY}`,
+              `Bearer ${GROQ_KEY}`,
             "Content-Type":
-              "application/json"
+              "groq/compound-mini"
           },
           body:
             JSON.stringify({
