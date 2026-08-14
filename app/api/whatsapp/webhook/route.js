@@ -1204,7 +1204,7 @@ ${orderDetails}
           body:
             JSON.stringify({
               model:
-                "gpt-oss-120b",
+                "zai-glm-4.7",
               messages: [
                 {
                   role:
