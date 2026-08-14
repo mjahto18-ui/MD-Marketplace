@@ -467,175 +467,82 @@ async function getUserByWhatsAppNumber(
 }
 
 // ======================================================
-// 7. البحث عن Products
+// 7. البحث عن Products (نسخة نهائية متناسقة مع البوت)
 // ======================================================
 
-async function searchProducts(
-  userMessage
-) {
-  const products =
-    await getSheetRows(
-      "Products"
-    );
-  const stores =
-    await getSheetRows(
-      "Stores"
-    );
-  const categories =
-    await getSheetRows(
-      "Categories"
-    );
-  const areas =
-    await getSheetRows(
-      "Areas"
-    );
-  const message =
-    normalizeText(
-      userMessage
-    );
+async function searchProducts(userMessage) {
+  const products = await getSheetRows("Products");
+  const stores = await getSheetRows("Stores");
+  const categories = await getSheetRows("Categories");
+  const areas = await getSheetRows("Areas");
+
+  const message = normalizeText(userMessage);
+
   const stopWords = [
-    "بدي",
-    "بدّي",
-    "اريد",
-    "أريد",
-    "اعرف",
-    "معرفة",
-    "سعر",
-    "السعر",
-    "وين",
-    "موجود",
-    "موجودة",
-    "باي",
-    "بأي",
-    "متجر",
-    "عند",
-    "شو",
-    "هو",
-    "هي",
-    "عن",
-    "المنتج",
-    "منتج",
-    "لوين",
-    "في"
+    "بدي","بدّي","اريد","أريد","اعرف","معرفة","سعر","السعر","وين","موجود",
+    "موجودة","باي","بأي","متجر","عند","شو","هو","هي","عن","المنتج","منتج",
+    "لوين","في"
   ];
-  const words =
-    message
-     .split(" ")
-     .filter(
-        word =>
-          word.length >= 2 &&
-         !stopWords.includes(word)
-      );
+
+  const words = message
+    .split(" ")
+    .filter(word => word.length >= 2 && !stopWords.includes(word));
+
   if (!words.length) {
-    console.log(
-      "🔎 لا يوجد اسم منتج واضح في الرسالة"
-    );
+    console.log("🔎 لا يوجد اسم منتج واضح في الرسالة");
     return [];
   }
+
   const results = [];
+
   for (const product of products) {
-    const productName =
-      normalizeText(
-        product["Product Name"]
-      );
-    if (!productName) {
-      continue;
-    }
+    const productName = normalizeText(product["Product Name"]);
+    if (!productName) continue;
+
     let score = 0;
+
     for (const word of words) {
-      if (
-        productName.includes(word)
-      ) {
-        score += 2;
-      }
+      if (productName.includes(word)) score += 2;
     }
-    if (
-      normalizeText(message)
-       .includes(productName)
-    ) {
-      score += 5;
-    }
-    if (score <= 0) {
-      continue;
-    }
-    const storeId =
-      product["Store ID"] || "";
-    const store =
-      stores.find(
-        s =>
-          String(
-            s["Store ID"] || ""
-          ) === String(storeId)
-      );
-    const categoryId =
-      product["Category"] ||
-      "";
-    const category =
-      categories.find(
-        c =>
-          String(
-            c["Category ID"] || ""
-          ) === String(categoryId)
-      );
-    const areaId =
-      product["Area"] ||
-      store?.["Area"] ||
-      "";
-    const area =
-      areas.find(
-        a =>
-          String(
-            a["Area ID"] || ""
-          ) === String(areaId)
-      );
+
+    if (normalizeText(message).includes(productName)) score += 5;
+
+    if (score <= 0) continue;
+
+    const storeId = product["Store ID"] || "";
+    const store = stores.find(s => String(s["Store ID"] || "") === String(storeId));
+
+    const categoryId = product["Category"] || "";
+    const category = categories.find(c => String(c["Category ID"] || "") === String(categoryId));
+
+    const areaId = product["Area"] || store?.["Area"] || "";
+    const area = areas.find(a => String(a["Area ID"] || "") === String(areaId));
+
     results.push({
       score,
-      productName:
-        product["Product Name"] || "",
-      unit:
-        product["Unit"] || "",
-      price:
-        product["Price"] || "",
-      description:
-        product["Description"] || "",
-      available:
-        product["Available"] || "",
-      active:
-        product["Active"] || "",
-      storeName:
-        store?.["Store Name"] ||
-        "غير معروف",
-      categoryName:
-        category?.["Category Name"] ||
-        "",
-      address:
-        store?.["Adress"] ||
-        "",
-      areaName:
-        area?.["Area Name"] ||
-        "",
-      openTime:
-        store?.["Open Time"] ||
-        "",
-      closeTime:
-        store?.["Close Time"] ||
-        ""
+      productName: product["Product Name"] || "",
+      unit: product["Unit"] || "",
+      price: product["Price"] || "",
+      description: product["Description"] || "",
+      available: product["Available"] || "",
+      active: product["Active"] || "",
+      storeName: store?.["Store Name"] || "غير معروف",
+      categoryName: category?.["Category Name"] || "",
+      address: store?.["Adress"] || "",
+      areaName: area?.["Area Name"] || "",
+      openTime: store?.["Open Time"] || "",
+      closeTime: store?.["Close Time"] || ""
     });
   }
-  results.sort(
-    (a, b) =>
-      b.score - a.score
-  );
-  const finalResults =
-    results.slice(0, 10);
-  console.log(
-    "🔎 نتائج البحث عن المنتجات:",
-    JSON.stringify(
-      finalResults
-    )
-  );
-  return finalResults;
+
+  // ترتيب حسب الأفضل
+  results.sort((a, b) => b.score - a.score);
+
+  // رجّع كل النتائج بدون قصّ
+  console.log("🔎 نتائج البحث عن المنتجات:", JSON.stringify(results));
+  return results;
 }
+
 
 // ======================================================
 // 8. جلب طلبات المستخدم
