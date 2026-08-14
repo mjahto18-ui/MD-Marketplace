@@ -948,338 +948,120 @@ async function getAIReply(
   history
 ) {
   if (!GROQ_KEY) {
-    return
-      "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
+    return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
   }
   try {
-    let userContext =
-      "المستخدم غير معروف في نظام Users.";
+    let userContext = "المستخدم غير معروف في نظام Users.";
     if (user) {
       userContext = `
 بيانات المستخدم الموثوقة:
-
-الاسم:
-${user.name || "غير معروف"}
-
-الدور:
-${user.role || "غير معروف"}
-
-Customer ID:
-${user.customerId || "غير موجود"}
-
-User ID:
-${user.userId || "غير موجود"}
-
-رقم WhatsApp:
-${user.whatsappNumber || "غير موجود"}
-
+الاسم: ${user.name || "غير معروف"}
+الدور: ${user.role || "غير معروف"}
+Customer ID: ${user.customerId || "غير موجود"}
+User ID: ${user.userId || "غير موجود"}
+رقم WhatsApp: ${user.whatsappNumber || "غير موجود"}
 `;
     }
 
-    const productContext =
-      productResults.length
-       ? JSON.stringify(
-            productResults
-          )
-        : "لا توجد نتائج منتجات مؤكدة.";
-
-    const orderData =
-      orderContext.orders.length
-       ? JSON.stringify(
-            orderContext.orders
-          )
-        : "لا توجد طلبات متاحة لهذا المستخدم.";
-
-    const selectedOrder =
-      orderContext.selectedOrder
-       ? JSON.stringify(
-            orderContext.selectedOrder
-          )
-        : "لا يوجد طلب محدد.";
-
-    const orderDetails =
-      orderContext.details.length
-       ? JSON.stringify(
-            orderContext.details
-          )
-        : "لا توجد تفاصيل للطلب المحدد.";
-
-    const historyText =
-      history.length
-       ? history
-           .map(
-              m =>
-                `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`
-            )
-           .join("\n")
-        : "لا توجد محادثة سابقة.";
+    const productContext = productResults.length? JSON.stringify(productResults) : "لا توجد نتائج منتجات مؤكدة.";
+    const orderData = orderContext.orders.length? JSON.stringify(orderContext.orders) : "لا توجد طلبات متاحة لهذا المستخدم.";
+    const selectedOrder = orderContext.selectedOrder? JSON.stringify(orderContext.selectedOrder) : "لا يوجد طلب محدد.";
+    const orderDetails = orderContext.details.length? JSON.stringify(orderContext.details) : "لا توجد تفاصيل للطلب المحدد.";
+    const historyText = history.length? history.map(m => `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`).join("\n") : "لا توجد محادثة سابقة.";
 
     const systemPrompt = `
 أنت مساعدك الذكي من MD-Marketplace.
-
 تحدث باللهجة اللبنانية الودودة والطبيعية، خليك مهضوم وطبيعي مش روبوت.
-
-موقعنا الرسمي:
-${WEBSITE_URL}
-
-ايميلنا للتواصل:
-${INFO_EMAIL}
+موقعنا الرسمي: ${WEBSITE_URL}
+ايميلنا للتواصل: ${INFO_EMAIL}
 
 ${userContext}
 
 قواعد الهوية والأمان
-
-
-1. إذا كان المستخدم معروفاً، استخدم اسمه .
-
+1. إذا كان المستخدم معروفاً، استخدم اسمه.
 2. لا تنادِ المستخدم برقم الهاتف.
-
-3. إذا كان المستخدم غير موجود في Users:
-   ممنوع إعطاؤه أي معلومات عن الطلبات.
-
+3. إذا كان المستخدم غير موجود في Users: ممنوع إعطاؤه أي معلومات عن الطلبات.
 4. لا تسمح للمستخدم بالوصول إلى طلبات شخص آخر.
+5. بيانات الطلبات الموجودة أدناه تم تجهيزها من الكود بعد تطبيق صلاحيات المستخدم. اعتبرها بيانات موثوقة.
+6. لا تخترع أي طلب. لا تخترع أي سعر. لا تخترع أي منتج. لا تخترع أي متجر. لا تخترع أي منطقة. لا تخترع أي حالة طلب.
 
-5. بيانات الطلبات الموجودة أدناه تم تجهيزها من الكود بعد تطبيق صلاحيات المستخدم.
-   اعتبرها بيانات موثوقة.
-
-6. لا تخترع أي طلب.
-
-7. لا تخترع أي سعر.
-
-8. لا تخترع أي منتج.
-
-9. لا تخترع أي متجر.
-
-10. لا تخترع أي منطقة.
-
-11. لا تخترع أي حالة طلب.
-
-قواعد الموقع والايميل - جديد
-
-- اذا سأل المستخدم "شو موقعكم / وين العنوان / شو عنوانكم / وين محلكم / رابط الموقع / الموقع / العنوان": جاوب "موقعنا هو ${WEBSITE_URL} فيك تشوف كل المنتجات والفروع هناك"
-
-- اذا سأل "كيف بقدر اتواصل / شو ايميلكم / بدي احكي الادارة / كيف احكيكن / الايميل": جاوب "فيك تتواصل معنا على ${INFO_EMAIL}"
-
+قواعد الموقع والايميل
+- اذا سأل "شو موقعكم / وين العنوان / شو عنوانكم / وين محلكم / رابط الموقع": جاوب "موقعنا هو ${WEBSITE_URL} فيك تشوف كل المنتجات والفروع هناك"
+- اذا سأل "كيف بقدر اتواصل / شو ايميلكم / بدي احكي الادارة": جاوب "فيك تتواصل معنا على ${INFO_EMAIL}"
 - اذا سأل عن الموقع والتواصل مع بعض: جاوب "موقعنا ${WEBSITE_URL} وايميلنا ${INFO_EMAIL}"
 
-قواعد التعريف - جديد
-
-- اذا قال "مين معي / مين انت / شو اسمك / من انت / عرفني عن حالك": جاوب "أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"
-
+قواعد التعريف
+- اذا قال "مين معي / مين انت / شو اسمك": جاوب "أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"
 - لا تقل "أنا موظف خدمة العملاء" بعد اليوم، قول "أنا مساعدك الذكي من MD-Marketplace"
 
-قواعد المنتجات
+=== قواعد المنتجات - نسخة نهائية بدون تكرار ===
+- قاعدة ذهبية: ممنوع منعاً باتاً تستعمل جدول Markdown مثل | | |. الواتساب لا يفهم الجداول!
+- اذا productContext فاضي: قل "ما لقيت هالمنتج حالياً، بتحب جرب اسم تاني؟" ولا تخترع منتج من عندك!
+- اذا فيه نتائج: اعرض كل المنتجات بدون استثناء، لا تختار واحد فقط، لا تتجاهل أي متجر، لا تدمج المنتجات، لا تغيّر الترتيب.
+- شكل العرض الالزامي لكل منتج:
 
+🛒 المنتج: {Product Name} {Unit}
+💰 السعر: {Price}
+🏪 المتجر: {Store Name}
+📍 العنوان: {Address} - {Area}
+⏰ الدوام: {Open Time} - {Close Time}
 
-إذا كانت بيانات المنتجات تحتوي على نتيجة مؤكدة:
-
-استخدم:
-Product Name
-Price
-Store Name
-Category
-Address
-Area
-
-ولا تظهر:
-Product ID
-Store ID
-Area ID
-Category ID
-
-إذا لم توجد نتيجة مؤكدة:
-قل للمستخدم إنك لم تجد المنتج حالياً.
-
-قواعد المنتجات - تعديل مهم جداً
-
-إذا كان productContext يحتوي على أكثر من منتج:
-- اعرض كل المنتجات الموجودة بدون استثناء.
-- لكل منتج اعرض:
-  • Product Name
-  • Price
-  • Store Name
-  • Category
-  • Address
-  • Area
-- لا تختار منتج واحد فقط.
-- لا تتجاهل أي متجر.
-- لا تدمج المنتجات ببعض.
-- لا تغيّر ترتيب المنتجات.
-
+- افصل بين كل منتج بسطر فاضي.
+- ممنوع تعرض: Product ID, Store ID, Area ID, Category ID
 
 قواعد الطلبات
-
-
-إذا سأل المستخدم عن طلب:
-
-استخدم بيانات Order Request.
-
-يمكنك ذكر:
-
-Request ID
-Delivery Status
-Approval Status
-Items Cost
-Delivery Fee
-Total Amount
-Delivery Address
-Assigned Driver
-Area
-
-لكن لا تعرض أي IDs داخلية غير ضرورية.
-
-إذا سأل:
-"شو بقلب الطلب؟"
-
-استخدم Order Details.
-
-حوّل:
-
-Product ID
-→ Product Name
-
-Store ID
-→ Store Name
-
-Area
-→ Area Name
-
-حالة الطلب
-
-
-Delivery Status مهم جداً.
-
-إذا كانت البيانات:
-
-في الطريق
-أو
-بيك اب
-أو
-تم التوصيل
-
-استخدم الحالة كما هي أو بصياغة لبنانية واضحة.
-
-لا تغير حالة الطلب من عندك.
+- استخدم بيانات Order Request. يمكنك ذكر: Request ID, Delivery Status, Approval Status, Items Cost, Delivery Fee, Total Amount, Delivery Address, Assigned Driver, Area
+- اذا سأل "شو بقلب الطلب؟" استخدم Order Details وحوّل: Product ID → Product Name, Store ID → Store Name, Area → Area Name
+- Delivery Status مهم جداً. اذا كانت "في الطريق" أو "بيك اب" أو "تم التوصيل" استخدم الحالة كما هي بصياغة لبنانية واضحة. لا تغير حالة الطلب من عندك.
 
 السائق
-
-
-إذا كان Assigned Driver موجوداً:
-يمكن ذكر اسم السائق.
-
-لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك بشكل واضح.
+- اذا كان Assigned Driver موجوداً: يمكن ذكر اسم السائق. لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك بشكل واضح.
 
 أسلوب المحادثة
-
-
-لا تعيد الترحيب في كل رسالة.
-
-اذا شفت بالمحادثة السابقة انك قلت مرحبا قبل، لا تعيدها.
-
-لا تقل:
-"أنا ذكاء اصطناعي"
-إلا إذا سأل المستخدم.
-
-لا تقل:
-"حسب البيانات التي لدي..."
-في كل رد.
-
-أجب مباشرة.
-
-إذا السؤال يحتاج توضيح:
-اسأل سؤالاً واحداً فقط.
-
-إذا المستخدم قال مرحبا:
-رحب به بشكل طبيعي مرة وحدة: "أهلا وسهلا! أنا مساعدك الذكي من MD-Marketplace، كيف بقدر ساعدك؟"
-
-لا تكرر معلومات قديمة بدون داع.
+- لا تعيد الترحيب في كل رسالة. اذا شفت بالمحادثة السابقة انك قلت مرحبا قبل، لا تعيدها.
+- لا تقل "أنا ذكاء اصطناعي" إلا إذا سأل المستخدم.
+- لا تقل "حسب البيانات التي لدي..." في كل رد. أجب مباشرة.
+- إذا السؤال يحتاج توضيح: اسأل سؤالاً واحداً فقط.
+- إذا المستخدم قال مرحبا: رحب به بشكل طبيعي مرة وحدة: "أهلا وسهلا! أنا مساعدك الذكي من MD-Marketplace، كيف بقدر ساعدك؟"
+- لا تكرر معلومات قديمة بدون داع.
 
 المحادثة السابقة
-
-
 ${historyText}
 
 نتائج المنتجات
-
-
 ${productContext}
 
 طلبات المستخدم
-
-
 ${orderData}
 
 الطلب المحدد
-
-
 ${selectedOrder}
 
 تفاصيل الطلب المحدد
-
-
 ${orderDetails}
-
 `;
 
-    const res =
-      await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          method:
-            "POST",
-          headers: {
-            Authorization:
-              `Bearer ${GROQ_KEY}`,
-            "Content-Type":
-              "application/json"
-          },
-          body:
-            JSON.stringify({
-              model:
-                "openai/gpt-oss-20b",
-              messages: [
-                {
-                  role:
-                    "system",
-                  content:
-                    systemPrompt
-                },
-                {
-                  role:
-                    "user",
-                  content:
-                    userMessage
-                }
-              ],
-              temperature:
-                0.4
-            })
-        }
-      );
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b",
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
+        temperature: 0.4
+      })
+    });
 
     const data = await res.json();
-
-// ⭐⭐⭐⭐⭐ التعديل المهم جداً — حماية Rate Limit ⭐⭐⭐⭐⭐
-if (data.error || !data.choices?.[0]?.message?.content) {
-  console.error("❌ Groq Error:", JSON.stringify(data.error));
-  return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
-}
-
-return (
-  data.choices?.[0]?.message?.content ||
-  "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
-);
-
+    if (data.error ||!data.choices?.[0]?.message?.content) {
+      console.error("❌ Groq Error:", JSON.stringify(data.error));
+      return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
+    }
+    return data.choices?.[0]?.message?.content || "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
   } catch (error) {
-    console.error(
-      "❌ خطأ اتصال Groq:",
-      error
-    );
-    return
-      "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
+    console.error("❌ خطأ اتصال Groq:", error);
+    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
   }
 }
-
 // ======================================================
 // 14. WhatsApp GET Verification
 // ======================================================
