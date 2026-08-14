@@ -1197,7 +1197,7 @@ ${orderDetails}
             "POST",
           headers: {
             Authorization:
-              `Bearer ${CEREBRAS_API_KEY}`,
+              `Bearer ${CEREBRAS_KEY}`,
             "Content-Type":
               "application/json"
           },
