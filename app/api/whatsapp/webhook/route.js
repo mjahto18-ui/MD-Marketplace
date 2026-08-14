@@ -477,72 +477,107 @@ async function searchProducts(userMessage) {
   const areas = await getSheetRows("Areas");
 
   const message = normalizeText(userMessage);
+  const originalMessage = userMessage.toLowerCase();
 
-  const stopWords = [
-    "بدي","بدّي","اريد","أريد","اعرف","معرفة","سعر","السعر","وين","موجود",
-    "موجودة","باي","بأي","متجر","عند","شو","هو","هي","عن","المنتج","منتج",
-    "لوين","في"
-  ];
+  // ===== 1. كشف اسم المتجر من الرسالة =====
+  const storeKeywords = ["سوبرماركت", "ميني ماركت", "بقالة", "محل", "متجر", "ماركت"];
+  let mentionedStoreId = null;
+  let mentionedStoreName = "";
 
-  const words = message
-    .split(" ")
-    .filter(word => word.length >= 2 && !stopWords.includes(word));
+  for (const store of stores) {
+    const storeNameNorm = normalizeText(store["Store Name"]);
+    if (!storeNameNorm) continue;
 
-  if (!words.length) {
-    console.log("🔎 لا يوجد اسم منتج واضح في الرسالة");
-    return [];
+    // اذا اسم المتجر مذكور حرفيا
+    if (message.includes(storeNameNorm)) {
+      mentionedStoreId = store["Store ID"];
+      mentionedStoreName = store["Store Name"];
+      break;
+    }
   }
 
-  const results = [];
+  // اذا لقى كلمة مفتاحية متل "بميني ماركت جابر" -> استخرج "جابر"
+  if (!mentionedStoreId) {
+    for (const keyword of storeKeywords) {
+      if (originalMessage.includes(keyword)) {
+        // جيب الكلمة اللي بعد المفتاح
+        const parts = originalMessage.split(keyword);
+        if (parts[1]) {
+          const afterKeyword = normalizeText(parts[1].trim().split(" ")[0]); // أول كلمة بعد المفتاح
+          for (const store of stores) {
+            if (normalizeText(store["Store Name"]).includes(afterKeyword)) {
+              mentionedStoreId = store["Store ID"];
+              mentionedStoreName = store["Store Name"];
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
 
+  if (mentionedStoreId) {
+    console.log(`🏪 تم كشف متجر مذكور: ${mentionedStoreName} (${mentionedStoreId})`);
+  }
+
+  // ===== 2. البحث عن المنتج =====
+  const stopWords = ["بدي","بدّي","اريد","أريد","اعرف","موجود","وين","باي","متجر","سوبرماركت","ميني","ماركت","بقالة","محل","عند","شو","عن","المنتج","منتج","في","منو","فيه"];
+  const words = message.split(" ").filter(w => w.length >= 2 &&!stopWords.includes(w));
+  if (!words.length) return [];
+
+  const results = [];
   for (const product of products) {
+    if (normalizeText(product["Available"])!== "yes" && product["Available"]!== "Yes") continue;
+    if (String(product["Active"]).toUpperCase()!== "TRUE") continue;
+
     const productName = normalizeText(product["Product Name"]);
     if (!productName) continue;
 
     let score = 0;
-
     for (const word of words) {
-      if (productName.includes(word)) score += 2;
+      if (productName === word) score += 10;
+      else if (productName.startsWith(word)) score += 7;
+      else if (productName.includes(word)) score += 2;
     }
-
-    if (normalizeText(message).includes(productName)) score += 5;
-
+    if (message.includes(productName)) score += 5;
     if (score <= 0) continue;
 
-    const storeId = product["Store ID"] || "";
-    const store = stores.find(s => String(s["Store ID"] || "") === String(storeId));
-
-    const categoryId = product["Category"] || "";
-    const category = categories.find(c => String(c["Category ID"] || "") === String(categoryId));
-
-    const areaId = product["Area"] || store?.["Area"] || "";
-    const area = areas.find(a => String(a["Area ID"] || "") === String(areaId));
+    const store = stores.find(s => String(s["Store ID"]) === String(product["Store ID"]));
 
     results.push({
       score,
-      productName: product["Product Name"] || "",
-      unit: product["Unit"] || "",
-      price: product["Price"] || "",
-      description: product["Description"] || "",
-      available: product["Available"] || "",
-      active: product["Active"] || "",
+      storeId: product["Store ID"],
+      productName: product["Product Name"],
+      unit: product["Unit"],
+      price: product["Price"],
       storeName: store?.["Store Name"] || "غير معروف",
-      categoryName: category?.["Category Name"] || "",
       address: store?.["Adress"] || "",
-      areaName: area?.["Area Name"] || "",
-      openTime: store?.["Open Time"] || "",
-      closeTime: store?.["Close Time"] || ""
+      areaName: areas.find(a => String(a["Area ID"]) === String(store?.["Area"] || product["Area"]))?.["Area Name"] || "",
     });
   }
 
-  // ترتيب حسب الأفضل
-  results.sort((a, b) => b.score - a.score);
+  // ===== 3. الترتيب الذكي =====
+  results.sort((a, b) => {
+    // أولوية قصوى للمتجر المذكور
+    if (mentionedStoreId) {
+      const aMatch = String(a.storeId) === String(mentionedStoreId);
+      const bMatch = String(b.storeId) === String(mentionedStoreId);
+      if (aMatch &&!bMatch) return -1;
+      if (!aMatch && bMatch) return 1;
+    }
+    return b.score - a.score;
+  });
 
-  // رجّع كل النتائج بدون قصّ
-  console.log("🔎 نتائج البحث عن المنتجات:", JSON.stringify(results));
-  return results;
+  // اذا ذكر متجر، رجع بس من هيدا المتجر! اذا لا، رجع أفضل 3 عام
+  let finalResults = results;
+  if (mentionedStoreId) {
+    finalResults = results.filter(r => String(r.storeId) === String(mentionedStoreId));
+  }
+
+  finalResults = finalResults.slice(0, 3);
+  console.log("🔎 النتائج النهائية:", JSON.stringify(finalResults));
+  return finalResults;
 }
-
 
 // ======================================================
 // 8. جلب طلبات المستخدم
