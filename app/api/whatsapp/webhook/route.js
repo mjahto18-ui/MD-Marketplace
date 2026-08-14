@@ -1201,7 +1201,7 @@ ${orderDetails}
           body:
             JSON.stringify({
               model:
-                "groq/compound-mini",
+                "openai/gpt-oss-20b",
               messages: [
                 {
                   role:
