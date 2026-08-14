@@ -323,7 +323,7 @@ export default function Dashboard() {
 
       </div>
 
-      <button onClick={() => window.open('https://wa.me/md_marketplace?text=مرحبا، بدي مساعدة')} className="fixed bottom-6 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all z-50">
+      <button onClick={() => window.open('https://wa.me/966558224093?text=مرحبا، بدي مساعدة')} className="fixed bottom-6 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all z-50">
         <MessageCircle className="w-7 h-7 text-white" />
       </button>
 
