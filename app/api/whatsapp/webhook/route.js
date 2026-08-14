@@ -1201,7 +1201,7 @@ ${orderDetails}
           body:
             JSON.stringify({
               model:
-                "groq/compound-mini",
+                "llama-3.1-8b-instant",
               messages: [
                 {
                   role:
