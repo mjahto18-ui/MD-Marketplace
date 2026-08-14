@@ -1196,12 +1196,12 @@ ${orderDetails}
             Authorization:
               `Bearer ${GROQ_KEY}`,
             "Content-Type":
-              "groq/compound-mini"
+              "application/json"
           },
           body:
             JSON.stringify({
               model:
-                "zai-glm-4.7",
+                "groq/compound-mini",
               messages: [
                 {
                   role:
