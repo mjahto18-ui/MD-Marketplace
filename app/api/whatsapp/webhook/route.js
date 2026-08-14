@@ -18,6 +18,9 @@ const PHONE_ID =
 const GROQ_KEY =
   process.env.GROQ_API_KEY;
 
+const CEREBRAS_KEY =
+  process.env.CEREBRAS_API_KEY;
+
 const APPSHEET_APP_ID =
   process.env.APPSHEET_APP_ID;
 
@@ -1188,7 +1191,7 @@ ${orderDetails}
 
     const res =
       await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
+        "https://api.cerebras.ai/v1/chat/completions",
         {
           method:
             "POST",
@@ -1201,7 +1204,7 @@ ${orderDetails}
           body:
             JSON.stringify({
               model:
-                "llama-3.1-8b-instant",
+                "gpt-oss-120b",
               messages: [
                 {
                   role:
