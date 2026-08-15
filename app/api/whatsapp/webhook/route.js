@@ -41,23 +41,22 @@ const GOOGLE_PRIVATE_KEY =
 // BOT BRIDGE
 // ======================================================
 
-// البوت الثاني
+// BOT2
 const BOT2_URL =
   process.env.BOT2_URL ||
   "https://www.md-marketplace.store/api/whatsapp-bot2";
 
-// المفتاح الذي يرسله البوت الأول للبوت الثاني
+// المفتاح بين BOT1 و BOT2
 const BOT2_BRIDGE_KEY =
   process.env.BOT2_BRIDGE_KEY ||
   "MDM_BOT1_TO_BOT2_ORDER";
 
-// اسم Session للبوت الأول
-const BOT1_SESSION =
-  "BOT1";
+// ======================================================
+// BOT SESSIONS
+// ======================================================
 
-// اسم Session للبوت الثاني
-const BOT2_SESSION =
-  "BOT2";
+const BOT1_SESSION = "BOT1";
+const BOT2_SESSION = "BOT2";
 
 // ======================================================
 // GENERAL
@@ -87,6 +86,10 @@ const CACHEABLE_SHEETS =
     "Areas"
   ]);
 
+// ======================================================
+// CACHE HELPERS
+// ======================================================
+
 function getCache(key) {
 
   const item =
@@ -100,7 +103,9 @@ function getCache(key) {
     Date.now() - item.t >
     CACHE_TTL
   ) {
+
     SHEETS_CACHE.delete(key);
+
     return null;
   }
 
@@ -133,7 +138,7 @@ function normalizeWhatsAppNumber(
     String(phone || "")
       .replace(/\D/g, "");
 
-  // سعودي
+  // السعودية
   if (
     clean.startsWith("05")
   ) {
@@ -141,7 +146,6 @@ function normalizeWhatsAppNumber(
     clean =
       "966" +
       clean.substring(1);
-
   }
 
   else if (
@@ -152,10 +156,9 @@ function normalizeWhatsAppNumber(
     clean =
       "966" +
       clean;
-
   }
 
-  // لبناني
+  // لبنان
   else if (
     clean.startsWith("03")
   ) {
@@ -163,7 +166,6 @@ function normalizeWhatsAppNumber(
     clean =
       "9613" +
       clean.substring(2);
-
   }
 
   else if (
@@ -174,7 +176,6 @@ function normalizeWhatsAppNumber(
     clean =
       "961" +
       clean;
-
   }
 
   return clean;
@@ -201,6 +202,15 @@ async function sendMessage(
   const cleanPhone =
     normalizeWhatsAppNumber(to);
 
+  if (!cleanPhone) {
+
+    console.error(
+      "❌ رقم WhatsApp غير صالح"
+    );
+
+    return false;
+  }
+
   try {
 
     const res =
@@ -219,6 +229,7 @@ async function sendMessage(
 
           body:
             JSON.stringify({
+
               messaging_product:
                 "whatsapp",
 
@@ -230,7 +241,7 @@ async function sendMessage(
 
               text: {
                 body:
-                  text
+                  String(text || "")
               }
             })
         }
@@ -282,6 +293,7 @@ function getGoogleSheetsClient() {
 
     const auth =
       new google.auth.GoogleAuth({
+
         credentials: {
 
           client_email:
@@ -333,6 +345,10 @@ async function getSheetRows(
       sheetName
     );
 
+  // ----------------------------------------------------
+  // Cache
+  // ----------------------------------------------------
+
   if (useCache) {
 
     const cached =
@@ -348,6 +364,10 @@ async function getSheetRows(
     }
   }
 
+  // ----------------------------------------------------
+  // منع الطلبات المتكررة
+  // ----------------------------------------------------
+
   if (useCache) {
 
     const loading =
@@ -358,7 +378,9 @@ async function getSheetRows(
     if (loading) {
 
       try {
+
         return await loading;
+
       }
 
       catch (error) {
@@ -391,6 +413,7 @@ async function getSheetRows(
 
         const response =
           await sheets.spreadsheets.values.get({
+
             spreadsheetId:
               GOOGLE_SHEETS_ID,
 
@@ -527,23 +550,23 @@ function isNewOrderIntent(
       userMessage
     );
 
+  // ----------------------------------------------------
+  // طلب جديد
+  // ----------------------------------------------------
+
   const newOrderPatterns = [
 
     "بدي اطلب",
-    "بدي أطلب",
-
     "بدي طلب",
 
     "بدي اعمل طلب",
-    "بدي أعمل طلب",
 
     "بدي اوردر",
-    "بدي أوردر",
 
     "بدي اعمل اوردر",
-    "بدي أعمل أوردر",
 
     "بدي اشتري",
+
     "بدي شراء",
 
     "اعمللي طلب",
@@ -559,8 +582,15 @@ function isNewOrderIntent(
     "حط لي طلب",
 
     "فيني اطلب",
-    "فيني أطلب"
+    "فيني أطلب",
+
+    "بدي اشتري",
+    "بدي اشراء"
   ];
+
+  // ----------------------------------------------------
+  // طلب موجود / متابعة طلب
+  // ----------------------------------------------------
 
   const existingOrderPatterns = [
 
@@ -568,7 +598,7 @@ function isNewOrderIntent(
     "وين الطلب",
 
     "وين اوردري",
-    "وين أوردرِي",
+    "وين اوردري",
 
     "شو صار بطلب",
     "شو صار بالطلب",
@@ -587,6 +617,9 @@ function isNewOrderIntent(
 
     "طلبتي وين"
   ];
+
+  // إذا عم يحكي عن طلب موجود
+  // ممنوع التحويل إلى BOT2
 
   if (
     existingOrderPatterns.some(
@@ -766,6 +799,7 @@ async function appSheetAction(
     );
 
     return {
+
       ok:
         response.ok,
 
@@ -789,7 +823,7 @@ async function appSheetAction(
 }
 
 // ======================================================
-// 9. تغيير Bot Session في Users
+// 9. تغيير Bot Session
 // ======================================================
 
 async function changeBotSession(
@@ -815,12 +849,19 @@ async function changeBotSession(
     return false;
   }
 
-  // ====================================================
+  // ----------------------------------------------------
   // IMPORTANT
-  // ====================================================
-  // يجب أن يكون Key في Users مطابقاً لـ User ID.
-  // إذا كان الـKey عندك Customer ID أو غيره نعدله لاحقاً.
-  // ====================================================
+  // Key في Users يجب أن يكون User ID
+  // ----------------------------------------------------
+
+  if (!user.userId) {
+
+    console.error(
+      "❌ User ID غير موجود"
+    );
+
+    return false;
+  }
 
   const row = {
 
@@ -838,7 +879,21 @@ async function changeBotSession(
       [row]
     );
 
-  return !!result?.ok;
+  if (!result?.ok) {
+
+    console.error(
+      "❌ فشل تغيير Bot Session:",
+      result
+    );
+
+    return false;
+  }
+
+  console.log(
+    `✅ Bot Session للمستخدم ${user.userId} أصبح ${newSession}`
+  );
+
+  return true;
 }
 
 // ======================================================
@@ -868,7 +923,7 @@ async function getAllUserMessages(
 }
 
 // ======================================================
-// 11. جلب آخر المحادثة
+// 11. جلب آخر محادثة BOT1
 // ======================================================
 
 async function getConversationHistory(
@@ -936,7 +991,7 @@ async function saveToAppSheet(
       "❌ AppSheet credentials ناقصة"
     );
 
-    return;
+    return false;
   }
 
   try {
@@ -977,11 +1032,14 @@ async function saveToAppSheet(
         messageType
     };
 
-    await appSheetAction(
-      "Messages",
-      "Add",
-      [row]
-    );
+    const result =
+      await appSheetAction(
+        "Messages",
+        "Add",
+        [row]
+      );
+
+    return !!result?.ok;
 
   }
 
@@ -991,11 +1049,13 @@ async function saveToAppSheet(
       "❌ خطأ حفظ Messages:",
       error
     );
+
+    return false;
   }
 }
 
 // ======================================================
-// 13. نسخ المحادثة إلى BOT2
+// 13. نسخ محادثة BOT1 إلى BOT2
 // ======================================================
 
 async function copyConversationToBot2(
@@ -1040,15 +1100,11 @@ async function copyConversationToBot2(
   if (!bot1Messages.length) {
 
     console.log(
-      "ℹ️ لا توجد محادثة لنسخها"
+      "ℹ️ لا توجد محادثة BOT1 لنسخها"
     );
 
     return true;
   }
-
-  // ====================================================
-  // ننسخ المحادثة إلى Session BOT2
-  // ====================================================
 
   const rows =
     bot1Messages.map(
@@ -1080,9 +1136,6 @@ async function copyConversationToBot2(
       })
     );
 
-  // AppSheet عادة يقبل مجموعة Rows
-  // ولكن نرسلها دفعة واحدة
-
   const result =
     await appSheetAction(
       "Messages",
@@ -1107,7 +1160,7 @@ async function copyConversationToBot2(
 }
 
 // ======================================================
-// 14. إرسال Bridge إلى Bot 2
+// 14. إرسال Bridge إلى BOT2
 // ======================================================
 
 async function sendToBot2(
@@ -1132,7 +1185,6 @@ async function sendToBot2(
 
     const payload = {
 
-      // المفتاح الأساسي
       bridgeKey:
         BOT2_BRIDGE_KEY,
 
@@ -1156,6 +1208,7 @@ async function sendToBot2(
       user:
         user
           ? {
+
               userId:
                 user.userId || "",
 
@@ -1177,6 +1230,7 @@ async function sendToBot2(
               role:
                 user.role || ""
             }
+
           : null,
 
       conversation:
@@ -1197,33 +1251,29 @@ async function sendToBot2(
           })
         ),
 
-      // هذا يخبر BOT2 ماذا يفعل
       instruction:
         "TRANSFER_TO_ORDER_BOT",
 
-      // هذا يخبر BOT2 أن يبدأ الحديث
       startMessage:
         "تفضل، أنا مساعدك من MD-Marketplace قسم الطلبات، شو بقدر ساعدك؟"
-
     };
 
     console.log(
       "🔀 إرسال Bridge إلى BOT2:",
-      JSON.stringify(
-        {
-          event:
-            payload.event,
+      JSON.stringify({
 
-          phone:
-            payload.phone,
+        event:
+          payload.event,
 
-          originalMessage:
-            payload.originalMessage,
+        phone:
+          payload.phone,
 
-          bridgeKey:
-            payload.bridgeKey
-        }
-      )
+        originalMessage:
+          payload.originalMessage,
+
+        bridgeKey:
+          payload.bridgeKey
+      })
     );
 
     const response =
@@ -1259,7 +1309,16 @@ async function sendToBot2(
       text
     );
 
-    return response.ok;
+    if (!response.ok) {
+
+      console.error(
+        "❌ BOT2 رفض Bridge"
+      );
+
+      return false;
+    }
+
+    return true;
 
   }
 
@@ -1313,20 +1372,20 @@ async function transferToBot2(
     "================================================"
   );
 
-  // ==================================================
+  // ----------------------------------------------------
   // STEP 1
-  // جلب المحادثة الحالية
-  // ==================================================
+  // جلب آخر محادثة BOT1
+  // ----------------------------------------------------
 
   const history =
     await getConversationHistory(
       from
     );
 
-  // ==================================================
+  // ----------------------------------------------------
   // STEP 2
   // نسخ المحادثة إلى BOT2
-  // ==================================================
+  // ----------------------------------------------------
 
   const copied =
     await copyConversationToBot2(
@@ -1336,17 +1395,16 @@ async function transferToBot2(
   if (!copied) {
 
     console.error(
-      "❌ لم يتم نسخ المحادثة"
+      "❌ لم يتم نسخ المحادثة إلى BOT2"
     );
 
-    // لا نكمل حتى لا نخسر الـcontext
     return false;
   }
 
-  // ==================================================
+  // ----------------------------------------------------
   // STEP 3
-  // تسجيل رسالة الانتقال نفسها
-  // ==================================================
+  // تسجيل رسالة الانتقال في BOT1
+  // ----------------------------------------------------
 
   await saveToAppSheet(
     from,
@@ -1356,6 +1414,7 @@ async function transferToBot2(
     "TRANSFER_TO_BOT2",
 
     {
+
       botSession:
         BOT1_SESSION,
 
@@ -1367,41 +1426,24 @@ async function transferToBot2(
     }
   );
 
-  // ==================================================
+  // ----------------------------------------------------
   // STEP 4
-  // تغيير Session في Users
-  // ==================================================
-
-  const sessionChanged =
-    await changeBotSession(
-      user,
-      BOT2_SESSION
-    );
-
-  if (!sessionChanged) {
-
-    console.error(
-      "❌ فشل تغيير Bot Session إلى BOT2"
-    );
-
-    return false;
-  }
-
-  console.log(
-    "✅ Bot Session أصبح BOT2"
-  );
-
-  // ==================================================
-  // STEP 5
-  // إرسال البيانات للبوت الثاني
-  // ==================================================
+  // إرسال Bridge إلى BOT2
+  //
+  // IMPORTANT:
+  // لا نغيّر Session بعد.
+  // ----------------------------------------------------
 
   const sent =
     await sendToBot2(
       {
+
         from,
+
         user,
+
         originalMessage,
+
         history
       }
     );
@@ -1412,11 +1454,48 @@ async function transferToBot2(
       "❌ BOT2 لم يستقبل Bridge"
     );
 
+    console.error(
+      "⚠️ Session ستبقى BOT1"
+    );
+
+    return false;
+  }
+
+  // ----------------------------------------------------
+  // STEP 5
+  // BOT2 أكد الاستقبال
+  // الآن فقط نغيّر Session
+  // ----------------------------------------------------
+
+  const sessionChanged =
+    await changeBotSession(
+      user,
+      BOT2_SESSION
+    );
+
+  if (!sessionChanged) {
+
+    console.error(
+      "❌ BOT2 استقبل Bridge لكن فشل تغيير Session"
+    );
+
     return false;
   }
 
   console.log(
+    "================================================"
+  );
+
+  console.log(
     "✅ تم الانتقال بنجاح من BOT1 إلى BOT2"
+  );
+
+  console.log(
+    "🤖 Session = BOT2"
+  );
+
+  console.log(
+    "================================================"
   );
 
   return true;
@@ -1456,13 +1535,16 @@ async function searchProducts(
     );
 
   const originalMessage =
-    userMessage.toLowerCase();
+    String(
+      userMessage || ""
+    ).toLowerCase();
 
   // ====================================================
   // المتجر
   // ====================================================
 
   const storeKeywords = [
+
     "سوبرماركت",
     "ميني ماركت",
     "بقالة",
@@ -1563,6 +1645,7 @@ async function searchProducts(
   // ====================================================
 
   const stopWords = [
+
     "بدي",
     "بدّي",
     "اريد",
@@ -1606,11 +1689,13 @@ async function searchProducts(
     const product of products
   ) {
 
-    if (
+    const available =
       normalizeText(
         product["Available"]
-      ) !== "yes" &&
-      product["Available"] !== "Yes"
+      );
+
+    if (
+      available !== "yes"
     ) {
       continue;
     }
@@ -1642,7 +1727,9 @@ async function searchProducts(
       if (
         productName === word
       ) {
+
         score += 10;
+
       }
 
       else if (
@@ -1650,7 +1737,9 @@ async function searchProducts(
           word
         )
       ) {
+
         score += 7;
+
       }
 
       else if (
@@ -1658,6 +1747,7 @@ async function searchProducts(
           word
         )
       ) {
+
         score += 2;
       }
     }
@@ -1667,6 +1757,7 @@ async function searchProducts(
         productName
       )
     ) {
+
       score += 5;
     }
 
@@ -2189,12 +2280,24 @@ async function getAIReply(
       userContext = `
 
 بيانات المستخدم الموثوقة:
-الاسم: ${user.name || "غير معروف"}
-الدور: ${user.role || "غير معروف"}
-Customer ID: ${user.customerId || "غير موجود"}
-User ID: ${user.userId || "غير موجود"}
-رقم WhatsApp: ${user.whatsappNumber || "غير موجود"}
-Bot Session: ${user.botSession || BOT1_SESSION}
+
+الاسم:
+${user.name || "غير معروف"}
+
+الدور:
+${user.role || "غير معروف"}
+
+Customer ID:
+${user.customerId || "غير موجود"}
+
+User ID:
+${user.userId || "غير موجود"}
+
+رقم WhatsApp:
+${user.whatsappNumber || "غير موجود"}
+
+Bot Session:
+${user.botSession || BOT1_SESSION}
 `;
     }
 
@@ -2405,7 +2508,6 @@ ${orderDetails}
         ?.message?.content ||
       "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
     );
-
   }
 
   catch (error) {
@@ -2558,6 +2660,7 @@ export async function POST(
         welcomeMessage,
 
         {
+
           botSession:
             BOT1_SESSION,
 
@@ -2639,7 +2742,7 @@ export async function POST(
 
     // ==================================================
     // IMPORTANT
-    // إذا المستخدم أصلاً BOT2
+    // إذا المستخدم BOT2
     // BOT1 لا يعالج الرسالة
     // ==================================================
 
@@ -2664,6 +2767,7 @@ export async function POST(
 
       return Response.json(
         {
+
           status:
             "ok",
 
@@ -2694,7 +2798,7 @@ export async function POST(
     );
 
     // ==================================================
-    // 🔀 الانتقال إلى BOT2
+    // الانتقال إلى BOT2
     // ==================================================
 
     if (
@@ -2709,6 +2813,7 @@ export async function POST(
       const transferred =
         await transferToBot2(
           {
+
             from:
               whatsappNumber,
 
@@ -2727,13 +2832,17 @@ export async function POST(
           "✅ BOT1 سلم المحادثة إلى BOT2"
         );
 
+        // ------------------------------------------------
         // مهم جداً:
-        // BOT1 لا يرسل أي رد هنا.
-        // BOT2 هو الذي يرسل:
-        // "تفضل، أنا مساعدك من MD-Marketplace قسم الطلبات..."
+        //
+        // BOT1 لا يرسل أي رد للمستخدم.
+        //
+        // BOT2 هو المسؤول عن الرد.
+        // ------------------------------------------------
 
         return Response.json(
           {
+
             status:
               "ok",
 
@@ -2750,8 +2859,11 @@ export async function POST(
         );
       }
 
+      // ------------------------------------------------
       // إذا فشل الانتقال
-      // منخلي BOT1 يكمل طبيعي
+      // BOT1 يكمل طبيعي
+      // ------------------------------------------------
+
       console.error(
         "⚠️ فشل الانتقال إلى BOT2 — BOT1 سيكمل"
       );
@@ -2842,6 +2954,7 @@ export async function POST(
       aiReply,
 
       {
+
         botSession:
           BOT1_SESSION,
 
@@ -2873,8 +2986,10 @@ export async function POST(
       error
     );
 
+    // ==================================================
     // Meta لازم تاخد 200
-    // حتى ما تعيد إرسال الرسالة
+    // ==================================================
+
     return Response.json(
       {
         status:
