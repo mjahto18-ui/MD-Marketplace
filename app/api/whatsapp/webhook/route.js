@@ -428,9 +428,25 @@ export async function POST(req) {
     const currentBotSession = sessionRow? String(sessionRow["Active Bot"] || BOT1_SESSION).trim() : BOT1_SESSION;
     console.log(`🤖 Bot Session من جدول Bot Sessions: ${currentBotSession}`);
 
-    if (currentBotSession === BOT2_SESSION) {
-      console.log("⛔ المستخدم حالياً مع BOT2 — BOT1 لن يعالج الرسالة");
-      return Response.json({ status: "ok", ignored: true, reason: "USER_ASSIGNED_TO_BOT2" }, { status: 200 });
+        if (currentBotSession === BOT2_SESSION) {
+      console.log(`⛔ المستخدم مع BOT2 — تحويل رسالة واتساب من BOT1 لـ BOT2: ${whatsappNumber} | ${userText}`);
+      try {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.md-marketplace.store";
+        const forwardRes = await fetch(`${siteUrl}/api/whatsapp-bot2`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: whatsappNumber,
+            text: userText,
+            whatsappNumber: whatsappNumber
+          })
+        });
+        const forwardText = await forwardRes.text();
+        console.log(`📤 تحويل لـ BOT2: ${forwardRes.status} | ${forwardText.substring(0, 300)}`);
+      } catch (e) {
+        console.error("❌ فشل تحويل لـ BOT2:", e.message);
+      }
+      return Response.json({ status: "ok", forwarded_to: "BOT2" }, { status: 200 });
     }
 
     const newOrderIntent = isNewOrderIntent(userText);
