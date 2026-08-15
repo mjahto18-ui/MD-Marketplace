@@ -404,6 +404,71 @@ function normalizeText(text) {
 }
 
 // ======================================================
+// 5.1. كشف نية إنشاء طلب جديد
+// ======================================================
+
+function isNewOrderIntent(userMessage) {
+  const message = normalizeText(userMessage);
+
+  // عبارات تدل على إنشاء طلب جديد
+  const newOrderPatterns = [
+    "بدي اطلب",
+    "بدي أطلب",
+    "بدي طلب",
+    "بدي اعمل طلب",
+    "بدي أعمل طلب",
+    "بدي اوردر",
+    "بدي أوردر",
+    "بدي اعمل اوردر",
+    "بدي أعمل أوردر",
+    "بدي اشتري",
+    "بدي شراء",
+    "اعمللي طلب",
+    "اعمل لي طلب",
+    "اعمللي اوردر",
+    "اعمل لي اوردر",
+    "سجللي طلب",
+    "سجل لي طلب",
+    "حطلي طلب",
+    "حط لي طلب",
+    "فيني اطلب",
+    "فيني أطلب"
+  ];
+
+  // عبارات تتعلق بطلب موجود مسبقاً
+  const existingOrderPatterns = [
+    "وين طلبي",
+    "وين الطلب",
+    "وين اوردري",
+    "وين أوردرِي",
+    "شو صار بطلب",
+    "شو صار بالطلب",
+    "حالة الطلب",
+    "حاله الطلب",
+    "حالة اوردري",
+    "حالة الأوردر",
+    "طلبي وين صار",
+    "وين صار طلبي",
+    "وصل طلبي",
+    "وصل الطلب",
+    "طلبتي وين"
+  ];
+
+  // أولاً: نستثني الاستفسارات عن طلب موجود
+  if (
+    existingOrderPatterns.some(
+      pattern => message.includes(normalizeText(pattern))
+    )
+  ) {
+    return false;
+  }
+
+  // ثانياً: نبحث عن نية إنشاء طلب جديد
+  return newOrderPatterns.some(
+    pattern => message.includes(normalizeText(pattern))
+  );
+}
+// ======================================================
 // 6. التعرف على المستخدم
 // ======================================================
 
@@ -1235,6 +1300,13 @@ export async function POST(req) {
     console.log(
       `📩 استقبال رسالة من: ${from} | النص: ${userText}`
     );
+    
+    const newOrderIntent =
+  isNewOrderIntent(userText);
+
+console.log(
+  `🛒 نية إنشاء طلب جديد: ${newOrderIntent}`
+);
 
     const whatsappNumber =
       normalizeWhatsAppNumber(
