@@ -3,7 +3,7 @@ import { google } from "googleapis";
 export const dynamic = "force-dynamic";
 
 // ======================================================
-// BOT 2 - ENV
+// ENV
 // ======================================================
 
 const VERIFY_TOKEN =
@@ -15,12 +15,16 @@ const WHATSAPP_TOKEN =
 const PHONE_ID =
   process.env.WHATSAPP_PHONE_ID || "1183824331491327";
 
+const GROQ_KEY =
+  process.env.GROQ_API_KEY;
+
 const APPSHEET_APP_ID =
   process.env.APPSHEET_APP_ID;
 
 const APPSHEET_API_KEY =
   process.env.APPSHEET_API_KEY;
 
+// Google Sheets
 const GOOGLE_SHEETS_ID =
   process.env.GOOGLE_SHEETS_ID;
 
@@ -47,10 +51,10 @@ const CACHE_TTL =
 
 const CACHEABLE_SHEETS =
   new Set([
-    "Areas",
-    "Stores",
     "Products",
-    "Categories"
+    "Stores",
+    "Categories",
+    "Areas"
   ]);
 
 function getCache(key) {
@@ -72,7 +76,10 @@ function getCache(key) {
   return item.v;
 }
 
-function setCache(key, value) {
+function setCache(
+  key,
+  value
+) {
   SHEETS_CACHE.set(
     key,
     {
@@ -86,13 +93,20 @@ function setCache(key, value) {
 // 1. توحيد رقم WhatsApp
 // ======================================================
 
-function normalizeWhatsAppNumber(phone) {
+function normalizeWhatsAppNumber(
+  phone
+) {
   let clean =
     String(phone || "")
       .replace(/\D/g, "");
 
-  // سعودي
-  if (clean.startsWith("05")) {
+  // سعودي:
+  // 05xxxxxxxx
+  // →
+  // 9665xxxxxxxx
+  if (
+    clean.startsWith("05")
+  ) {
     clean =
       "966" +
       clean.substring(1);
@@ -107,13 +121,22 @@ function normalizeWhatsAppNumber(phone) {
       clean;
   }
 
-  // لبناني
-  else if (clean.startsWith("03")) {
+  // لبناني:
+  // 03xxxxxx
+  // →
+  // 9613xxxxxx
+  else if (
+    clean.startsWith("03")
+  ) {
     clean =
       "9613" +
       clean.substring(2);
   }
 
+  // لبناني:
+  // 3xxxxxx
+  // →
+  // 9613xxxxxx
   else if (
     clean.length === 7 &&
     clean.startsWith("3")
@@ -130,16 +153,22 @@ function normalizeWhatsAppNumber(phone) {
 // 2. إرسال WhatsApp
 // ======================================================
 
-async function sendMessage(to, text) {
+async function sendMessage(
+  to,
+  text
+) {
   if (!WHATSAPP_TOKEN) {
     console.error(
       "❌ WHATSAPP_TOKEN غير موجود"
     );
+
     return;
   }
 
   const cleanPhone =
-    normalizeWhatsAppNumber(to);
+    normalizeWhatsAppNumber(
+      to
+    );
 
   try {
     const response =
@@ -179,7 +208,7 @@ async function sendMessage(to, text) {
       await response.json();
 
     console.log(
-      "📤 WhatsApp:",
+      "📤 نتيجة إرسال WhatsApp:",
       JSON.stringify(data)
     );
 
@@ -234,7 +263,7 @@ function getGoogleSheetsClient() {
 
   } catch (error) {
     console.error(
-      "❌ خطأ Google Sheets:",
+      "❌ خطأ إنشاء Google Sheets client:",
       error
     );
 
@@ -249,16 +278,19 @@ function getGoogleSheetsClient() {
 const SHEETS_LOADING =
   new Map();
 
-async function getSheetRows(sheetName) {
+async function getSheetRows(
+  sheetName
+) {
   const useCache =
     CACHEABLE_SHEETS.has(
       sheetName
     );
 
-  // Cache
   if (useCache) {
     const cached =
-      getCache(sheetName);
+      getCache(
+        sheetName
+      );
 
     if (cached) {
       console.log(
@@ -269,7 +301,6 @@ async function getSheetRows(sheetName) {
     }
   }
 
-  // منع أكثر من قراءة لنفس الجدول بنفس الوقت
   if (useCache) {
     const loading =
       SHEETS_LOADING.get(
@@ -277,7 +308,21 @@ async function getSheetRows(sheetName) {
       );
 
     if (loading) {
-      return await loading;
+      console.log(
+        `⏳ انتظار قراءة جارية: ${sheetName}`
+      );
+
+      try {
+        return await loading;
+
+      } catch (error) {
+        console.error(
+          `❌ فشل الطلب المشترك: ${sheetName}`,
+          error.message
+        );
+
+        return [];
+      }
     }
   }
 
@@ -308,6 +353,10 @@ async function getSheetRows(sheetName) {
           response.data.values || [];
 
         if (!rows.length) {
+          console.log(
+            `⚠ جدول ${sheetName} فارغ`
+          );
+
           return [];
         }
 
@@ -322,18 +371,24 @@ async function getSheetRows(sheetName) {
         const result =
           rows
             .slice(1)
-            .map(row => {
-              const object = {};
+            .map(
+              row => {
+                const obj = {};
 
-              headers.forEach(
-                (header, index) => {
-                  object[header] =
-                    row[index] || "";
-                }
-              );
+                headers.forEach(
+                  (
+                    header,
+                    index
+                  ) => {
+                    obj[header] =
+                      row[index] ||
+                      "";
+                  }
+                );
 
-              return object;
-            });
+                return obj;
+              }
+            );
 
         if (useCache) {
           setCache(
@@ -346,7 +401,7 @@ async function getSheetRows(sheetName) {
 
       } catch (error) {
         console.error(
-          `❌ خطأ قراءة ${sheetName}:`,
+          `❌ خطأ قراءة جدول ${sheetName}:`,
           error.message
         );
 
@@ -392,7 +447,7 @@ function normalizeText(text) {
 }
 
 // ======================================================
-// 6. البحث عن المستخدم
+// 6. التعرف على المستخدم
 // ======================================================
 
 async function getUserByWhatsAppNumber(
@@ -403,19 +458,25 @@ async function getUserByWhatsAppNumber(
       whatsappNumber
     );
 
+  console.log(
+    `🔎 البحث عن المستخدم: ${normalized}`
+  );
+
   const rows =
     await getSheetRows(
       "Users"
     );
 
   for (const row of rows) {
-    const rowNumber =
+    const rowWhatsApp =
       normalizeWhatsAppNumber(
-        row["WhatsApp Number"] || ""
+        row["WhatsApp Number"] ||
+        ""
       );
 
     if (
-      rowNumber === normalized
+      rowWhatsApp ===
+      normalized
     ) {
       return {
         userId:
@@ -453,160 +514,506 @@ async function getUserByWhatsAppNumber(
 
   return null;
 }
-
 // ======================================================
-// نهاية الجزء الأول
-// ======================================================
-// ======================================================
-// 7. البحث عن المنتجات
+// 7. التحقق من المنطقة
 // ======================================================
 
-async function searchProducts(userMessage) {
-  const products =
-    await getSheetRows("Products");
-
-  const stores =
-    await getSheetRows("Stores");
-
-  const categories =
-    await getSheetRows("Categories");
-
+async function findArea(
+  areaText
+) {
   const areas =
-    await getSheetRows("Areas");
+    await getSheetRows(
+      "Areas"
+    );
 
-  const message =
-    normalizeText(userMessage);
+  const input =
+    normalizeText(
+      areaText
+    );
 
-  const originalMessage =
-    String(userMessage || "")
-      .toLowerCase();
+  if (!input) {
+    return null;
+  }
 
-  // ====================================================
-  // كشف المتجر المذكور
-  // ====================================================
+  for (const area of areas) {
+    const areaId =
+      String(
+        area["Area ID"] || ""
+      ).trim();
 
-  const storeKeywords = [
-    "سوبرماركت",
-    "ميني ماركت",
-    "بقالة",
-    "محل",
-    "متجر",
-    "ماركت"
-  ];
+    const areaName =
+      String(
+        area["Area Name"] || ""
+      ).trim();
 
-  let mentionedStoreId = null;
-  let mentionedStoreName = "";
-
-  for (const store of stores) {
-    const storeName =
-      normalizeText(
-        store["Store Name"]
-      );
-
-    if (!storeName) {
+    if (!areaId || !areaName) {
       continue;
     }
 
+    const normalizedName =
+      normalizeText(
+        areaName
+      );
+
+    const normalizedId =
+      normalizeText(
+        areaId
+      );
+
+    // المقارنة بالـ ID
     if (
-      message.includes(storeName)
+      input ===
+      normalizedId
     ) {
-      mentionedStoreId =
-        store["Store ID"];
+      return {
+        areaId,
+        areaName
+      };
+    }
 
-      mentionedStoreName =
-        store["Store Name"];
-
-      break;
+    // المقارنة بالاسم
+    if (
+      input ===
+      normalizedName
+    ) {
+      return {
+        areaId,
+        areaName
+      };
     }
   }
 
-  // ====================================================
-  // محاولة استخراج اسم المتجر بعد كلمة مثل "ميني ماركت"
-  // ====================================================
+  // ممنوع اختراع منطقة
+  return null;
+}
 
-  if (!mentionedStoreId) {
-    for (const keyword of storeKeywords) {
-      if (
-        originalMessage.includes(keyword)
-      ) {
-        const parts =
-          originalMessage.split(keyword);
+// ======================================================
+// 8. التحقق من عنوان المستخدم
+// ======================================================
 
-        if (
-          parts[1]
-        ) {
-          const firstWord =
-            normalizeText(
-              parts[1]
-                .trim()
-                .split(" ")[0]
-            );
-
-          if (firstWord) {
-            for (const store of stores) {
-              const storeName =
-                normalizeText(
-                  store["Store Name"]
-                );
-
-              if (
-                storeName.includes(
-                  firstWord
-                )
-              ) {
-                mentionedStoreId =
-                  store["Store ID"];
-
-                mentionedStoreName =
-                  store["Store Name"];
-
-                break;
-              }
-            }
-          }
-        }
-      }
-
-      if (mentionedStoreId) {
-        break;
-      }
-    }
+function getAddressInfo(
+  user
+) {
+  if (!user) {
+    return {
+      oldAddress: "",
+      newAddress: "",
+      hasOldAddress: false,
+      hasNewAddress: false
+    };
   }
 
-  if (mentionedStoreId) {
-    console.log(
-      `🏪 المتجر المذكور: ${mentionedStoreName} (${mentionedStoreId})`
+  const oldAddress =
+    String(
+      user.oldAddress ||
+      ""
+    ).trim();
+
+  const newAddress =
+    String(
+      user.newAddress ||
+      ""
+    ).trim();
+
+  return {
+    oldAddress,
+    newAddress,
+
+    hasOldAddress:
+      Boolean(oldAddress),
+
+    hasNewAddress:
+      Boolean(newAddress)
+  };
+}
+
+// ======================================================
+// 9. اختيار العنوان
+// ======================================================
+
+function resolveAddress(
+  user,
+  requestedAddress
+) {
+  const addressInfo =
+    getAddressInfo(
+      user
     );
+
+  const requested =
+    normalizeText(
+      requestedAddress
+    );
+
+  // إذا المستخدم أعطى عنوان جديد ضمن الرسالة
+  if (requested) {
+    return {
+      address:
+        requestedAddress.trim(),
+
+      source:
+        "new",
+
+      valid:
+        true
+    };
   }
 
+  // إذا عنده عنوان محفوظ جديد
+  if (
+    addressInfo.hasNewAddress
+  ) {
+    return {
+      address:
+        addressInfo.newAddress,
+
+      source:
+        "new_saved",
+
+      valid:
+        true
+    };
+  }
+
+  // إذا ما عنده الجديد، نستخدم القديم
+  if (
+    addressInfo.hasOldAddress
+  ) {
+    return {
+      address:
+        addressInfo.oldAddress,
+
+      source:
+        "old_saved",
+
+      valid:
+        true
+    };
+  }
+
+  // لا يوجد عنوان
+  return {
+    address:
+      "",
+
+    source:
+      "missing",
+
+    valid:
+      false
+  };
+}
+
+// ======================================================
+// 10. قراءة بيانات المستخدم المتعلقة بالعنوان
+// ======================================================
+
+async function getUserDeliveryData(
+  user
+) {
+  if (!user) {
+    return {
+      area: null,
+      oldAddress: "",
+      newAddress: ""
+    };
+  }
+
+  const users =
+    await getSheetRows(
+      "Users"
+    );
+
+  const normalized =
+    normalizeWhatsAppNumber(
+      user.whatsappNumber
+    );
+
+  const row =
+    users.find(
+      item =>
+        normalizeWhatsAppNumber(
+          item["WhatsApp Number"] ||
+          ""
+        ) === normalized
+    );
+
+  if (!row) {
+    return {
+      area: null,
+      oldAddress: "",
+      newAddress: ""
+    };
+  }
+
+  const areaValue =
+    String(
+      row["Area"] ||
+      ""
+    ).trim();
+
+  const area =
+    await findArea(
+      areaValue
+    );
+
+  return {
+    area,
+
+    oldAddress:
+      String(
+        row["Address"] ||
+        row["Old Address"] ||
+        row["Delivery Address"] ||
+        ""
+      ).trim(),
+
+    newAddress:
+      String(
+        row["New Address"] ||
+        ""
+      ).trim()
+  };
+}
+
+// ======================================================
+// 11. تحليل المنطقة من رسالة المستخدم
+// ======================================================
+
+async function detectAreaFromMessage(
+  userMessage
+) {
+  const areas =
+    await getSheetRows(
+      "Areas"
+    );
+
+  const message =
+    normalizeText(
+      userMessage
+    );
+
+  if (!message) {
+    return null;
+  }
+
+  for (const area of areas) {
+    const areaId =
+      String(
+        area["Area ID"] || ""
+      ).trim();
+
+    const areaName =
+      String(
+        area["Area Name"] || ""
+      ).trim();
+
+    if (!areaId || !areaName) {
+      continue;
+    }
+
+    const normalizedName =
+      normalizeText(
+        areaName
+      );
+
+    const normalizedId =
+      normalizeText(
+        areaId
+      );
+
+    if (
+      message.includes(
+        normalizedName
+      )
+    ) {
+      return {
+        areaId,
+        areaName,
+        source:
+          "message"
+      };
+    }
+
+    if (
+      message.includes(
+        normalizedId
+      )
+    ) {
+      return {
+        areaId,
+        areaName,
+        source:
+          "message"
+      };
+    }
+  }
+
+  return null;
+}
+
+// ======================================================
+// 12. منطق المنطقة والعنوان
+// ======================================================
+
+async function resolveDeliveryLocation(
+  user,
+  userMessage
+) {
+  if (!user) {
+    return {
+      success:
+        false,
+
+      reason:
+        "user_not_registered",
+
+      area:
+        null,
+
+      address:
+        null
+    };
+  }
+
+  const detectedArea =
+    await detectAreaFromMessage(
+      userMessage
+    );
+
+  const savedData =
+    await getUserDeliveryData(
+      user
+    );
+
+  let finalArea =
+    detectedArea ||
+    savedData.area;
+
   // ====================================================
-  // كلمات لا نريد اعتبارها اسم منتج
+  // صارم:
+  // المنطقة يجب أن تكون موجودة في Areas
   // ====================================================
 
-  const stopWords = [
-    "بدي",
-    "بدّي",
-    "اريد",
-    "أريد",
-    "اعرف",
-    "موجود",
-    "وين",
-    "باي",
-    "متجر",
-    "سوبرماركت",
-    "ميني",
-    "ماركت",
-    "بقالة",
-    "محل",
-    "عند",
-    "شو",
-    "عن",
-    "المنتج",
-    "منتج",
-    "في",
-    "منو",
-    "فيه"
-  ];
+  if (!finalArea) {
+    return {
+      success:
+        false,
+
+      reason:
+        "area_missing",
+
+      area:
+        null,
+
+      address:
+        null
+    };
+  }
+
+  const address =
+    resolveAddress(
+      {
+        oldAddress:
+          savedData.oldAddress,
+
+        newAddress:
+          savedData.newAddress
+      },
+      ""
+    );
+
+  // ====================================================
+  // صارم:
+  // لا عنوان = لا اعتماد للطلب
+  // ====================================================
+
+  if (!address.valid) {
+    return {
+      success:
+        false,
+
+      reason:
+        "address_missing",
+
+      area:
+        finalArea,
+
+      address:
+        null
+    };
+  }
+
+  return {
+    success:
+      true,
+
+    reason:
+      "valid",
+
+    area:
+      finalArea,
+
+    address:
+      address.address,
+
+    addressSource:
+      address.source
+  };
+}
+
+// ======================================================
+// 13. البحث عن المنتجات
+// ======================================================
+
+async function searchProducts(
+  userMessage
+) {
+  const products =
+    await getSheetRows(
+      "Products"
+    );
+
+  const stores =
+    await getSheetRows(
+      "Stores"
+    );
+
+  const areas =
+    await getSheetRows(
+      "Areas"
+    );
+
+  const message =
+    normalizeText(
+      userMessage
+    );
+
+  const stopWords =
+    [
+      "بدي",
+      "بدّي",
+      "اريد",
+      "أريد",
+      "اعرف",
+      "موجود",
+      "وين",
+      "باي",
+      "متجر",
+      "سوبرماركت",
+      "ميني",
+      "ماركت",
+      "بقالة",
+      "محل",
+      "عند",
+      "شو",
+      "عن",
+      "المنتج",
+      "منتج",
+      "في",
+      "منو",
+      "فيه"
+    ];
 
   const words =
     message
@@ -614,20 +1021,20 @@ async function searchProducts(userMessage) {
       .filter(
         word =>
           word.length >= 2 &&
-          !stopWords.includes(word)
+          !stopWords.includes(
+            word
+          )
       );
 
   if (!words.length) {
     return [];
   }
 
-  // ====================================================
-  // البحث
-  // ====================================================
-
   const results = [];
 
-  for (const product of products) {
+  for (
+    const product of products
+  ) {
     const available =
       normalizeText(
         product["Available"]
@@ -639,13 +1046,17 @@ async function searchProducts(userMessage) {
       ).toUpperCase();
 
     if (
-      available !== "yes"
+      available !==
+        "yes" &&
+      available !==
+        "نعم"
     ) {
       continue;
     }
 
     if (
-      active !== "TRUE"
+      active !==
+      "TRUE"
     ) {
       continue;
     }
@@ -661,28 +1072,37 @@ async function searchProducts(userMessage) {
 
     let score = 0;
 
-    for (const word of words) {
+    for (
+      const word of words
+    ) {
       if (
-        productName === word
+        productName ===
+        word
       ) {
         score += 10;
       }
 
       else if (
-        productName.startsWith(word)
+        productName.startsWith(
+          word
+        )
       ) {
         score += 7;
       }
 
       else if (
-        productName.includes(word)
+        productName.includes(
+          word
+        )
       ) {
         score += 2;
       }
     }
 
     if (
-      message.includes(productName)
+      message.includes(
+        productName
+      )
     ) {
       score += 5;
     }
@@ -712,30 +1132,45 @@ async function searchProducts(userMessage) {
           ) ===
           String(
             store?.["Area"] ||
-            product["Area"]
+            product["Area"] ||
+            ""
           )
       );
 
     results.push({
       score,
-      storeId:
-        product["Store ID"] || "",
+
+      productId:
+        product["Product ID"] ||
+        "",
 
       productName:
-        product["Product Name"] || "",
+        product["Product Name"] ||
+        "",
 
       unit:
-        product["Unit"] || "",
+        product["Unit"] ||
+        "",
 
       price:
-        product["Price"] || "",
+        product["Price"] ||
+        "",
+
+      storeId:
+        product["Store ID"] ||
+        "",
 
       storeName:
         store?.["Store Name"] ||
-        "غير معروف",
+        "",
 
       address:
         store?.["Adress"] ||
+        store?.["Address"] ||
+        "",
+
+      areaId:
+        area?.["Area ID"] ||
         "",
 
       areaName:
@@ -744,70 +1179,24 @@ async function searchProducts(userMessage) {
     });
   }
 
-  // ====================================================
-  // ترتيب النتائج
-  // ====================================================
-
   results.sort(
-    (a, b) => {
-      if (mentionedStoreId) {
-        const aMatch =
-          String(a.storeId) ===
-          String(mentionedStoreId);
-
-        const bMatch =
-          String(b.storeId) ===
-          String(mentionedStoreId);
-
-        if (
-          aMatch &&
-          !bMatch
-        ) {
-          return -1;
-        }
-
-        if (
-          !aMatch &&
-          bMatch
-        ) {
-          return 1;
-        }
-      }
-
-      return b.score - a.score;
-    }
+    (a, b) =>
+      b.score -
+      a.score
   );
 
-  let finalResults =
-    results;
-
-  if (mentionedStoreId) {
-    finalResults =
-      results.filter(
-        item =>
-          String(item.storeId) ===
-          String(mentionedStoreId)
-      );
-  }
-
-  finalResults =
-    finalResults.slice(0, 3);
-
-  console.log(
-    "🔎 نتائج المنتجات:",
-    JSON.stringify(
-      finalResults
-    )
+  return results.slice(
+    0,
+    10
   );
-
-  return finalResults;
 }
-
 // ======================================================
-// 8. جلب طلبات المستخدم
+// 14. قراءة الطلبات الخاصة بالمستخدم
 // ======================================================
 
-async function getUserOrders(user) {
+async function getUserOrders(
+  user
+) {
   if (!user) {
     return [];
   }
@@ -817,70 +1206,78 @@ async function getUserOrders(user) {
       "Order Requuest"
     );
 
-  const isAdmin =
-    String(
-      user.role || ""
-    )
-      .toLowerCase()
-      .includes("admin");
-
   const customerId =
     String(
-      user.customerId || ""
+      user.customerId ||
+      ""
     ).trim();
 
-  const userMobile =
+  const mobile =
     normalizeWhatsAppNumber(
-      user.mobile || ""
+      user.mobile ||
+      user.whatsappNumber ||
+      ""
     );
 
   const results = [];
 
-  for (const order of orders) {
+  for (
+    const order of orders
+  ) {
     const orderCustomerId =
       String(
-        order["Customer ID"] || ""
+        order["Customer ID"] ||
+        ""
       ).trim();
 
     const orderMobile =
       normalizeWhatsAppNumber(
-        order["Mobile"] || ""
+        order["Mobile"] ||
+        ""
       );
-
-    if (isAdmin) {
-      results.push(order);
-      continue;
-    }
 
     if (
       customerId &&
-      orderCustomerId === customerId
+      orderCustomerId ===
+      customerId
     ) {
-      results.push(order);
+      results.push(
+        order
+      );
+
       continue;
     }
 
     if (
-      userMobile &&
+      mobile &&
       orderMobile &&
-      userMobile === orderMobile
+      mobile ===
+      orderMobile
     ) {
-      results.push(order);
+      results.push(
+        order
+      );
     }
   }
 
   console.log(
-    `📦 طلبات المستخدم: ${results.length}`
+    `📦 Orders للمستخدم: ${results.length}`
   );
 
   return results;
 }
 
 // ======================================================
-// 9. تفاصيل الطلب
+// 15. قراءة تفاصيل الطلب
 // ======================================================
 
-async function getOrderDetails(requestId) {
+async function getOrderDetails(
+  requestId
+) {
+  if (!requestId) {
+    return [];
+  }
+
   const details =
     await getSheetRows(
       "Order Details"
@@ -903,97 +1300,124 @@ async function getOrderDetails(requestId) {
 
   const result = [];
 
-  for (const detail of details) {
+  for (
+    const detail of details
+  ) {
+    const detailRequestId =
+      String(
+        detail["Request ID"] ||
+        ""
+      ).trim();
+
     if (
+      detailRequestId !==
       String(
-        detail["Request ID"] || ""
-      ).trim() !==
-      String(
-        requestId || ""
+        requestId
       ).trim()
     ) {
       continue;
     }
 
     const productId =
-      detail["Product ID"] || "";
+      String(
+        detail["Product ID"] ||
+        ""
+      ).trim();
 
     const storeId =
-      detail["Store ID"] || "";
+      String(
+        detail["Store ID"] ||
+        ""
+      ).trim();
 
     const areaId =
-      detail["Area"] || "";
+      String(
+        detail["Area"] ||
+        ""
+      ).trim();
 
     const product =
       products.find(
         item =>
           String(
-            item["Product ID"] || ""
-          ) ===
-          String(productId)
+            item["Product ID"] ||
+            ""
+          ).trim() ===
+          productId
       );
 
     const store =
       stores.find(
         item =>
           String(
-            item["Store ID"] || ""
-          ) ===
-          String(storeId)
+            item["Store ID"] ||
+            ""
+          ).trim() ===
+          storeId
       );
 
     const area =
       areas.find(
         item =>
           String(
-            item["Area ID"] || ""
-          ) ===
-          String(areaId)
+            item["Area ID"] ||
+            ""
+          ).trim() ===
+          areaId
       );
 
     result.push({
+      requestId:
+        detailRequestId,
+
+      productId,
+
       productName:
         product?.["Product Name"] ||
-        "منتج غير معروف",
+        "",
 
       qty:
-        detail["Qty"] || "",
+        detail["Qty"] ||
+        "",
 
       unitPrice:
-        detail["Unit Price"] || "",
+        detail["Unit Price"] ||
+        "",
+
+      storeId,
 
       storeName:
         store?.["Store Name"] ||
-        "متجر غير معروف",
+        "",
+
+      areaId,
 
       areaName:
         area?.["Area Name"] ||
-        "منطقة غير معروفة"
+        ""
     });
   }
+
+  console.log(
+    `🧾 تفاصيل الطلب ${requestId}: ${result.length}`
+  );
 
   return result;
 }
 
 // ======================================================
-// 10. تجهيز Context للطلبات
+// 16. تحديد الطلب المقصود من الرسالة
 // ======================================================
 
-async function buildOrderContext(
-  user,
+function detectRequestedOrder(
+  orders,
   userMessage
 ) {
-  const orders =
-    await getUserOrders(
-      user
-    );
-
-  if (!orders.length) {
-    return {
-      orders: [],
-      selectedOrder: null,
-      details: []
-    };
+  if (
+    !orders ||
+    !orders.length
+  ) {
+    return null;
   }
 
   const message =
@@ -1001,165 +1425,1110 @@ async function buildOrderContext(
       userMessage
     );
 
-  let selectedOrder =
-    null;
-
-  for (const order of orders) {
+  // أولاً: البحث عن Request ID
+  for (
+    const order of orders
+  ) {
     const requestId =
-      normalizeText(
-        order["Request ID"]
-      );
+      String(
+        order["Request ID"] ||
+        ""
+      ).trim();
 
     if (
       requestId &&
       message.includes(
-        requestId
+        normalizeText(
+          requestId
+        )
       )
     ) {
-      selectedOrder =
-        order;
-
-      break;
+      return order;
     }
   }
 
-  if (!selectedOrder) {
-    selectedOrder =
-      orders[
-        orders.length - 1
-      ];
+  // إذا ما ذكر رقم الطلب
+  // نستخدم آخر طلب للمستخدم
+  return orders[
+    orders.length - 1
+  ];
+}
+
+// ======================================================
+// 17. تجهيز حالة الطلب
+// ======================================================
+
+function buildOrderStatus(
+  order
+) {
+  if (!order) {
+    return null;
   }
 
-  const details =
-    await getOrderDetails(
-      selectedOrder[
-        "Request ID"
-      ]
-    );
-
-  const safeOrders =
-    orders.map(
-      order => ({
-        requestId:
-          order["Request ID"] || "",
-
-        area:
-          order["Area"] || "",
-
-        deliveryAddress:
-          order["Delivery Adress"] || "",
-
-        deliveryFee:
-          order["Delivery Fee"] || "",
-
-        assignedDriver:
-          order["Assigned Driver"] || "",
-
-        approvalStatus:
-          order["Approval Status"] || "",
-
-        deliveryStatus:
-          order["Delivery Status"] || "",
-
-        itemsCost:
-          order["Items Cost"] || "",
-
-        totalAmount:
-          order["Total Amount"] || ""
-      })
-    );
-
   return {
-    orders:
-      safeOrders,
+    requestId:
+      order["Request ID"] ||
+      "",
 
-    selectedOrder: {
-      requestId:
-        selectedOrder["Request ID"] || "",
+    approvalStatus:
+      order["Approval Status"] ||
+      "",
 
-      area:
-        selectedOrder["Area"] || "",
+    deliveryStatus:
+      order["Delivery Status"] ||
+      "",
 
-      deliveryAddress:
-        selectedOrder[
-          "Delivery Adress"
-        ] || "",
+    assignedDriver:
+      order["Assigned Driver"] ||
+      "",
 
-      deliveryFee:
-        selectedOrder[
-          "Delivery Fee"
-        ] || "",
+    area:
+      order["Area"] ||
+      "",
 
-      assignedDriver:
-        selectedOrder[
-          "Assigned Driver"
-        ] || "",
+    deliveryAddress:
+      order["Delivery Adress"] ||
+      order["Delivery Address"] ||
+      "",
 
-      approvalStatus:
-        selectedOrder[
-          "Approval Status"
-        ] || "",
+    itemsCost:
+      order["Items Cost"] ||
+      "",
 
-      deliveryStatus:
-        selectedOrder[
-          "Delivery Status"
-        ] || "",
+    deliveryFee:
+      order["Delivery Fee"] ||
+      "",
 
-      itemsCost:
-        selectedOrder[
-          "Items Cost"
-        ] || "",
-
-      totalAmount:
-        selectedOrder[
-          "Total Amount"
-        ] || ""
-    },
-
-    details
+    totalAmount:
+      order["Total Amount"] ||
+      ""
   };
 }
 
 // ======================================================
-// 11. حفظ الرسائل في AppSheet
+// 18. تجهيز Context كامل للبوت 2
 // ======================================================
 
-async function saveToAppSheet(
-  from,
-  userMessage,
-  aiReply
+async function buildBot2Context(
+  user,
+  userMessage
 ) {
-  if (
-    !APPSHEET_APP_ID ||
-    !APPSHEET_API_KEY
-  ) {
-    console.error(
-      "❌ AppSheet credentials ناقصة"
+  // المستخدم غير المسجل
+  if (!user) {
+    return {
+      registered:
+        false,
+
+      user:
+        null,
+
+      area:
+        null,
+
+      address:
+        null,
+
+      products:
+        [],
+
+      orders:
+        [],
+
+      selectedOrder:
+        null,
+
+      orderDetails:
+        []
+    };
+  }
+
+  // ----------------------------------------------
+  // بيانات المنطقة والعنوان
+  // ----------------------------------------------
+
+  const delivery =
+    await resolveDeliveryLocation(
+      user,
+      userMessage
     );
 
-    return;
+  // ----------------------------------------------
+  // المنتجات
+  // ----------------------------------------------
+
+  const products =
+    await searchProducts(
+      userMessage
+    );
+
+  // ----------------------------------------------
+  // الطلبات
+  // ----------------------------------------------
+
+  const orders =
+    await getUserOrders(
+      user
+    );
+
+  const selectedOrder =
+    detectRequestedOrder(
+      orders,
+      userMessage
+    );
+
+  const orderStatus =
+    buildOrderStatus(
+      selectedOrder
+    );
+
+  let orderDetails =
+    [];
+
+  if (
+    selectedOrder &&
+    selectedOrder["Request ID"]
+  ) {
+    orderDetails =
+      await getOrderDetails(
+        selectedOrder[
+          "Request ID"
+        ]
+      );
+  }
+
+  return {
+    registered:
+      true,
+
+    user: {
+      userId:
+        user.userId ||
+        "",
+
+      customerId:
+        user.customerId ||
+        "",
+
+      name:
+        user.name ||
+        "",
+
+      mobile:
+        user.mobile ||
+        "",
+
+      whatsappNumber:
+        user.whatsappNumber ||
+        "",
+
+      role:
+        user.role ||
+        "",
+
+      status:
+        user.status ||
+        "",
+
+      active:
+        user.active ||
+        ""
+    },
+
+    area:
+      delivery.area,
+
+    address:
+      delivery.address,
+
+    deliverySuccess:
+      delivery.success,
+
+    deliveryReason:
+      delivery.reason,
+
+    products,
+
+    orders,
+
+    selectedOrder:
+      orderStatus,
+
+    orderDetails
+  };
+}
+
+// ======================================================
+// 19. تحديد نوع طلب المستخدم
+// ======================================================
+
+function detectIntent(
+  userMessage
+) {
+  const message =
+    normalizeText(
+      userMessage
+    );
+
+  if (!message) {
+    return "unknown";
+  }
+
+  // تحية
+  const greetings =
+    [
+      "مرحبا",
+      "مرحباً",
+      "اهلا",
+      "أهلا",
+      "هاي",
+      "hello",
+      "hi"
+    ];
+
+  if (
+    greetings.some(
+      item =>
+        message ===
+        normalizeText(item)
+    )
+  ) {
+    return "greeting";
+  }
+
+  // سؤال عن المنتجات
+  const productWords =
+    [
+      "منتج",
+      "موجود",
+      "عندكم",
+      "بدي",
+      "اريد",
+      "وين",
+      "سعر"
+    ];
+
+  if (
+    productWords.some(
+      word =>
+        message.includes(
+          normalizeText(word)
+        )
+    )
+  ) {
+    return "product_search";
+  }
+
+  // سؤال عن الطلب
+  const orderWords =
+    [
+      "طلب",
+      "طلبي",
+      "اوردر",
+      "أوردر",
+      "التوصيل",
+      "التوصيل وين",
+      "وصل",
+      "الطلب وين"
+    ];
+
+  if (
+    orderWords.some(
+      word =>
+        message.includes(
+          normalizeText(word)
+        )
+    )
+  ) {
+    return "order_status";
+  }
+
+  // سؤال عن الموقع
+  const websiteWords =
+    [
+      "الموقع",
+      "رابط",
+      "ويبسايت",
+      "موقعكم"
+    ];
+
+  if (
+    websiteWords.some(
+      word =>
+        message.includes(
+          normalizeText(word)
+        )
+    )
+  ) {
+    return "website";
+  }
+
+  // سؤال عن التواصل
+  const contactWords =
+    [
+      "ايميل",
+      "إيميل",
+      "تواصل",
+      "الادارة",
+      "الإدارة"
+    ];
+
+  if (
+    contactWords.some(
+      word =>
+        message.includes(
+          normalizeText(word)
+        )
+    )
+  ) {
+    return "contact";
+  }
+
+  return "unknown";
+}
+
+// ======================================================
+// 20. سجل مراقبة البوت 2
+// ======================================================
+
+function buildBot2Observation(
+  user,
+  userMessage,
+  context
+) {
+  return {
+    timestamp:
+      new Date().toISOString(),
+
+    phone:
+      normalizeWhatsAppNumber(
+        user?.whatsappNumber ||
+        ""
+      ),
+
+    registered:
+      Boolean(user),
+
+    userId:
+      user?.userId ||
+      "",
+
+    customerId:
+      user?.customerId ||
+      "",
+
+    userName:
+      user?.name ||
+      "",
+
+    intent:
+      detectIntent(
+        userMessage
+      ),
+
+    message:
+      userMessage,
+
+    area:
+      context?.area ||
+      null,
+
+    address:
+      context?.address ||
+      null,
+
+    productsFound:
+      context?.products?.length ||
+      0,
+
+    ordersFound:
+      context?.orders?.length ||
+      0,
+
+    selectedRequestId:
+      context?.selectedOrder?.requestId ||
+      "",
+
+    deliveryStatus:
+      context?.selectedOrder?.deliveryStatus ||
+      "",
+
+    approvalStatus:
+      context?.selectedOrder?.approvalStatus ||
+      ""
+  };
+}
+
+// ======================================================
+// 21. البوت 2 لا ينفذ أي Action
+// ======================================================
+
+function buildBot2Decision(
+  user,
+  userMessage,
+  context
+) {
+  const intent =
+    detectIntent(
+      userMessage
+    );
+
+  /*
+   * مهم جداً:
+   *
+   * هذا البوت لا يقوم بأي:
+   *
+   * Add
+   * Update
+   * Delete
+   * إنشاء Order
+   * تعديل User
+   * تعديل Cart
+   * تغيير Delivery Status
+   * تغيير Approval Status
+   * تعيين Driver
+   *
+   * فقط يحدد ماذا فهم من الرسالة.
+   */
+
+  if (!user) {
+    return {
+      action:
+        "NONE",
+
+      reason:
+        "USER_NOT_REGISTERED",
+
+      intent
+    };
+  }
+
+  return {
+    action:
+      "OBSERVE_ONLY",
+
+    reason:
+      "BOT2_LISTEN_COMPARE_PREPARE",
+
+    intent,
+
+    registered:
+      true
+  };
+}
+// ======================================================
+// 22. قراءة آخر رسائل المستخدم
+// ======================================================
+
+async function getRecentConversation(
+  phone
+) {
+  const messages =
+    await getSheetRows(
+      "Messages"
+    );
+
+  const normalizedPhone =
+    normalizeWhatsAppNumber(
+      phone
+    );
+
+  const result =
+    messages
+      .filter(
+        row =>
+          normalizeWhatsAppNumber(
+            row["Phone"] ||
+            ""
+          ) ===
+          normalizedPhone
+      )
+      .slice(-10)
+      .map(
+        row => ({
+          customerMessage:
+            row[
+              "CustomerMessage"
+            ] ||
+            "",
+
+          botReply:
+            row[
+              "AIReply"
+            ] ||
+            "",
+
+          date:
+            row[
+              "Date"
+            ] ||
+            ""
+        })
+      );
+
+  return result;
+}
+
+// ======================================================
+// 23. تحديد إذا المحادثة ضمن طلب نشط
+// ======================================================
+
+function detectActiveOrder(
+  context
+) {
+  if (
+    !context ||
+    !context.selectedOrder
+  ) {
+    return false;
+  }
+
+  const approval =
+    normalizeText(
+      context.selectedOrder
+        .approvalStatus ||
+      ""
+    );
+
+  const delivery =
+    normalizeText(
+      context.selectedOrder
+        .deliveryStatus ||
+      ""
+    );
+
+  const finishedStatuses =
+    [
+      "تم التوصيل",
+      "delivered",
+      "closed",
+      "completed",
+      "ملغى",
+      "cancelled",
+      "canceled"
+    ];
+
+  if (
+    finishedStatuses.includes(
+      delivery
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    finishedStatuses.includes(
+      approval
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+// ======================================================
+// 24. تحليل جاهزية المستخدم للطلب
+// ======================================================
+
+function analyzeOrderReadiness(
+  user,
+  context
+) {
+  if (!user) {
+    return {
+      ready:
+        false,
+
+      reason:
+        "USER_NOT_REGISTERED"
+    };
+  }
+
+  if (
+    !context
+  ) {
+    return {
+      ready:
+        false,
+
+      reason:
+        "NO_CONTEXT"
+    };
+  }
+
+  if (
+    !context.area
+  ) {
+    return {
+      ready:
+        false,
+
+      reason:
+        "AREA_MISSING"
+    };
+  }
+
+  if (
+    !context.address
+  ) {
+    return {
+      ready:
+        false,
+
+      reason:
+        "ADDRESS_MISSING"
+    };
+  }
+
+  if (
+    !context.products ||
+    !context.products.length
+  ) {
+    return {
+      ready:
+        false,
+
+      reason:
+        "NO_PRODUCT_FOUND"
+    };
+  }
+
+  return {
+    ready:
+      true,
+
+    reason:
+      "READY_FOR_NEXT_STEP"
+  };
+}
+
+// ======================================================
+// 25. مقارنة بيانات الطلب مع بيانات المنتجات
+// ======================================================
+
+function compareOrderWithProducts(
+  context
+) {
+  if (
+    !context ||
+    !context.orderDetails ||
+    !context.orderDetails.length
+  ) {
+    return {
+      matched:
+        false,
+
+      matches:
+        [],
+
+      missing:
+        []
+    };
+  }
+
+  const products =
+    context.products ||
+    [];
+
+  const matches = [];
+  const missing = [];
+
+  for (
+    const item of
+    context.orderDetails
+  ) {
+    const productName =
+      normalizeText(
+        item.productName
+      );
+
+    const found =
+      products.find(
+        product =>
+          normalizeText(
+            product.productName
+          ) ===
+          productName
+      );
+
+    if (found) {
+      matches.push({
+        orderItem:
+          item,
+
+        product:
+          found
+      });
+    }
+    else {
+      missing.push(
+        item
+      );
+    }
+  }
+
+  return {
+    matched:
+      missing.length === 0,
+
+    matches,
+
+    missing
+  };
+}
+
+// ======================================================
+// 26. تجهيز معلومات المستخدم للـAI
+// ======================================================
+
+function buildUserAIContext(
+  user
+) {
+  if (!user) {
+    return {
+      registered:
+        false,
+
+      message:
+        "المستخدم غير مسجل."
+    };
+  }
+
+  return {
+    registered:
+      true,
+
+    userId:
+      user.userId ||
+      "",
+
+    customerId:
+      user.customerId ||
+      "",
+
+    name:
+      user.name ||
+      "",
+
+    role:
+      user.role ||
+      "",
+
+    mobile:
+      user.mobile ||
+      "",
+
+    whatsappNumber:
+      user.whatsappNumber ||
+      "",
+
+    area:
+      user.area ||
+      "",
+
+    status:
+      user.status ||
+      "",
+
+    active:
+      user.active ||
+      ""
+  };
+}
+
+// ======================================================
+// 27. تجهيز Context آمن للـAI
+// ======================================================
+
+function buildSafeAIContext(
+  user,
+  userMessage,
+  context,
+  history
+) {
+  const readiness =
+    analyzeOrderReadiness(
+      user,
+      context
+    );
+
+  const activeOrder =
+    detectActiveOrder(
+      context
+    );
+
+  const comparison =
+    compareOrderWithProducts(
+      context
+    );
+
+  return {
+    user:
+      buildUserAIContext(
+        user
+      ),
+
+    message:
+      userMessage,
+
+    intent:
+      detectIntent(
+        userMessage
+      ),
+
+    history:
+      history || [],
+
+    delivery: {
+      area:
+        context?.area ||
+        null,
+
+      address:
+        context?.address ||
+        null,
+
+      success:
+        context?.deliverySuccess ||
+        false,
+
+      reason:
+        context?.deliveryReason ||
+        ""
+    },
+
+    products:
+      context?.products ||
+      [],
+
+    orders:
+      context?.orders ||
+      [],
+
+    selectedOrder:
+      context?.selectedOrder ||
+      null,
+
+    orderDetails:
+      context?.orderDetails ||
+      [],
+
+    activeOrder,
+
+    readiness,
+
+    comparison
+  };
+}
+
+// ======================================================
+// 28. Prompt البوت 2
+// ======================================================
+
+function buildBot2Prompt(
+  safeContext
+) {
+  return `
+أنت Bot 2 الخاص بـ MD-Marketplace.
+
+دورك الأساسي:
+تسمع للمستخدم.
+تفهم قصده.
+تقارن رسالته مع البيانات الموثوقة.
+تقرأ المنتجات والطلبات والمناطق والعناوين.
+تجهز المعلومات اللازمة للخطوة التالية.
+
+ممنوع عليك تنفيذ أي عملية.
+
+==================================================
+قواعد صارمة
+==================================================
+
+1. ممنوع إنشاء Order.
+
+2. ممنوع تعديل Order.
+
+3. ممنوع تعديل Cart.
+
+4. ممنوع تعديل User.
+
+5. ممنوع تغيير Delivery Status.
+
+6. ممنوع تغيير Approval Status.
+
+7. ممنوع تعيين Driver.
+
+8. ممنوع حذف أي بيانات.
+
+9. ممنوع اختراع منتج.
+
+10. ممنوع اختراع سعر.
+
+11. ممنوع اختراع متجر.
+
+12. ممنوع اختراع منطقة.
+
+13. ممنوع اختراع عنوان.
+
+14. ممنوع إعطاء معلومات عن طلب مستخدم غير مسجل.
+
+15. إذا البيانات غير موجودة، قل إنها غير موجودة ولا تخمّن.
+
+==================================================
+هوية المستخدم
+==================================================
+
+${JSON.stringify(
+  safeContext.user
+)}
+
+==================================================
+رسالة المستخدم
+==================================================
+
+${safeContext.message}
+
+==================================================
+النية المكتشفة
+==================================================
+
+${safeContext.intent}
+
+==================================================
+بيانات المنطقة والعنوان
+==================================================
+
+${JSON.stringify(
+  safeContext.delivery
+)}
+
+==================================================
+المنتجات
+==================================================
+
+${JSON.stringify(
+  safeContext.products
+)}
+
+==================================================
+الطلبات
+==================================================
+
+${JSON.stringify(
+  safeContext.orders
+)}
+
+==================================================
+الطلب المحدد
+==================================================
+
+${JSON.stringify(
+  safeContext.selectedOrder
+)}
+
+==================================================
+تفاصيل الطلب
+==================================================
+
+${JSON.stringify(
+  safeContext.orderDetails
+)}
+
+==================================================
+حالة الطلب النشطة
+==================================================
+
+${safeContext.activeOrder}
+
+==================================================
+جاهزية المستخدم
+==================================================
+
+${JSON.stringify(
+  safeContext.readiness
+)}
+
+==================================================
+مقارنة الطلب مع المنتجات
+==================================================
+
+${JSON.stringify(
+  safeContext.comparison
+)}
+
+==================================================
+المحادثة السابقة
+==================================================
+
+${JSON.stringify(
+  safeContext.history
+)}
+
+==================================================
+طريقة الرد
+==================================================
+
+تحدث باللهجة اللبنانية الطبيعية.
+
+لا تتصرف كروبوت جامد.
+
+لا تعيد الترحيب إذا كانت المحادثة بدأت.
+
+إذا كان السؤال يحتاج توضيح، اسأل سؤالاً واحداً فقط.
+
+لا تقل للمستخدم إنك نفذت أي عملية.
+
+إذا طلب المستخدم شراء أو تعديل أو إلغاء:
+افهم الطلب وجهزه فقط، ولا تنفذه.
+
+إذا كان المستخدم غير مسجل:
+لا تعطيه معلومات خاصة بالطلبات أو الحساب.
+
+إذا لم تجد البيانات:
+قل ذلك بصراحة.
+
+ممنوع اختراع أي معلومة.
+
+المخرَج يجب أن يكون جواباً طبيعياً مناسباً للمستخدم.
+`;
+}
+
+// ======================================================
+// 29. تشغيل Groq - Bot 2
+// ======================================================
+
+async function runBot2AI(
+  userMessage,
+  safeContext
+) {
+  if (
+    !GROQ_KEY
+  ) {
+    return {
+      success:
+        false,
+
+      reply:
+        "أهلا وسهلا! كيف بقدر ساعدك اليوم؟ 😊"
+    };
   }
 
   try {
-    const today =
-      new Date()
-        .toLocaleDateString(
-          "en-US",
-          {
-            timeZone:
-              "Asia/Beirut"
-          }
-        );
+    const prompt =
+      buildBot2Prompt(
+        safeContext
+      );
 
     const response =
       await fetch(
-        `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/Messages/Action`,
+        "https://api.groq.com/openai/v1/chat/completions",
         {
-          method: "POST",
+          method:
+            "POST",
 
           headers: {
-            ApplicationAccessKey:
-              APPSHEET_API_KEY,
+            Authorization:
+              `Bearer ${GROQ_KEY}`,
 
             "Content-Type":
               "application/json"
@@ -1167,413 +2536,441 @@ async function saveToAppSheet(
 
           body:
             JSON.stringify({
-              Action: "Add",
+              model:
+                "openai/gpt-oss-20b",
 
-              Properties: {
-                TimeZone:
-                  "Asia/Beirut"
-              },
-
-              Rows: [
+              messages: [
                 {
-                  Phone:
-                    from,
+                  role:
+                    "system",
 
-                  CustomerMessage:
-                    userMessage,
+                  content:
+                    prompt
+                },
 
-                  AIReply:
-                    aiReply,
+                {
+                  role:
+                    "user",
 
-                  Date:
-                    today
+                  content:
+                    userMessage
                 }
-              ]
+              ],
+
+              temperature:
+                0.3
             })
         }
       );
 
-    const result =
-      await response.text();
+    const data =
+      await response.json();
 
-    console.log(
-      "💾 AppSheet:",
-      response.status,
-      result
-    );
+    if (
+      data.error
+    ) {
+      console.error(
+        "❌ Bot2 Groq Error:",
+        JSON.stringify(
+          data.error
+        )
+      );
+
+      return {
+        success:
+          false,
+
+        reply:
+          "صار ضغط شوي، جرب تبعتلي مرة تانية 🙏"
+      };
+    }
+
+    const reply =
+      data
+        ?.choices?.[0]
+        ?.message
+        ?.content;
+
+    if (
+      !reply
+    ) {
+      return {
+        success:
+          false,
+
+        reply:
+          "ما قدرت عالج الرسالة حالياً، جرب مرة تانية 🙏"
+      };
+    }
+
+    return {
+      success:
+        true,
+
+      reply:
+        reply.trim()
+    };
 
   } catch (error) {
     console.error(
-      "❌ خطأ AppSheet:",
+      "❌ Bot2 AI Error:",
       error
     );
+
+    return {
+      success:
+        false,
+
+      reply:
+        "صار عندي مشكلة صغيرة، جرب تبعتلي مرة تانية 🙏"
+    };
   }
 }
-
 // ======================================================
-// 12. قراءة آخر المحادثة
-// ======================================================
-
-async function getConversationHistory(
-  from
-) {
-  const messages =
-    await getSheetRows(
-      "Messages"
-    );
-
-  const normalized =
-    normalizeWhatsAppNumber(
-      from
-    );
-
-  return messages
-    .filter(
-      row =>
-        normalizeWhatsAppNumber(
-          row["Phone"] || ""
-        ) === normalized
-    )
-    .slice(-4);
-}
-
-// ======================================================
-// 13. BOT 2 - الرد
+// 30. تجهيز Context الكامل لـ Bot 2
 // ======================================================
 
-async function getBot2Reply(
-  userMessage,
+async function buildBot2Context(
   user,
-  productResults,
-  orderContext,
-  history
+  userMessage
 ) {
-  const userName =
-    user?.name ||
-    "";
+  // ----------------------------------------------------
+  // قراءة المحادثة السابقة
+  // ----------------------------------------------------
 
-  const productContext =
-    productResults.length
-      ? JSON.stringify(
-          productResults
-        )
-      : "لا توجد نتائج منتجات مؤكدة.";
-
-  const orderData =
-    orderContext.orders.length
-      ? JSON.stringify(
-          orderContext.orders
-        )
-      : "لا توجد طلبات متاحة.";
-
-  const selectedOrder =
-    orderContext.selectedOrder
-      ? JSON.stringify(
-          orderContext.selectedOrder
-        )
-      : "لا يوجد طلب محدد.";
-
-  const orderDetails =
-    orderContext.details.length
-      ? JSON.stringify(
-          orderContext.details
-        )
-      : "لا توجد تفاصيل.";
-
-  const historyText =
-    history.length
-      ? history
-          .map(
-            item =>
-              `العميل: ${
-                item["CustomerMessage"] || ""
-              }\nالبوت: ${
-                item["AIReply"] || ""
-              }`
-          )
-          .join("\n")
-      : "لا توجد محادثة سابقة.";
-
-  // ====================================================
-  // BOT 2 LOGIC
-  // ====================================================
-
-  if (
-    !user
-  ) {
-    return (
-      "أهلا وسهلا 😊\n\n" +
-      "كرمال تستفيد من خدمات MD-Marketplace " +
-      "وتقدر تطلب وتشوف الأسعار والمعلومات، " +
-      `فينا نساعدك بعد التسجيل على ${WEBSITE_URL}`
-    );
-  }
-
-  const message =
-    normalizeText(
-      userMessage
+  const history =
+    await getRecentConversation(
+      user?.whatsappNumber ||
+      ""
     );
 
-  // ====================================================
-  // ترحيب
-  // ====================================================
+  // ----------------------------------------------------
+  // بيانات الطلبات
+  // ----------------------------------------------------
+
+  const orders =
+    user
+      ? await getUserOrders(
+          user
+        )
+      : [];
+
+  // ----------------------------------------------------
+  // تحديد الطلب الحالي
+  // ----------------------------------------------------
+
+  let selectedOrder =
+    null;
 
   if (
-    message === "مرحبا" ||
-    message === "مسا الخير" ||
-    message === "صباح الخير" ||
-    message === "اهلا" ||
-    message === "أهلا"
+    orders.length
   ) {
-    return userName
-      ? `أهلا ${userName} 😊 كيف فيني ساعدك؟`
-      : "أهلا وسهلا 😊 كيف فيني ساعدك؟";
-  }
+    const message =
+      normalizeText(
+        userMessage
+      );
 
-  // ====================================================
-  // إذا كان طلب عن المنتجات
-  // ====================================================
-
-  if (
-    productResults.length
-  ) {
-    let reply = "";
-
+    // أولاً: محاولة إيجاد Request ID داخل الرسالة
     for (
-      const product of productResults
+      const order of orders
     ) {
-      reply +=
-        `🛒 المنتج: ${product.productName} ${product.unit}\n` +
-        `💰 السعر: ${product.price}\n` +
-        `🏪 المتجر: ${product.storeName}\n` +
-        `📍 العنوان: ${product.address} - ${product.areaName}\n\n`;
+      const requestId =
+        normalizeText(
+          order["Request ID"] ||
+          ""
+        );
+
+      if (
+        requestId &&
+        message.includes(
+          requestId
+        )
+      ) {
+        selectedOrder =
+          order;
+
+        break;
+      }
     }
 
-    return reply.trim();
-  }
-
-  // ====================================================
-  // إذا سأل عن الطلب
-  // ====================================================
-
-  if (
-    message.includes("طلب") ||
-    message.includes("اوردر") ||
-    message.includes("أوردر") ||
-    message.includes("وين صار")
-  ) {
+    // إذا لم يذكر Request ID
+    // نستخدم آخر طلب متاح للمستخدم
     if (
-      !orderContext.orders.length
+      !selectedOrder
     ) {
-      return "ما عندك طلبات حالياً مسجلة عندنا 😊";
+      selectedOrder =
+        orders[
+          orders.length - 1
+        ];
     }
-
-    const order =
-      orderContext.selectedOrder;
-
-    return (
-      `📦 طلبك ${order.requestId}\n\n` +
-      `📍 المنطقة: ${order.area || "غير محددة"}\n` +
-      `🏠 العنوان: ${order.deliveryAddress || "غير محدد"}\n` +
-      `🚚 حالة التوصيل: ${order.deliveryStatus || "غير محددة"}\n` +
-      `💰 قيمة المنتجات: ${order.itemsCost || "غير محددة"}\n` +
-      `💵 التوصيل: ${order.deliveryFee || "غير محدد"}\n` +
-      `💳 المجموع: ${order.totalAmount || "غير محدد"}`
-    );
   }
 
-  // ====================================================
-  // الموقع
-  // ====================================================
+  // ----------------------------------------------------
+  // تفاصيل الطلب
+  // ----------------------------------------------------
+
+  let orderDetails =
+    [];
 
   if (
-    message.includes("موقعكم") ||
-    message.includes("رابط الموقع") ||
-    message.includes("وين موقعكم")
+    selectedOrder &&
+    selectedOrder["Request ID"]
   ) {
-    return (
-      `🌐 موقعنا: ${WEBSITE_URL}\n` +
-      "فيك تشوف المنتجات والفروع والخدمات هناك 😊"
-    );
+    orderDetails =
+      await getOrderDetails(
+        selectedOrder[
+          "Request ID"
+        ]
+      );
   }
 
-  // ====================================================
-  // التواصل
-  // ====================================================
+  // ----------------------------------------------------
+  // البحث عن المنتجات
+  // ----------------------------------------------------
 
-  if (
-    message.includes("ايميل") ||
-    message.includes("إيميل") ||
-    message.includes("تواصل")
-  ) {
-    return (
-      `📧 فيك تتواصل معنا على:\n${INFO_EMAIL}`
-    );
+  let products =
+    [];
+
+  if (user) {
+    products =
+      await searchProducts(
+        userMessage
+      );
   }
 
-  // ====================================================
-  // إذا ما عرفنا نوع الطلب
-  // ====================================================
+  // ----------------------------------------------------
+  // بيانات المنطقة والعنوان
+  // ----------------------------------------------------
 
-  return (
-    userName
-      ? `أكيد ${userName} 😊 شو حابب تطلب أو تعرف؟`
-      : "أكيد 😊 شو حابب تطلب أو تعرف؟"
-  );
+  let deliveryLocation =
+    {
+      success:
+        false,
+
+      reason:
+        "user_not_registered",
+
+      area:
+        null,
+
+      address:
+        null
+    };
+
+  if (user) {
+    deliveryLocation =
+      await resolveDeliveryLocation(
+        user,
+        userMessage
+      );
+  }
+
+  // ----------------------------------------------------
+  // Context داخلي موحد
+  // ----------------------------------------------------
+
+  const context =
+    {
+      area:
+        deliveryLocation.area,
+
+      address:
+        deliveryLocation.address,
+
+      deliverySuccess:
+        deliveryLocation.success,
+
+      deliveryReason:
+        deliveryLocation.reason,
+
+      products,
+
+      orders,
+
+      selectedOrder,
+
+      orderDetails
+    };
+
+  // ----------------------------------------------------
+  // بناء Context الآمن للـAI
+  // ----------------------------------------------------
+
+  const safeContext =
+    buildSafeAIContext(
+      user,
+      userMessage,
+      context,
+      history
+    );
+
+  return safeContext;
 }
 
+
 // ======================================================
-// 14. WhatsApp GET Verification
+// 31. WhatsApp GET Verification - Bot 2
 // ======================================================
 
-export async function GET(req) {
-  const {
-    searchParams
-  } =
-    new URL(req.url);
+export async function GET(
+  req
+) {
+  try {
+    const {
+      searchParams
+    } =
+      new URL(
+        req.url
+      );
 
-  const mode =
-    searchParams.get(
-      "hub.mode"
+    const mode =
+      searchParams.get(
+        "hub.mode"
+      );
+
+    const token =
+      searchParams.get(
+        "hub.verify_token"
+      );
+
+    const challenge =
+      searchParams.get(
+        "hub.challenge"
+      );
+
+    console.log(
+      "🔐 Bot 2 WhatsApp Verification"
     );
 
-  const token =
-    searchParams.get(
-      "hub.verify_token"
+    if (
+      mode ===
+        "subscribe" &&
+      token ===
+        VERIFY_TOKEN
+    ) {
+      console.log(
+        "✅ Bot 2 Verification Success"
+      );
+
+      return new Response(
+        challenge,
+        {
+          status:
+            200
+        }
+      );
+    }
+
+    console.error(
+      "❌ Bot 2 Verification Failed"
     );
 
-  const challenge =
-    searchParams.get(
-      "hub.challenge"
-    );
-
-  if (
-    mode === "subscribe" &&
-    token === VERIFY_TOKEN
-  ) {
     return new Response(
-      challenge,
+      "Forbidden",
       {
-        status: 200
+        status:
+          403
+      }
+    );
+
+  } catch (
+    error
+  ) {
+    console.error(
+      "❌ Bot 2 GET Error:",
+      error
+    );
+
+    return new Response(
+      "Forbidden",
+      {
+        status:
+          403
       }
     );
   }
-
-  return new Response(
-    "Forbidden",
-    {
-      status: 403
-    }
-  );
 }
 
+
 // ======================================================
-// 15. WhatsApp POST
+// 32. WhatsApp POST - Bot 2
 // ======================================================
 
-export async function POST(req) {
+export async function POST(
+  req
+) {
   try {
     const body =
       await req.json();
 
-    // ==================================================
-    // AppSheet → ترحيب مستخدم جديد
-    // ==================================================
-
-    if (
-      body.type ===
-      "new_user_welcome"
-    ) {
-      const Name =
-        body.name ||
-        body.Name ||
-        "عميلنا العزيز";
-
-      const PIN =
-        body.password ||
-        body.PIN ||
-        "";
-
-      const Mobile =
-        body.from ||
-        body.Mobile;
-
-      if (!Mobile) {
-        return Response.json(
-          {
-            status: "ok"
-          },
-          {
-            status: 200
-          }
-        );
-      }
-
-      const welcomeMessage =
-        `أهلاً بك يا ${Name} في MD-Marketplace! 🌸\n\n` +
-        "تم إنشاء حسابك بنجاح.\n\n" +
-        `رمز الـ PIN الخاص بك هو:\n*${PIN}*\n\n` +
-        "نتمنى لك تجربة تسوق ممتعة! 😊";
-
-      await sendMessage(
-        Mobile,
-        welcomeMessage
-      );
-
-      await saveToAppSheet(
-        Mobile,
-        "تسجيل حساب جديد",
-        welcomeMessage
-      );
-
-      return Response.json(
-        {
-          status: "ok"
-        },
-        {
-          status: 200
-        }
-      );
-    }
+    console.log(
+      "📩 Bot 2 Webhook:",
+      JSON.stringify(
+        body
+      )
+    );
 
     // ==================================================
     // قراءة رسالة WhatsApp
     // ==================================================
 
     const message =
-      body.entry?.[0]
+      body
+        ?.entry?.[0]
         ?.changes?.[0]
-        ?.value?.messages?.[0];
+        ?.value
+        ?.messages?.[0];
+
+    // --------------------------------------------------
+    // رقم المرسل
+    // --------------------------------------------------
 
     const from =
       message?.from ||
-      body.from ||
-      body.Mobile;
+      body?.from ||
+      "";
+
+    // --------------------------------------------------
+    // النص
+    // --------------------------------------------------
 
     const userText =
-      message?.text?.body ||
-      body.text;
+      message
+        ?.text
+        ?.body ||
+      body?.text ||
+      "";
+
+    // --------------------------------------------------
+    // تجاهل أي Webhook غير نصي
+    // --------------------------------------------------
 
     if (
       !from ||
       !userText
     ) {
+      console.log(
+        "ℹ️ Bot 2: لا توجد رسالة نصية"
+      );
+
       return Response.json(
         {
-          status: "ok"
+          status:
+            "ok"
         },
         {
-          status: 200
+          status:
+            200
         }
       );
     }
 
     console.log(
-      `📩 WhatsApp: ${from} | ${userText}`
+      `📩 Bot 2 Message | From: ${from} | Text: ${userText}`
     );
 
     // ==================================================
-    // معرفة المستخدم
+    // توحيد رقم WhatsApp
     // ==================================================
 
     const whatsappNumber =
@@ -1581,91 +2978,134 @@ export async function POST(req) {
         from
       );
 
+    console.log(
+      `📱 Bot 2 Normalized Number: ${whatsappNumber}`
+    );
+
+    // ==================================================
+    // التعرف على المستخدم
+    // ==================================================
+
     const user =
       await getUserByWhatsAppNumber(
         whatsappNumber
       );
 
-    // ==================================================
-    // البيانات
-    // ==================================================
-
-    let productResults = [];
-
-    let orderContext = {
-      orders: [],
-      selectedOrder: null,
-      details: []
-    };
-
-    if (user) {
-      productResults =
-        await searchProducts(
-          userText
-        );
-
-      orderContext =
-        await buildOrderContext(
-          user,
-          userText
-        );
+    if (
+      user
+    ) {
+      console.log(
+        `👤 Bot 2 User: ${user.name} | Role: ${user.role} | Customer ID: ${user.customerId}`
+      );
+    }
+    else {
+      console.log(
+        "⚠️ Bot 2: المستخدم غير موجود في Users"
+      );
     }
 
-    const history =
-      await getConversationHistory(
-        from
-      );
-
     // ==================================================
-    // BOT 2
+    // بناء Context
     // ==================================================
 
-    const reply =
-      await getBot2Reply(
-        userText,
+    const safeContext =
+      await buildBot2Context(
         user,
-        productResults,
-        orderContext,
-        history
+        userText
       );
 
     console.log(
-      "🤖 BOT 2:",
-      reply
+      "🧠 Bot 2 Safe Context:",
+      JSON.stringify(
+        safeContext
+      )
     );
+
+    // ==================================================
+    // تشغيل AI
+    // ==================================================
+
+    const aiResult =
+      await runBot2AI(
+        userText,
+        safeContext
+      );
+
+    const aiReply =
+      aiResult?.reply ||
+      "أهلا وسهلا! كيف بقدر ساعدك اليوم؟ 😊";
+
+    console.log(
+      "🤖 Bot 2 Reply:",
+      aiReply
+    );
+
+    // ==================================================
+    // إرسال الرد فقط
+    // ==================================================
 
     await sendMessage(
       whatsappNumber,
-      reply
+      aiReply
     );
+
+    // ==================================================
+    // حفظ المحادثة فقط
+    // ==================================================
 
     await saveToAppSheet(
       from,
       userText,
-      reply
+      aiReply
+    );
+
+    // ==================================================
+    // مهم جداً:
+    // Bot 2 لا ينفذ أي عملية على Marketplace
+    // ==================================================
+
+    console.log(
+      "👂 Bot 2 انتهى: Listen / Compare / Reply فقط"
     );
 
     return Response.json(
       {
-        status: "ok"
+        status:
+          "ok",
+
+        bot:
+          "bot2",
+
+        readOnly:
+          true
       },
       {
-        status: 200
+        status:
+          200
       }
     );
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
-      "❌ BOT 2 ERROR:",
+      "❌ Bot 2 POST Error:",
       error
     );
 
+    // --------------------------------------------------
+    // WhatsApp يفضل استلام 200
+    // حتى لا يعيد إرسال Webhook
+    // --------------------------------------------------
+
     return Response.json(
       {
-        status: "ok"
+        status:
+          "ok"
       },
       {
-        status: 200
+        status:
+          200
       }
     );
   }
