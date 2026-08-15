@@ -2777,6 +2777,7 @@ export async function POST(
     const from =
       message?.from ||
       body?.from ||
+      body?.whatsappNumber ||
       "";
 
     // --------------------------------------------------
@@ -2788,6 +2789,7 @@ export async function POST(
         ?.text
         ?.body ||
       body?.text ||
+      body?.userText ||
       "";
 
     // --------------------------------------------------
