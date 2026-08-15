@@ -981,7 +981,7 @@ async function saveToAppSheet(
 
     const today =
       new Intl.DateTimeFormat(
-        "en-GB",
+        "en-US",
         {
           timeZone:
             "Asia/Beirut",
