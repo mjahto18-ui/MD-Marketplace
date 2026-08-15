@@ -50,6 +50,13 @@ const BOT2_BRIDGE_KEY =
   "MDM_BOT1_TO_BOT2_ORDER";
 
 // ======================================================
+// مفتاح بدء BOT2
+// ======================================================
+
+const BOT2_START_COMMAND =
+  "START_ORDER";
+
+// ======================================================
 // BOT SESSIONS
 // ======================================================
 
@@ -1048,120 +1055,20 @@ async function saveToAppSheet(
 }
 
 // ======================================================
-// 13. نسخ محادثة BOT1 إلى BOT2
-// ======================================================
-
-async function copyConversationToBot2(
-  from
-) {
-
-  const messages =
-    await getAllUserMessages(
-      from
-    );
-
-  const normalized =
-    normalizeWhatsAppNumber(
-      from
-    );
-
-  const bot1Messages =
-    messages.filter(
-      row => {
-
-        const phone =
-          normalizeWhatsAppNumber(
-            row["Phone"] || ""
-          );
-
-        const session =
-          String(
-            row["Bot Session"] ||
-            BOT1_SESSION
-          ).trim();
-
-        return (
-          phone === normalized &&
-          (
-            session === BOT1_SESSION ||
-            !row["Bot Session"]
-          )
-        );
-      }
-    );
-
-  if (!bot1Messages.length) {
-
-    console.log(
-      "ℹ️ لا توجد محادثة BOT1 لنسخها"
-    );
-
-    return true;
-  }
-
-  const rows =
-    bot1Messages.map(
-      row => ({
-
-        Phone:
-          normalized,
-
-        CustomerMessage:
-          row["CustomerMessage"] ||
-          "",
-
-        AIReply:
-          row["AIReply"] ||
-          "",
-
-        Date:
-          row["Date"] ||
-          "",
-
-        "Bot Session":
-          BOT2_SESSION,
-
-        Bot:
-          "BOT2",
-
-        "Message Type":
-          "BRIDGED_HISTORY"
-      })
-    );
-
-  const result =
-    await appSheetAction(
-      "Messages",
-      "Add",
-      rows
-    );
-
-  if (!result?.ok) {
-
-    console.error(
-      "❌ فشل نسخ المحادثة إلى BOT2"
-    );
-
-    return false;
-  }
-
-  console.log(
-    `📚 تم نسخ ${rows.length} رسالة إلى BOT2`
-  );
-
-  return true;
-}
-
-// ======================================================
-// 14. إرسال Bridge إلى BOT2
+// 13. إرسال Bridge إلى BOT2
+//
+// مهم جداً:
+// ❌ لا History
+// ❌ لا BRIDGED_HISTORY
+// ❌ لا نسخ Messages
+// ✅ فقط Command واضح لبدء تسجيل Order
 // ======================================================
 
 async function sendToBot2(
   {
     from,
     user,
-    originalMessage,
-    history
+    originalMessage
   }
 ) {
 
@@ -1178,6 +1085,7 @@ async function sendToBot2(
 
     const payload = {
 
+      // مفتاح أمان الـ Bridge
       bridgeKey:
         BOT2_BRIDGE_KEY,
 
@@ -1189,6 +1097,19 @@ async function sendToBot2(
 
       event:
         "NEW_ORDER",
+
+      // ==================================================
+      // المفتاح الذي يجب أن يقرأه BOT2
+      // ==================================================
+
+      command:
+        BOT2_START_COMMAND,
+
+      transferKey:
+        BOT2_START_COMMAND,
+
+      instruction:
+        "START_ORDER_REGISTRATION",
 
       phone:
         normalizeWhatsAppNumber(
@@ -1226,29 +1147,8 @@ async function sendToBot2(
 
           : null,
 
-      conversation:
-        history.map(
-          row => ({
-
-            customerMessage:
-              row["CustomerMessage"] ||
-              "",
-
-            aiReply:
-              row["AIReply"] ||
-              "",
-
-            date:
-              row["Date"] ||
-              ""
-          })
-        ),
-
-      instruction:
-        "TRANSFER_TO_ORDER_BOT",
-
       startMessage:
-        "تفضل، أنا مساعدك من MD-Marketplace قسم الطلبات، شو بقدر ساعدك؟"
+        "يلا نبلّش تسجيل الأوردر 😊 شو حابب تطلب؟"
     };
 
     console.log(
@@ -1257,6 +1157,9 @@ async function sendToBot2(
 
         event:
           payload.event,
+
+        command:
+          payload.command,
 
         phone:
           payload.phone,
@@ -1327,7 +1230,7 @@ async function sendToBot2(
 }
 
 // ======================================================
-// 15. الانتقال الكامل من BOT1 إلى BOT2
+// 14. الانتقال الكامل من BOT1 إلى BOT2
 // ======================================================
 
 async function transferToBot2(
@@ -1371,41 +1274,24 @@ async function transferToBot2(
   );
 
   console.log(
+    "🔑 BOT2 Command:",
+    BOT2_START_COMMAND
+  );
+
+  console.log(
     "================================================"
   );
 
   // ----------------------------------------------------
-  // STEP 1
-  // جلب آخر محادثة BOT1
+  // لا يتم جلب History
+  // لا يتم نسخ History
   // ----------------------------------------------------
 
-  const history =
-    await getConversationHistory(
-      from
-    );
-
   // ----------------------------------------------------
-  // STEP 2
-  // نسخ المحادثة إلى BOT2
-  // ----------------------------------------------------
-
-  const copied =
-    await copyConversationToBot2(
-      from
-    );
-
-  if (!copied) {
-
-    console.error(
-      "❌ لم يتم نسخ المحادثة إلى BOT2"
-    );
-
-    return false;
-  }
-
-  // ----------------------------------------------------
-  // STEP 3
-  // تسجيل رسالة الانتقال
+  // تسجيل رسالة الانتقال في Messages
+  //
+  // هذه ليست Bridge History
+  // فقط تسجيل أن BOT1 قام بالتحويل
   // ----------------------------------------------------
 
   await saveToAppSheet(
@@ -1429,8 +1315,12 @@ async function transferToBot2(
   );
 
   // ----------------------------------------------------
-  // STEP 4
   // إرسال Bridge إلى BOT2
+  //
+  // فقط:
+  // START_ORDER
+  // user
+  // originalMessage
   // ----------------------------------------------------
 
   const sent =
@@ -1441,9 +1331,7 @@ async function transferToBot2(
 
         user,
 
-        originalMessage,
-
-        history
+        originalMessage
       }
     );
 
@@ -1457,7 +1345,6 @@ async function transferToBot2(
   }
 
   // ----------------------------------------------------
-  // STEP 5
   // BOT2 أكد الاستقبال
   // الآن فقط نغيّر Session
   // ----------------------------------------------------
@@ -1490,6 +1377,10 @@ async function transferToBot2(
   );
 
   console.log(
+    "🔑 Command = START_ORDER"
+  );
+
+  console.log(
     "================================================"
   );
 
@@ -1497,7 +1388,7 @@ async function transferToBot2(
 }
 
 // ======================================================
-// 16. البحث عن Products
+// 15. البحث عن Products
 // ======================================================
 
 async function searchProducts(
@@ -1868,7 +1759,7 @@ async function searchProducts(
 }
 
 // ======================================================
-// 17. جلب طلبات المستخدم
+// 16. جلب طلبات المستخدم
 // ======================================================
 
 async function getUserOrders(
@@ -1960,7 +1851,7 @@ async function getUserOrders(
 }
 
 // ======================================================
-// 18. تفاصيل الطلب
+// 17. تفاصيل الطلب
 // ======================================================
 
 async function getOrderDetails(
@@ -2077,7 +1968,7 @@ async function getOrderDetails(
 }
 
 // ======================================================
-// 19. تجهيز Order Context
+// 18. تجهيز Order Context
 // ======================================================
 
 async function buildOrderContext(
@@ -2253,7 +2144,7 @@ async function buildOrderContext(
 }
 
 // ======================================================
-// 20. Groq AI
+// 19. Groq AI
 // ======================================================
 
 async function getAIReply(
@@ -2529,7 +2420,7 @@ ${userContext}
 
 - لا تعيد الترحيب في كل رسالة.
 - لا تقل "أنا ذكاء اصطناعي" إلا إذا سأل.
-- تحدث بشكل لبناني طبيعي.
+- تحدث بلبناني طبيعي.
 - كن مفيداً ومختصراً.
 - لا تكن دجّاً.
 - لا تفرض التسجيل على المستخدم بدون سبب.
@@ -2654,7 +2545,7 @@ ${orderDetails}
 }
 
 // ======================================================
-// 21. WhatsApp GET Verification
+// 20. WhatsApp GET Verification
 // ======================================================
 
 export async function GET(
@@ -2707,7 +2598,7 @@ export async function GET(
 }
 
 // ======================================================
-// 22. WhatsApp POST
+// 21. WhatsApp POST
 // ======================================================
 
 export async function POST(
@@ -2979,7 +2870,10 @@ export async function POST(
               true,
 
             target:
-              "BOT2"
+              "BOT2",
+
+            command:
+              BOT2_START_COMMAND
           },
           {
             status:
@@ -3045,6 +2939,9 @@ export async function POST(
 
     // ==================================================
     // History
+    //
+    // History يبقى فقط لـ BOT1
+    // ولا يتم إرساله إلى BOT2
     // ==================================================
 
     const history =
