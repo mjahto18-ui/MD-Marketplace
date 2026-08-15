@@ -2740,11 +2740,41 @@ export async function GET(
   }
 }
 
+// ======================================================
+//  حفظ الرسالة في Messages - نسخة بوت 2
+// ======================================================
+async function saveToAppSheet(from, userMessage, aiReply) {
+  if (!APPSHEET_APP_ID || !APPSHEET_API_KEY) {
+    console.error("❌ AppSheet credentials ناقصة");
+    return;
+  }
+  try {
+    const today = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Beirut" });
+    const res = await fetch(
+      `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/Messages/Action`,
+      {
+        method: "POST",
+        headers: {
+          ApplicationAccessKey: APPSHEET_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          Action: "Add",
+          Properties: { TimeZone: "Asia/Beirut" },
+          Rows: [{ Phone: from, CustomerMessage: userMessage, AIReply: aiReply, Date: today }]
+        })
+      }
+    );
+    const result = await res.text();
+    console.log("💾 نتيجة الحفظ في AppSheet:", res.status, result);
+  } catch (error) {
+    console.error("❌ خطأ AppSheet:", error);
+  }
+}
 
 // ======================================================
 // 32. WhatsApp POST - Bot 2
 // ======================================================
-
 export async function POST(
   req
 ) {
