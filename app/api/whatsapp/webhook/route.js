@@ -1,3042 +1,463 @@
 import { google } from "googleapis";
-
 export const dynamic = "force-dynamic";
 
-// ======================================================
 // ENV
-// ======================================================
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
+const GROQ_KEY = process.env.GROQ_API_KEY;
+const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
+const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
+const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
+const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
+const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY;
 
-const VERIFY_TOKEN =
-  process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
-
-const WHATSAPP_TOKEN =
-  process.env.WHATSAPP_TOKEN;
-
-const PHONE_ID =
-  process.env.WHATSAPP_PHONE_ID || "1183824331491327";
-
-const GROQ_KEY =
-  process.env.GROQ_API_KEY;
-
-const APPSHEET_APP_ID =
-  process.env.APPSHEET_APP_ID;
-
-const APPSHEET_API_KEY =
-  process.env.APPSHEET_API_KEY;
-
-// ======================================================
-// GOOGLE SHEETS
-// ======================================================
-
-const GOOGLE_SHEETS_ID =
-  process.env.GOOGLE_SHEETS_ID;
-
-const GOOGLE_CLIENT_EMAIL =
-  process.env.GOOGLE_CLIENT_EMAIL;
-
-const GOOGLE_PRIVATE_KEY =
-  process.env.GOOGLE_PRIVATE_KEY;
-
-// ======================================================
-// BOT BRIDGE
-// ======================================================
-
-const BOT2_URL =
-  process.env.BOT2_URL ||
-  "https://www.md-marketplace.store/api/whatsapp-bot2";
-
-const BOT2_BRIDGE_KEY =
-  process.env.BOT2_BRIDGE_KEY ||
-  "MDM_BOT1_TO_BOT2_ORDER";
-
-// ======================================================
-// مفتاح بدء BOT2
-// ======================================================
-
-const BOT2_START_COMMAND =
-  "START_ORDER";
-
-// ======================================================
-// BOT SESSIONS
-// ======================================================
+const BOT2_URL = process.env.BOT2_URL || "https://www.md-marketplace.store/api/whatsapp-bot2";
+const BOT2_BRIDGE_KEY = process.env.BOT2_BRIDGE_KEY || "MDM_BOT1_TO_BOT2_ORDER";
+const BOT2_START_COMMAND = "START_ORDER";
 
 const BOT1_SESSION = "BOT1";
 const BOT2_SESSION = "BOT2";
+const WEBSITE_URL = "https://www.md-marketplace.store";
+const INFO_EMAIL = "info@md-marketplace.store";
 
-// ======================================================
-// GENERAL
-// ======================================================
-
-const WEBSITE_URL =
-  "https://www.md-marketplace.store";
-
-const INFO_EMAIL =
-  "info@md-marketplace.store";
-
-// ======================================================
-// CACHE
-// ======================================================
-
-const SHEETS_CACHE =
-  new Map();
-
-const CACHE_TTL =
-  1000 * 60 * 5;
-
-const CACHEABLE_SHEETS =
-  new Set([
-    "Products",
-    "Stores",
-    "Categories",
-    "Areas"
-  ]);
-
-// ======================================================
-// CACHE HELPERS
-// ======================================================
+const SHEETS_CACHE = new Map();
+const CACHE_TTL = 1000 * 60 * 5;
+const CACHEABLE_SHEETS = new Set(["Products", "Stores", "Categories", "Areas"]);
 
 function getCache(key) {
-
-  const item =
-    SHEETS_CACHE.get(key);
-
-  if (!item) {
-    return null;
-  }
-
-  if (
-    Date.now() - item.t >
-    CACHE_TTL
-  ) {
-
-    SHEETS_CACHE.delete(key);
-
-    return null;
-  }
-
+  const item = SHEETS_CACHE.get(key);
+  if (!item) return null;
+  if (Date.now() - item.t > CACHE_TTL) { SHEETS_CACHE.delete(key); return null; }
   return item.v;
 }
+function setCache(key, value) { SHEETS_CACHE.set(key, { v: value, t: Date.now() }); }
 
-function setCache(
-  key,
-  value
-) {
-
-  SHEETS_CACHE.set(
-    key,
-    {
-      v: value,
-      t: Date.now()
-    }
-  );
-}
-
-// ======================================================
-// 1. توحيد رقم WhatsApp
-// ======================================================
-
-function normalizeWhatsAppNumber(
-  phone
-) {
-
-  let clean =
-    String(phone || "")
-      .replace(/\D/g, "");
-
-  // السعودية
-  if (
-    clean.startsWith("05")
-  ) {
-
-    clean =
-      "966" +
-      clean.substring(1);
-  }
-
-  else if (
-    clean.length === 9 &&
-    clean.startsWith("5")
-  ) {
-
-    clean =
-      "966" +
-      clean;
-  }
-
-  // لبنان
-  else if (
-    clean.startsWith("03")
-  ) {
-
-    clean =
-      "9613" +
-      clean.substring(2);
-  }
-
-  else if (
-    clean.length === 7 &&
-    clean.startsWith("3")
-  ) {
-
-    clean =
-      "961" +
-      clean;
-  }
-
+function normalizeWhatsAppNumber(phone) {
+  let clean = String(phone || "").replace(/\D/g, "");
+  if (clean.startsWith("05")) clean = "966" + clean.substring(1);
+  else if (clean.length === 9 && clean.startsWith("5")) clean = "966" + clean;
+  else if (clean.startsWith("03")) clean = "9613" + clean.substring(2);
+  else if (clean.length === 7 && clean.startsWith("3")) clean = "961" + clean;
   return clean;
 }
 
-// ======================================================
-// 2. إرسال WhatsApp
-// ======================================================
-
-async function sendMessage(
-  to,
-  text
-) {
-
-  if (!WHATSAPP_TOKEN) {
-
-    console.error(
-      "❌ WHATSAPP_TOKEN غير موجود"
-    );
-
-    return false;
-  }
-
-  const cleanPhone =
-    normalizeWhatsAppNumber(to);
-
-  if (!cleanPhone) {
-
-    console.error(
-      "❌ رقم WhatsApp غير صالح"
-    );
-
-    return false;
-  }
-
+async function sendMessage(to, text) {
+  if (!WHATSAPP_TOKEN) return false;
+  const cleanPhone = normalizeWhatsAppNumber(to);
+  if (!cleanPhone) return false;
   try {
-
-    const res =
-      await fetch(
-        `https://graph.facebook.com/v26.0/${PHONE_ID}/messages`,
-        {
-          method: "POST",
-
-          headers: {
-            Authorization:
-              `Bearer ${WHATSAPP_TOKEN}`,
-
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-
-              messaging_product:
-                "whatsapp",
-
-              to:
-                cleanPhone,
-
-              type:
-                "text",
-
-              text: {
-                body:
-                  String(text || "")
-              }
-            })
-        }
-      );
-
-    const data =
-      await res.json();
-
-    console.log(
-      "📤 WhatsApp:",
-      JSON.stringify(data)
-    );
-
+    const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "text", text: { body: String(text || "") } })
+    });
+    const data = await res.json();
+    console.log("📤 WhatsApp:", JSON.stringify(data));
     return res.ok;
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "❌ خطأ إرسال WhatsApp:",
-      error
-    );
-
-    return false;
-  }
+  } catch (error) { console.error("❌ خطأ إرسال WhatsApp:", error); return false; }
 }
-
-// ======================================================
-// 3. Google Sheets Client
-// ======================================================
 
 function getGoogleSheetsClient() {
-
-  if (
-    !GOOGLE_SHEETS_ID ||
-    !GOOGLE_CLIENT_EMAIL ||
-    !GOOGLE_PRIVATE_KEY
-  ) {
-
-    console.error(
-      "❌ Google Sheets credentials ناقصة"
-    );
-
-    return null;
-  }
-
+  if (!GOOGLE_SHEETS_ID ||!GOOGLE_CLIENT_EMAIL ||!GOOGLE_PRIVATE_KEY) return null;
   try {
-
-    const auth =
-      new google.auth.GoogleAuth({
-
-        credentials: {
-
-          client_email:
-            GOOGLE_CLIENT_EMAIL,
-
-          private_key:
-            GOOGLE_PRIVATE_KEY.replace(
-              /\\n/g,
-              "\n"
-            )
-        },
-
-        scopes: [
-          "https://www.googleapis.com/auth/spreadsheets.readonly"
-        ]
-      });
-
-    return google.sheets({
-      version: "v4",
-      auth
+    const auth = new google.auth.GoogleAuth({
+      credentials: { client_email: GOOGLE_CLIENT_EMAIL, private_key: GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n") },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
     });
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "❌ خطأ إنشاء Google Sheets client:",
-      error
-    );
-
-    return null;
-  }
+    return google.sheets({ version: "v4", auth });
+  } catch (error) { console.error("❌ خطأ إنشاء Google Sheets client:", error); return null; }
 }
 
-// ======================================================
-// 4. قراءة Google Sheets
-// ======================================================
-
-const SHEETS_LOADING =
-  new Map();
-
-async function getSheetRows(
-  sheetName
-) {
-
-  const useCache =
-    CACHEABLE_SHEETS.has(
-      sheetName
-    );
-
-  // ----------------------------------------------------
-  // Cache
-  // ----------------------------------------------------
-
+const SHEETS_LOADING = new Map();
+async function getSheetRows(sheetName) {
+  const useCache = CACHEABLE_SHEETS.has(sheetName);
   if (useCache) {
-
-    const cached =
-      getCache(sheetName);
-
-    if (cached) {
-
-      console.log(
-        `⚡ Cache: ${sheetName} (${cached.length})`
-      );
-
-      return cached;
-    }
+    const cached = getCache(sheetName);
+    if (cached) { console.log(`⚡ Cache: ${sheetName} (${cached.length})`); return cached; }
   }
-
-  // ----------------------------------------------------
-  // منع الطلبات المتكررة
-  // ----------------------------------------------------
-
   if (useCache) {
-
-    const loading =
-      SHEETS_LOADING.get(
-        sheetName
-      );
-
-    if (loading) {
-
-      try {
-
-        return await loading;
-
-      }
-
-      catch (error) {
-
-        console.error(
-          `❌ فشل الطلب المشترك: ${sheetName}`,
-          error.message
-        );
-
-        return [];
-      }
-    }
+    const loading = SHEETS_LOADING.get(sheetName);
+    if (loading) { try { return await loading; } catch (error) { return []; } }
   }
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return [];
-  }
-
-  const loadPromise =
-    (async () => {
-
-      try {
-
-        console.log(
-          `📡 قراءة Live من Google Sheets: ${sheetName}`
-        );
-
-        const response =
-          await sheets.spreadsheets.values.get({
-
-            spreadsheetId:
-              GOOGLE_SHEETS_ID,
-
-            range:
-              `${sheetName}!A:Z`
-          });
-
-        const rows =
-          response.data.values || [];
-
-        if (!rows.length) {
-
-          console.log(
-            `⚠ جدول ${sheetName} فارغ`
-          );
-
-          return [];
-        }
-
-        const headers =
-          rows[0].map(
-            h =>
-              String(
-                h || ""
-              ).trim()
-          );
-
-        const result =
-          rows
-            .slice(1)
-            .map(row => {
-
-              const obj = {};
-
-              headers.forEach(
-                (
-                  header,
-                  index
-                ) => {
-
-                  obj[header] =
-                    row[index] ||
-                    "";
-                }
-              );
-
-              return obj;
-            });
-
-        if (useCache) {
-
-          setCache(
-            sheetName,
-            result
-          );
-
-          console.log(
-            `💾 تم تخزين ${sheetName} في Cache`
-          );
-        }
-
-        return result;
-
-      }
-
-      catch (error) {
-
-        console.error(
-          `❌ خطأ قراءة جدول ${sheetName}:`,
-          error.message
-        );
-
-        return [];
-      }
-
-    })();
-
-  if (useCache) {
-
-    SHEETS_LOADING.set(
-      sheetName,
-      loadPromise
-    );
-  }
-
-  try {
-
-    return await loadPromise;
-
-  }
-
-  finally {
-
-    if (useCache) {
-
-      SHEETS_LOADING.delete(
-        sheetName
-      );
-    }
-  }
+  const sheets = getGoogleSheetsClient();
+  if (!sheets) return [];
+  const loadPromise = (async () => {
+    try {
+      console.log(`📡 قراءة Live من Google Sheets: ${sheetName}`);
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEETS_ID, range: `${sheetName}!A:Z` });
+      const rows = response.data.values || [];
+      if (!rows.length) return [];
+      const headers = rows[0].map(h => String(h || "").trim());
+      const result = rows.slice(1).map(row => {
+        const obj = {}; headers.forEach((header, index) => { obj[header] = row[index] || ""; }); return obj;
+      });
+      if (useCache) { setCache(sheetName, result); console.log(`💾 تم تخزين ${sheetName} في Cache`); }
+      return result;
+    } catch (error) { console.error(`❌ خطأ قراءة جدول ${sheetName}:`, error.message); return []; }
+  })();
+  if (useCache) SHEETS_LOADING.set(sheetName, loadPromise);
+  try { return await loadPromise; } finally { if (useCache) SHEETS_LOADING.delete(sheetName); }
 }
 
-// ======================================================
-// 5. تطبيع النص
-// ======================================================
-
-function normalizeText(
-  text
-) {
-
-  return String(text || "")
-    .toLowerCase()
-    .trim()
-    .replace(
-      /[؟?!.,،]/g,
-      " "
-    )
-    .replace(
-      /\s+/g,
-      " "
-    );
+function normalizeText(text) {
+  return String(text || "").toLowerCase().trim().replace(/[؟?!.,،]/g, " ").replace(/\s+/g, " ");
 }
 
-// ======================================================
-// 6. كشف نية إنشاء طلب جديد
-// ======================================================
-
-function isNewOrderIntent(
-  userMessage
-) {
-
-  const message =
-    normalizeText(
-      userMessage
-    );
-
-  // ----------------------------------------------------
-  // طلب جديد
-  // ----------------------------------------------------
-
-  const newOrderPatterns = [
-
-    "بدي اطلب",
-    "بدي طلب",
-
-    "بدي اعمل طلب",
-
-    "بدي اوردر",
-    "بدي اعمل اوردر",
-
-    "بدي اشتري",
-    "بدي شراء",
-
-    "اعمللي طلب",
-    "اعمل لي طلب",
-
-    "اعمللي اوردر",
-    "اعمل لي اوردر",
-
-    "سجللي طلب",
-    "سجل لي طلب",
-
-    "حطلي طلب",
-    "حط لي طلب",
-
-    "فيني اطلب",
-    "فيني أطلب",
-
-    "بدي اشراء"
-  ];
-
-  // ----------------------------------------------------
-  // طلب موجود / متابعة طلب
-  // ----------------------------------------------------
-
-  const existingOrderPatterns = [
-
-    "وين طلبي",
-    "وين الطلب",
-
-    "وين اوردري",
-
-    "شو صار بطلب",
-    "شو صار بالطلب",
-
-    "حالة الطلب",
-    "حاله الطلب",
-
-    "حالة اوردري",
-    "حالة الأوردر",
-
-    "طلبي وين صار",
-    "وين صار طلبي",
-
-    "وصل طلبي",
-    "وصل الطلب",
-
-    "طلبتي وين"
-  ];
-
-  // إذا عم يحكي عن طلب موجود
-  // ممنوع التحويل إلى BOT2
-
-  if (
-    existingOrderPatterns.some(
-      pattern =>
-        message.includes(
-          normalizeText(pattern)
-        )
-    )
-  ) {
-
-    return false;
-  }
-
-  return newOrderPatterns.some(
-    pattern =>
-      message.includes(
-        normalizeText(pattern)
-      )
-  );
+function isNewOrderIntent(userMessage) {
+  const message = normalizeText(userMessage);
+  const newOrderPatterns = ["بدي اطلب", "بدي طلب", "بدي اعمل طلب", "بدي اوردر", "بدي اعمل اوردر", "بدي اشتري", "بدي شراء", "اعمللي طلب", "اعمل لي طلب", "اعمللي اوردر", "اعمل لي اوردر", "سجللي طلب", "سجل لي طلب", "حطلي طلب", "حط لي طلب", "فيني اطلب", "فيني أطلب", "بدي اشراء"];
+  const existingOrderPatterns = ["وين طلبي", "وين الطلب", "وين اوردري", "شو صار بطلب", "شو صار بالطلب", "حالة الطلب", "حاله الطلب", "حالة اوردري", "حالة الأوردر", "طلبي وين صار", "وين صار طلبي", "وصل طلبي", "وصل الطلب", "طلبتي وين"];
+  if (existingOrderPatterns.some(pattern => message.includes(normalizeText(pattern)))) return false;
+  return newOrderPatterns.some(pattern => message.includes(normalizeText(pattern)));
 }
 
-// ======================================================
-// 7. التعرف على المستخدم
-// ======================================================
-
-async function getUserByWhatsAppNumber(
-  whatsappNumber
-) {
-
-  const normalized =
-    normalizeWhatsAppNumber(
-      whatsappNumber
-    );
-
-  console.log(
-    `🔎 البحث في Users: ${normalized}`
-  );
-
-  const rows =
-    await getSheetRows(
-      "Users"
-    );
-
-  for (
-    const row of rows
-  ) {
-
-    const rowWhatsApp =
-      normalizeWhatsAppNumber(
-        row["WhatsApp Number"] ||
-        ""
-      );
-
-    if (
-      rowWhatsApp ===
-      normalized
-    ) {
-
+async function getUserByWhatsAppNumber(whatsappNumber) {
+  const normalized = normalizeWhatsAppNumber(whatsappNumber);
+  console.log(`🔎 البحث في Users: ${normalized}`);
+  const rows = await getSheetRows("Users");
+  for (const row of rows) {
+    const rowWhatsApp = normalizeWhatsAppNumber(row["WhatsApp Number"] || "");
+    if (rowWhatsApp === normalized) {
       const user = {
-
-        userId:
-          row["User ID"] || "",
-
-        role:
-          row["Role"] || "",
-
-        name:
-          row["Name"] || "",
-
-        mobile:
-          row["Mobile"] || "",
-
-        customerId:
-          row["Customer ID"] || "",
-
-        whatsappNumber:
-          row["WhatsApp Number"] || "",
-
-        storeId:
-          row["Store ID"] || "",
-
-        area:
-          row["Area"] || "",
-
-        status:
-          row["Status"] || "",
-
-        active:
-          row["Active"] || "",
-
-        botSession:
-          row["Bot Session"] ||
-          BOT1_SESSION
+        userId: row["User ID"] || "",
+        role: row["Role"] || "",
+        name: row["Name"] || "",
+        mobile: row["Mobile"] || "",
+        customerId: row["Customer ID"] || "",
+        whatsappNumber: row["WhatsApp Number"] || "",
+        storeId: row["Store ID"] || "",
+        area: row["Area"] || "",
+        status: row["Status"] || "",
+        active: row["Active"] || ""
       };
-
-      console.log(
-        "🎯 المستخدم:",
-        JSON.stringify(user)
-      );
-
+      console.log("🎯 المستخدم:", JSON.stringify(user));
       return user;
     }
   }
-
-  console.log(
-    "👤 الزائر غير مسجل في Users"
-  );
-
+  console.log("👤 الزائر غير مسجل في Users");
   return null;
 }
 
-// ======================================================
-// 8. AppSheet Request Helper
-// ======================================================
-
-async function appSheetAction(
-  tableName,
-  action,
-  rows
-) {
-
-  if (
-    !APPSHEET_APP_ID ||
-    !APPSHEET_API_KEY
-  ) {
-
-    console.error(
-      "❌ AppSheet credentials ناقصة"
-    );
-
-    return null;
-  }
-
+async function appSheetAction(tableName, action, rows) {
+  if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) return null;
   try {
-
-    const response =
-      await fetch(
-        `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${encodeURIComponent(tableName)}/Action`,
-        {
-
-          method:
-            "POST",
-
-          headers: {
-
-            ApplicationAccessKey:
-              APPSHEET_API_KEY,
-
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-
-              Action:
-                action,
-
-              Properties: {
-
-                Locale:
-                  "en-US",
-
-                TimeZone:
-                  "Asia/Beirut"
-              },
-
-              Rows:
-                rows
-            })
-        }
-      );
-
-    const text =
-      await response.text();
-
-    console.log(
-      `📡 AppSheet ${tableName}/${action}:`,
-      response.status,
-      text
-    );
-
-    return {
-
-      ok:
-        response.ok,
-
-      status:
-        response.status,
-
-      text
-    };
-
-  }
-
-  catch (error) {
-
-    console.error(
-      `❌ AppSheet ${tableName}/${action}:`,
-      error
-    );
-
-    return null;
-  }
+    const response = await fetch(`https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${encodeURIComponent(tableName)}/Action`, {
+      method: "POST",
+      headers: { ApplicationAccessKey: APPSHEET_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ Action: action, Properties: { Locale: "en-US", TimeZone: "Asia/Beirut" }, Rows: rows })
+    });
+    const text = await response.text();
+    console.log(`📡 AppSheet ${tableName}/${action}:`, response.status, text);
+    return { ok: response.ok, status: response.status, text };
+  } catch (error) { console.error(`❌ AppSheet ${tableName}/${action}:`, error); return null; }
 }
 
 // ======================================================
-// 9. تغيير Bot Session
+// Bot Sessions - الجدول المنفصل الوحيد
 // ======================================================
-
-async function changeBotSession(
-  user,
-  newSession
-) {
-
-  if (!user) {
-    return false;
-  }
-
-  if (!user.userId) {
-
-    console.error(
-      "❌ User ID غير موجود"
-    );
-
-    return false;
-  }
-
-  const row = {
-
-    "User ID":
-      user.userId,
-
-    "Bot Session":
-      newSession
-  };
-
-  const result =
-    await appSheetAction(
-      "Users",
-      "Edit",
-      [row]
-    );
-
-  if (!result?.ok) {
-
-    console.error(
-      "❌ فشل تغيير Bot Session:",
-      result
-    );
-
-    return false;
-  }
-
-  console.log(
-    `✅ Bot Session للمستخدم ${user.userId} أصبح ${newSession}`
-  );
-
-  return true;
+async function getBotSessionTable(phone) {
+  const rows = await getSheetRows("Bot Sessions");
+  const normalized = normalizeWhatsAppNumber(phone);
+  return rows.find(r => normalizeWhatsAppNumber(r["Phone"] || "") === normalized) || null;
 }
 
-// ======================================================
-// 10. قراءة Messages
-// ======================================================
-
-async function getAllUserMessages(
-  from
-) {
-
-  const messages =
-    await getSheetRows(
-      "Messages"
-    );
-
-  const normalized =
-    normalizeWhatsAppNumber(
-      from
-    );
-
-  return messages.filter(
-    row =>
-      normalizeWhatsAppNumber(
-        row["Phone"] || ""
-      ) === normalized
-  );
+async function openBot2Session(phone) {
+  const now = new Date().toISOString();
+  return await appSheetAction("Bot Sessions", "Add", [{
+    Phone: normalizeWhatsAppNumber(phone),
+    "Active Bot": "BOT2",
+    Status: "ACTIVE",
+    "Request ID": "",
+    "Started At": now,
+    "Closed At": "",
+    "Last Activity": now
+  }]);
 }
 
-// ======================================================
-// 11. جلب آخر محادثة BOT1
-// ======================================================
+async function getAllUserMessages(from) {
+  const messages = await getSheetRows("Messages");
+  const normalized = normalizeWhatsAppNumber(from);
+  return messages.filter(row => normalizeWhatsAppNumber(row["Phone"] || "") === normalized);
+}
 
-async function getConversationHistory(
-  from
-) {
-
-  const messages =
-    await getAllUserMessages(
-      from
-    );
-
-  const userMessages =
-    messages
-      .filter(row => {
-
-        const session =
-          String(
-            row["Bot Session"] ||
-            BOT1_SESSION
-          ).trim();
-
-        return (
-          session === BOT1_SESSION ||
-          !row["Bot Session"]
-        );
-      })
-      .slice(-10);
-
-  console.log(
-    `💬 Messages BOT1: ${userMessages.length}`
-  );
-
+async function getConversationHistory(from) {
+  const messages = await getAllUserMessages(from);
+  const userMessages = messages.filter(row => {
+    const session = String(row["Bot Session"] || BOT1_SESSION).trim();
+    return (session === BOT1_SESSION ||!row["Bot Session"]);
+  }).slice(-10);
+  console.log(`💬 Messages BOT1: ${userMessages.length}`);
   return userMessages;
 }
 
-// ======================================================
-// 12. حفظ رسالة في Messages
-// ======================================================
-
-async function saveToAppSheet(
-  from,
-  userMessage,
-  aiReply,
-  options = {}
-) {
-
-  const botSession =
-    options.botSession ||
-    BOT1_SESSION;
-
-  const bot =
-    options.bot ||
-    "BOT1";
-
-  const messageType =
-    options.messageType ||
-    "WHATSAPP";
-
-  if (
-    !APPSHEET_APP_ID ||
-    !APPSHEET_API_KEY
-  ) {
-
-    console.error(
-      "❌ AppSheet credentials ناقصة"
-    );
-
-    return false;
-  }
-
+async function saveToAppSheet(from, userMessage, aiReply, options = {}) {
+  const botSession = options.botSession || BOT1_SESSION;
+  const bot = options.bot || "BOT1";
+  const messageType = options.messageType || "WHATSAPP";
+  if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) return false;
   try {
-
-    // ==================================================
-    // التاريخ مضبوط DD/MM/YYYY
-    // ==================================================
-
-    const today =
-      new Intl.DateTimeFormat(
-        "en-US",
-        {
-          timeZone:
-            "Asia/Beirut",
-
-          day:
-            "2-digit",
-
-          month:
-            "2-digit",
-
-          year:
-            "numeric"
-        }
-      ).format(
-        new Date()
-      );
-
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD - يزبط مع AppSheet
     const row = {
-
-      Phone:
-        normalizeWhatsAppNumber(
-          from
-        ),
-
-      CustomerMessage:
-        userMessage || "",
-
-      AIReply:
-        aiReply || "",
-
-      Date:
-        today,
-
-      "Bot Session":
-        botSession,
-
-      Bot:
-        bot,
-
-      "Message Type":
-        messageType
+      Phone: normalizeWhatsAppNumber(from),
+      CustomerMessage: userMessage || "",
+      AIReply: aiReply || "",
+      Date: today,
+      "Bot Session": botSession,
+      Bot: bot,
+      "Message Type": messageType
     };
-
-    const result =
-      await appSheetAction(
-        "Messages",
-        "Add",
-        [row]
-      );
-
-    return !!result?.ok;
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "❌ خطأ حفظ Messages:",
-      error
-    );
-
-    return false;
-  }
+    const result = await appSheetAction("Messages", "Add", [row]);
+    return!!result?.ok;
+  } catch (error) { console.error("❌ خطأ حفظ Messages:", error); return false; }
 }
 
-// ======================================================
-// 13. إرسال Bridge إلى BOT2
-//
-// مهم جداً:
-// ❌ لا History
-// ❌ لا BRIDGED_HISTORY
-// ❌ لا نسخ Messages
-// ✅ فقط Command واضح لبدء تسجيل Order
-// ======================================================
-
-async function sendToBot2(
-  {
-    from,
-    user,
-    originalMessage
-  }
-) {
-
-  if (!BOT2_URL) {
-
-    console.error(
-      "❌ BOT2_URL غير موجود"
-    );
-
-    return false;
-  }
-
+async function sendToBot2({ from, user, originalMessage }) {
+  if (!BOT2_URL) return false;
   try {
-
     const payload = {
-
-      // مفتاح أمان الـ Bridge
-      bridgeKey:
-        BOT2_BRIDGE_KEY,
-
-      sourceBot:
-        BOT1_SESSION,
-
-      targetBot:
-        BOT2_SESSION,
-
-      event:
-        "NEW_ORDER",
-
-      // ==================================================
-      // المفتاح الذي يجب أن يقرأه BOT2
-      // ==================================================
-
-      command:
-        BOT2_START_COMMAND,
-
-      transferKey:
-        BOT2_START_COMMAND,
-
-      instruction:
-        "START_ORDER_REGISTRATION",
-
-      phone:
-        normalizeWhatsAppNumber(
-          from
-        ),
-
-      originalMessage:
-        originalMessage,
-
-      user:
-        user
-          ? {
-
-              userId:
-                user.userId || "",
-
-              customerId:
-                user.customerId || "",
-
-              name:
-                user.name || "",
-
-              mobile:
-                user.mobile || "",
-
-              whatsappNumber:
-                user.whatsappNumber || "",
-
-              area:
-                user.area || "",
-
-              role:
-                user.role || ""
-            }
-
-          : null,
-
-      startMessage:
-        "يلا نبلّش تسجيل الأوردر 😊 شو حابب تطلب؟"
+      bridgeKey: BOT2_BRIDGE_KEY,
+      sourceBot: BOT1_SESSION,
+      targetBot: BOT2_SESSION,
+      event: "NEW_ORDER",
+      command: BOT2_START_COMMAND,
+      transferKey: BOT2_START_COMMAND,
+      instruction: "START_ORDER_REGISTRATION",
+      phone: normalizeWhatsAppNumber(from),
+      originalMessage: originalMessage,
+      user: user? { userId: user.userId || "", customerId: user.customerId || "", name: user.name || "", mobile: user.mobile || "", whatsappNumber: user.whatsappNumber || "", area: user.area || "", role: user.role || "" } : null,
+      startMessage: "يلا نبلّش تسجيل الأوردر 😊 شو حابب تطلب؟"
     };
-
-    console.log(
-      "🔀 إرسال Bridge إلى BOT2:",
-      JSON.stringify({
-
-        event:
-          payload.event,
-
-        command:
-          payload.command,
-
-        phone:
-          payload.phone,
-
-        originalMessage:
-          payload.originalMessage,
-
-        bridgeKey:
-          payload.bridgeKey
-      })
-    );
-
-    const response =
-      await fetch(
-        BOT2_URL,
-        {
-
-          method:
-            "POST",
-
-          headers: {
-
-            "Content-Type":
-              "application/json",
-
-            "x-md-bridge-key":
-              BOT2_BRIDGE_KEY
-          },
-
-          body:
-            JSON.stringify(
-              payload
-            )
-        }
-      );
-
-    const text =
-      await response.text();
-
-    console.log(
-      "🤖 نتيجة BOT2:",
-      response.status,
-      text
-    );
-
-    if (!response.ok) {
-
-      console.error(
-        "❌ BOT2 رفض Bridge"
-      );
-
-      return false;
-    }
-
+    console.log("🔀 إرسال Bridge إلى BOT2:", JSON.stringify({ event: payload.event, command: payload.command, phone: payload.phone }));
+    const response = await fetch(BOT2_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-md-bridge-key": BOT2_BRIDGE_KEY },
+      body: JSON.stringify(payload)
+    });
+    const text = await response.text();
+    console.log("🤖 نتيجة BOT2:", response.status, text);
+    if (!response.ok) return false;
     return true;
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "❌ فشل Bridge إلى BOT2:",
-      error
-    );
-
-    return false;
-  }
+  } catch (error) { console.error("❌ فشل Bridge إلى BOT2:", error); return false; }
 }
 
-// ======================================================
-// 14. الانتقال الكامل من BOT1 إلى BOT2
-// ======================================================
+async function transferToBot2({ from, user, originalMessage }) {
+  if (!user) { console.error("❌ محاولة تحويل مستخدم غير مسجل إلى BOT2"); return false; }
+  console.log("================================================");
+  console.log("🔀 بدء الانتقال من BOT1 إلى BOT2 - بوابة فقط");
+  console.log("📱 الهاتف:", normalizeWhatsAppNumber(from));
+  console.log("================================================");
 
-async function transferToBot2(
-  {
-    from,
-    user,
-    originalMessage
-  }
-) {
+  await saveToAppSheet(from, originalMessage, "TRANSFER_TO_BOT2", { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BOT_TRANSFER" });
 
-  if (!user) {
+  const sent = await sendToBot2({ from, user, originalMessage });
+  if (!sent) { console.error("❌ BOT2 لم يستقبل Bridge"); return false; }
 
-    console.error(
-      "❌ محاولة تحويل مستخدم غير مسجل إلى BOT2"
-    );
+  const opened = await openBot2Session(from);
+  if (!opened?.ok) { console.error("❌ فشل فتح جلسة BOT2 في جدول Bot Sessions"); return false; }
 
-    return false;
-  }
-
-  console.log(
-    "================================================"
-  );
-
-  console.log(
-    "🔀 بدء الانتقال من BOT1 إلى BOT2"
-  );
-
-  console.log(
-    "📱 الهاتف:",
-    normalizeWhatsAppNumber(from)
-  );
-
-  console.log(
-    "👤 المستخدم:",
-    user?.name
-  );
-
-  console.log(
-    "📝 الرسالة:",
-    originalMessage
-  );
-
-  console.log(
-    "🔑 BOT2 Command:",
-    BOT2_START_COMMAND
-  );
-
-  console.log(
-    "================================================"
-  );
-
-  // ----------------------------------------------------
-  // لا يتم جلب History
-  // لا يتم نسخ History
-  // ----------------------------------------------------
-
-  // ----------------------------------------------------
-  // تسجيل رسالة الانتقال في Messages
-  //
-  // هذه ليست Bridge History
-  // فقط تسجيل أن BOT1 قام بالتحويل
-  // ----------------------------------------------------
-
-  await saveToAppSheet(
-    from,
-
-    originalMessage,
-
-    "TRANSFER_TO_BOT2",
-
-    {
-
-      botSession:
-        BOT1_SESSION,
-
-      bot:
-        "BOT1",
-
-      messageType:
-        "BOT_TRANSFER"
-    }
-  );
-
-  // ----------------------------------------------------
-  // إرسال Bridge إلى BOT2
-  //
-  // فقط:
-  // START_ORDER
-  // user
-  // originalMessage
-  // ----------------------------------------------------
-
-  const sent =
-    await sendToBot2(
-      {
-
-        from,
-
-        user,
-
-        originalMessage
-      }
-    );
-
-  if (!sent) {
-
-    console.error(
-      "❌ BOT2 لم يستقبل Bridge"
-    );
-
-    return false;
-  }
-
-  // ----------------------------------------------------
-  // BOT2 أكد الاستقبال
-  // الآن فقط نغيّر Session
-  // ----------------------------------------------------
-
-  const sessionChanged =
-    await changeBotSession(
-      user,
-      BOT2_SESSION
-    );
-
-  if (!sessionChanged) {
-
-    console.error(
-      "❌ BOT2 استقبل Bridge لكن فشل تغيير Session"
-    );
-
-    return false;
-  }
-
-  console.log(
-    "================================================"
-  );
-
-  console.log(
-    "✅ تم الانتقال بنجاح من BOT1 إلى BOT2"
-  );
-
-  console.log(
-    "🤖 Session = BOT2"
-  );
-
-  console.log(
-    "🔑 Command = START_ORDER"
-  );
-
-  console.log(
-    "================================================"
-  );
-
+  console.log("✅ تم الانتقال - Session = BOT2 في جدول Bot Sessions");
   return true;
 }
 
-// ======================================================
-// 15. البحث عن Products
-// ======================================================
-
-async function searchProducts(
-  userMessage
-) {
-
-  const products =
-    await getSheetRows(
-      "Products"
-    );
-
-  const stores =
-    await getSheetRows(
-      "Stores"
-    );
-
-  const categories =
-    await getSheetRows(
-      "Categories"
-    );
-
-  const areas =
-    await getSheetRows(
-      "Areas"
-    );
-
-  const message =
-    normalizeText(
-      userMessage
-    );
-
-  const originalMessage =
-    String(
-      userMessage || ""
-    ).toLowerCase();
-
-  // ====================================================
-  // المتجر
-  // ====================================================
-
-  const storeKeywords = [
-
-    "سوبرماركت",
-    "ميني ماركت",
-    "بقالة",
-    "محل",
-    "متجر",
-    "ماركت"
-  ];
-
-  let mentionedStoreId =
-    null;
-
-  let mentionedStoreName =
-    "";
-
-  for (
-    const store of stores
-  ) {
-
-    const storeNameNorm =
-      normalizeText(
-        store["Store Name"]
-      );
-
-    if (!storeNameNorm) {
-      continue;
-    }
-
-    if (
-      message.includes(
-        storeNameNorm
-      )
-    ) {
-
-      mentionedStoreId =
-        store["Store ID"];
-
-      mentionedStoreName =
-        store["Store Name"];
-
-      break;
-    }
+async function searchProducts(userMessage) {
+  const products = await getSheetRows("Products");
+  const stores = await getSheetRows("Stores");
+  const areas = await getSheetRows("Areas");
+  const message = normalizeText(userMessage);
+  const originalMessage = String(userMessage || "").toLowerCase();
+  const storeKeywords = ["سوبرماركت", "ميني ماركت", "بقالة", "محل", "متجر", "ماركت"];
+  let mentionedStoreId = null;
+  for (const store of stores) {
+    const storeNameNorm = normalizeText(store["Store Name"]);
+    if (!storeNameNorm) continue;
+    if (message.includes(storeNameNorm)) { mentionedStoreId = store["Store ID"]; break; }
   }
-
-  if (!mentionedStoreId) {
-
-    for (
-      const keyword of storeKeywords
-    ) {
-
-      if (
-        originalMessage.includes(
-          keyword
-        )
-      ) {
-
-        const parts =
-          originalMessage.split(
-            keyword
-          );
-
-        if (parts[1]) {
-
-          const afterKeyword =
-            normalizeText(
-              parts[1]
-                .trim()
-                .split(" ")[0]
-            );
-
-          for (
-            const store of stores
-          ) {
-
-            if (
-              normalizeText(
-                store["Store Name"]
-              ).includes(
-                afterKeyword
-              )
-            ) {
-
-              mentionedStoreId =
-                store["Store ID"];
-
-              mentionedStoreName =
-                store["Store Name"];
-
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // ====================================================
-  // المنتجات
-  // ====================================================
-
-  const stopWords = [
-
-    "بدي",
-    "بدّي",
-    "اريد",
-    "أريد",
-    "اعرف",
-    "موجود",
-    "وين",
-    "باي",
-    "متجر",
-    "سوبرماركت",
-    "ميني",
-    "ماركت",
-    "بقالة",
-    "محل",
-    "عند",
-    "شو",
-    "عن",
-    "المنتج",
-    "منتج",
-    "في",
-    "منو",
-    "فيه"
-  ];
-
-  const words =
-    message
-      .split(" ")
-      .filter(
-        w =>
-          w.length >= 2 &&
-          !stopWords.includes(w)
-      );
-
-  if (!words.length) {
-    return [];
-  }
-
+  const stopWords = ["بدي", "بدّي", "اريد", "أريد", "اعرف", "موجود", "وين", "باي", "متجر", "سوبرماركت", "ميني", "ماركت", "بقالة", "محل", "عند", "شو", "عن", "المنتج", "منتج", "في", "منو", "فيه"];
+  const words = message.split(" ").filter(w => w.length >= 2 &&!stopWords.includes(w));
+  if (!words.length) return [];
   const results = [];
-
-  for (
-    const product of products
-  ) {
-
-    const available =
-      normalizeText(
-        product["Available"]
-      );
-
-    if (
-      available !== "yes"
-    ) {
-      continue;
-    }
-
-    if (
-      String(
-        product["Active"]
-      ).toUpperCase() !==
-      "TRUE"
-    ) {
-      continue;
-    }
-
-    const productName =
-      normalizeText(
-        product["Product Name"]
-      );
-
-    if (!productName) {
-      continue;
-    }
-
+  for (const product of products) {
+    const available = normalizeText(product["Available"]);
+    if (available!== "yes") continue;
+    if (String(product["Active"]).toUpperCase()!== "TRUE") continue;
+    const productName = normalizeText(product["Product Name"]);
+    if (!productName) continue;
     let score = 0;
-
-    for (
-      const word of words
-    ) {
-
-      if (
-        productName === word
-      ) {
-
-        score += 10;
-
-      }
-
-      else if (
-        productName.startsWith(
-          word
-        )
-      ) {
-
-        score += 7;
-
-      }
-
-      else if (
-        productName.includes(
-          word
-        )
-      ) {
-
-        score += 2;
-      }
+    for (const word of words) {
+      if (productName === word) score += 10;
+      else if (productName.startsWith(word)) score += 7;
+      else if (productName.includes(word)) score += 2;
     }
-
-    if (
-      message.includes(
-        productName
-      )
-    ) {
-
-      score += 5;
-    }
-
-    if (score <= 0) {
-      continue;
-    }
-
-    const store =
-      stores.find(
-        s =>
-          String(
-            s["Store ID"]
-          ) ===
-          String(
-            product["Store ID"]
-          )
-      );
-
+    if (message.includes(productName)) score += 5;
+    if (score <= 0) continue;
+    const store = stores.find(s => String(s["Store ID"]) === String(product["Store ID"]));
     results.push({
-
-      score,
-
-      storeId:
-        product["Store ID"],
-
-      productName:
-        product["Product Name"],
-
-      unit:
-        product["Unit"],
-
-      price:
-        product["Price"],
-
-      storeName:
-        store?.["Store Name"] ||
-        "غير معروف",
-
-      address:
-        store?.["Adress"] ||
-        "",
-
-      areaName:
-        areas.find(
-          a =>
-            String(
-              a["Area ID"]
-            ) ===
-            String(
-              store?.["Area"] ||
-              product["Area"]
-            )
-        )?.["Area Name"] ||
-        ""
+      score, storeId: product["Store ID"], productName: product["Product Name"], unit: product["Unit"], price: product["Price"],
+      storeName: store?.["Store Name"] || "غير معروف", address: store?.["Adress"] || "",
+      areaName: areas.find(a => String(a["Area ID"]) === String(store?.["Area"] || product["Area"]))?.["Area Name"] || ""
     });
   }
-
-  results.sort(
-    (a, b) => {
-
-      if (mentionedStoreId) {
-
-        const aMatch =
-          String(a.storeId) ===
-          String(mentionedStoreId);
-
-        const bMatch =
-          String(b.storeId) ===
-          String(mentionedStoreId);
-
-        if (
-          aMatch &&
-          !bMatch
-        ) {
-          return -1;
-        }
-
-        if (
-          !aMatch &&
-          bMatch
-        ) {
-          return 1;
-        }
-      }
-
-      return b.score - a.score;
+  results.sort((a, b) => {
+    if (mentionedStoreId) {
+      const aMatch = String(a.storeId) === String(mentionedStoreId);
+      const bMatch = String(b.storeId) === String(mentionedStoreId);
+      if (aMatch &&!bMatch) return -1;
+      if (!aMatch && bMatch) return 1;
     }
-  );
-
-  let finalResults =
-    results;
-
-  if (
-    mentionedStoreId
-  ) {
-
-    finalResults =
-      results.filter(
-        r =>
-          String(
-            r.storeId
-          ) ===
-          String(
-            mentionedStoreId
-          )
-      );
-  }
-
-  return finalResults.slice(
-    0,
-    3
-  );
+    return b.score - a.score;
+  });
+  let finalResults = results;
+  if (mentionedStoreId) finalResults = results.filter(r => String(r.storeId) === String(mentionedStoreId));
+  return finalResults.slice(0, 3);
 }
 
-// ======================================================
-// 16. جلب طلبات المستخدم
-// ======================================================
-
-async function getUserOrders(
-  user
-) {
-
-  // ====================================================
-  // الزائر ممنوع تماماً من قراءة الطلبات
-  // ====================================================
-
-  if (!user) {
-    return [];
-  }
-
-  const orders =
-    await getSheetRows(
-      "Order Requuest"
-    );
-
-  const isAdmin =
-    String(
-      user.role || ""
-    )
-      .toLowerCase()
-      .includes("admin");
-
-  const customerId =
-    String(
-      user.customerId || ""
-    ).trim();
-
-  const userMobile =
-    normalizeWhatsAppNumber(
-      user.mobile || ""
-    );
-
+async function getUserOrders(user) {
+  if (!user) return [];
+  const orders = await getSheetRows("Order Requuest");
+  const isAdmin = String(user.role || "").toLowerCase().includes("admin");
+  const customerId = String(user.customerId || "").trim();
+  const userMobile = normalizeWhatsAppNumber(user.mobile || "");
   const results = [];
-
-  for (
-    const order of orders
-  ) {
-
-    const orderCustomerId =
-      String(
-        order["Customer ID"] || ""
-      ).trim();
-
-    const orderMobile =
-      normalizeWhatsAppNumber(
-        order["Mobile"] || ""
-      );
-
-    if (isAdmin) {
-
-      results.push(
-        order
-      );
-
-      continue;
-    }
-
-    if (
-      customerId &&
-      orderCustomerId ===
-      customerId
-    ) {
-
-      results.push(
-        order
-      );
-
-      continue;
-    }
-
-    if (
-      userMobile &&
-      orderMobile &&
-      userMobile ===
-      orderMobile
-    ) {
-
-      results.push(
-        order
-      );
-    }
+  for (const order of orders) {
+    const orderCustomerId = String(order["Customer ID"] || "").trim();
+    const orderMobile = normalizeWhatsAppNumber(order["Mobile"] || "");
+    if (isAdmin) { results.push(order); continue; }
+    if (customerId && orderCustomerId === customerId) { results.push(order); continue; }
+    if (userMobile && orderMobile && userMobile === orderMobile) results.push(order);
   }
-
   return results;
 }
 
-// ======================================================
-// 17. تفاصيل الطلب
-// ======================================================
-
-async function getOrderDetails(
-  requestId
-) {
-
-  const details =
-    await getSheetRows(
-      "Order Details"
-    );
-
-  const products =
-    await getSheetRows(
-      "Products"
-    );
-
-  const stores =
-    await getSheetRows(
-      "Stores"
-    );
-
-  const areas =
-    await getSheetRows(
-      "Areas"
-    );
-
+async function getOrderDetails(requestId) {
+  const details = await getSheetRows("Order Details");
+  const products = await getSheetRows("Products");
+  const stores = await getSheetRows("Stores");
+  const areas = await getSheetRows("Areas");
   const result = [];
-
-  for (
-    const detail of details
-  ) {
-
-    if (
-      String(
-        detail["Request ID"] || ""
-      ).trim() !==
-      String(
-        requestId || ""
-      ).trim()
-    ) {
-      continue;
-    }
-
-    const productId =
-      detail["Product ID"] ||
-      "";
-
-    const storeId =
-      detail["Store ID"] ||
-      "";
-
-    const areaId =
-      detail["Area"] ||
-      "";
-
-    const product =
-      products.find(
-        p =>
-          String(
-            p["Product ID"] || ""
-          ) ===
-          String(
-            productId
-          )
-      );
-
-    const store =
-      stores.find(
-        s =>
-          String(
-            s["Store ID"] || ""
-          ) ===
-          String(
-            storeId
-          )
-      );
-
-    const area =
-      areas.find(
-        a =>
-          String(
-            a["Area ID"] || ""
-          ) ===
-          String(
-            areaId
-          )
-      );
-
-    result.push({
-
-      productName:
-        product?.["Product Name"] ||
-        "منتج غير معروف",
-
-      qty:
-        detail["Qty"] ||
-        "",
-
-      unitPrice:
-        detail["Unit Price"] ||
-        "",
-
-      storeName:
-        store?.["Store Name"] ||
-        "متجر غير معروف",
-
-      areaName:
-        area?.["Area Name"] ||
-        "منطقة غير معروفة"
-    });
+  for (const detail of details) {
+    if (String(detail["Request ID"] || "").trim()!== String(requestId || "").trim()) continue;
+    const productId = detail["Product ID"] || ""; const storeId = detail["Store ID"] || ""; const areaId = detail["Area"] || "";
+    const product = products.find(p => String(p["Product ID"] || "") === String(productId));
+    const store = stores.find(s => String(s["Store ID"] || "") === String(storeId));
+    const area = areas.find(a => String(a["Area ID"] || "") === String(areaId));
+    result.push({ productName: product?.["Product Name"] || "منتج غير معروف", qty: detail["Qty"] || "", unitPrice: detail["Unit Price"] || "", storeName: store?.["Store Name"] || "متجر غير معروف", areaName: area?.["Area Name"] || "منطقة غير معروفة" });
   }
-
   return result;
 }
 
-// ======================================================
-// 18. تجهيز Order Context
-// ======================================================
-
-async function buildOrderContext(
-  user,
-  userMessage
-) {
-
-  const orders =
-    await getUserOrders(
-      user
-    );
-
-  if (!orders.length) {
-
-    return {
-
-      orders: [],
-
-      selectedOrder:
-        null,
-
-      details: []
-    };
+async function buildOrderContext(user, userMessage) {
+  const orders = await getUserOrders(user);
+  if (!orders.length) return { orders: [], selectedOrder: null, details: [] };
+  const message = normalizeText(userMessage);
+  let selectedOrder = null;
+  for (const order of orders) {
+    const requestId = normalizeText(order["Request ID"]);
+    if (requestId && message.includes(requestId)) { selectedOrder = order; break; }
   }
-
-  const message =
-    normalizeText(
-      userMessage
-    );
-
-  let selectedOrder =
-    null;
-
-  for (
-    const order of orders
-  ) {
-
-    const requestId =
-      normalizeText(
-        order["Request ID"]
-      );
-
-    if (
-      requestId &&
-      message.includes(
-        requestId
-      )
-    ) {
-
-      selectedOrder =
-        order;
-
-      break;
-    }
-  }
-
-  if (!selectedOrder) {
-
-    selectedOrder =
-      orders[
-        orders.length - 1
-      ];
-  }
-
-  const details =
-    await getOrderDetails(
-      selectedOrder[
-        "Request ID"
-      ]
-    );
-
-  const safeOrders =
-    orders.map(
-      order => ({
-
-        requestId:
-          order["Request ID"] ||
-          "",
-
-        area:
-          order["Area"] ||
-          "",
-
-        deliveryAddress:
-          order["Delivery Adress"] ||
-          "",
-
-        deliveryFee:
-          order["Delivery Fee"] ||
-          "",
-
-        assignedDriver:
-          order["Assigned Driver"] ||
-          "",
-
-        approvalStatus:
-          order["Approval Status"] ||
-          "",
-
-        deliveryStatus:
-          order["Delivery Status"] ||
-          "",
-
-        itemsCost:
-          order["Items Cost"] ||
-          "",
-
-        totalAmount:
-          order["Total Amount"] ||
-          ""
-      })
-    );
-
-  return {
-
-    orders:
-      safeOrders,
-
-    selectedOrder:
-      selectedOrder
-        ? {
-
-            requestId:
-              selectedOrder[
-                "Request ID"
-              ] || "",
-
-            area:
-              selectedOrder[
-                "Area"
-              ] || "",
-
-            deliveryAddress:
-              selectedOrder[
-                "Delivery Adress"
-              ] || "",
-
-            deliveryFee:
-              selectedOrder[
-                "Delivery Fee"
-              ] || "",
-
-            assignedDriver:
-              selectedOrder[
-                "Assigned Driver"
-              ] || "",
-
-            approvalStatus:
-              selectedOrder[
-                "Approval Status"
-              ] || "",
-
-            deliveryStatus:
-              selectedOrder[
-                "Delivery Status"
-              ] || "",
-
-            itemsCost:
-              selectedOrder[
-                "Items Cost"
-              ] || "",
-
-            totalAmount:
-              selectedOrder[
-                "Total Amount"
-              ] || ""
-          }
-
-        : null,
-
-    details
-  };
+  if (!selectedOrder) selectedOrder = orders[orders.length - 1];
+  const details = await getOrderDetails(selectedOrder["Request ID"]);
+  const safeOrders = orders.map(order => ({ requestId: order["Request ID"] || "", area: order["Area"] || "", deliveryAddress: order["Delivery Adress"] || "", deliveryFee: order["Delivery Fee"] || "", assignedDriver: order["Assigned Driver"] || "", approvalStatus: order["Approval Status"] || "", deliveryStatus: order["Delivery Status"] || "", itemsCost: order["Items Cost"] || "", totalAmount: order["Total Amount"] || "" }));
+  return { orders: safeOrders, selectedOrder: selectedOrder? { requestId: selectedOrder["Request ID"] || "", area: selectedOrder["Area"] || "", deliveryAddress: selectedOrder["Delivery Adress"] || "", deliveryFee: selectedOrder["Delivery Fee"] || "", assignedDriver: selectedOrder["Assigned Driver"] || "", approvalStatus: selectedOrder["Approval Status"] || "", deliveryStatus: selectedOrder["Delivery Status"] || "", itemsCost: selectedOrder["Items Cost"] || "", totalAmount: selectedOrder["Total Amount"] || "" } : null, details };
 }
 
-// ======================================================
-// 19. Groq AI
-// ======================================================
-
-async function getAIReply(
-  userMessage,
-  user,
-  productResults,
-  orderContext,
-  history
-) {
-
-  if (!GROQ_KEY) {
-
-    return user
-      ? "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
-      : `أهلا وسهلا فيك بـ MD-Marketplace 😊
-
-كيف بقدر ساعدك اليوم؟`;
-  }
-
+async function getAIReply(userMessage, user, productResults, orderContext, history) {
+  if (!GROQ_KEY) return user? "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊" : `أهلا وسهلا فيك بـ MD-Marketplace 😊\n\nكيف بقدر ساعدك اليوم؟`;
   try {
-
-    // ==================================================
-    // حالة المستخدم
-    // ==================================================
-
-    let userContext =
-      "";
-
+    let userContext = "";
     if (user) {
-
-      userContext = `
-
-المستخدم مسجّل ومعروف في نظام Users.
-
-بيانات المستخدم الموثوقة:
-
-الاسم:
-${user.name || "غير معروف"}
-
-الدور:
-${user.role || "غير معروف"}
-
-Customer ID:
-${user.customerId || "غير موجود"}
-
-User ID:
-${user.userId || "غير موجود"}
-
-رقم WhatsApp:
-${user.whatsappNumber || "غير موجود"}
-
-Bot Session:
-${user.botSession || BOT1_SESSION}
-`;
-
+      userContext = `\nالمستخدم مسجّل ومعروف في نظام Users.\nبيانات المستخدم الموثوقة:\nالاسم:\n${user.name || "غير معروف"}\nالدور:\n${user.role || "غير معروف"}\nCustomer ID:\n${user.customerId || "غير موجود"}\nUser ID:\n${user.userId || "غير موجود"}\nرقم WhatsApp:\n${user.whatsappNumber || "غير موجود"}\n`;
+    } else {
+      userContext = `\n⚠ المستخدم زائر وغير مسجّل في نظام Users.\nهذا يعني:\n- لا يوجد User ID موثوق.\n- لا يوجد Customer ID موثوق.\n- لا يوجد وصول إلى الطلبات.\n- لا يوجد وصول إلى بيانات شخصية.\n- لا يجوز إعطاؤه أي معلومات عن طلبات أي شخص.\n- يمكن مساعدته في الاستفسارات العامة والمنتجات والمتاجر والموقع.\n- إذا أراد إنشاء طلب، يجب توجيهه بلطف إلى تسجيل الدخول أولاً.\n`;
     }
-
-    else {
-
-      userContext = `
-
-⚠️ المستخدم زائر وغير مسجّل في نظام Users.
-
-هذا يعني:
-
-- لا يوجد User ID موثوق.
-- لا يوجد Customer ID موثوق.
-- لا يوجد وصول إلى الطلبات.
-- لا يوجد وصول إلى بيانات شخصية.
-- لا يجوز إعطاؤه أي معلومات عن طلبات أي شخص.
-- يمكن مساعدته في الاستفسارات العامة والمنتجات والمتاجر والموقع.
-- إذا أراد إنشاء طلب، يجب توجيهه بلطف إلى تسجيل الدخول أولاً.
-`;
-    }
-
-    // ==================================================
-    // Product Context
-    // ==================================================
-
-    const productContext =
-      productResults.length
-        ? JSON.stringify(
-            productResults
-          )
-        : "لا توجد نتائج منتجات مؤكدة.";
-
-    // ==================================================
-    // Order Data
-    // ==================================================
-
-    const orderData =
-      orderContext.orders.length
-        ? JSON.stringify(
-            orderContext.orders
-          )
-        : "لا توجد طلبات متاحة لهذا المستخدم.";
-
-    const selectedOrder =
-      orderContext.selectedOrder
-        ? JSON.stringify(
-            orderContext.selectedOrder
-          )
-        : "لا يوجد طلب محدد.";
-
-    const orderDetails =
-      orderContext.details.length
-        ? JSON.stringify(
-            orderContext.details
-          )
-        : "لا توجد تفاصيل للطلب المحدد.";
-
-    // ==================================================
-    // History
-    // ==================================================
-
-    const historyText =
-      history.length
-        ? history
-            .map(
-              m =>
-                `العميل: ${
-                  m["CustomerMessage"] ||
-                  ""
-                }\nالبوت: ${
-                  m["AIReply"] ||
-                  ""
-                }`
-            )
-            .join("\n")
-        : "لا توجد محادثة سابقة.";
-
-    // ==================================================
-    // System Prompt
-    // ==================================================
-
-    const systemPrompt = `
-
-أنت مساعدك الذكي من MD-Marketplace.
-
-تحدث باللهجة اللبنانية الودودة والطبيعية.
-
-لا تكن دجّاً أو مزعجاً.
-
-لا تطلب من المستخدم تسجيل الدخول إلا عندما تكون الوظيفة التي يطلبها تحتاج فعلاً إلى حساب.
-
-موقعنا الرسمي:
-${WEBSITE_URL}
-
-ايميلنا:
-${INFO_EMAIL}
-
-${userContext}
-
-==================================================
-قواعد أساسية
-==================================================
-
-1. إذا كان المستخدم معروفاً استخدم اسمه عند الحاجة.
-2. لا تنادِ المستخدم برقم الهاتف.
-3. إذا كان المستخدم غير مسجّل، لا تخبره أنه "غير موجود في النظام" بطريقة تقنية.
-4. إذا كان المستخدم غير مسجّل، عامله كزائر طبيعي.
-5. لا تعطي أي معلومات عن الطلبات لزائر غير مسجّل.
-6. لا تسمح للمستخدم بالوصول إلى طلبات شخص آخر.
-7. بيانات الطلبات الموجودة أدناه موثوقة فقط.
-8. لا تخترع أي طلب.
-9. لا تخترع أي سعر.
-10. لا تخترع أي منتج.
-11. لا تخترع أي متجر.
-12. لا تخترع أي منطقة.
-13. لا تخترع أي حالة طلب.
-14. إذا لم توجد معلومة مؤكدة، قل إن المعلومة غير متوفرة لديك.
-
-==================================================
-الزائر غير المسجّل
-==================================================
-
-إذا كان المستخدم غير مسجّل:
-
-- الاستفسارات العامة:
-  جاوب مباشرة وبشكل طبيعي.
-
-- سؤال عن الموقع:
-  أعطه رابط الموقع.
-
-- سؤال عن المنتجات:
-  استخدم نتائج المنتجات المؤكدة الموجودة لديك.
-
-- سؤال عن متجر:
-  استخدم بيانات المتجر المؤكدة الموجودة لديك.
-
-- سؤال عن التواصل:
-  أعطه ايميل التواصل.
-
-- سؤال عن كيفية استخدام الموقع:
-  اشرح له ببساطة.
-
-- سؤال عن إنشاء طلب / شراء / عمل أوردر:
-  لا تنقله إلى BOT2.
-
-  أخبره بلطف مثلاً:
-  "أكيد 😊 فيك تعمل طلب بكل سهولة، بس حتى نقدر نسجّل طلبك ونحافظ على بياناتك ونخلي تجربة الطلب سلسة، يرجى تسجيل الدخول أو إنشاء حساب على موقعنا:
-  ${WEBSITE_URL}"
-
-  لا تكرر نفس الجملة حرفياً دائماً إذا كان السياق يسمح بصياغة ألطف.
-
-- إذا سأل عن طلبه أو حالة طلب:
-  قل له إن متابعة الطلبات تحتاج تسجيل الدخول، مثلاً:
-  "أكيد، فينا نساعدك بمتابعة طلبك 😊 بس حتى نعرضلك طلباتك بشكل آمن، يرجى تسجيل الدخول إلى حسابك على الموقع."
-
-- لا تقل له "سجّل الدخول" إذا كان فقط يسأل سؤالاً عاماً لا يحتاج حساب.
-
-==================================================
-المستخدم المسجّل
-==================================================
-
-إذا كان المستخدم مسجلاً:
-
-- يمكنه الاستفسار عن المنتجات والمتاجر.
-- يمكنه الاستفسار عن طلباته فقط.
-- إذا أراد إنشاء طلب، النظام يتولى تحويله إلى BOT2.
-- لا تخبره بتفاصيل تقنية عن BOT1 أو BOT2.
-- لا تذكر رقم هاتف السائق إلا إذا طلبه صراحة.
-
-==================================================
-قواعد الموقع
-==================================================
-
-إذا سأل عن الموقع:
-جاوب:
-"موقعنا هو ${WEBSITE_URL} فيك تشوف المنتجات والمتاجر وتستفيد من خدماتنا 😊"
-
-إذا سأل عن التواصل:
-جاوب:
-"فيك تتواصل معنا على ${INFO_EMAIL} 😊"
-
-إذا سأل مين أنت:
-جاوب:
-"أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"
-
-==================================================
-قواعد المنتجات
-==================================================
-
-ممنوع Markdown Tables.
-
-إذا لا توجد نتائج مؤكدة لا تخترع.
-
-إذا توجد نتائج اعرضها كما هي.
-
-شكل المنتج:
-
-🛒 المنتج: {Product Name} {Unit}
-💰 السعر: {Price}
-🏪 المتجر: {Store Name}
-📍 العنوان: {Address} - {Area}
-
-==================================================
-قواعد الطلبات
-==================================================
-
-- استخدم Order Request.
-- Delivery Status مهم.
-- لا تغيّر الحالة.
-- إذا Assigned Driver موجود يمكن ذكر اسمه.
-- لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك.
-- لا تستخدم بيانات الطلبات إلا للمستخدم المسجّل.
-- إذا المستخدم غير مسجّل فإن "طلبات المستخدم" يجب اعتبارها غير متاحة.
-- لا تحاول تخمين رقم طلب أو حالة طلب.
-
-==================================================
-أسلوب المحادثة
-==================================================
-
-- لا تعيد الترحيب في كل رسالة.
-- لا تقل "أنا ذكاء اصطناعي" إلا إذا سأل.
-- تحدث بلبناني طبيعي.
-- كن مفيداً ومختصراً.
-- لا تكن دجّاً.
-- لا تفرض التسجيل على المستخدم بدون سبب.
-- إذا السؤال يحتاج توضيحاً، اسأل سؤالاً واحداً فقط.
-- لا تعطِ معلومات تقنية عن النظام الداخلي.
-
-==================================================
-المحادثة السابقة
-==================================================
-
-${historyText}
-
-==================================================
-نتائج المنتجات
-==================================================
-
-${productContext}
-
-==================================================
-طلبات المستخدم
-==================================================
-
-${orderData}
-
-==================================================
-الطلب المحدد
-==================================================
-
-${selectedOrder}
-
-==================================================
-تفاصيل الطلب
-==================================================
-
-${orderDetails}
-`;
-
-    const res =
-      await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-
-          method:
-            "POST",
-
-          headers: {
-
-            Authorization:
-              `Bearer ${GROQ_KEY}`,
-
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-
-              model:
-                "openai/gpt-oss-20b",
-
-              messages: [
-
-                {
-                  role:
-                    "system",
-
-                  content:
-                    systemPrompt
-                },
-
-                {
-                  role:
-                    "user",
-
-                  content:
-                    userMessage
-                }
-
-              ],
-
-              temperature:
-                0.4
-            })
-        }
-      );
-
-    const data =
-      await res.json();
-
-    if (
-      data.error ||
-      !data.choices?.[0]?.message?.content
-    ) {
-
-      console.error(
-        "❌ Groq Error:",
-        JSON.stringify(
-          data.error
-        )
-      );
-
+    const productContext = productResults.length? JSON.stringify(productResults) : "لا توجد نتائج منتجات مؤكدة.";
+    const orderData = orderContext.orders.length? JSON.stringify(orderContext.orders) : "لا توجد طلبات متاحة لهذا المستخدم.";
+    const selectedOrder = orderContext.selectedOrder? JSON.stringify(orderContext.selectedOrder) : "لا يوجد طلب محدد.";
+    const orderDetails = orderContext.details.length? JSON.stringify(orderContext.details) : "لا توجد تفاصيل للطلب المحدد.";
+    const historyText = history.length? history.map(m => `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`).join("\n") : "لا توجد محادثة سابقة.";
+    const systemPrompt = `\nأنت مساعدك الذكي من MD-Marketplace.\nتحدث باللهجة اللبنانية الودودة والطبيعية.\nلا تكن دجّاً أو مزعجاً.\nلا تطلب من المستخدم تسجيل الدخول إلا عندما تكون الوظيفة التي يطلبها تحتاج فعلاً إلى حساب.\nموقعنا الرسمي:\n${WEBSITE_URL}\nايميلنا:\n${INFO_EMAIL}\n${userContext}\n==================================================\nقواعد أساسية\n==================================================\n1. إذا كان المستخدم معروفاً استخدم اسمه عند الحاجة.\n2. لا تنادِ المستخدم برقم الهاتف.\n3. إذا كان المستخدم غير مسجّل، لا تخبره أنه "غير موجود في النظام" بطريقة تقنية.\n4. إذا كان المستخدم غير مسجّل، عامله كزائر طبيعي.\n5. لا تعطي أي معلومات عن الطلبات لزائر غير مسجّل.\n6. لا تسمح للمستخدم بالوصول إلى طلبات شخص آخر.\n7. بيانات الطلبات الموجودة أدناه موثوقة فقط.\n8. لا تخترع أي طلب.\n9. لا تخترع أي سعر.\n10. لا تخترع أي منتج.\n11. لا تخترع أي متجر.\n12. لا تخترع أي منطقة.\n13. لا تخترع أي حالة طلب.\n14. إذا لم توجد معلومة مؤكدة، قل إن المعلومة غير متوفرة لديك.\n==================================================\nالزائر غير المسجّل\n==================================================\nإذا كان المستخدم غير مسجّل:\n- الاستفسارات العامة: جاوب مباشرة وبشكل طبيعي.\n- سؤال عن الموقع: أعطه رابط الموقع.\n- سؤال عن المنتجات: استخدم نتائج المنتجات المؤكدة الموجودة لديك.\n- سؤال عن متجر: استخدم بيانات المتجر المؤكدة الموجودة لديك.\n- سؤال عن التواصل: أعطه ايميل التواصل.\n- سؤال عن كيفية استخدام الموقع: اشرح له ببساطة.\n- سؤال عن إنشاء طلب / شراء / عمل أوردر: لا تنقله إلى BOT2.\n أخبره بلطف مثلاً:\n "أكيد 😊 فيك تعمل طلب بكل سهولة، بس حتى نقدر نسجّل طلبك ونحافظ على بياناتك ونخلي تجربة الطلب سلسة، يرجى تسجيل الدخول أو إنشاء حساب على موقعنا:\n ${WEBSITE_URL}"\n لا تكرر نفس الجملة حرفياً دائماً إذا كان السياق يسمح بصياغة ألطف.\n- إذا سأل عن طلبه أو حالة طلب: قل له إن متابعة الطلبات تحتاج تسجيل الدخول، مثلاً:\n "أكيد، فينا نساعدك بمتابعة طلبك 😊 بس حتى نعرضلك طلباتك بشكل آمن، يرجى تسجيل الدخول إلى حسابك على الموقع."\n- لا تقل له "سجّل الدخول" إذا كان فقط يسأل سؤالاً عاماً لا يحتاج حساب.\n==================================================\nالمستخدم المسجّل\n==================================================\nإذا كان المستخدم مسجلاً:\n- يمكنه الاستفسار عن المنتجات والمتاجر.\n- يمكنه الاستفسار عن طلباته فقط.\n- إذا أراد إنشاء طلب، النظام يتولى تحويله إلى BOT2.\n- لا تخبره بتفاصيل تقنية عن BOT1 أو BOT2.\n- لا تذكر رقم هاتف السائق إلا إذا طلبه صراحة.\n==================================================\nقواعد الموقع\n==================================================\nإذا سأل عن الموقع:\nجاوب:\n"موقعنا هو ${WEBSITE_URL} فيك تشوف المنتجات والمتاجر وتستفيد من خدماتنا 😊"\nإذا سأل عن التواصل:\nجاوب:\n"فيك تتواصل معنا على ${INFO_EMAIL} 😊"\nإذا سأل مين أنت:\nجاوب:\n"أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"\n==================================================\nقواعد المنتجات\n==================================================\nممنوع Markdown Tables.\nإذا لا توجد نتائج مؤكدة لا تخترع.\nإذا توجد نتائج اعرضها كما هي.\nشكل المنتج:\n🛒 المنتج: {Product Name} {Unit}\n💰 السعر: {Price}\n🏪 المتجر: {Store Name}\n📍 العنوان: {Address} - {Area}\n==================================================\nقواعد الطلبات\n==================================================\n- استخدم Order Request.\n- Delivery Status مهم.\n- لا تغيّر الحالة.\n- إذا Assigned Driver موجود يمكن ذكر اسمه.\n- لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك.\n- لا تستخدم بيانات الطلبات إلا للمستخدم المسجّل.\n- إذا المستخدم غير مسجّل فإن "طلبات المستخدم" يجب اعتبارها غير متاحة.\n- لا تحاول تخمين رقم طلب أو حالة طلب.\n==================================================\nأسلوب المحادثة\n==================================================\n- لا تعيد الترحيب في كل رسالة.\n- لا تقل "أنا ذكاء اصطناعي" إلا إذا سأل.\n- تحدث بلبناني طبيعي.\n- كن مفيداً ومختصراً.\n- لا تكن دجّاً.\n- لا تفرض التسجيل على المستخدم بدون سبب.\n- إذا السؤال يحتاج توضيحاً، اسأل سؤالاً واحداً فقط.\n- لا تعطِ معلومات تقنية عن النظام الداخلي.\n==================================================\nالمحادثة السابقة\n==================================================\n${historyText}\n==================================================\nنتائج المنتجات\n==================================================\n${productContext}\n==================================================\nطلبات المستخدم\n==================================================\n${orderData}\n==================================================\nالطلب المحدد\n==================================================\n${selectedOrder}\n==================================================\nتفاصيل الطلب\n==================================================\n${orderDetails}\n`;
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }], temperature: 0.4 })
+    });
+    const data = await res.json();
+    if (data.error ||!data.choices?.[0]?.message?.content) {
+      console.error("❌ Groq Error:", JSON.stringify(data.error));
       return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
     }
-
-    return (
-      data
-        .choices?.[0]
-        ?.message?.content ||
-      "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"
-    );
-  }
-
-  catch (error) {
-
-    console.error(
-      "❌ خطأ اتصال Groq:",
-      error
-    );
-
-    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
-  }
+    return data.choices?.[0]?.message?.content || "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
+  } catch (error) { console.error("❌ خطأ اتصال Groq:", error); return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية."; }
 }
 
-// ======================================================
-// 20. WhatsApp GET Verification
-// ======================================================
-
-export async function GET(
-  req
-) {
-
-  const {
-    searchParams
-  } =
-    new URL(
-      req.url
-    );
-
-  const mode =
-    searchParams.get(
-      "hub.mode"
-    );
-
-  const token =
-    searchParams.get(
-      "hub.verify_token"
-    );
-
-  const challenge =
-    searchParams.get(
-      "hub.challenge"
-    );
-
-  if (
-    mode === "subscribe" &&
-    token === VERIFY_TOKEN
-  ) {
-
-    return new Response(
-      challenge,
-      {
-        status:
-          200
-      }
-    );
-  }
-
-  return new Response(
-    "Forbidden",
-    {
-      status:
-        403
-    }
-  );
+export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+  const mode = searchParams.get("hub.mode");
+  const token = searchParams.get("hub.verify_token");
+  const challenge = searchParams.get("hub.challenge");
+  if (mode === "subscribe" && token === VERIFY_TOKEN) return new Response(challenge, { status: 200 });
+  return new Response("Forbidden", { status: 403 });
 }
 
-// ======================================================
-// 21. WhatsApp POST
-// ======================================================
-
-export async function POST(
-  req
-) {
-
+export async function POST(req) {
   try {
+    const body = await req.json();
+    const Name = body.name || body.Name;
+    const PIN = body.password || body.PIN;
+    const Mobile = body.from || body.Mobile;
+    if (body.type === "new_user_welcome") {
+      const targetPhone = Mobile;
+      if (!targetPhone) return Response.json({ status: "ok" }, { status: 200 });
+      const customerName = Name || "عميلنا العزيز";
+      const customerPIN = PIN || "";
+      const welcomeMessage = `أهلاً بك يا ${customerName} في MD-Marketplace! 🌸\n\nتم إنشاء حسابك بنجاح.\n\nرمز الـ PIN الخاص بك هو:\n*${customerPIN}*\n\nنتمنى لك تجربة تسوق ممتعة! 😊`;
+      await sendMessage(targetPhone, welcomeMessage);
+      await saveToAppSheet(targetPhone, "تسجيل حساب جديد", welcomeMessage, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "NEW_USER_WELCOME" });
+      return Response.json({ status: "ok" }, { status: 200 });
+    }
+    const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const from = message?.from || Mobile;
+    const userText = message?.text?.body || body.text;
+    if (!from ||!userText) return Response.json({ status: "ok" }, { status: 200 });
+    console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
+    const whatsappNumber = normalizeWhatsAppNumber(from);
+    const user = await getUserByWhatsAppNumber(whatsappNumber);
 
-    const body =
-      await req.json();
+    // قراءة Bot Session من جدول Bot Sessions المنفصل
+    const sessionRow = await getBotSessionTable(whatsappNumber);
+    const currentBotSession = sessionRow? String(sessionRow["Active Bot"] || BOT1_SESSION).trim() : BOT1_SESSION;
+    console.log(`🤖 Bot Session من جدول Bot Sessions: ${currentBotSession}`);
 
-    // ==================================================
-    // AppSheet → مستخدم جديد
-    // ==================================================
-
-    const Name =
-      body.name ||
-      body.Name;
-
-    const PIN =
-      body.password ||
-      body.PIN;
-
-    const Mobile =
-      body.from ||
-      body.Mobile;
-
-    if (
-      body.type ===
-      "new_user_welcome"
-    ) {
-
-      const targetPhone =
-        Mobile;
-
-      if (!targetPhone) {
-
-        console.error(
-          "❌ Mobile ناقص"
-        );
-
-        return Response.json(
-          {
-            status:
-              "ok"
-          },
-          {
-            status:
-              200
-          }
-        );
-      }
-
-      const customerName =
-        Name ||
-        "عميلنا العزيز";
-
-      const customerPIN =
-        PIN ||
-        "";
-
-      const welcomeMessage =
-        `أهلاً بك يا ${customerName} في MD-Marketplace! 🌸
-
-تم إنشاء حسابك بنجاح.
-
-رمز الـ PIN الخاص بك هو:
-*${customerPIN}*
-
-نتمنى لك تجربة تسوق ممتعة! 😊`;
-
-      await sendMessage(
-        targetPhone,
-        welcomeMessage
-      );
-
-      await saveToAppSheet(
-        targetPhone,
-
-        "تسجيل حساب جديد",
-
-        welcomeMessage,
-
-        {
-
-          botSession:
-            BOT1_SESSION,
-
-          bot:
-            "BOT1",
-
-          messageType:
-            "NEW_USER_WELCOME"
-        }
-      );
-
-      return Response.json(
-        {
-          status:
-            "ok"
-        },
-        {
-          status:
-            200
-        }
-      );
+    if (currentBotSession === BOT2_SESSION) {
+      console.log("⛔ المستخدم حالياً مع BOT2 — BOT1 لن يعالج الرسالة");
+      return Response.json({ status: "ok", ignored: true, reason: "USER_ASSIGNED_TO_BOT2" }, { status: 200 });
     }
 
-    // ==================================================
-    // قراءة WhatsApp Message
-    // ==================================================
+    const newOrderIntent = isNewOrderIntent(userText);
+    console.log(`🛒 نية إنشاء طلب جديد: ${newOrderIntent}`);
 
-    const message =
-      body.entry?.[0]
-        ?.changes?.[0]
-        ?.value?.messages?.[0];
-
-    const from =
-      message?.from ||
-      Mobile;
-
-    const userText =
-      message?.text?.body ||
-      body.text;
-
-    // ==================================================
-    // إذا ما في رسالة حقيقية
-    // ==================================================
-
-    if (
-      !from ||
-      !userText
-    ) {
-
-      return Response.json(
-        {
-          status:
-            "ok"
-        },
-        {
-          status:
-            200
-        }
-      );
+    if (newOrderIntent && user) {
+      console.log("🚀 المستخدم المسجّل يريد إنشاء طلب جديد - تحويل لبوابة BOT2");
+      const transferred = await transferToBot2({ from: whatsappNumber, user, originalMessage: userText });
+      if (transferred) {
+        console.log("✅ BOT1 سلم المحادثة إلى BOT2 عبر جدول Bot Sessions");
+        return Response.json({ status: "ok", transferred: true, target: "BOT2", command: BOT2_START_COMMAND }, { status: 200 });
+      }
+      console.error("⚠ فشل الانتقال إلى BOT2 — BOT1 سيكمل");
     }
 
-    console.log(
-      `📩 استقبال رسالة: ${from} | ${userText}`
-    );
-
-    const whatsappNumber =
-      normalizeWhatsAppNumber(
-        from
-      );
-
-    // ==================================================
-    // التعرف على المستخدم
-    // ==================================================
-
-    const user =
-      await getUserByWhatsAppNumber(
-        whatsappNumber
-      );
-
-    // ==================================================
-    // Bot Session
-    // ==================================================
-
-    const currentBotSession =
-      String(
-        user?.botSession ||
-        BOT1_SESSION
-      ).trim();
-
-    console.log(
-      `🤖 Bot Session الحالي: ${currentBotSession}`
-    );
-
-    // ==================================================
-    // إذا المستخدم BOT2
-    // BOT1 لا يعالج الرسالة
-    // ==================================================
-
-    if (
-      currentBotSession ===
-      BOT2_SESSION
-    ) {
-
-      console.log(
-        "⛔ المستخدم حالياً مع BOT2 — BOT1 لن يعالج الرسالة"
-      );
-
-      return Response.json(
-        {
-
-          status:
-            "ok",
-
-          ignored:
-            true,
-
-          reason:
-            "USER_ASSIGNED_TO_BOT2"
-        },
-        {
-          status:
-            200
-        }
-      );
-    }
-
-    // ==================================================
-    // كشف نية الطلب
-    // ==================================================
-
-    const newOrderIntent =
-      isNewOrderIntent(
-        userText
-      );
-
-    console.log(
-      `🛒 نية إنشاء طلب جديد: ${newOrderIntent}`
-    );
-
-    // ==================================================
-    // الانتقال إلى BOT2
-    //
-    // فقط للمستخدم المسجّل
-    // ==================================================
-
-    if (
-      newOrderIntent &&
-      user
-    ) {
-
-      console.log(
-        "🚀 المستخدم المسجّل يريد إنشاء طلب جديد"
-      );
-
-      const transferred =
-        await transferToBot2(
-          {
-
-            from:
-              whatsappNumber,
-
-            user,
-
-            originalMessage:
-              userText
-          }
-        );
-
-      if (
-        transferred
-      ) {
-
-        console.log(
-          "✅ BOT1 سلم المحادثة إلى BOT2"
-        );
-
-        return Response.json(
-          {
-
-            status:
-              "ok",
-
-            transferred:
-              true,
-
-            target:
-              "BOT2",
-
-            command:
-              BOT2_START_COMMAND
-          },
-          {
-            status:
-              200
-          }
-        );
-      }
-
-      console.error(
-        "⚠️ فشل الانتقال إلى BOT2 — BOT1 سيكمل"
-      );
-    }
-
-    // ==================================================
-    // البحث عن المنتجات
-    //
-    // مهم:
-    // صار مسموح للزائر أيضاً
-    // ==================================================
-
-    let productResults =
-      [];
-
-    // ==================================================
-    // الطلبات
-    //
-    // فقط للمستخدم المسجّل
-    // ==================================================
-
-    let orderContext = {
-
-      orders: [],
-
-      selectedOrder:
-        null,
-
-      details:
-        []
-    };
-
-    // --------------------------------------------------
-    // البحث عن المنتجات للكل
-    // --------------------------------------------------
-
-    productResults =
-      await searchProducts(
-        userText
-      );
-
-    // --------------------------------------------------
-    // الطلبات فقط للمستخدم المسجّل
-    // --------------------------------------------------
-
-    if (user) {
-
-      orderContext =
-        await buildOrderContext(
-          user,
-
-          userText
-        );
-    }
-
-    // ==================================================
-    // History
-    //
-    // History يبقى فقط لـ BOT1
-    // ولا يتم إرساله إلى BOT2
-    // ==================================================
-
-    const history =
-      await getConversationHistory(
-        whatsappNumber
-      );
-
-    // ==================================================
-    // AI
-    // ==================================================
-
-    const aiReply =
-      await getAIReply(
-        userText,
-
-        user,
-
-        productResults,
-
-        orderContext,
-
-        history
-      );
-
-    console.log(
-      "🤖 الرد:",
-      aiReply
-    );
-
-    // ==================================================
-    // إرسال الرد
-    // ==================================================
-
-    await sendMessage(
-      whatsappNumber,
-      aiReply
-    );
-
-    // ==================================================
-    // حفظ المحادثة
-    // ==================================================
-
-    await saveToAppSheet(
-      whatsappNumber,
-
-      userText,
-
-      aiReply,
-
-      {
-
-        botSession:
-          BOT1_SESSION,
-
-        bot:
-          "BOT1",
-
-        messageType:
-          "WHATSAPP"
-      }
-    );
-
-    return Response.json(
-      {
-        status:
-          "ok"
-      },
-      {
-        status:
-          200
-      }
-    );
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "❌ خطأ POST:",
-      error
-    );
-
-    // ==================================================
-    // Meta لازم تاخد 200
-    // ==================================================
-
-    return Response.json(
-      {
-        status:
-          "ok"
-      },
-      {
-        status:
-          200
-      }
-    );
+    let productResults = [];
+    let orderContext = { orders: [], selectedOrder: null, details: [] };
+    productResults = await searchProducts(userText);
+    if (user) orderContext = await buildOrderContext(user, userText);
+    const history = await getConversationHistory(whatsappNumber);
+    const aiReply = await getAIReply(userText, user, productResults, orderContext, history);
+    console.log("🤖 الرد:", aiReply);
+    await sendMessage(whatsappNumber, aiReply);
+    await saveToAppSheet(whatsappNumber, userText, aiReply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "WHATSAPP" });
+    return Response.json({ status: "ok" }, { status: 200 });
+  } catch (error) {
+    console.error("❌ خطأ POST:", error);
+    return Response.json({ status: "ok" }, { status: 200 });
   }
 }
