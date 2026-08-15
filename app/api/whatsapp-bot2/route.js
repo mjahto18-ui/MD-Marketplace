@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,6 @@ const APPSHEET_APP_ID =
 const APPSHEET_API_KEY =
   process.env.APPSHEET_API_KEY;
 
-// Google Sheets
 const GOOGLE_SHEETS_ID =
   process.env.GOOGLE_SHEETS_ID;
 
@@ -34,20 +34,85 @@ const GOOGLE_CLIENT_EMAIL =
 const GOOGLE_PRIVATE_KEY =
   process.env.GOOGLE_PRIVATE_KEY;
 
-const WEBSITE_URL =
-  "www.md-marketplace.store";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.SITE_URL ||
+  "https://www.md-marketplace.store";
 
-const INFO_EMAIL =
-  "info@md-marketplace.store";
+
+// ======================================================
+// GOOGLE SHEETS
+// ======================================================
+
+let googleSheetsClient = null;
+
+function getGoogleSheetsClient() {
+
+  if (googleSheetsClient) {
+    return googleSheetsClient;
+  }
+
+  if (
+    !GOOGLE_SHEETS_ID ||
+    !GOOGLE_CLIENT_EMAIL ||
+    !GOOGLE_PRIVATE_KEY
+  ) {
+    console.error(
+      "❌ Google Sheets credentials ناقصة"
+    );
+
+    return null;
+  }
+
+  try {
+
+    const auth =
+      new google.auth.GoogleAuth({
+        credentials: {
+          client_email:
+            GOOGLE_CLIENT_EMAIL,
+
+          private_key:
+            GOOGLE_PRIVATE_KEY.replace(
+              /\\n/g,
+              "\n"
+            )
+        },
+
+        scopes: [
+          "https://www.googleapis.com/auth/spreadsheets"
+        ]
+      });
+
+    googleSheetsClient =
+      google.sheets({
+        version: "v4",
+        auth
+      });
+
+    return googleSheetsClient;
+
+  } catch (error) {
+
+    console.error(
+      "❌ Google Sheets Client Error:",
+      error
+    );
+
+    return null;
+  }
+}
+
 
 // ======================================================
 // CACHE
 // ======================================================
 
-const SHEETS_CACHE = new Map();
+const SHEETS_CACHE =
+  new Map();
 
 const CACHE_TTL =
-  1000 * 60 * 5;
+  1000 * 60 * 3;
 
 const CACHEABLE_SHEETS =
   new Set([
@@ -57,90 +122,253 @@ const CACHEABLE_SHEETS =
     "Areas"
   ]);
 
-function getCache(key) {
+
+function getCache(
+  key
+) {
+
   const item =
-    SHEETS_CACHE.get(key);
+    SHEETS_CACHE.get(
+      key
+    );
 
   if (!item) {
     return null;
   }
 
   if (
-    Date.now() - item.t >
+    Date.now() -
+      item.time >
     CACHE_TTL
   ) {
-    SHEETS_CACHE.delete(key);
+
+    SHEETS_CACHE.delete(
+      key
+    );
+
     return null;
   }
 
-  return item.v;
+  return item.value;
 }
+
 
 function setCache(
   key,
   value
 ) {
+
   SHEETS_CACHE.set(
     key,
     {
-      v: value,
-      t: Date.now()
+      value,
+      time:
+        Date.now()
     }
   );
 }
 
+
+function clearCache(
+  sheetName
+) {
+
+  SHEETS_CACHE.delete(
+    sheetName
+  );
+}
+
+
 // ======================================================
-// 1. توحيد رقم WhatsApp
+// READ SHEET
+// ======================================================
+
+const SHEETS_LOADING =
+  new Map();
+
+
+async function getSheetRows(
+  sheetName
+) {
+
+  const useCache =
+    CACHEABLE_SHEETS.has(
+      sheetName
+    );
+
+  if (useCache) {
+
+    const cached =
+      getCache(
+        sheetName
+      );
+
+    if (cached) {
+      return cached;
+    }
+  }
+
+  if (useCache) {
+
+    const loading =
+      SHEETS_LOADING.get(
+        sheetName
+      );
+
+    if (loading) {
+      return await loading;
+    }
+  }
+
+  const sheets =
+    getGoogleSheetsClient();
+
+  if (!sheets) {
+    return [];
+  }
+
+  const promise =
+    (async () => {
+
+      try {
+
+        const response =
+          await sheets.spreadsheets.values.get({
+            spreadsheetId:
+              GOOGLE_SHEETS_ID,
+
+            range:
+              `${sheetName}!A:AZ`
+          });
+
+        const rows =
+          response.data.values ||
+          [];
+
+        if (!rows.length) {
+          return [];
+        }
+
+        const headers =
+          rows[0].map(
+            h =>
+              String(
+                h || ""
+              ).trim()
+          );
+
+        const result =
+          rows
+            .slice(1)
+            .map(row => {
+
+              const obj = {};
+
+              headers.forEach(
+                (
+                  header,
+                  index
+                ) => {
+
+                  obj[header] =
+                    row[index] ||
+                    "";
+                }
+              );
+
+              return obj;
+            });
+
+        if (useCache) {
+          setCache(
+            sheetName,
+            result
+          );
+        }
+
+        return result;
+
+      } catch (error) {
+
+        console.error(
+          `❌ قراءة ${sheetName}:`,
+          error.message
+        );
+
+        return [];
+      }
+
+    })();
+
+  if (useCache) {
+    SHEETS_LOADING.set(
+      sheetName,
+      promise
+    );
+  }
+
+  try {
+
+    return await promise;
+
+  } finally {
+
+    if (useCache) {
+
+      SHEETS_LOADING.delete(
+        sheetName
+      );
+    }
+  }
+}
+
+
+// ======================================================
+// NORMALIZE PHONE
 // ======================================================
 
 function normalizeWhatsAppNumber(
   phone
 ) {
-  let clean =
-    String(phone || "")
-      .replace(/\D/g, "");
 
-  // سعودي:
-  // 05xxxxxxxx
-  // →
-  // 9665xxxxxxxx
+  let clean =
+    String(
+      phone || ""
+    ).replace(
+      /\D/g,
+      ""
+    );
+
   if (
     clean.startsWith("05")
   ) {
+
     clean =
       "966" +
       clean.substring(1);
-  }
 
-  else if (
+  } else if (
     clean.length === 9 &&
     clean.startsWith("5")
   ) {
+
     clean =
       "966" +
       clean;
-  }
 
-  // لبناني:
-  // 03xxxxxx
-  // →
-  // 9613xxxxxx
-  else if (
+  } else if (
     clean.startsWith("03")
   ) {
+
     clean =
       "9613" +
       clean.substring(2);
-  }
 
-  // لبناني:
-  // 3xxxxxx
-  // →
-  // 9613xxxxxx
-  else if (
+  } else if (
     clean.length === 7 &&
     clean.startsWith("3")
   ) {
+
     clean =
       "961" +
       clean;
@@ -149,15 +377,54 @@ function normalizeWhatsAppNumber(
   return clean;
 }
 
+
 // ======================================================
-// 2. إرسال WhatsApp
+// NORMALIZE TEXT
+// ======================================================
+
+function normalizeText(
+  text
+) {
+
+  return String(
+    text || ""
+  )
+    .toLowerCase()
+    .trim()
+    .replace(
+      /[إأآ]/g,
+      "ا"
+    )
+    .replace(
+      /ة/g,
+      "ه"
+    )
+    .replace(
+      /ى/g,
+      "ي"
+    )
+    .replace(
+      /[؟?!.,،:؛]/g,
+      " "
+    )
+    .replace(
+      /\s+/g,
+      " "
+    );
+}
+
+
+// ======================================================
+// SEND WHATSAPP
 // ======================================================
 
 async function sendMessage(
   to,
   text
 ) {
+
   if (!WHATSAPP_TOKEN) {
+
     console.error(
       "❌ WHATSAPP_TOKEN غير موجود"
     );
@@ -171,11 +438,13 @@ async function sendMessage(
     );
 
   try {
+
     const response =
       await fetch(
         `https://graph.facebook.com/v26.0/${PHONE_ID}/messages`,
         {
-          method: "POST",
+          method:
+            "POST",
 
           headers: {
             Authorization:
@@ -208,547 +477,258 @@ async function sendMessage(
       await response.json();
 
     console.log(
-      "📤 نتيجة إرسال WhatsApp:",
-      JSON.stringify(data)
+      "📤 WhatsApp:",
+      JSON.stringify(
+        data
+      )
     );
 
   } catch (error) {
+
     console.error(
-      "❌ خطأ إرسال WhatsApp:",
+      "❌ WhatsApp Send Error:",
       error
     );
   }
 }
 
-// ======================================================
-// 3. Google Sheets Client
-// ======================================================
-
-function getGoogleSheetsClient() {
-  if (
-    !GOOGLE_SHEETS_ID ||
-    !GOOGLE_CLIENT_EMAIL ||
-    !GOOGLE_PRIVATE_KEY
-  ) {
-    console.error(
-      "❌ Google Sheets credentials ناقصة"
-    );
-
-    return null;
-  }
-
-  try {
-    const auth =
-      new google.auth.GoogleAuth({
-        credentials: {
-          client_email:
-            GOOGLE_CLIENT_EMAIL,
-
-          private_key:
-            GOOGLE_PRIVATE_KEY.replace(
-              /\\n/g,
-              "\n"
-            )
-        },
-
-        scopes: [
-          "https://www.googleapis.com/auth/spreadsheets.readonly"
-        ]
-      });
-
-    return google.sheets({
-      version: "v4",
-      auth
-    });
-
-  } catch (error) {
-    console.error(
-      "❌ خطأ إنشاء Google Sheets client:",
-      error
-    );
-
-    return null;
-  }
-}
 
 // ======================================================
-// 4. قراءة Google Sheets
-// ======================================================
-
-const SHEETS_LOADING =
-  new Map();
-
-async function getSheetRows(
-  sheetName
-) {
-  const useCache =
-    CACHEABLE_SHEETS.has(
-      sheetName
-    );
-
-  if (useCache) {
-    const cached =
-      getCache(
-        sheetName
-      );
-
-    if (cached) {
-      console.log(
-        `⚡ Cache: ${sheetName} (${cached.length})`
-      );
-
-      return cached;
-    }
-  }
-
-  if (useCache) {
-    const loading =
-      SHEETS_LOADING.get(
-        sheetName
-      );
-
-    if (loading) {
-      console.log(
-        `⏳ انتظار قراءة جارية: ${sheetName}`
-      );
-
-      try {
-        return await loading;
-
-      } catch (error) {
-        console.error(
-          `❌ فشل الطلب المشترك: ${sheetName}`,
-          error.message
-        );
-
-        return [];
-      }
-    }
-  }
-
-  const sheets =
-    getGoogleSheetsClient();
-
-  if (!sheets) {
-    return [];
-  }
-
-  const loadPromise =
-    (async () => {
-      try {
-        console.log(
-          `📡 قراءة Google Sheets: ${sheetName}`
-        );
-
-        const response =
-          await sheets.spreadsheets.values.get({
-            spreadsheetId:
-              GOOGLE_SHEETS_ID,
-
-            range:
-              `${sheetName}!A:Z`
-          });
-
-        const rows =
-          response.data.values || [];
-
-        if (!rows.length) {
-          console.log(
-            `⚠ جدول ${sheetName} فارغ`
-          );
-
-          return [];
-        }
-
-        const headers =
-          rows[0].map(
-            header =>
-              String(
-                header || ""
-              ).trim()
-          );
-
-        const result =
-          rows
-            .slice(1)
-            .map(
-              row => {
-                const obj = {};
-
-                headers.forEach(
-                  (
-                    header,
-                    index
-                  ) => {
-                    obj[header] =
-                      row[index] ||
-                      "";
-                  }
-                );
-
-                return obj;
-              }
-            );
-
-        if (useCache) {
-          setCache(
-            sheetName,
-            result
-          );
-        }
-
-        return result;
-
-      } catch (error) {
-        console.error(
-          `❌ خطأ قراءة جدول ${sheetName}:`,
-          error.message
-        );
-
-        return [];
-      }
-    })();
-
-  if (useCache) {
-    SHEETS_LOADING.set(
-      sheetName,
-      loadPromise
-    );
-  }
-
-  try {
-    return await loadPromise;
-
-  } finally {
-    if (useCache) {
-      SHEETS_LOADING.delete(
-        sheetName
-      );
-    }
-  }
-}
-
-// ======================================================
-// 5. تطبيع النص
-// ======================================================
-
-function normalizeText(text) {
-  return String(text || "")
-    .toLowerCase()
-    .trim()
-    .replace(
-      /[؟?!.,،]/g,
-      " "
-    )
-    .replace(
-      /\s+/g,
-      " "
-    );
-}
-
-// ======================================================
-// 6. التعرف على المستخدم
+// USER FROM USERS TABLE
 // ======================================================
 
 async function getUserByWhatsAppNumber(
-  whatsappNumber
+  phone
 ) {
+
   const normalized =
     normalizeWhatsAppNumber(
-      whatsappNumber
+      phone
     );
-
-  console.log(
-    `🔎 البحث عن المستخدم: ${normalized}`
-  );
-
-  const rows =
-    await getSheetRows(
-      "Users"
-    );
-
-  for (const row of rows) {
-    const rowWhatsApp =
-      normalizeWhatsAppNumber(
-        row["WhatsApp Number"] ||
-        ""
-      );
-
-    if (
-      rowWhatsApp ===
-      normalized
-    ) {
-      return {
-        userId:
-          row["User ID"] || "",
-
-        role:
-          row["Role"] || "",
-
-        name:
-          row["Name"] || "",
-
-        mobile:
-          row["Mobile"] || "",
-
-        customerId:
-          row["Customer ID"] || "",
-
-        whatsappNumber:
-          row["WhatsApp Number"] || "",
-
-        storeId:
-          row["Store ID"] || "",
-
-        area:
-          row["Area"] || "",
-
-        status:
-          row["Status"] || "",
-
-        active:
-          row["Active"] || ""
-      };
-    }
-  }
-
-  return null;
-}
-// ======================================================
-// 7. التحقق من المنطقة
-// ======================================================
-
-async function findArea(
-  areaText
-) {
-  const areas =
-    await getSheetRows(
-      "Areas"
-    );
-
-  const input =
-    normalizeText(
-      areaText
-    );
-
-  if (!input) {
-    return null;
-  }
-
-  for (const area of areas) {
-    const areaId =
-      String(
-        area["Area ID"] || ""
-      ).trim();
-
-    const areaName =
-      String(
-        area["Area Name"] || ""
-      ).trim();
-
-    if (!areaId || !areaName) {
-      continue;
-    }
-
-    const normalizedName =
-      normalizeText(
-        areaName
-      );
-
-    const normalizedId =
-      normalizeText(
-        areaId
-      );
-
-    // المقارنة بالـ ID
-    if (
-      input ===
-      normalizedId
-    ) {
-      return {
-        areaId,
-        areaName
-      };
-    }
-
-    // المقارنة بالاسم
-    if (
-      input ===
-      normalizedName
-    ) {
-      return {
-        areaId,
-        areaName
-      };
-    }
-  }
-
-  // ممنوع اختراع منطقة
-  return null;
-}
-
-// ======================================================
-// 8. التحقق من عنوان المستخدم
-// ======================================================
-
-function getAddressInfo(
-  user
-) {
-  if (!user) {
-    return {
-      oldAddress: "",
-      newAddress: "",
-      hasOldAddress: false,
-      hasNewAddress: false
-    };
-  }
-
-  const oldAddress =
-    String(
-      user.oldAddress ||
-      ""
-    ).trim();
-
-  const newAddress =
-    String(
-      user.newAddress ||
-      ""
-    ).trim();
-
-  return {
-    oldAddress,
-    newAddress,
-
-    hasOldAddress:
-      Boolean(oldAddress),
-
-    hasNewAddress:
-      Boolean(newAddress)
-  };
-}
-
-// ======================================================
-// 9. اختيار العنوان
-// ======================================================
-
-function resolveAddress(
-  user,
-  requestedAddress
-) {
-  const addressInfo =
-    getAddressInfo(
-      user
-    );
-
-  const requested =
-    normalizeText(
-      requestedAddress
-    );
-
-  // إذا المستخدم أعطى عنوان جديد ضمن الرسالة
-  if (requested) {
-    return {
-      address:
-        requestedAddress.trim(),
-
-      source:
-        "new",
-
-      valid:
-        true
-    };
-  }
-
-  // إذا عنده عنوان محفوظ جديد
-  if (
-    addressInfo.hasNewAddress
-  ) {
-    return {
-      address:
-        addressInfo.newAddress,
-
-      source:
-        "new_saved",
-
-      valid:
-        true
-    };
-  }
-
-  // إذا ما عنده الجديد، نستخدم القديم
-  if (
-    addressInfo.hasOldAddress
-  ) {
-    return {
-      address:
-        addressInfo.oldAddress,
-
-      source:
-        "old_saved",
-
-      valid:
-        true
-    };
-  }
-
-  // لا يوجد عنوان
-  return {
-    address:
-      "",
-
-    source:
-      "missing",
-
-    valid:
-      false
-  };
-}
-
-// ======================================================
-// 10. قراءة بيانات المستخدم المتعلقة بالعنوان
-// ======================================================
-
-async function getUserDeliveryData(
-  user
-) {
-  if (!user) {
-    return {
-      area: null,
-      oldAddress: "",
-      newAddress: ""
-    };
-  }
 
   const users =
     await getSheetRows(
       "Users"
     );
 
-  const normalized =
-    normalizeWhatsAppNumber(
-      user.whatsappNumber
-    );
+  for (
+    const row of users
+  ) {
 
-  const row =
-    users.find(
-      item =>
-        normalizeWhatsAppNumber(
-          item["WhatsApp Number"] ||
+    const rowPhone =
+      normalizeWhatsAppNumber(
+        row["WhatsApp Number"] ||
+        row["Mobile"] ||
+        ""
+      );
+
+    if (
+      rowPhone ===
+      normalized
+    ) {
+
+      return {
+
+        userId:
+          row["User ID"] ||
+          "",
+
+        customerId:
+          row["Customer ID"] ||
+          "",
+
+        name:
+          row["Name"] ||
+          "",
+
+        mobile:
+          row["Mobile"] ||
+          "",
+
+        whatsappNumber:
+          row["WhatsApp Number"] ||
+          phone,
+
+        role:
+          row["Role"] ||
+          "",
+
+        area:
+          row["Area"] ||
+          "",
+
+        status:
+          row["Status"] ||
+          "",
+
+        active:
+          row["Active"] ||
           ""
-        ) === normalized
+      };
+    }
+  }
+
+  return null;
+}
+
+
+// ======================================================
+// CUSTOMER FROM CUSTOMERS TABLE
+// ======================================================
+
+async function getCustomer(
+  customerID
+) {
+
+  if (!customerID) {
+    return null;
+  }
+
+  const customers =
+    await getSheetRows(
+      "Customers"
     );
 
-  if (!row) {
+  const wanted =
+    String(
+      customerID
+    ).trim();
+
+  for (
+    const row of customers
+  ) {
+
+    const id =
+      String(
+        row["Customer ID"] ||
+        row["ID"] ||
+        ""
+      ).trim();
+
+    if (
+      id === wanted
+    ) {
+
+      return row;
+    }
+  }
+
+  return null;
+}
+
+
+// ======================================================
+// AREA LOOKUP
+// ======================================================
+
+async function findArea(
+  input
+) {
+
+  const areas =
+    await getSheetRows(
+      "Areas"
+    );
+
+  const value =
+    normalizeText(
+      input
+    );
+
+  if (!value) {
+    return null;
+  }
+
+  for (
+    const area of areas
+  ) {
+
+    const id =
+      String(
+        area["Area ID"] ||
+        ""
+      ).trim();
+
+    const name =
+      String(
+        area["Area Name"] ||
+        ""
+      ).trim();
+
+    if (!id && !name) {
+      continue;
+    }
+
+    if (
+      value ===
+      normalizeText(id)
+    ) {
+
+      return {
+        areaId:
+          id,
+
+        areaName:
+          name
+      };
+    }
+
+    if (
+      value ===
+      normalizeText(name)
+    ) {
+
+      return {
+        areaId:
+          id,
+
+        areaName:
+          name
+      };
+    }
+  }
+
+  return null;
+}
+
+
+// ======================================================
+// CUSTOMER DELIVERY DATA
+// ======================================================
+
+async function getCustomerDeliveryData(
+  customerID
+) {
+
+  const customer =
+    await getCustomer(
+      customerID
+    );
+
+  if (!customer) {
+
     return {
-      area: null,
-      oldAddress: "",
-      newAddress: ""
+      exists:
+        false,
+
+      area:
+        null,
+
+      address:
+        "",
+
+      lat:
+        "",
+
+      lng:
+        ""
     };
   }
 
   const areaValue =
     String(
-      row["Area"] ||
+      customer["Area"] ||
+      customer["Area ID"] ||
       ""
     ).trim();
 
@@ -757,218 +737,858 @@ async function getUserDeliveryData(
       areaValue
     );
 
+  const address =
+    String(
+      customer["Address"] ||
+      customer["Delivery Address"] ||
+      customer["Old Address"] ||
+      ""
+    ).trim();
+
+  const lat =
+    String(
+      customer["Latitude"] ||
+      customer["Lat"] ||
+      customer["Customer Latitude"] ||
+      ""
+    ).trim();
+
+  const lng =
+    String(
+      customer["Longitude"] ||
+      customer["Lng"] ||
+      customer["Customer Longitude"] ||
+      ""
+    ).trim();
+
   return {
+
+    exists:
+      true,
+
     area,
 
-    oldAddress:
-      String(
-        row["Address"] ||
-        row["Old Address"] ||
-        row["Delivery Address"] ||
-        ""
-      ).trim(),
+    address,
 
-    newAddress:
-      String(
-        row["New Address"] ||
-        ""
-      ).trim()
+    lat,
+
+    lng
   };
 }
 
+
 // ======================================================
-// 11. تحليل المنطقة من رسالة المستخدم
+// CART HEADERS
 // ======================================================
 
-async function detectAreaFromMessage(
-  userMessage
+const CART_HEADERS = [
+  "Cart ID",
+  "Customer ID",
+  "Product ID",
+  "Qty",
+  "Store ID",
+  "Line Total",
+  "Checked Out",
+  "Check Out Flag",
+  "Request ID",
+  "Line Points"
+];
+
+
+// ======================================================
+// CART ROW TO OBJECT
+// ======================================================
+
+function cartRowToObject(
+  row
 ) {
-  const areas =
+
+  return {
+
+    cartId:
+      row["Cart ID"] ||
+      "",
+
+    customerId:
+      row["Customer ID"] ||
+      "",
+
+    productId:
+      row["Product ID"] ||
+      "",
+
+    qty:
+      Number(
+        row["Qty"] || 0
+      ),
+
+    storeId:
+      row["Store ID"] ||
+      "",
+
+    lineTotal:
+      Number(
+        row["Line Total"] || 0
+      ),
+
+    checkedOut:
+      String(
+        row["Checked Out"] ||
+        "FALSE"
+      ).toUpperCase(),
+
+    checkOutFlag:
+      String(
+        row["Check Out Flag"] ||
+        "FALSE"
+      ).toUpperCase(),
+
+    requestId:
+      row["Request ID"] ||
+      "",
+
+    linePoints:
+      Number(
+        row["Line Points"] || 0
+      )
+  };
+}
+
+
+// ======================================================
+// GET CUSTOMER CART
+// ======================================================
+
+async function getCustomerCart(
+  customerID
+) {
+
+  const rows =
     await getSheetRows(
-      "Areas"
+      "Cart"
     );
 
-  const message =
-    normalizeText(
-      userMessage
-    );
+  const result = [];
 
-  if (!message) {
-    return null;
-  }
+  for (
+    const row of rows
+  ) {
 
-  for (const area of areas) {
-    const areaId =
+    const cart =
+      cartRowToObject(
+        row
+      );
+
+    if (
       String(
-        area["Area ID"] || ""
-      ).trim();
-
-    const areaName =
+        cart.customerId
+      ).trim() !==
       String(
-        area["Area Name"] || ""
-      ).trim();
-
-    if (!areaId || !areaName) {
+        customerID
+      ).trim()
+    ) {
       continue;
     }
 
-    const normalizedName =
-      normalizeText(
-        areaName
-      );
-
-    const normalizedId =
-      normalizeText(
-        areaId
-      );
-
     if (
-      message.includes(
-        normalizedName
-      )
+      cart.checkedOut ===
+      "TRUE"
     ) {
-      return {
-        areaId,
-        areaName,
-        source:
-          "message"
-      };
+      continue;
     }
 
-    if (
-      message.includes(
-        normalizedId
-      )
-    ) {
-      return {
-        areaId,
-        areaName,
-        source:
-          "message"
-      };
-    }
+    result.push(
+      cart
+    );
   }
 
-  return null;
+  return result;
 }
 
+
 // ======================================================
-// 12. منطق المنطقة والعنوان
+// GET SHEET ID
 // ======================================================
 
-async function resolveDeliveryLocation(
-  user,
-  userMessage
+async function getSheetIdByName(
+  sheets,
+  spreadsheetId,
+  sheetName
 ) {
-  if (!user) {
+
+  const res =
+    await sheets.spreadsheets.get({
+      spreadsheetId
+    });
+
+  const sheet =
+    res.data.sheets.find(
+      s =>
+        s.properties.title ===
+        sheetName
+    );
+
+  if (!sheet) {
+    throw new Error(
+      `Sheet ${sheetName} not found`
+    );
+  }
+
+  return sheet.properties.sheetId;
+}
+
+
+// ======================================================
+// GET CART ROW NUMBER
+// ======================================================
+
+async function getCartSheetData() {
+
+  const sheets =
+    getGoogleSheetsClient();
+
+  const response =
+    await sheets.spreadsheets.values.get({
+      spreadsheetId:
+        GOOGLE_SHEETS_ID,
+
+      range:
+        "Cart!A:Z"
+    });
+
+  const rows =
+    response.data.values ||
+    [];
+
+  return rows;
+}
+
+
+// ======================================================
+// ADD TO CART
+// ======================================================
+
+async function addToCart(
+  customerID,
+  product,
+  qty
+) {
+
+  const sheets =
+    getGoogleSheetsClient();
+
+  if (!sheets) {
+    throw new Error(
+      "Google Sheets غير متاح"
+    );
+  }
+
+  const quantity =
+    Number(qty);
+
+  if (
+    !Number.isFinite(quantity) ||
+    quantity <= 0
+  ) {
+
     return {
       success:
         false,
 
-      reason:
-        "user_not_registered",
-
-      area:
-        null,
-
-      address:
-        null
+      message:
+        "الكمية لازم تكون أكبر من صفر"
     };
   }
 
-  const detectedArea =
-    await detectAreaFromMessage(
-      userMessage
+  const cart =
+    await getCustomerCart(
+      customerID
     );
 
-  const savedData =
-    await getUserDeliveryData(
-      user
+  // ----------------------------------------------------
+  // إذا المنتج موجود بنفس المتجر
+  // نزيد الكمية بدل إنشاء سطر جديد
+  // ----------------------------------------------------
+
+  const existing =
+    cart.find(
+      item =>
+        item.productId ===
+          product.productId &&
+        item.storeId ===
+          product.storeId
     );
 
-  let finalArea =
-    detectedArea ||
-    savedData.area;
+  if (existing) {
 
-  // ====================================================
-  // صارم:
-  // المنطقة يجب أن تكون موجودة في Areas
-  // ====================================================
+    const newQty =
+      existing.qty +
+      quantity;
 
-  if (!finalArea) {
+    const newLineTotal =
+      newQty *
+      product.price;
+
+    const newLinePoints =
+      newQty *
+      product.points;
+
+    const rows =
+      await getCartSheetData();
+
+    let rowNumber =
+      -1;
+
+    for (
+      let i = 1;
+      i < rows.length;
+      i++
+    ) {
+
+      if (
+        String(
+          rows[i][0] ||
+          ""
+        ).trim() ===
+          existing.cartId &&
+        String(
+          rows[i][1] ||
+          ""
+        ).trim() ===
+          String(
+            customerID
+          ).trim()
+      ) {
+
+        rowNumber =
+          i + 1;
+
+        break;
+      }
+    }
+
+    if (
+      rowNumber ===
+      -1
+    ) {
+
+      return {
+        success:
+          false,
+
+        message:
+          "ما قدرت لاقي سطر السلة"
+      };
+    }
+
+    await sheets.spreadsheets.values.update({
+
+      spreadsheetId:
+        GOOGLE_SHEETS_ID,
+
+      range:
+        `Cart!D${rowNumber}:F${rowNumber}`,
+
+      valueInputOption:
+        "USER_ENTERED",
+
+      requestBody: {
+        values: [[
+          newQty,
+          product.storeId,
+          newLineTotal
+        ]]
+      }
+    });
+
+    await sheets.spreadsheets.values.update({
+
+      spreadsheetId:
+        GOOGLE_SHEETS_ID,
+
+      range:
+        `Cart!J${rowNumber}`,
+
+      valueInputOption:
+        "USER_ENTERED",
+
+      requestBody: {
+        values: [[
+          newLinePoints
+        ]]
+      }
+    });
+
+    clearCache(
+      "Cart"
+    );
+
+    return {
+      success:
+        true,
+
+      updated:
+        true,
+
+      qty:
+        newQty
+    };
+  }
+
+  // ----------------------------------------------------
+  // منتج جديد
+  // ----------------------------------------------------
+
+  const cartId =
+    crypto
+      .randomUUID()
+      .replace(
+        /-/g,
+        ""
+      )
+      .substring(
+        0,
+        12
+      );
+
+  const lineTotal =
+    quantity *
+    product.price;
+
+  const linePoints =
+    quantity *
+    product.points;
+
+  const row = [
+
+    cartId,
+
+    customerID,
+
+    product.productId,
+
+    quantity,
+
+    product.storeId,
+
+    lineTotal,
+
+    "FALSE",
+
+    "FALSE",
+
+    "",
+
+    linePoints
+  ];
+
+  await sheets.spreadsheets.values.append({
+
+    spreadsheetId:
+      GOOGLE_SHEETS_ID,
+
+    range:
+      "Cart!A:J",
+
+    valueInputOption:
+      "USER_ENTERED",
+
+    requestBody: {
+      values: [
+        row
+      ]
+    }
+  });
+
+  clearCache(
+    "Cart"
+  );
+
+  return {
+
+    success:
+      true,
+
+    updated:
+      false,
+
+    cartId,
+
+    qty:
+      quantity,
+
+    lineTotal
+  };
+}
+
+
+// ======================================================
+// UPDATE CART QTY
+// ======================================================
+
+async function updateCartQty(
+  customerID,
+  productId,
+  qty
+) {
+
+  const quantity =
+    Number(qty);
+
+  if (
+    !Number.isFinite(quantity)
+  ) {
+
     return {
       success:
         false,
 
-      reason:
-        "area_missing",
-
-      area:
-        null,
-
-      address:
-        null
+      message:
+        "الكمية غير صحيحة"
     };
   }
 
-  const address =
-    resolveAddress(
-      {
-        oldAddress:
-          savedData.oldAddress,
+  if (
+    quantity <= 0
+  ) {
 
-        newAddress:
-          savedData.newAddress
-      },
-      ""
+    return await removeFromCart(
+      customerID,
+      productId
+    );
+  }
+
+  const cart =
+    await getCustomerCart(
+      customerID
     );
 
-  // ====================================================
-  // صارم:
-  // لا عنوان = لا اعتماد للطلب
-  // ====================================================
+  const item =
+    cart.find(
+      row =>
+        row.productId ===
+        String(
+          productId
+        ).trim()
+    );
 
-  if (!address.valid) {
+  if (!item) {
+
     return {
       success:
         false,
 
-      reason:
-        "address_missing",
-
-      area:
-        finalArea,
-
-      address:
-        null
+      message:
+        "المنتج مش موجود بالسلة"
     };
   }
+
+  const products =
+    await getSheetRows(
+      "Products"
+    );
+
+  const product =
+    products.find(
+      row =>
+        String(
+          row["Product ID"] ||
+          ""
+        ).trim() ===
+        String(
+          productId
+        ).trim()
+    );
+
+  if (!product) {
+
+    return {
+      success:
+        false,
+
+      message:
+        "المنتج مش موجود"
+    };
+  }
+
+  const price =
+    Number(
+      product["Price"] ||
+      0
+    );
+
+  const points =
+    Number(
+      product["Points"] ||
+      product["Point"] ||
+      product["Loyalty Points"] ||
+      0
+    );
+
+  const rows =
+    await getCartSheetData();
+
+  let rowNumber =
+    -1;
+
+  for (
+    let i = 1;
+    i < rows.length;
+    i++
+  ) {
+
+    if (
+      String(
+        rows[i][0] ||
+        ""
+      ).trim() ===
+        item.cartId
+    ) {
+
+      rowNumber =
+        i + 1;
+
+      break;
+    }
+  }
+
+  if (
+    rowNumber ===
+    -1
+  ) {
+
+    return {
+      success:
+        false,
+
+      message:
+        "تعذر تعديل السلة"
+    };
+  }
+
+  await sheetsUpdateCartRow(
+    rowNumber,
+    quantity,
+    item.storeId,
+    quantity * price,
+    quantity * points
+  );
+
+  clearCache(
+    "Cart"
+  );
 
   return {
     success:
       true,
 
-    reason:
-      "valid",
-
-    area:
-      finalArea,
-
-    address:
-      address.address,
-
-    addressSource:
-      address.source
+    qty:
+      quantity
   };
 }
 
+
 // ======================================================
-// 13. البحث عن المنتجات
+// SHEETS UPDATE CART ROW
 // ======================================================
 
-async function searchProducts(
-  userMessage
+async function sheetsUpdateCartRow(
+  rowNumber,
+  qty,
+  storeId,
+  lineTotal,
+  linePoints
 ) {
+
+  const sheets =
+    getGoogleSheetsClient();
+
+  await sheets.spreadsheets.values.update({
+
+    spreadsheetId:
+      GOOGLE_SHEETS_ID,
+
+    range:
+      `Cart!D${rowNumber}:F${rowNumber}`,
+
+    valueInputOption:
+      "USER_ENTERED",
+
+    requestBody: {
+      values: [[
+        qty,
+        storeId,
+        lineTotal
+      ]]
+    }
+  });
+
+  await sheets.spreadsheets.values.update({
+
+    spreadsheetId:
+      GOOGLE_SHEETS_ID,
+
+    range:
+      `Cart!J${rowNumber}`,
+
+    valueInputOption:
+      "USER_ENTERED",
+
+    requestBody: {
+      values: [[
+        linePoints
+      ]]
+    }
+  });
+}
+
+
+// ======================================================
+// REMOVE FROM CART
+// ======================================================
+
+async function removeFromCart(
+  customerID,
+  productId
+) {
+
+  const sheets =
+    getGoogleSheetsClient();
+
+  const rows =
+    await getCartSheetData();
+
+  const cartSheetId =
+    await getSheetIdByName(
+      sheets,
+      GOOGLE_SHEETS_ID,
+      "Cart"
+    );
+
+  const rowsToDelete =
+    [];
+
+  for (
+    let i = 1;
+    i < rows.length;
+    i++
+  ) {
+
+    const row =
+      rows[i];
+
+    const rowCustomer =
+      String(
+        row[1] ||
+        ""
+      ).trim();
+
+    const rowProduct =
+      String(
+        row[2] ||
+        ""
+      ).trim();
+
+    const checkedOut =
+      String(
+        row[6] ||
+        "FALSE"
+      ).toUpperCase();
+
+    if (
+      rowCustomer ===
+        String(
+          customerID
+        ).trim() &&
+      rowProduct ===
+        String(
+          productId
+        ).trim() &&
+      checkedOut !==
+        "TRUE"
+    ) {
+
+      rowsToDelete.push(
+        i + 1
+      );
+    }
+  }
+
+  if (
+    !rowsToDelete.length
+  ) {
+
+    return {
+      success:
+        false,
+
+      message:
+        "المنتج مش موجود بالسلة"
+    };
+  }
+
+  rowsToDelete.sort(
+    (a, b) =>
+      b - a
+  );
+
+  await sheets.spreadsheets.batchUpdate({
+
+    spreadsheetId:
+      GOOGLE_SHEETS_ID,
+
+    requestBody: {
+
+      requests:
+        rowsToDelete.map(
+          rowNumber => ({
+
+            deleteDimension: {
+
+              range: {
+
+                sheetId:
+                  cartSheetId,
+
+                dimension:
+                  "ROWS",
+
+                startIndex:
+                  rowNumber - 1,
+
+                endIndex:
+                  rowNumber
+              }
+            }
+          })
+        )
+    }
+  });
+
+  clearCache(
+    "Cart"
+  );
+
+  return {
+    success:
+      true
+  };
+}
+
+
+// ======================================================
+// BUILD CART VIEW
+// ======================================================
+
+async function buildCartView(
+  customerID
+) {
+
+  const cart =
+    await getCustomerCart(
+      customerID
+    );
+
   const products =
     await getSheetRows(
       "Products"
@@ -979,44 +1599,339 @@ async function searchProducts(
       "Stores"
     );
 
-  const areas =
+  const result =
+    cart.map(
+      item => {
+
+        const product =
+          products.find(
+            row =>
+              String(
+                row["Product ID"] ||
+                ""
+              ).trim() ===
+              item.productId
+          );
+
+        const store =
+          stores.find(
+            row =>
+              String(
+                row["Store ID"] ||
+                ""
+              ).trim() ===
+              item.storeId
+          );
+
+        return {
+
+          ...item,
+
+          productName:
+            product?.["Product Name"] ||
+            item.productId,
+
+          unit:
+            product?.["Unit"] ||
+            "",
+
+          price:
+            Number(
+              product?.["Price"] ||
+              0
+            ),
+
+          storeName:
+            store?.["Store Name"] ||
+            item.storeId
+        };
+      }
+    );
+
+  const subtotal =
+    result.reduce(
+      (
+        sum,
+        item
+      ) =>
+        sum +
+        Number(
+          item.lineTotal ||
+          0
+        ),
+      0
+    );
+
+  const points =
+    result.reduce(
+      (
+        sum,
+        item
+      ) =>
+        sum +
+        Number(
+          item.linePoints ||
+          0
+        ),
+      0
+    );
+
+  return {
+
+    items:
+      result,
+
+    subtotal,
+
+    points,
+
+    count:
+      result.reduce(
+        (
+          sum,
+          item
+        ) =>
+          sum +
+          Number(
+            item.qty ||
+            0
+          ),
+        0
+      )
+  };
+}
+
+
+// ======================================================
+// FORMAT CART
+// ======================================================
+
+function formatCart(
+  cart
+) {
+
+  if (
+    !cart ||
+    !cart.items ||
+    !cart.items.length
+  ) {
+
+    return "🛒 سلتك فاضية حالياً.";
+  }
+
+  let text =
+    "🛒 *سلتك الحالية:*\n\n";
+
+  cart.items.forEach(
+    (
+      item,
+      index
+    ) => {
+
+      text +=
+        `${index + 1}. ${item.productName}`;
+
+      text +=
+        ` × ${item.qty}`;
+
+      if (item.unit) {
+        text +=
+          ` ${item.unit}`;
+      }
+
+      text +=
+        ` — ${item.lineTotal.toLocaleString()} ل.ل`;
+
+      if (
+        item.storeName
+      ) {
+
+        text +=
+          `\n   🏪 ${item.storeName}`;
+      }
+
+      text +=
+        "\n\n";
+    }
+  );
+
+  text +=
+    `💰 المجموع: ${cart.subtotal.toLocaleString()} ل.ل\n`;
+
+  if (
+    cart.points
+  ) {
+
+    text +=
+      `⭐ النقاط: ${cart.points}\n`;
+  }
+
+  text +=
+    `📦 عدد القطع: ${cart.count}`;
+
+  return text;
+}
+
+
+// ======================================================
+// PRODUCT DATA
+// ======================================================
+
+function productToObject(
+  row
+) {
+
+  const price =
+    Number(
+      row["Price"] ||
+      0
+    );
+
+  const points =
+    Number(
+      row["Points"] ||
+      row["Point"] ||
+      row["Loyalty Points"] ||
+      0
+    );
+
+  return {
+
+    productId:
+      String(
+        row["Product ID"] ||
+        ""
+      ).trim(),
+
+    productName:
+      String(
+        row["Product Name"] ||
+        ""
+      ).trim(),
+
+    unit:
+      String(
+        row["Unit"] ||
+        ""
+      ).trim(),
+
+    price,
+
+    points,
+
+    storeId:
+      String(
+        row["Store ID"] ||
+        ""
+      ).trim(),
+
+    areaId:
+      String(
+        row["Area"] ||
+        row["Area ID"] ||
+        ""
+      ).trim(),
+
+    available:
+      normalizeText(
+        row["Available"] ||
+        ""
+      ),
+
+    active:
+      String(
+        row["Active"] ||
+        ""
+      ).toUpperCase(),
+
+    category:
+      String(
+        row["Category"] ||
+        ""
+      ).trim()
+  };
+}
+
+
+// ======================================================
+// SEARCH PRODUCTS
+// ======================================================
+
+async function searchProducts(
+  message,
+  customerID
+) {
+
+  const productsRows =
     await getSheetRows(
-      "Areas"
+      "Products"
     );
 
-  const message =
+  const storesRows =
+    await getSheetRows(
+      "Stores"
+    );
+
+  const customerDelivery =
+    await getCustomerDeliveryData(
+      customerID
+    );
+
+  const customerAreaId =
+    customerDelivery
+      ?.area
+      ?.areaId ||
+    "";
+
+  const customerAreaName =
+    customerDelivery
+      ?.area
+      ?.areaName ||
+    "";
+
+  const normalized =
     normalizeText(
-      userMessage
+      message
     );
 
-  const stopWords =
-    [
-      "بدي",
-      "بدّي",
-      "اريد",
-      "أريد",
-      "اعرف",
-      "موجود",
-      "وين",
-      "باي",
-      "متجر",
-      "سوبرماركت",
-      "ميني",
-      "ماركت",
-      "بقالة",
-      "محل",
-      "عند",
-      "شو",
-      "عن",
-      "المنتج",
-      "منتج",
-      "في",
-      "منو",
-      "فيه"
-    ];
+  const stopWords = [
+    "بدي",
+    "بدّي",
+    "اريد",
+    "أريد",
+    "عايز",
+    "عندي",
+    "من",
+    "عطيني",
+    "اعطيني",
+    "اعطيني",
+    "لو سمحت",
+    "please",
+    "موجود",
+    "عندكم",
+    "سعر",
+    "كم",
+    "في",
+    "فيه",
+    "شو",
+    "شو عندكم",
+    "منتج",
+    "منتجات",
+    "قطعة",
+    "قطع",
+    "واحد",
+    "اتنين",
+    "اثنين",
+    "ثلاثة",
+    "تلاته",
+    "اربعة",
+    "خمسة",
+    "و",
+    "ال"
+  ];
 
   const words =
-    message
+    normalized
       .split(" ")
       .filter(
         word =>
@@ -1030,81 +1945,119 @@ async function searchProducts(
     return [];
   }
 
-  const results = [];
+  const results =
+    [];
 
   for (
-    const product of products
+    const row of productsRows
   ) {
-    const available =
-      normalizeText(
-        product["Available"]
+
+    const product =
+      productToObject(
+        row
       );
 
-    const active =
-      String(
-        product["Active"] || ""
-      ).toUpperCase();
-
     if (
-      available !==
-        "yes" &&
-      available !==
-        "نعم"
+      !product.productId ||
+      !product.productName
     ) {
       continue;
     }
 
+    const isAvailable =
+      product.available ===
+        "yes" ||
+      product.available ===
+        "نعم" ||
+      product.available ===
+        "true";
+
+    const isActive =
+      product.active ===
+        "TRUE";
+
     if (
-      active !==
-      "TRUE"
+      !isAvailable ||
+      !isActive
     ) {
       continue;
     }
 
-    const productName =
+    const name =
       normalizeText(
-        product["Product Name"]
+        product.productName
       );
 
-    if (!productName) {
-      continue;
-    }
-
-    let score = 0;
+    let score =
+      0;
 
     for (
       const word of words
     ) {
+
       if (
-        productName ===
+        name ===
         word
       ) {
-        score += 10;
-      }
 
-      else if (
-        productName.startsWith(
+        score +=
+          20;
+
+      } else if (
+        name.startsWith(
           word
         )
       ) {
-        score += 7;
-      }
 
-      else if (
-        productName.includes(
+        score +=
+          10;
+
+      } else if (
+        name.includes(
           word
         )
       ) {
-        score += 2;
+
+        score +=
+          5;
       }
     }
 
     if (
-      message.includes(
-        productName
+      normalized.includes(
+        name
       )
     ) {
-      score += 5;
+
+      score +=
+        15;
+    }
+
+    // --------------------------------------------------
+    // أولوية منطقة العميل
+    // --------------------------------------------------
+
+    if (
+      customerAreaId &&
+      product.areaId ===
+        customerAreaId
+    ) {
+
+      score +=
+        8;
+
+    } else if (
+      customerAreaName &&
+      normalizeText(
+        product.areaId
+      ) ===
+      normalizeText(
+        customerAreaName
+      )
+    ) {
+
+      score +=
+        8;
     }
 
     if (
@@ -1114,73 +2067,37 @@ async function searchProducts(
     }
 
     const store =
-      stores.find(
-        item =>
+      storesRows.find(
+        store =>
           String(
-            item["Store ID"]
-          ) ===
-          String(
-            product["Store ID"]
-          )
-      );
-
-    const area =
-      areas.find(
-        item =>
-          String(
-            item["Area ID"]
-          ) ===
-          String(
-            store?.["Area"] ||
-            product["Area"] ||
+            store["Store ID"] ||
             ""
-          )
+          ).trim() ===
+          product.storeId
       );
 
     results.push({
-      score,
 
-      productId:
-        product["Product ID"] ||
-        "",
-
-      productName:
-        product["Product Name"] ||
-        "",
-
-      unit:
-        product["Unit"] ||
-        "",
-
-      price:
-        product["Price"] ||
-        "",
-
-      storeId:
-        product["Store ID"] ||
-        "",
+      ...product,
 
       storeName:
         store?.["Store Name"] ||
-        "",
+        product.storeId,
 
-      address:
-        store?.["Adress"] ||
+      storeAddress:
         store?.["Address"] ||
+        store?.["Adress"] ||
         "",
 
-      areaId:
-        area?.["Area ID"] ||
-        "",
-
-      areaName:
-        area?.["Area Name"] ||
-        ""
+      score
     });
   }
 
   results.sort(
-    (a, b) =>
+    (
+      a,
+      b
+    ) =>
       b.score -
       a.score
   );
@@ -1190,587 +2107,553 @@ async function searchProducts(
     10
   );
 }
+
+
 // ======================================================
-// 14. قراءة الطلبات الخاصة بالمستخدم
+// EXTRACT QUANTITY
 // ======================================================
 
-async function getUserOrders(
-  user
+function extractQuantity(
+  message
 ) {
-  if (!user) {
-    return [];
-  }
 
-  const orders =
-    await getSheetRows(
-      "Order Requuest"
+  const normalized =
+    normalizeText(
+      message
     );
 
-  const customerId =
-    String(
-      user.customerId ||
-      ""
-    ).trim();
-
-  const mobile =
-    normalizeWhatsAppNumber(
-      user.mobile ||
-      user.whatsappNumber ||
-      ""
-    );
-
-  const results = [];
+  const arabicNumbers = {
+    "واحد": 1,
+    "وحدة": 1,
+    "قطعة": 1,
+    "اتنين": 2,
+    "اثنين": 2,
+    "تنين": 2,
+    "ثلاثة": 3,
+    "تلاته": 3,
+    "تلات": 3,
+    "اربعة": 4,
+    "أربعة": 4,
+    "خمسة": 5,
+    "خمسه": 5,
+    "ستة": 6,
+    "سته": 6,
+    "سبعة": 7,
+    "سبعه": 7,
+    "ثمانية": 8,
+    "تمانية": 8,
+    "تسعة": 9,
+    "تسعه": 9,
+    "عشرة": 10
+  };
 
   for (
-    const order of orders
+    const key of
+    Object.keys(
+      arabicNumbers
+    )
   ) {
-    const orderCustomerId =
-      String(
-        order["Customer ID"] ||
-        ""
-      ).trim();
-
-    const orderMobile =
-      normalizeWhatsAppNumber(
-        order["Mobile"] ||
-        ""
-      );
 
     if (
-      customerId &&
-      orderCustomerId ===
-      customerId
+      normalized.includes(
+        key
+      )
     ) {
-      results.push(
-        order
-      );
 
-      continue;
-    }
-
-    if (
-      mobile &&
-      orderMobile &&
-      mobile ===
-      orderMobile
-    ) {
-      results.push(
-        order
-      );
+      return arabicNumbers[
+        key
+      ];
     }
   }
 
-  console.log(
-    `📦 Orders للمستخدم: ${results.length}`
-  );
+  const match =
+    normalized.match(
+      /(?:^|\s)(\d+)(?:\s|$)/
+    );
 
-  return results;
+  if (match) {
+    return Number(
+      match[1]
+    );
+  }
+
+  return 1;
 }
 
+
 // ======================================================
-// 15. قراءة تفاصيل الطلب
+// DETECT CART COMMAND
 // ======================================================
 
-async function getOrderDetails(
-  requestId
+function detectCartCommand(
+  message
 ) {
-  if (!requestId) {
-    return [];
+
+  const text =
+    normalizeText(
+      message
+    );
+
+  if (
+    text.includes(
+      "السله"
+    ) ||
+    text.includes(
+      "سلة"
+    ) ||
+    text.includes(
+      "سلت"
+    ) ||
+    text.includes(
+      "cart"
+    )
+  ) {
+
+    if (
+      text.includes(
+        "شو فيها"
+      ) ||
+      text.includes(
+        "شو بالسله"
+      ) ||
+      text.includes(
+        "عرض"
+      ) ||
+      text.includes(
+        "شوف"
+      ) ||
+      text.includes(
+        "view"
+      )
+    ) {
+
+      return "SHOW";
+    }
   }
 
-  const details =
-    await getSheetRows(
-      "Order Details"
+  if (
+    text.includes(
+      "احذف"
+    ) ||
+    text.includes(
+      "شيل"
+    ) ||
+    text.includes(
+      "حذف"
+    ) ||
+    text.includes(
+      "remove"
+    )
+  ) {
+
+    return "REMOVE";
+  }
+
+  if (
+    text.includes(
+      "غير الكميه"
+    ) ||
+    text.includes(
+      "عدل الكميه"
+    ) ||
+    text.includes(
+      "بدل الكميه"
+    ) ||
+    text.includes(
+      "update"
+    )
+  ) {
+
+    return "UPDATE";
+  }
+
+  return null;
+}
+
+
+// ======================================================
+// CONFIRMATION KEY
+// ======================================================
+
+function isCheckoutConfirmation(
+  message
+) {
+
+  const text =
+    normalizeText(
+      message
     );
 
-  const products =
-    await getSheetRows(
-      "Products"
+  const confirmations = [
+    "تأكيد الطلب",
+    "تاكيد الطلب",
+    "أكد الطلب",
+    "اكد الطلب",
+    "تأكيد",
+    "تاكيد",
+    "أكد",
+    "اكد",
+    "confirm order",
+    "confirm"
+  ];
+
+  return confirmations.some(
+    item =>
+      text ===
+      normalizeText(
+        item
+      )
+  );
+}
+
+
+// ======================================================
+// CHECKOUT READINESS
+// ======================================================
+
+async function checkCheckoutReadiness(
+  customerID,
+  message
+) {
+
+  const cart =
+    await buildCartView(
+      customerID
     );
 
-  const stores =
-    await getSheetRows(
-      "Stores"
+  if (
+    !cart.items.length
+  ) {
+
+    return {
+
+      ready:
+        false,
+
+      reason:
+        "EMPTY_CART",
+
+      cart
+    };
+  }
+
+  const delivery =
+    await getCustomerDeliveryData(
+      customerID
     );
+
+  if (
+    !delivery.exists
+  ) {
+
+    return {
+
+      ready:
+        false,
+
+      reason:
+        "CUSTOMER_NOT_FOUND",
+
+      cart
+    };
+  }
+
+  // ----------------------------------------------------
+  // المنطقة
+  // ----------------------------------------------------
+
+  let finalArea =
+    delivery.area;
+
+  const detectedArea =
+    await detectAreaFromMessage(
+      message
+    );
+
+  if (
+    detectedArea
+  ) {
+
+    finalArea =
+      detectedArea;
+  }
+
+  if (
+    !finalArea
+  ) {
+
+    return {
+
+      ready:
+        false,
+
+      reason:
+        "AREA_MISSING",
+
+      cart,
+
+      delivery
+    };
+  }
+
+  // ----------------------------------------------------
+  // العنوان
+  // ----------------------------------------------------
+
+  let finalAddress =
+    delivery.address;
+
+  // إذا كتب العميل عنواناً جديداً بالرسالة
+  // نعتبر النص عنواناً فقط إذا لم يكن مجرد كلمة تأكيد
+  if (
+    !isCheckoutConfirmation(
+      message
+    ) &&
+    normalizeText(
+      message
+    ).length >
+      8 &&
+    !detectedArea
+  ) {
+
+    finalAddress =
+      message.trim();
+  }
+
+  if (
+    !finalAddress
+  ) {
+
+    return {
+
+      ready:
+        false,
+
+      reason:
+        "ADDRESS_MISSING",
+
+      cart,
+
+      delivery,
+
+      area:
+        finalArea
+    };
+  }
+
+  // ----------------------------------------------------
+  // LOCATION
+  // ----------------------------------------------------
+
+  if (
+    !delivery.lat ||
+    !delivery.lng
+  ) {
+
+    return {
+
+      ready:
+        false,
+
+      reason:
+        "LOCATION_MISSING",
+
+      cart,
+
+      delivery,
+
+      area:
+        finalArea,
+
+      address:
+        finalAddress
+    };
+  }
+
+  return {
+
+    ready:
+      true,
+
+    reason:
+      "READY",
+
+    cart,
+
+    delivery,
+
+    area:
+      finalArea,
+
+    address:
+      finalAddress
+  };
+}
+
+
+// ======================================================
+// DETECT AREA FROM MESSAGE
+// ======================================================
+
+async function detectAreaFromMessage(
+  message
+) {
 
   const areas =
     await getSheetRows(
       "Areas"
     );
 
-  const result = [];
+  const text =
+    normalizeText(
+      message
+    );
 
-  for (
-    const detail of details
-  ) {
-    const detailRequestId =
-      String(
-        detail["Request ID"] ||
-        ""
-      ).trim();
-
-    if (
-      detailRequestId !==
-      String(
-        requestId
-      ).trim()
-    ) {
-      continue;
-    }
-
-    const productId =
-      String(
-        detail["Product ID"] ||
-        ""
-      ).trim();
-
-    const storeId =
-      String(
-        detail["Store ID"] ||
-        ""
-      ).trim();
-
-    const areaId =
-      String(
-        detail["Area"] ||
-        ""
-      ).trim();
-
-    const product =
-      products.find(
-        item =>
-          String(
-            item["Product ID"] ||
-            ""
-          ).trim() ===
-          productId
-      );
-
-    const store =
-      stores.find(
-        item =>
-          String(
-            item["Store ID"] ||
-            ""
-          ).trim() ===
-          storeId
-      );
-
-    const area =
-      areas.find(
-        item =>
-          String(
-            item["Area ID"] ||
-            ""
-          ).trim() ===
-          areaId
-      );
-
-    result.push({
-      requestId:
-        detailRequestId,
-
-      productId,
-
-      productName:
-        product?.["Product Name"] ||
-        "",
-
-      qty:
-        detail["Qty"] ||
-        "",
-
-      unitPrice:
-        detail["Unit Price"] ||
-        "",
-
-      storeId,
-
-      storeName:
-        store?.["Store Name"] ||
-        "",
-
-      areaId,
-
-      areaName:
-        area?.["Area Name"] ||
-        ""
-    });
-  }
-
-  console.log(
-    `🧾 تفاصيل الطلب ${requestId}: ${result.length}`
-  );
-
-  return result;
-}
-
-// ======================================================
-// 16. تحديد الطلب المقصود من الرسالة
-// ======================================================
-
-function detectRequestedOrder(
-  orders,
-  userMessage
-) {
-  if (
-    !orders ||
-    !orders.length
-  ) {
+  if (!text) {
     return null;
   }
 
-  const message =
-    normalizeText(
-      userMessage
-    );
-
-  // أولاً: البحث عن Request ID
   for (
-    const order of orders
+    const area of areas
   ) {
-    const requestId =
+
+    const id =
       String(
-        order["Request ID"] ||
+        area["Area ID"] ||
+        ""
+      ).trim();
+
+    const name =
+      String(
+        area["Area Name"] ||
         ""
       ).trim();
 
     if (
-      requestId &&
-      message.includes(
-        normalizeText(
-          requestId
-        )
+      id &&
+      text.includes(
+        normalizeText(id)
       )
     ) {
-      return order;
+
+      return {
+        areaId:
+          id,
+
+        areaName:
+          name
+      };
+    }
+
+    if (
+      name &&
+      text.includes(
+        normalizeText(name)
+      )
+    ) {
+
+      return {
+        areaId:
+          id,
+
+        areaName:
+          name
+      };
     }
   }
 
-  // إذا ما ذكر رقم الطلب
-  // نستخدم آخر طلب للمستخدم
-  return orders[
-    orders.length - 1
-  ];
-}
-
-// ======================================================
-// 17. تجهيز حالة الطلب
-// ======================================================
-
-function buildOrderStatus(
-  order
-) {
-  if (!order) {
-    return null;
-  }
-
-  return {
-    requestId:
-      order["Request ID"] ||
-      "",
-
-    approvalStatus:
-      order["Approval Status"] ||
-      "",
-
-    deliveryStatus:
-      order["Delivery Status"] ||
-      "",
-
-    assignedDriver:
-      order["Assigned Driver"] ||
-      "",
-
-    area:
-      order["Area"] ||
-      "",
-
-    deliveryAddress:
-      order["Delivery Adress"] ||
-      order["Delivery Address"] ||
-      "",
-
-    itemsCost:
-      order["Items Cost"] ||
-      "",
-
-    deliveryFee:
-      order["Delivery Fee"] ||
-      "",
-
-    totalAmount:
-      order["Total Amount"] ||
-      ""
-  };
+  return null;
 }
 
 
 // ======================================================
-// 19. تحديد نوع طلب المستخدم
+// CALL REAL CHECKOUT API
 // ======================================================
 
-function detectIntent(
-  userMessage
+async function runRealCheckout(
+  customerID,
+  readiness
 ) {
-  const message =
-    normalizeText(
-      userMessage
+
+  try {
+
+    const response =
+      await fetch(
+        `${SITE_URL}/api/checkout`,
+        {
+          method:
+            "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+
+              customerID,
+
+              areaID:
+                readiness.area.areaId,
+
+              deliveryAddress:
+                readiness.address,
+
+              note:
+                "",
+
+              addressType:
+                "fixed",
+
+              lat:
+                readiness.delivery.lat,
+
+              lng:
+                readiness.delivery.lng
+            })
+        }
+      );
+
+    const data =
+      await response.json();
+
+    console.log(
+      "🛒 Checkout API:",
+      JSON.stringify(
+        data
+      )
     );
 
-  if (!message) {
-    return "unknown";
-  }
+    return data;
 
-  // تحية
-  const greetings =
-    [
-      "مرحبا",
-      "مرحباً",
-      "اهلا",
-      "أهلا",
-      "هاي",
-      "hello",
-      "hi"
-    ];
+  } catch (error) {
 
-  if (
-    greetings.some(
-      item =>
-        message ===
-        normalizeText(item)
-    )
-  ) {
-    return "greeting";
-  }
-
-  // سؤال عن المنتجات
-  const productWords =
-    [
-      "منتج",
-      "موجود",
-      "عندكم",
-      "بدي",
-      "اريد",
-      "وين",
-      "سعر"
-    ];
-
-  if (
-    productWords.some(
-      word =>
-        message.includes(
-          normalizeText(word)
-        )
-    )
-  ) {
-    return "product_search";
-  }
-
-  // سؤال عن الطلب
-  const orderWords =
-    [
-      "طلب",
-      "طلبي",
-      "اوردر",
-      "أوردر",
-      "التوصيل",
-      "التوصيل وين",
-      "وصل",
-      "الطلب وين"
-    ];
-
-  if (
-    orderWords.some(
-      word =>
-        message.includes(
-          normalizeText(word)
-        )
-    )
-  ) {
-    return "order_status";
-  }
-
-  // سؤال عن الموقع
-  const websiteWords =
-    [
-      "الموقع",
-      "رابط",
-      "ويبسايت",
-      "موقعكم"
-    ];
-
-  if (
-    websiteWords.some(
-      word =>
-        message.includes(
-          normalizeText(word)
-        )
-    )
-  ) {
-    return "website";
-  }
-
-  // سؤال عن التواصل
-  const contactWords =
-    [
-      "ايميل",
-      "إيميل",
-      "تواصل",
-      "الادارة",
-      "الإدارة"
-    ];
-
-  if (
-    contactWords.some(
-      word =>
-        message.includes(
-          normalizeText(word)
-        )
-    )
-  ) {
-    return "contact";
-  }
-
-  return "unknown";
-}
-
-// ======================================================
-// 20. سجل مراقبة البوت 2
-// ======================================================
-
-function buildBot2Observation(
-  user,
-  userMessage,
-  context
-) {
-  return {
-    timestamp:
-      new Date().toISOString(),
-
-    phone:
-      normalizeWhatsAppNumber(
-        user?.whatsappNumber ||
-        ""
-      ),
-
-    registered:
-      Boolean(user),
-
-    userId:
-      user?.userId ||
-      "",
-
-    customerId:
-      user?.customerId ||
-      "",
-
-    userName:
-      user?.name ||
-      "",
-
-    intent:
-      detectIntent(
-        userMessage
-      ),
-
-    message:
-      userMessage,
-
-    area:
-      context?.area ||
-      null,
-
-    address:
-      context?.address ||
-      null,
-
-    productsFound:
-      context?.products?.length ||
-      0,
-
-    ordersFound:
-      context?.orders?.length ||
-      0,
-
-    selectedRequestId:
-      context?.selectedOrder?.requestId ||
-      "",
-
-    deliveryStatus:
-      context?.selectedOrder?.deliveryStatus ||
-      "",
-
-    approvalStatus:
-      context?.selectedOrder?.approvalStatus ||
-      ""
-  };
-}
-
-// ======================================================
-// 21. البوت 2 لا ينفذ أي Action
-// ======================================================
-
-function buildBot2Decision(
-  user,
-  userMessage,
-  context
-) {
-  const intent =
-    detectIntent(
-      userMessage
+    console.error(
+      "❌ Checkout API Error:",
+      error
     );
 
-  /*
-   * مهم جداً:
-   *
-   * هذا البوت لا يقوم بأي:
-   *
-   * Add
-   * Update
-   * Delete
-   * إنشاء Order
-   * تعديل User
-   * تعديل Cart
-   * تغيير Delivery Status
-   * تغيير Approval Status
-   * تعيين Driver
-   *
-   * فقط يحدد ماذا فهم من الرسالة.
-   */
-
-  if (!user) {
     return {
-      action:
-        "NONE",
 
-      reason:
-        "USER_NOT_REGISTERED",
+      success:
+        false,
 
-      intent
+      message:
+        "ما قدرنا نرسل الطلب حالياً، جرب بعد شوي."
     };
   }
-
-  return {
-    action:
-      "OBSERVE_ONLY",
-
-    reason:
-      "BOT2_LISTEN_COMPARE_PREPARE",
-
-    intent,
-
-    registered:
-      true
-  };
 }
+
+
 // ======================================================
-// 22. قراءة آخر رسائل المستخدم
+// RECENT CONVERSATION
 // ======================================================
 
 async function getRecentConversation(
   phone
 ) {
+
   const messages =
     await getSheetRows(
       "Messages"
@@ -1781,601 +2664,848 @@ async function getRecentConversation(
       phone
     );
 
-  const result =
-    messages
-      .filter(
-        row =>
-          normalizeWhatsAppNumber(
-            row["Phone"] ||
-            ""
-          ) ===
-          normalizedPhone
-      )
-      .slice(-10)
-      .map(
-        row => ({
-          customerMessage:
-            row[
-              "CustomerMessage"
-            ] ||
-            "",
+  return messages
+    .filter(
+      row =>
+        normalizeWhatsAppNumber(
+          row["Phone"] ||
+          ""
+        ) ===
+        normalizedPhone
+    )
+    .slice(-10)
+    .map(
+      row => ({
 
-          botReply:
-            row[
-              "AIReply"
-            ] ||
-            "",
+        customerMessage:
+          row["CustomerMessage"] ||
+          "",
 
-          date:
-            row[
-              "Date"
-            ] ||
-            ""
-        })
+        botReply:
+          row["AIReply"] ||
+          "",
+
+        date:
+          row["Date"] ||
+          ""
+      })
+    );
+}
+
+
+// ======================================================
+// SAVE MESSAGE
+// ======================================================
+
+async function saveToAppSheet(
+  from,
+  userMessage,
+  aiReply
+) {
+
+  if (
+    !APPSHEET_APP_ID ||
+    !APPSHEET_API_KEY
+  ) {
+
+    console.error(
+      "❌ AppSheet credentials ناقصة"
+    );
+
+    return;
+  }
+
+  try {
+
+    const today =
+      new Date().toLocaleDateString(
+        "en-GB",
+        {
+          timeZone:
+            "Asia/Beirut"
+        }
       );
 
-  return result;
-}
+    const response =
+      await fetch(
+        `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/Messages/Action`,
+        {
 
-// ======================================================
-// 23. تحديد إذا المحادثة ضمن طلب نشط
-// ======================================================
+          method:
+            "POST",
 
-function detectActiveOrder(
-  context
-) {
-  if (
-    !context ||
-    !context.selectedOrder
-  ) {
-    return false;
-  }
+          headers: {
 
-  const approval =
-    normalizeText(
-      context.selectedOrder
-        .approvalStatus ||
-      ""
+            ApplicationAccessKey:
+              APPSHEET_API_KEY,
+
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+
+              Action:
+                "Add",
+
+              Properties: {
+                TimeZone:
+                  "Asia/Beirut"
+              },
+
+              Rows: [
+                {
+
+                  Phone:
+                    from,
+
+                  CustomerMessage:
+                    userMessage,
+
+                  AIReply:
+                    aiReply,
+
+                  Date:
+                    today
+                }
+              ]
+            })
+        }
+      );
+
+    console.log(
+      "💾 Messages:",
+      response.status
     );
 
-  const delivery =
+  } catch (error) {
+
+    console.error(
+      "❌ Save Message Error:",
+      error
+    );
+  }
+}
+
+
+// ======================================================
+// AI INTENT
+// ======================================================
+
+function detectIntent(
+  message
+) {
+
+  const text =
     normalizeText(
-      context.selectedOrder
-        .deliveryStatus ||
-      ""
+      message
     );
 
-  const finishedStatuses =
-    [
-      "تم التوصيل",
-      "delivered",
-      "closed",
-      "completed",
-      "ملغى",
-      "cancelled",
-      "canceled"
-    ];
-
   if (
-    finishedStatuses.includes(
-      delivery
+    isCheckoutConfirmation(
+      message
     )
   ) {
-    return false;
+
+    return "checkout_confirmation";
   }
 
   if (
-    finishedStatuses.includes(
-      approval
+    detectCartCommand(
+      message
     )
   ) {
-    return false;
+
+    return "cart";
   }
 
-  return true;
+  const productWords = [
+    "بدي",
+    "اريد",
+    "عندكم",
+    "موجود",
+    "منتج",
+    "سعر",
+    "اشتري",
+    "شراء",
+    "جيبلي",
+    "اعطيني"
+  ];
+
+  if (
+    productWords.some(
+      word =>
+        text.includes(
+          normalizeText(
+            word
+          )
+        )
+    )
+  ) {
+
+    return "shopping";
+  }
+
+  const orderWords = [
+    "طلب",
+    "اوردر",
+    "طلبي",
+    "التوصيل",
+    "وصل",
+    "وين الطلب"
+  ];
+
+  if (
+    orderWords.some(
+      word =>
+        text.includes(
+          normalizeText(
+            word
+          )
+        )
+    )
+  ) {
+
+    return "order_status";
+  }
+
+  return "general";
 }
 
+
 // ======================================================
-// 24. تحليل جاهزية المستخدم للطلب
+// HANDLE SHOPPING
 // ======================================================
 
-function analyzeOrderReadiness(
-  user,
-  context
+async function handleShopping(
+  customerID,
+  message
 ) {
-  if (!user) {
-    return {
-      ready:
-        false,
-
-      reason:
-        "USER_NOT_REGISTERED"
-    };
-  }
-
-  if (
-    !context
-  ) {
-    return {
-      ready:
-        false,
-
-      reason:
-        "NO_CONTEXT"
-    };
-  }
-
-  if (
-    !context.area
-  ) {
-    return {
-      ready:
-        false,
-
-      reason:
-        "AREA_MISSING"
-    };
-  }
-
-  if (
-    !context.address
-  ) {
-    return {
-      ready:
-        false,
-
-      reason:
-        "ADDRESS_MISSING"
-    };
-  }
-
-  if (
-    !context.products ||
-    !context.products.length
-  ) {
-    return {
-      ready:
-        false,
-
-      reason:
-        "NO_PRODUCT_FOUND"
-    };
-  }
-
-  return {
-    ready:
-      true,
-
-    reason:
-      "READY_FOR_NEXT_STEP"
-  };
-}
-
-// ======================================================
-// 25. مقارنة بيانات الطلب مع بيانات المنتجات
-// ======================================================
-
-function compareOrderWithProducts(
-  context
-) {
-  if (
-    !context ||
-    !context.orderDetails ||
-    !context.orderDetails.length
-  ) {
-    return {
-      matched:
-        false,
-
-      matches:
-        [],
-
-      missing:
-        []
-    };
-  }
 
   const products =
-    context.products ||
-    [];
-
-  const matches = [];
-  const missing = [];
-
-  for (
-    const item of
-    context.orderDetails
-  ) {
-    const productName =
-      normalizeText(
-        item.productName
-      );
-
-    const found =
-      products.find(
-        product =>
-          normalizeText(
-            product.productName
-          ) ===
-          productName
-      );
-
-    if (found) {
-      matches.push({
-        orderItem:
-          item,
-
-        product:
-          found
-      });
-    }
-    else {
-      missing.push(
-        item
-      );
-    }
-  }
-
-  return {
-    matched:
-      missing.length === 0,
-
-    matches,
-
-    missing
-  };
-}
-
-// ======================================================
-// 26. تجهيز معلومات المستخدم للـAI
-// ======================================================
-
-function buildUserAIContext(
-  user
-) {
-  if (!user) {
-    return {
-      registered:
-        false,
-
-      message:
-        "المستخدم غير مسجل."
-    };
-  }
-
-  return {
-    registered:
-      true,
-
-    userId:
-      user.userId ||
-      "",
-
-    customerId:
-      user.customerId ||
-      "",
-
-    name:
-      user.name ||
-      "",
-
-    role:
-      user.role ||
-      "",
-
-    mobile:
-      user.mobile ||
-      "",
-
-    whatsappNumber:
-      user.whatsappNumber ||
-      "",
-
-    area:
-      user.area ||
-      "",
-
-    status:
-      user.status ||
-      "",
-
-    active:
-      user.active ||
-      ""
-  };
-}
-
-// ======================================================
-// 27. تجهيز Context آمن للـAI
-// ======================================================
-
-function buildSafeAIContext(
-  user,
-  userMessage,
-  context,
-  history
-) {
-  const readiness =
-    analyzeOrderReadiness(
-      user,
-      context
+    await searchProducts(
+      message,
+      customerID
     );
 
-  const activeOrder =
-    detectActiveOrder(
-      context
-    );
-
-  const comparison =
-    compareOrderWithProducts(
-      context
-    );
-
-  return {
-    user:
-      buildUserAIContext(
-        user
-      ),
-
-    message:
-      userMessage,
-
-    intent:
-      detectIntent(
-        userMessage
-      ),
-
-    history:
-      history || [],
-
-    delivery: {
-      area:
-        context?.area ||
-        null,
-
-      address:
-        context?.address ||
-        null,
-
-      success:
-        context?.deliverySuccess ||
-        false,
-
-      reason:
-        context?.deliveryReason ||
-        ""
-    },
-
-    products:
-      context?.products ||
-      [],
-
-    orders:
-      context?.orders ||
-      [],
-
-    selectedOrder:
-      context?.selectedOrder ||
-      null,
-
-    orderDetails:
-      context?.orderDetails ||
-      [],
-
-    activeOrder,
-
-    readiness,
-
-    comparison
-  };
-}
-
-// ======================================================
-// 28. Prompt البوت 2
-// ======================================================
-
-function buildBot2Prompt(
-  safeContext
-) {
-  return `
-أنت Bot 2 الخاص بـ MD-Marketplace.
-
-دورك الأساسي:
-تسمع للمستخدم.
-تفهم قصده.
-تقارن رسالته مع البيانات الموثوقة.
-تقرأ المنتجات والطلبات والمناطق والعناوين.
-تجهز المعلومات اللازمة للخطوة التالية.
-
-ممنوع عليك تنفيذ أي عملية.
-
-==================================================
-قواعد صارمة
-==================================================
-
-1. ممنوع إنشاء Order.
-
-2. ممنوع تعديل Order.
-
-3. ممنوع تعديل Cart.
-
-4. ممنوع تعديل User.
-
-5. ممنوع تغيير Delivery Status.
-
-6. ممنوع تغيير Approval Status.
-
-7. ممنوع تعيين Driver.
-
-8. ممنوع حذف أي بيانات.
-
-9. ممنوع اختراع منتج.
-
-10. ممنوع اختراع سعر.
-
-11. ممنوع اختراع متجر.
-
-12. ممنوع اختراع منطقة.
-
-13. ممنوع اختراع عنوان.
-
-14. ممنوع إعطاء معلومات عن طلب مستخدم غير مسجل.
-
-15. إذا البيانات غير موجودة، قل إنها غير موجودة ولا تخمّن.
-
-==================================================
-هوية المستخدم
-==================================================
-
-${JSON.stringify(
-  safeContext.user
-)}
-
-==================================================
-رسالة المستخدم
-==================================================
-
-${safeContext.message}
-
-==================================================
-النية المكتشفة
-==================================================
-
-${safeContext.intent}
-
-==================================================
-بيانات المنطقة والعنوان
-==================================================
-
-${JSON.stringify(
-  safeContext.delivery
-)}
-
-==================================================
-المنتجات
-==================================================
-
-${JSON.stringify(
-  safeContext.products
-)}
-
-==================================================
-الطلبات
-==================================================
-
-${JSON.stringify(
-  safeContext.orders
-)}
-
-==================================================
-الطلب المحدد
-==================================================
-
-${JSON.stringify(
-  safeContext.selectedOrder
-)}
-
-==================================================
-تفاصيل الطلب
-==================================================
-
-${JSON.stringify(
-  safeContext.orderDetails
-)}
-
-==================================================
-حالة الطلب النشطة
-==================================================
-
-${safeContext.activeOrder}
-
-==================================================
-جاهزية المستخدم
-==================================================
-
-${JSON.stringify(
-  safeContext.readiness
-)}
-
-==================================================
-مقارنة الطلب مع المنتجات
-==================================================
-
-${JSON.stringify(
-  safeContext.comparison
-)}
-
-==================================================
-المحادثة السابقة
-==================================================
-
-${JSON.stringify(
-  safeContext.history
-)}
-
-==================================================
-طريقة الرد
-==================================================
-
-تحدث باللهجة اللبنانية الطبيعية.
-
-لا تتصرف كروبوت جامد.
-
-لا تعيد الترحيب إذا كانت المحادثة بدأت.
-
-إذا كان السؤال يحتاج توضيح، اسأل سؤالاً واحداً فقط.
-
-لا تقل للمستخدم إنك نفذت أي عملية.
-
-إذا طلب المستخدم شراء أو تعديل أو إلغاء:
-افهم الطلب وجهزه فقط، ولا تنفذه.
-
-إذا كان المستخدم غير مسجل:
-لا تعطيه معلومات خاصة بالطلبات أو الحساب.
-
-إذا لم تجد البيانات:
-قل ذلك بصراحة.
-
-ممنوع اختراع أي معلومة.
-
-المخرَج يجب أن يكون جواباً طبيعياً مناسباً للمستخدم.
-`;
-}
-
-// ======================================================
-// 29. تشغيل Groq - Bot 2
-// ======================================================
-
-async function runBot2AI(
-  userMessage,
-  safeContext
-) {
   if (
-    !GROQ_KEY
+    !products.length
   ) {
+
     return {
+
       success:
         false,
 
       reply:
-        "أهلا وسهلا! كيف بقدر ساعدك اليوم؟ 😊"
+        "ما لقيت المنتج بهالشكل 😕\nإذا بتكتبلي اسم المنتج بشكل أوضح بفتشلك عليه، وإذا مش موجود بقدر اقترحلك شي قريب منه."
+    };
+  }
+
+  // ----------------------------------------------------
+  // إذا النتائج واضحة جداً
+  // ----------------------------------------------------
+
+  const best =
+    products[0];
+
+  const second =
+    products[1];
+
+  const bestIsStrong =
+    best.score >=
+      15 &&
+    (
+      !second ||
+      best.score >=
+        second.score + 5
+    );
+
+  if (
+    bestIsStrong
+  ) {
+
+    const qty =
+      extractQuantity(
+        message
+      );
+
+    const added =
+      await addToCart(
+        customerID,
+        best,
+        qty
+      );
+
+    if (
+      !added.success
+    ) {
+
+      return {
+
+        success:
+          false,
+
+        reply:
+          added.message ||
+          "ما قدرت أضيف المنتج للسلة."
+      };
+    }
+
+    const cart =
+      await buildCartView(
+        customerID
+      );
+
+    return {
+
+      success:
+        true,
+
+      reply:
+        `✅ ضفتلك ${qty} × ${best.productName} بالسلة.\n🏪 ${best.storeName}\n💰 السعر: ${best.price.toLocaleString()} ل.ل للقطعة.\n\n${formatCart(cart)}\n\nإذا خلصت، اكتبلي *تأكيد الطلب*.`
+
+    };
+  }
+
+  // ----------------------------------------------------
+  // أكثر من تطابق
+  // ----------------------------------------------------
+
+  let reply =
+    "لقيت أكتر من خيار قريب من طلبك 👇\n\n";
+
+  products
+    .slice(
+      0,
+      5
+    )
+    .forEach(
+      (
+        product,
+        index
+      ) => {
+
+        reply +=
+          `${index + 1}️⃣ ${product.productName}`;
+
+        reply +=
+          ` — ${product.price.toLocaleString()} ل.ل`;
+
+        reply +=
+          `\n🏪 ${product.storeName}`;
+
+        if (
+          product.areaId
+        ) {
+
+          reply +=
+            `\n📍 ${product.areaId}`;
+        }
+
+        reply +=
+          "\n\n";
+      }
+    );
+
+  reply +=
+    "قلّي رقم الخيار والكمية، مثلاً: *1 عدد 2*.";
+
+  return {
+
+    success:
+      true,
+
+    reply
+  };
+}
+
+
+// ======================================================
+// HANDLE CART
+// ======================================================
+
+async function handleCart(
+  customerID,
+  message
+) {
+
+  const command =
+    detectCartCommand(
+      message
+    );
+
+  if (
+    command ===
+    "SHOW"
+  ) {
+
+    const cart =
+      await buildCartView(
+        customerID
+      );
+
+    return {
+
+      success:
+        true,
+
+      reply:
+        formatCart(
+          cart
+        )
+    };
+  }
+
+  const products =
+    await getSheetRows(
+      "Products"
+    );
+
+  const cart =
+    await buildCartView(
+      customerID
+    );
+
+  if (
+    !cart.items.length
+  ) {
+
+    return {
+
+      success:
+        true,
+
+      reply:
+        "🛒 السلة فاضية."
+    };
+  }
+
+  // ----------------------------------------------------
+  // REMOVE
+  // ----------------------------------------------------
+
+  if (
+    command ===
+    "REMOVE"
+  ) {
+
+    const found =
+      cart.items.find(
+        item =>
+          normalizeText(
+            message
+          ).includes(
+            normalizeText(
+              item.productName
+            )
+          )
+      );
+
+    if (!found) {
+
+      return {
+
+        success:
+          false,
+
+        reply:
+          "أي منتج بدك شيل من السلة؟ اكتبلي اسمه."
+      };
+    }
+
+    const removed =
+      await removeFromCart(
+        customerID,
+        found.productId
+      );
+
+    if (
+      !removed.success
+    ) {
+
+      return {
+
+        success:
+          false,
+
+        reply:
+          removed.message
+      };
+    }
+
+    const newCart =
+      await buildCartView(
+        customerID
+      );
+
+    return {
+
+      success:
+        true,
+
+      reply:
+        `🗑️ شلت ${found.productName} من السلة.\n\n${formatCart(newCart)}`
+    };
+  }
+
+  // ----------------------------------------------------
+  // UPDATE
+  // ----------------------------------------------------
+
+  if (
+    command ===
+    "UPDATE"
+  ) {
+
+    const found =
+      cart.items.find(
+        item =>
+          normalizeText(
+            message
+          ).includes(
+            normalizeText(
+              item.productName
+            )
+          )
+      );
+
+    if (!found) {
+
+      return {
+
+        success:
+          false,
+
+        reply:
+          "أي منتج بدك تغيّر كميته؟"
+      };
+    }
+
+    const qty =
+      extractQuantity(
+        message
+      );
+
+    const updated =
+      await updateCartQty(
+        customerID,
+        found.productId,
+        qty
+      );
+
+    if (
+      !updated.success
+    ) {
+
+      return {
+
+        success:
+          false,
+
+        reply:
+          updated.message
+      };
+    }
+
+    const newCart =
+      await buildCartView(
+        customerID
+      );
+
+    return {
+
+      success:
+        true,
+
+      reply:
+        `✅ عدلت كمية ${found.productName} لـ ${qty}.\n\n${formatCart(newCart)}`
+    };
+  }
+
+  return {
+
+    success:
+      true,
+
+    reply:
+      formatCart(
+        cart
+      )
+  };
+}
+
+
+// ======================================================
+// CHECKOUT FLOW
+// ======================================================
+
+async function handleCheckout(
+  customerID,
+  message
+) {
+
+  const readiness =
+    await checkCheckoutReadiness(
+      customerID,
+      message
+    );
+
+  if (
+    readiness.reason ===
+    "EMPTY_CART"
+  ) {
+
+    return {
+
+      success:
+        false,
+
+      reply:
+        "🛒 قبل ما نأكد الطلب، السلة فاضية. خبرني شو بدك تشتري."
+    };
+  }
+
+  if (
+    readiness.reason ===
+    "CUSTOMER_NOT_FOUND"
+  ) {
+
+    return {
+
+      success:
+        false,
+
+      reply:
+        "ما قدرت لاقي بيانات حسابك."
+    };
+  }
+
+  if (
+    readiness.reason ===
+    "AREA_MISSING"
+  ) {
+
+    return {
+
+      success:
+        false,
+
+      reply:
+        "📍 ناقصني *المنطقة*.\nاكتبلي المنطقة المطلوبة للتوصيل، وأنا بتأكد إنها موجودة بجدول المناطق."
+    };
+  }
+
+  if (
+    readiness.reason ===
+    "ADDRESS_MISSING"
+  ) {
+
+    return {
+
+      success:
+        false,
+
+      reply:
+        "🏠 ناقصني *العنوان التفصيلي*.\nاكتبلي عنوان التوصيل حتى نقدر نكمل الطلب."
+    };
+  }
+
+  if (
+    readiness.reason ===
+    "LOCATION_MISSING"
+  ) {
+
+    return {
+
+      success:
+        false,
+
+      reply:
+        "📍 حسابك ما فيه Location مسجل.\nلازم نحدد موقعك أولاً قبل تأكيد الطلب."
+    };
+  }
+
+  // ----------------------------------------------------
+  // كل شيء جاهز
+  // ----------------------------------------------------
+
+  if (
+    !isCheckoutConfirmation(
+      message
+    )
+  ) {
+
+    let confirmation =
+      "🧾 *ملخص طلبك قبل التأكيد:*\n\n";
+
+    confirmation +=
+      formatCart(
+        readiness.cart
+      );
+
+    confirmation +=
+      `\n\n📍 المنطقة: ${readiness.area.areaName}`;
+
+    confirmation +=
+      `\n🏠 العنوان: ${readiness.address}`;
+
+    confirmation +=
+      "\n\nإذا كل شي صحيح، اكتب بالضبط: *تأكيد الطلب*";
+
+    return {
+
+      success:
+        true,
+
+      reply:
+        confirmation
+    };
+  }
+
+  // ----------------------------------------------------
+  // كلمة التأكيد = تشغيل Checkout
+  // ----------------------------------------------------
+
+  const checkout =
+    await runRealCheckout(
+      customerID,
+      readiness
+    );
+
+  if (
+    !checkout?.success
+  ) {
+
+    return {
+
+      success:
+        false,
+
+      reply:
+        checkout?.message ||
+        "صار خطأ أثناء تأكيد الطلب، وما تم اعتماد الطلب."
+    };
+  }
+
+  return {
+
+    success:
+      true,
+
+    checkout:
+      true,
+
+    reply:
+      `✅ *تم تأكيد طلبك بنجاح!*\n\n🧾 رقم الطلب: *${checkout.request_id}*\n📍 المنطقة: ${readiness.area.areaName}\n🏠 العنوان: ${readiness.address}\n\nتم إرسال الطلب للمراجعة، ورح نخبرك بالتحديثات. ❤️`
+  };
+}
+
+
+// ======================================================
+// BOT AI
+// ======================================================
+
+async function runAI(
+  userMessage,
+  context
+) {
+
+  if (!GROQ_KEY) {
+
+    return {
+
+      success:
+        false,
+
+      reply:
+        "أهلا وسهلا! كيف بقدر ساعدك؟ 😊"
     };
   }
 
   try {
-    const prompt =
-      buildBot2Prompt(
-        safeContext
-      );
+
+    const prompt = `
+
+أنت Bot 2 الخاص بـ MD-Marketplace.
+
+أنت مساعد شراء عبر WhatsApp.
+
+مهمتك:
+- تفهم كلام العميل.
+- تساعده يختار المنتجات.
+- لا تخترع منتجات أو أسعار.
+- لا تخترع مناطق.
+- لا تخترع عناوين.
+- لا تدعي أن الطلب تأكد إذا لم ينفذ Checkout API فعلياً.
+- تحدث باللهجة اللبنانية الطبيعية.
+
+بيانات العميل:
+${JSON.stringify(
+  context.user
+)}
+
+السلة:
+${JSON.stringify(
+  context.cart
+)}
+
+بيانات المنطقة والعنوان:
+${JSON.stringify(
+  context.delivery
+)}
+
+رسالة العميل:
+${userMessage}
+
+النية:
+${context.intent}
+
+قواعد مهمة:
+
+1. إذا العميل يريد شراء منتج، ساعده باختيار المنتج الموجود فعلياً بالبيانات.
+
+2. إذا يوجد أكثر من منتج مشابه، اعرض الخيارات ولا تخترع.
+
+3. إذا المنتج غير موجود، قل له إنه غير موجود واقترح المنتجات الموجودة والقريبة بالاسم.
+
+4. إذا السلة موجودة، يمكنه إضافة منتجات أخرى.
+
+5. عند تجهيز الطلب:
+   يجب أن يكون هناك:
+   - منتجات بالسلة
+   - منطقة صحيحة من Areas
+   - عنوان
+   - Location موجود ببيانات العميل.
+
+6. لا تعتبر أي كلمة عادية تأكيداً.
+
+7. التأكيد الرسمي فقط عندما يكتب العميل:
+   "تأكيد الطلب"
+   أو صيغة واضحة جداً لها نفس المعنى.
+
+8. حتى لو العميل قال "خلص" أو "تمام" أو "ايه":
+   لا تعتبرها تأكيداً نهائياً.
+
+9. لا تقل "تم الطلب" إلا إذا Checkout API أعاد success=true.
+
+10. إذا في معلومة ناقصة، أخبر العميل تحديداً ما الذي ينقصه.
+
+جاوب بجملة أو جملتين عند الحاجة.
+لا تكرر كل البيانات إذا لم تكن ضرورية.
+`;
 
     const response =
       await fetch(
         "https://api.groq.com/openai/v1/chat/completions",
         {
+
           method:
             "POST",
 
           headers: {
+
             Authorization:
               `Bearer ${GROQ_KEY}`,
 
@@ -2385,10 +3515,12 @@ async function runBot2AI(
 
           body:
             JSON.stringify({
+
               model:
                 "openai/gpt-oss-20b",
 
               messages: [
+
                 {
                   role:
                     "system",
@@ -2404,10 +3536,11 @@ async function runBot2AI(
                   content:
                     userMessage
                 }
+
               ],
 
               temperature:
-                0.3
+                0.2
             })
         }
       );
@@ -2415,44 +3548,26 @@ async function runBot2AI(
     const data =
       await response.json();
 
-    if (
-      data.error
-    ) {
-      console.error(
-        "❌ Bot2 Groq Error:",
-        JSON.stringify(
-          data.error
-        )
-      );
-
-      return {
-        success:
-          false,
-
-        reply:
-          "صار ضغط شوي، جرب تبعتلي مرة تانية 🙏"
-      };
-    }
-
     const reply =
       data
         ?.choices?.[0]
         ?.message
         ?.content;
 
-    if (
-      !reply
-    ) {
+    if (!reply) {
+
       return {
+
         success:
           false,
 
         reply:
-          "ما قدرت عالج الرسالة حالياً، جرب مرة تانية 🙏"
+          "ما قدرت أفهم الرسالة، جرب اكتبلي بطريقة أبسط 🙏"
       };
     }
 
     return {
+
       success:
         true,
 
@@ -2461,210 +3576,82 @@ async function runBot2AI(
     };
 
   } catch (error) {
+
     console.error(
-      "❌ Bot2 AI Error:",
+      "❌ AI Error:",
       error
     );
 
     return {
+
       success:
         false,
 
       reply:
-        "صار عندي مشكلة صغيرة، جرب تبعتلي مرة تانية 🙏"
+        "صار معي خطأ صغير، جرب مرة تانية 🙏"
     };
   }
 }
+
+
 // ======================================================
-// 30. تجهيز Context الكامل لـ Bot 2
+// BUILD CONTEXT
 // ======================================================
 
-async function buildBot2Context(
+async function buildContext(
   user,
-  userMessage
+  message
 ) {
-  // ----------------------------------------------------
-  // قراءة المحادثة السابقة
-  // ----------------------------------------------------
 
-  const history =
-    await getRecentConversation(
-      user?.whatsappNumber ||
-      ""
-    );
+  const customerID =
+    user?.customerId ||
+    "";
 
-  // ----------------------------------------------------
-  // بيانات الطلبات
-  // ----------------------------------------------------
-
-  const orders =
-    user
-      ? await getUserOrders(
-          user
+  const cart =
+    customerID
+      ? await buildCartView(
+          customerID
         )
-      : [];
+      : {
+          items: [],
+          subtotal: 0,
+          points: 0,
+          count: 0
+        };
 
-  // ----------------------------------------------------
-  // تحديد الطلب الحالي
-  // ----------------------------------------------------
-
-  let selectedOrder =
-    null;
-
-  if (
-    orders.length
-  ) {
-    const message =
-      normalizeText(
-        userMessage
-      );
-
-    // أولاً: محاولة إيجاد Request ID داخل الرسالة
-    for (
-      const order of orders
-    ) {
-      const requestId =
-        normalizeText(
-          order["Request ID"] ||
-          ""
-        );
-
-      if (
-        requestId &&
-        message.includes(
-          requestId
+  const delivery =
+    customerID
+      ? await getCustomerDeliveryData(
+          customerID
         )
-      ) {
-        selectedOrder =
-          order;
+      : null;
 
-        break;
-      }
-    }
+  return {
 
-    // إذا لم يذكر Request ID
-    // نستخدم آخر طلب متاح للمستخدم
-    if (
-      !selectedOrder
-    ) {
-      selectedOrder =
-        orders[
-          orders.length - 1
-        ];
-    }
-  }
+    user,
 
-  // ----------------------------------------------------
-  // تفاصيل الطلب
-  // ----------------------------------------------------
+    cart,
 
-  let orderDetails =
-    [];
+    delivery,
 
-  if (
-    selectedOrder &&
-    selectedOrder["Request ID"]
-  ) {
-    orderDetails =
-      await getOrderDetails(
-        selectedOrder[
-          "Request ID"
-        ]
-      );
-  }
-
-  // ----------------------------------------------------
-  // البحث عن المنتجات
-  // ----------------------------------------------------
-
-  let products =
-    [];
-
-  if (user) {
-    products =
-      await searchProducts(
-        userMessage
-      );
-  }
-
-  // ----------------------------------------------------
-  // بيانات المنطقة والعنوان
-  // ----------------------------------------------------
-
-  let deliveryLocation =
-    {
-      success:
-        false,
-
-      reason:
-        "user_not_registered",
-
-      area:
-        null,
-
-      address:
-        null
-    };
-
-  if (user) {
-    deliveryLocation =
-      await resolveDeliveryLocation(
-        user,
-        userMessage
-      );
-  }
-
-  // ----------------------------------------------------
-  // Context داخلي موحد
-  // ----------------------------------------------------
-
-  const context =
-    {
-      area:
-        deliveryLocation.area,
-
-      address:
-        deliveryLocation.address,
-
-      deliverySuccess:
-        deliveryLocation.success,
-
-      deliveryReason:
-        deliveryLocation.reason,
-
-      products,
-
-      orders,
-
-      selectedOrder,
-
-      orderDetails
-    };
-
-  // ----------------------------------------------------
-  // بناء Context الآمن للـAI
-  // ----------------------------------------------------
-
-  const safeContext =
-    buildSafeAIContext(
-      user,
-      userMessage,
-      context,
-      history
-    );
-
-  return safeContext;
+    intent:
+      detectIntent(
+        message
+      )
+  };
 }
 
 
 // ======================================================
-// 31. WhatsApp GET Verification - Bot 2
+// WHATSAPP GET VERIFICATION
 // ======================================================
 
 export async function GET(
   req
 ) {
+
   try {
+
     const {
       searchParams
     } =
@@ -2687,19 +3674,12 @@ export async function GET(
         "hub.challenge"
       );
 
-    console.log(
-      "🔐 Bot 2 WhatsApp Verification"
-    );
-
     if (
       mode ===
         "subscribe" &&
       token ===
         VERIFY_TOKEN
     ) {
-      console.log(
-        "✅ Bot 2 Verification Success"
-      );
 
       return new Response(
         challenge,
@@ -2710,10 +3690,6 @@ export async function GET(
       );
     }
 
-    console.error(
-      "❌ Bot 2 Verification Failed"
-    );
-
     return new Response(
       "Forbidden",
       {
@@ -2722,11 +3698,10 @@ export async function GET(
       }
     );
 
-  } catch (
-    error
-  ) {
+  } catch (error) {
+
     console.error(
-      "❌ Bot 2 GET Error:",
+      "❌ GET Error:",
       error
     );
 
@@ -2740,57 +3715,29 @@ export async function GET(
   }
 }
 
-// ======================================================
-//  حفظ الرسالة في Messages - نسخة بوت 2
-// ======================================================
-async function saveToAppSheet(from, userMessage, aiReply) {
-  if (!APPSHEET_APP_ID || !APPSHEET_API_KEY) {
-    console.error("❌ AppSheet credentials ناقصة");
-    return;
-  }
-  try {
-    const today = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Beirut" });
-    const res = await fetch(
-      `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/Messages/Action`,
-      {
-        method: "POST",
-        headers: {
-          ApplicationAccessKey: APPSHEET_API_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          Action: "Add",
-          Properties: { TimeZone: "Asia/Beirut" },
-          Rows: [{ Phone: from, CustomerMessage: userMessage, AIReply: aiReply, Date: today }]
-        })
-      }
-    );
-    const result = await res.text();
-    console.log("💾 نتيجة الحفظ في AppSheet:", res.status, result);
-  } catch (error) {
-    console.error("❌ خطأ AppSheet:", error);
-  }
-}
 
 // ======================================================
-// 32. WhatsApp POST - Bot 2
+// WHATSAPP POST
 // ======================================================
+
 export async function POST(
   req
 ) {
+
   try {
+
     const body =
       await req.json();
 
     console.log(
-      "📩 Bot 2 Webhook:",
+      "📩 Bot 2:",
       JSON.stringify(
         body
       )
     );
 
     // ==================================================
-    // قراءة رسالة WhatsApp
+    // READ WHATSAPP MESSAGE
     // ==================================================
 
     const message =
@@ -2800,19 +3747,11 @@ export async function POST(
         ?.value
         ?.messages?.[0];
 
-    // --------------------------------------------------
-    // رقم المرسل
-    // --------------------------------------------------
-
     const from =
       message?.from ||
       body?.from ||
       body?.whatsappNumber ||
       "";
-
-    // --------------------------------------------------
-    // النص
-    // --------------------------------------------------
 
     const userText =
       message
@@ -2822,37 +3761,16 @@ export async function POST(
       body?.userText ||
       "";
 
-    // --------------------------------------------------
-    // تجاهل أي Webhook غير نصي
-    // --------------------------------------------------
-
     if (
       !from ||
       !userText
     ) {
-      console.log(
-        "ℹ️ Bot 2: لا توجد رسالة نصية"
-      );
 
-      return Response.json(
-        {
-          status:
-            "ok"
-        },
-        {
-          status:
-            200
-        }
-      );
+      return NextResponse.json({
+        status:
+          "ok"
+      });
     }
-
-    console.log(
-      `📩 Bot 2 Message | From: ${from} | Text: ${userText}`
-    );
-
-    // ==================================================
-    // توحيد رقم WhatsApp
-    // ==================================================
 
     const whatsappNumber =
       normalizeWhatsAppNumber(
@@ -2860,11 +3778,11 @@ export async function POST(
       );
 
     console.log(
-      `📱 Bot 2 Normalized Number: ${whatsappNumber}`
+      `📱 Customer: ${whatsappNumber}`
     );
 
     // ==================================================
-    // التعرف على المستخدم
+    // USER
     // ==================================================
 
     const user =
@@ -2872,114 +3790,284 @@ export async function POST(
         whatsappNumber
       );
 
-    if (
-      user
-    ) {
-      console.log(
-        `👤 Bot 2 User: ${user.name} | Role: ${user.role} | Customer ID: ${user.customerId}`
+    if (!user) {
+
+      const reply =
+        "أهلا وسهلا فيك بـ MD-Marketplace ❤️\n\nلازم يكون عندك حساب مسجل حتى أقدر ساعدك بالشراء والطلبات.";
+
+      await sendMessage(
+        whatsappNumber,
+        reply
       );
+
+      await saveToAppSheet(
+        from,
+        userText,
+        reply
+      );
+
+      return NextResponse.json({
+        status:
+          "ok"
+      });
     }
-    else {
-      console.log(
-        "⚠️ Bot 2: المستخدم غير موجود في Users"
+
+    const customerID =
+      user.customerId;
+
+    if (!customerID) {
+
+      const reply =
+        "حسابك موجود، بس ما عندي Customer ID مرتبط فيه. لازم نراجع الحساب.";
+
+      await sendMessage(
+        whatsappNumber,
+        reply
       );
+
+      await saveToAppSheet(
+        from,
+        userText,
+        reply
+      );
+
+      return NextResponse.json({
+        status:
+          "ok"
+      });
     }
 
     // ==================================================
-    // بناء Context
+    // CONTEXT
     // ==================================================
 
-    const safeContext =
-      await buildBot2Context(
+    const context =
+      await buildContext(
         user,
         userText
       );
 
-    console.log(
-      "🧠 Bot 2 Safe Context:",
-      JSON.stringify(
-        safeContext
+    // ==================================================
+    // CHECKOUT CONFIRMATION
+    // ==================================================
+
+    if (
+      isCheckoutConfirmation(
+        userText
       )
-    );
+    ) {
 
-    // ==================================================
-    // تشغيل AI
-    // ==================================================
+      const result =
+        await handleCheckout(
+          customerID,
+          userText
+        );
 
-    const aiResult =
-      await runBot2AI(
-        userText,
-        safeContext
+      await sendMessage(
+        whatsappNumber,
+        result.reply
       );
 
-    const aiReply =
+      await saveToAppSheet(
+        from,
+        userText,
+        result.reply
+      );
+
+      return NextResponse.json({
+        status:
+          "ok",
+
+        action:
+          result.checkout
+            ? "CHECKOUT"
+            : "CHECKOUT_VALIDATION"
+      });
+    }
+
+    // ==================================================
+    // CART COMMAND
+    // ==================================================
+
+    const cartCommand =
+      detectCartCommand(
+        userText
+      );
+
+    if (
+      cartCommand
+    ) {
+
+      const result =
+        await handleCart(
+          customerID,
+          userText
+        );
+
+      await sendMessage(
+        whatsappNumber,
+        result.reply
+      );
+
+      await saveToAppSheet(
+        from,
+        userText,
+        result.reply
+      );
+
+      return NextResponse.json({
+        status:
+          "ok",
+
+        action:
+          "CART"
+      });
+    }
+
+    // ==================================================
+    // SHOPPING
+    // ==================================================
+
+    if (
+      context.intent ===
+      "shopping"
+    ) {
+
+      const result =
+        await handleShopping(
+          customerID,
+          userText
+        );
+
+      await sendMessage(
+        whatsappNumber,
+        result.reply
+      );
+
+      await saveToAppSheet(
+        from,
+        userText,
+        result.reply
+      );
+
+      return NextResponse.json({
+        status:
+          "ok",
+
+        action:
+          "SHOPPING"
+      });
+    }
+
+    // ==================================================
+    // "تأكيد" FLOW / CHECKOUT PREVIEW
+    // ==================================================
+
+    const text =
+      normalizeText(
+        userText
+      );
+
+    if (
+      text.includes(
+        "خلص"
+      ) ||
+      text.includes(
+        "جاهز"
+      ) ||
+      text.includes(
+        "بدي اطلب"
+      ) ||
+      text.includes(
+        "بدي أكد"
+      ) ||
+      text.includes(
+        "بدي اكد"
+      ) ||
+      text.includes(
+        "checkout"
+      )
+    ) {
+
+      const result =
+        await handleCheckout(
+          customerID,
+          ""
+        );
+
+      await sendMessage(
+        whatsappNumber,
+        result.reply
+      );
+
+      await saveToAppSheet(
+        from,
+        userText,
+        result.reply
+      );
+
+      return NextResponse.json({
+        status:
+          "ok",
+
+        action:
+          "CHECKOUT_PREVIEW"
+      });
+    }
+
+    // ==================================================
+    // GENERAL AI
+    // ==================================================
+
+    const history =
+      await getRecentConversation(
+        whatsappNumber
+      );
+
+    context.history =
+      history;
+
+    const aiResult =
+      await runAI(
+        userText,
+        context
+      );
+
+    const reply =
       aiResult?.reply ||
-      "أهلا وسهلا! كيف بقدر ساعدك اليوم؟ 😊";
-
-    console.log(
-      "🤖 Bot 2 Reply:",
-      aiReply
-    );
-
-    // ==================================================
-    // إرسال الرد فقط
-    // ==================================================
+      "كيف فيني ساعدك؟ 😊";
 
     await sendMessage(
       whatsappNumber,
-      aiReply
+      reply
     );
-
-    // ==================================================
-    // حفظ المحادثة فقط
-    // ==================================================
 
     await saveToAppSheet(
       from,
       userText,
-      aiReply
+      reply
     );
 
-    // ==================================================
-    // مهم جداً:
-    // Bot 2 لا ينفذ أي عملية على Marketplace
-    // ==================================================
+    return NextResponse.json({
 
-    console.log(
-      "👂 Bot 2 انتهى: Listen / Compare / Reply فقط"
-    );
+      status:
+        "ok",
 
-    return Response.json(
-      {
-        status:
-          "ok",
+      bot:
+        "bot2",
 
-        bot:
-          "bot2",
+      readOnly:
+        false
+    });
 
-        readOnly:
-          true
-      },
-      {
-        status:
-          200
-      }
-    );
+  } catch (error) {
 
-  } catch (
-    error
-  ) {
     console.error(
       "❌ Bot 2 POST Error:",
       error
     );
 
-    // --------------------------------------------------
-    // WhatsApp يفضل استلام 200
-    // حتى لا يعيد إرسال Webhook
-    // --------------------------------------------------
-
-    return Response.json(
+    return NextResponse.json(
       {
         status:
           "ok"
