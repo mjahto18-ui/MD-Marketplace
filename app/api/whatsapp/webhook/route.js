@@ -997,14 +997,15 @@ async function saveToAppSheet(
   try {
 
     const today =
-      new Date()
-        .toLocaleDateString(
-          "en-US",
-          {
-            timeZone:
-              "Asia/Beirut"
-          }
-        );
+  new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone: "Asia/Beirut",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }
+  ).format(new Date());
 
     const row = {
 
