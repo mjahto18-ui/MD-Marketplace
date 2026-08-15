@@ -777,7 +777,7 @@ async function appSheetAction(
               Properties: {
 
                 Locale:
-                  "ar-SA",
+                  "en-US",
 
                 TimeZone:
                   "Asia/Beirut"
