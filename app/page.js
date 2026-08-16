@@ -132,54 +132,102 @@ export default function HomePage() {
     <div className="min-h-screen bg-white overflow-hidden">
 
       {/* =====================================================
-          NAVBAR
-      ===================================================== */}
+    NAVBAR
+===================================================== */}
 
-      <nav className="absolute top-0 left-0 right-0 z-50 px-5 md:px-10 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+<nav className="absolute top-0 left-0 right-0 z-50 px-4 md:px-10 py-4 md:py-5">
+  <div className="max-w-7xl mx-auto">
 
-          {/* Logo */}
-          <div className="text-white text-right">
-            <div className="font-black text-[18px] md:text-[22px] tracking-wide">
-              MD-MARKETPLACE
-            </div>
+    <div className="flex items-center justify-between">
 
-            <div className="text-white/50 text-[10px] md:text-xs mt-1">
-              One App For Everything
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center gap-2">
-
-            {/* Shop */}
-            <Link
-              href="/shop"
-              className="bg-white text-[#17144d] px-5 md:px-7 py-2.5 rounded-full font-black text-[13px] md:text-sm shadow-lg hover:scale-105 transition"
-            >
-              Shop
-            </Link>
-
-            {/* AI Guide */}
-            <Link
-              href={SITE.links.aiGuide}
-              className="border border-white/20 bg-white/5 backdrop-blur-md text-white px-5 md:px-7 py-2.5 rounded-full font-bold text-[13px] md:text-sm hover:bg-white/10 transition"
-            >
-              🤖 دليل AI
-            </Link>
-
-            {/* Login */}
-            <Link
-              href="/login"
-              className="border border-white/20 bg-white/5 backdrop-blur-md text-white px-5 md:px-7 py-2.5 rounded-full font-bold text-[13px] md:text-sm hover:bg-white/10 transition"
-            >
-              Login
-            </Link>
-
-          </div>
+      {/* Logo */}
+      <Link
+        href="/"
+        className="text-white text-right shrink-0"
+      >
+        <div className="font-black text-[16px] md:text-[22px] tracking-wide">
+          MD-MARKETPLACE
         </div>
-      </nav>
 
+        <div className="text-white/50 text-[9px] md:text-xs mt-1">
+          One App For Everything
+        </div>
+      </Link>
+
+
+      {/* ================= DESKTOP NAV ================= */}
+
+      <div className="hidden md:flex items-center gap-2">
+
+        <Link
+          href="/shop"
+          className="bg-white text-[#17144d] px-5 md:px-7 py-2.5 rounded-full font-black text-sm shadow-lg hover:scale-105 transition"
+        >
+          Shop
+        </Link>
+
+        <Link
+          href={SITE.links.aiGuide}
+          className="border border-white/20 bg-white/5 backdrop-blur-md text-white px-5 md:px-7 py-2.5 rounded-full font-bold text-sm hover:bg-white/10 transition"
+        >
+          🤖 دليل AI
+        </Link>
+
+        <Link
+          href="/login"
+          className="border border-white/20 bg-white/5 backdrop-blur-md text-white px-5 md:px-7 py-2.5 rounded-full font-bold text-sm hover:bg-white/10 transition"
+        >
+          Login
+        </Link>
+
+      </div>
+
+
+      {/* ================= MOBILE MENU ================= */}
+
+      <details className="relative md:hidden">
+
+        <summary
+          className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md shadow-lg"
+          aria-label="فتح القائمة"
+        >
+          <span className="text-xl leading-none">
+            ☰
+          </span>
+        </summary>
+
+
+        <div className="absolute left-0 top-14 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#171442]/95 p-2 shadow-2xl backdrop-blur-xl">
+
+          <Link
+            href="/shop"
+            className="block rounded-xl px-4 py-3 text-sm font-black text-white hover:bg-white/10"
+          >
+            🛍️ Shop
+          </Link>
+
+          <Link
+            href={SITE.links.aiGuide}
+            className="block rounded-xl px-4 py-3 text-sm font-bold text-white hover:bg-white/10"
+          >
+            🤖 دليل استخدام AI
+          </Link>
+
+          <Link
+            href="/login"
+            className="block rounded-xl px-4 py-3 text-sm font-bold text-white hover:bg-white/10"
+          >
+            🔐 Login
+          </Link>
+
+        </div>
+
+      </details>
+
+    </div>
+
+  </div>
+</nav>
 
       {/* =====================================================
           HERO
