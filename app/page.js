@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ShoppingBag, MapPin, Truck, ShieldCheck, Headphones } from "lucide-react";
+import {
+  ArrowRight,
+  ShoppingBag,
+  MapPin,
+  Truck,
+  ShieldCheck,
+  Headphones,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 const SITE = {
@@ -24,6 +31,7 @@ const SITE = {
   links: {
     privacy: "/privacy",
     terms: "/terms",
+    aiGuide: "/ai-guide",
   },
 };
 
@@ -33,10 +41,6 @@ export default function HomePage() {
 
   /*
    * قراءة حالة المنصة والرسالة من Global Config
-   * لازم يكون عندك API endpoint يرجع getGlobalConfig()
-   *
-   * مثال:
-   * /api/global-config
    */
   useEffect(() => {
     async function loadConfig() {
@@ -148,6 +152,7 @@ export default function HomePage() {
           {/* Navigation */}
           <div className="flex items-center gap-2">
 
+            {/* Shop */}
             <Link
               href="/shop"
               className="bg-white text-[#17144d] px-5 md:px-7 py-2.5 rounded-full font-black text-[13px] md:text-sm shadow-lg hover:scale-105 transition"
@@ -155,6 +160,15 @@ export default function HomePage() {
               Shop
             </Link>
 
+            {/* AI Guide */}
+            <Link
+              href={SITE.links.aiGuide}
+              className="border border-white/20 bg-white/5 backdrop-blur-md text-white px-5 md:px-7 py-2.5 rounded-full font-bold text-[13px] md:text-sm hover:bg-white/10 transition"
+            >
+              🤖 دليل AI
+            </Link>
+
+            {/* Login */}
             <Link
               href="/login"
               className="border border-white/20 bg-white/5 backdrop-blur-md text-white px-5 md:px-7 py-2.5 rounded-full font-bold text-[13px] md:text-sm hover:bg-white/10 transition"
@@ -332,43 +346,43 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
 
-                    {categories.map((category, i) => (
+            {categories.map((category, i) => (
 
-          <Link
-            href="/shop"
-            key={i}
-            className="group relative h-[190px] md:h-[260px] rounded-[24px] md:rounded-[30px] overflow-hidden shadow-sm hover:shadow-2xl transition-all"
-          >
+              <Link
+                href="/shop"
+                key={i}
+                className="group relative h-[190px] md:h-[260px] rounded-[24px] md:rounded-[30px] overflow-hidden shadow-sm hover:shadow-2xl transition-all"
+              >
 
-            <Image
-              src={category.image}
-              alt={category.title}
-              fill
-              className="object-cover group-hover:scale-110 transition duration-700"
-            />
+                <Image
+                  src={category.image}
+                  alt={category.title}
+                  fill
+                  className="object-cover group-hover:scale-110 transition duration-700"
+                />
 
-          </Link>
+              </Link>
 
-        ))}
+            ))}
 
-      </div>
+          </div>
 
 
-      <div className="text-center mt-9">
+          <div className="text-center mt-9">
 
-        <Link
-          href="/shop"
-          className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text-[13px] hover:bg-purple-700 transition"
-        >
-          اكتشف كل المتاجر
-          <ArrowRight size={16} />
-        </Link>
+            <Link
+              href="/shop"
+              className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text-[13px] hover:bg-purple-700 transition"
+            >
+              اكتشف كل المتاجر
+              <ArrowRight size={16} />
+            </Link>
 
-      </div>
+          </div>
 
-    </div>
+        </div>
 
-  </section>
+      </section>
 
 
       {/* =====================================================
@@ -456,7 +470,14 @@ export default function HomePage() {
                 {SITE.address}
               </p>
 
-              <div className="flex gap-4 mt-5">
+              <div className="flex flex-wrap gap-4 mt-5">
+
+                <Link
+                  href={SITE.links.aiGuide}
+                  className="text-purple-300 text-xs hover:text-white font-bold"
+                >
+                  🤖 دليل استخدام MD-Marketplace AI
+                </Link>
 
                 <Link
                   href={SITE.links.privacy}
@@ -512,14 +533,15 @@ export default function HomePage() {
                 >
                   YouTube
                 </a>
-                    <a
-  href={SITE.social.x}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-black transition text-xs font-bold"
->
-  𝕏 
-</a>
+
+                <a
+                  href={SITE.social.x}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-black transition text-xs font-bold"
+                >
+                  𝕏
+                </a>
 
               </div>
 
@@ -546,16 +568,22 @@ export default function HomePage() {
       ===================================================== */}
 
       <style jsx>{`
-  .coming-soon-marquee {
-    padding-right: 100%;
-    animation: comingSoonMoveReverse 18s linear infinite;
-    direction: rtl;
-  }
-  @keyframes comingSoonMoveReverse {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
-`}</style>
+        .coming-soon-marquee {
+          padding-right: 100%;
+          animation: comingSoonMoveReverse 18s linear infinite;
+          direction: rtl;
+        }
+
+        @keyframes comingSoonMoveReverse {
+          0% {
+            transform: translateX(-100%);
+          }
+
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
 
     </div>
   );
