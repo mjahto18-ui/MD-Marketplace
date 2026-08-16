@@ -621,7 +621,7 @@ export default function AIGuidePage() {
 
             {/* ضع رقم WhatsApp هنا */}
             <a
-              href="https://wa.me/ضع_رقم_الواتساب_هنا"
+              href="https://wa.me/9613177653"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 font-black text-[#11183f] shadow-lg transition hover:scale-105"
@@ -632,7 +632,7 @@ export default function AIGuidePage() {
 
             {/* ضع الإيميل هنا */}
             <a
-              href="mailto:ضع_الايميل_هنا"
+              href="mailto:info@md-marketplace.store"
               className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-7 py-4 font-black text-white transition hover:bg-white/20"
             >
               ✉️ البريد الإلكتروني
