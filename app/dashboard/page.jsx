@@ -323,9 +323,78 @@ export default function Dashboard() {
 
       </div>
 
-      <button onClick={() => window.open('https://wa.me/966558224093?text=مرحبا، بدي استفسر عن طلبي')} className="fixed bottom-6 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all z-50">
-        <MessageCircle className="w-7 h-7 text-white" />
-      </button>
+      {/* ================= AI WHATSAPP ASSISTANT ================= */}
+<a
+  href="https://wa.me/966558224093?text=مرحبا، بدي استفسر عن طلبي"
+  target="_blank"
+  rel="noopener noreferrer"
+  aria-label="MD-Marketplace AI على WhatsApp"
+  className="fixed bottom-6 right-6 z-50 flex flex-col items-center group"
+>
+  <div className="relative">
+
+    <div
+      className="
+        w-16 h-16
+        rounded-full
+        bg-gradient-to-br from-purple-600 via-pink-500 to-purple-700
+        flex items-center justify-center
+        shadow-[0_8px_30px_rgba(168,85,247,0.45)]
+        border-2 border-white/20
+        transition-all duration-300
+        group-hover:scale-110
+        group-active:scale-95
+      "
+    >
+      <span className="text-[34px] leading-none">
+        🤖
+      </span>
+    </div>
+
+    <span
+      className="
+        absolute
+        -top-2
+        -right-2
+        min-w-[28px]
+        h-[28px]
+        px-1.5
+        rounded-full
+        bg-white
+        text-purple-700
+        text-[11px]
+        font-black
+        flex items-center justify-center
+        shadow-md
+        border border-purple-100
+      "
+    >
+      AI
+    </span>
+
+  </div>
+
+  <div
+    className="
+      mt-2
+      px-3
+      py-1.5
+      rounded-full
+      bg-white
+      text-[#11183f]
+      text-[10px]
+      font-black
+      shadow-lg
+      whitespace-nowrap
+      border border-purple-100
+      transition-all
+      group-hover:scale-105
+    "
+  >
+    MD-Marketplace AI
+  </div>
+
+</a>
 
       {showLocationModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
