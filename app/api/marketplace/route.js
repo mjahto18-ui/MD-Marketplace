@@ -1,16 +1,12 @@
 import { google } from "googleapis";
 export const dynamic = "force-dynamic";
 
-// ===== تعريف الويبهوك تبع ميتا =====
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
-
-// ===== تعريف المتغيرات =====
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY;
 
-// ===== تعريف الجدولين =====
 const SHEET_IDS = [
   '16Sx7YjtCMyVtvHTBLDowKeiUrLPDc9-PdD9hGgOLL6o',
   '1JdCGyVh6HZCBHlWgAVKuVsWwwoCgGf4__UUXP1YlPO4'
@@ -19,6 +15,10 @@ const SHEET_IDS = [
 let CACHE = null;
 let CODE_INDEX = new Map();
 let CACHE_TIME = 0;
+let LOADING_PROMISE = null;
+
+// حفظ اخر منتج لكل رقم عشان السعرات
+let LAST_PRODUCT = new Map();
 
 function getSheets() {
   const auth = new google.auth.GoogleAuth({
@@ -30,31 +30,37 @@ function getSheets() {
 
 async function loadAll() {
   if (CACHE && Date.now() - CACHE_TIME < 24*3600*1000) return CACHE;
-  const sheets = getSheets();
-  let all = [];
-  for (const id of SHEET_IDS) {
-    try {
-      const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
-      for (const s of meta.data.sheets) {
-        const title = s.properties.title;
-        try {
-          const res = await sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${title}!A2:F` });
-          for (const r of (res.data.values || [])) {
-            if (!r[0]) continue;
-            all.push({
-              code: String(r[0]).trim(),
-              name: r[1] || '', nameLower: String(r[1] || '').toLowerCase(),
-              brand: r[2] || '', brandLower: String(r[2] || '').toLowerCase(),
-              quantity: r[3] || '', countries: r[4] || '', image: r[5] || ''
-            });
-          }
-        } catch(e){}
-      }
-    } catch(e){ console.error('Sheet error', e.message) }
-  }
-  CACHE = all; CODE_INDEX.clear(); for(const p of all) CODE_INDEX.set(p.code,p); CACHE_TIME=Date.now();
-  console.log(`✅ Marketplace Loaded ${all.length}`);
-  return all;
+  if (LOADING_PROMISE) return await LOADING_PROMISE;
+  LOADING_PROMISE = (async () => {
+    const sheets = getSheets();
+    let all = [];
+    for (const id of SHEET_IDS) {
+      try {
+        const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
+        for (const s of meta.data.sheets) {
+          const title = s.properties.title;
+          try {
+            const res = await sheets.spreadsheets.values.get({ spreadsheetId: id, range: `${title}!A2:F` });
+            for (const r of (res.data.values || [])) {
+              if (!r[0]) continue;
+              all.push({
+                code: String(r[0]).trim(),
+                name: r[1] || '', nameLower: String(r[1] || '').toLowerCase(),
+                brand: r[2] || '', brandLower: String(r[2] || '').toLowerCase(),
+                quantity: r[3] || '', countries: r[4] || '', image: r[5] || ''
+              });
+            }
+          } catch(e){}
+        }
+      } catch(e){}
+    }
+    CACHE = all; CODE_INDEX.clear(); for(const p of all) CODE_INDEX.set(p.code,p); CACHE_TIME=Date.now();
+    console.log(`✅ Loaded ${all.length}`);
+    return all;
+  })();
+  const result = await LOADING_PROMISE;
+  LOADING_PROMISE = null;
+  return result;
 }
 
 function normalizeWhatsAppNumber(phone) {
@@ -67,109 +73,168 @@ function normalizeWhatsAppNumber(phone) {
 }
 
 async function sendMessage(to, text) {
-  if (!WHATSAPP_TOKEN) { console.log("❌ NO WHATSAPP_TOKEN"); return false; }
+  if (!WHATSAPP_TOKEN) return false;
   const cleanPhone = normalizeWhatsAppNumber(to);
-  if (!cleanPhone) return false;
   try {
     const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "text", text: { body: String(text) } })
+      body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "text", text: { body: String(text).substring(0,4000) } })
     });
-    const data = await res.json();
-    console.log("📤 WhatsApp Marketplace:", JSON.stringify(data));
     return res.ok;
-  } catch(e){ console.error("❌ Send Error", e); return false; }
+  } catch(e){ return false; }
+}
+
+async function sendImageMessage(to, imageUrl, caption) {
+  if (!WHATSAPP_TOKEN ||!imageUrl) return await sendMessage(to, caption);
+  const cleanPhone = normalizeWhatsAppNumber(to);
+  try {
+    const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: cleanPhone,
+        type: "image",
+        image: { link: imageUrl, caption: String(caption).substring(0, 1000) }
+      })
+    });
+    if (res.ok) return true;
+    return await sendMessage(to, caption);
+  } catch(e){ return await sendMessage(to, caption); }
+}
+
+async function getCaloriesFromGoogle(barcode) {
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+    const data = await res.json();
+    if (data.status === 1 && data.product?.nutriments) {
+      const n = data.product.nutriments;
+      let reply = `🔥 *السعرات لـ ${data.product.product_name || barcode}:*\n\n`;
+      if (n['energy-kcal_100g']) reply += `⚡ ${n['energy-kcal_100g']} سعرة / 100غ\n`;
+      if (n['energy-kcal_serving']) reply += `🍽 ${n['energy-kcal_serving']} سعرة / حصة\n`;
+      if (n.fat_100g) reply += `🧈 دهون: ${n.fat_100g}غ\n`;
+      if (n.sugars_100g) reply += `🍬 سكر: ${n.sugars_100g}غ\n`;
+      if (n.proteins_100g) reply += `💪 بروتين: ${n.proteins_100g}غ\n`;
+      if (n.carbohydrates_100g) reply += `🍞 كارب: ${n.carbohydrates_100g}غ\n`;
+      return reply + `\n📚 المصدر: OpenFoodFacts`;
+    }
+    return `❌ ما لقيت سعرات للباركود ${barcode} على Google / OpenFoodFacts`;
+  } catch(e) {
+    return `❌ خطأ بجلب السعرات: ${e.message}`;
+  }
+}
+
+function buildReply(p) {
+  let reply = `📦 *${p.name}*\n\n🏷 ${p.brand}\n🔢 ${p.code}\n⚖ ${p.quantity}\n🌍 ${p.countries}`;
+  return reply;
 }
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   if (searchParams.get('warmup') === 'true') {
     const data = await loadAll();
-    return Response.json({ warmed: true, count: data.length, route: "marketplace + whatsapp webhook" });
+    return Response.json({ warmed: true, count: data.length });
   }
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("✅ Webhook Verified - Marketplace");
-    return new Response(challenge, { status: 200 });
-  }
-  return Response.json({ status: "Marketplace + WhatsApp Webhook ready", count: CACHE?.length || 0 });
+  if (mode === "subscribe" && token === VERIFY_TOKEN) return new Response(challenge, { status: 200 });
+  return Response.json({ status: "ready", count: CACHE?.length || 0 });
 }
 
 export async function POST(req) {
   try {
     const body = await req.json();
-
-    // ===== 1. اذا جاي من واتساب (ميتا) =====
     const waMessage = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+
     if (waMessage) {
       const from = waMessage.from;
-      const userText = waMessage.text?.body || "";
+      const userText = (waMessage.text?.body || "").trim();
       if (!from ||!userText) return Response.json({ status: "ok" }, { status: 200 });
-      console.log(`📩 WhatsApp -> Marketplace: ${from} | ${userText}`);
+
+      const lower = userText.toLowerCase();
+
+      // اذا قال ايه / نعم -> جيب السعرات
+      if (["ايه","إيه","اي","نعم","yes","y","بدي","بدي السعرات"].includes(lower)) {
+        const last = LAST_PRODUCT.get(from);
+        if (!last) {
+          await sendMessage(from, "❌ ابعت باركود أول شي");
+          return Response.json({ status: "ok" }, { status: 200 });
+        }
+        await sendMessage(from, `⏳ عم جيب السعرات لـ ${last.code}...`);
+        const cal = await getCaloriesFromGoogle(last.code);
+        await sendMessage(from, cal);
+        return Response.json({ status: "ok" }, { status: 200 });
+      }
+
       const products = await loadAll();
-      const q = userText.toLowerCase().trim();
       let found = [];
-      if (CODE_INDEX.has(userText.trim())) found = [CODE_INDEX.get(userText.trim())];
+      if (CODE_INDEX.has(userText)) found = [CODE_INDEX.get(userText)];
       else {
+        const q = lower;
         for (let i = 0; i < products.length; i++) {
           const p = products[i];
           if (p.nameLower.includes(q) || p.brandLower.includes(q)) { found.push(p); if(found.length>=1) break; }
         }
       }
-      let reply;
-      if (!found.length) reply = `❌ "${userText}" مش موجود ضمن 2.15M`;
-      else {
+
+      if (!found.length) {
+        await sendMessage(from, `❌ "${userText}" مش موجود`);
+      } else {
         const p = found[0];
-        reply = `🧪 Marketplace Test\n\n📦 ${p.name}\n🏷 ${p.brand}\n🔢 ${p.code}\n⚖ ${p.quantity}\n🌍 ${p.countries}\n\n✅ شغال! منفصل عن BOT1`;
+        LAST_PRODUCT.set(from, p); // حفظ للسعرات
+        let reply = buildReply(p) + `\n\n❓ *بدك السعرات؟* اكتب: ايه`;
+        if (p.image && p.image.startsWith('http')) await sendImageMessage(from, p.image, reply);
+        else await sendMessage(from, reply);
       }
-      await sendMessage(from, reply);
-      return Response.json({ status: "ok", source: "whatsapp" }, { status: 200 });
+      return Response.json({ status: "ok" }, { status: 200 });
     }
 
-    // ===== 2. اذا جاي من AppSheet =====
+    // AppSheet
     const query = String(body.query || body.text || body.BARCODE || body.Barcode || body.barcode || '').trim();
     const phoneFromAppSheet = body.Mobile || body.mobile || body.Phone || body.phone || body.to || body.From;
+    if (!query) return Response.json({ reply: "ابعت query" });
 
-    if (!query) return Response.json({ reply: "ابعت query" }, { status: 200 });
+    const lowerQ = query.toLowerCase();
+    if (["ايه","نعم","yes"].includes(lowerQ) && phoneFromAppSheet) {
+      const last = LAST_PRODUCT.get(normalizeWhatsAppNumber(phoneFromAppSheet));
+      if (last) {
+        const cal = await getCaloriesFromGoogle(last.code);
+        await sendMessage(phoneFromAppSheet, cal);
+        return Response.json({ reply: cal });
+      }
+    }
 
     const products = await loadAll();
-    const q = query.toLowerCase();
     let found = [];
     if (CODE_INDEX.has(query)) found = [CODE_INDEX.get(query)];
     else {
       for (let i = 0; i < products.length; i++) {
         const p = products[i];
-        if (p.nameLower.includes(q) || p.brandLower.includes(q)) { found.push(p); if(found.length>=3) break; }
+        if (p.nameLower.includes(lowerQ) || p.brandLower.includes(lowerQ)) { found.push(p); if(found.length>=3) break; }
       }
     }
 
     if (!found.length) {
-      const notFound = `❌ "${query}" مش موجود ضمن 2.15M`;
-      if (phoneFromAppSheet) {
-        console.log(`📤 AppSheet -> WhatsApp (Not Found): ${phoneFromAppSheet}`);
-        await sendMessage(phoneFromAppSheet, notFound);
-      }
-      return Response.json({ reply: notFound, sent_to_whatsapp: phoneFromAppSheet || null });
+      const notFound = `❌ "${query}" مش موجود`;
+      if (phoneFromAppSheet) await sendMessage(phoneFromAppSheet, notFound);
+      return Response.json({ reply: notFound });
     }
 
     const p = found[0];
-    let reply = `📦 ${p.name}\n🏷 ${p.brand}\n🔢 ${p.code}\n⚖ ${p.quantity}\n🌍 ${p.countries}`;
+    if (phoneFromAppSheet) LAST_PRODUCT.set(normalizeWhatsAppNumber(phoneFromAppSheet), p);
+    const reply = buildReply(p) + `\n\n❓ بدك السعرات؟ اكتب: ايه`;
 
-    // اذا في رقم موبايل من AppSheet -> ابعت واتساب
     if (phoneFromAppSheet) {
-      console.log(`📤 AppSheet -> WhatsApp: ${phoneFromAppSheet} | ${query} -> ${p.name}`);
-      await sendMessage(phoneFromAppSheet, reply);
-      return Response.json({ reply, sent_to_whatsapp: phoneFromAppSheet, image: p.image, product: p, count: products.length });
+      if (p.image && p.image.startsWith('http')) await sendImageMessage(phoneFromAppSheet, p.image, reply);
+      else await sendMessage(phoneFromAppSheet, reply);
     }
 
-    // اذا ما في رقم - رجع JSON عادي
-    return Response.json({ reply, image: p.image, product: p, count: products.length });
+    return Response.json({ reply, image: p.image, product: p });
 
   } catch(e) {
-    console.error("Marketplace Error", e);
+    console.error("Error", e);
     return Response.json({ status: "ok", error: e.message }, { status: 200 });
   }
 }
