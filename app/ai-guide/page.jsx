@@ -45,7 +45,7 @@ export default function AIGuidePage() {
           <div className="order-2 flex justify-center lg:order-1">
             <div className="relative w-full max-w-">
               <div className="relative overflow-hidden rounded- bg-white shadow-[0_20px_70px_rgba(110,40,220,0.15)]"><Image src="/ai-guide.webp" alt="MD-Marketplace AI" width={800} height={450} priority className="h-auto w-full object-cover" /></div>
-              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-purple-700 to-pink-500 px-7 py-2 text-lg font-black text-white shadow-lg">AI</div>
+              {/* شلت AI badge من هون */}
               <div className="absolute -right-3 -top-7 hidden max-w- rounded-3xl bg-white p-4 text-center text-sm font-bold shadow-xl sm:block">👋 مرحباً!<br/>أنا مساعدك الذكي<br/>لمساعدتك في طلباتك واستفساراتك<div className="absolute bottom-[-8px] right-10 h-4 w-4 rotate-45 bg-white" /></div>
             </div>
           </div>
@@ -81,9 +81,12 @@ export default function AIGuidePage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, index) => (
               <details key={index} className="group rounded-3xl border border-gray-100 bg-white p-6 text-right shadow-sm transition hover:-translate-y-1 hover:border-purple-200 hover:shadow-xl open:border-purple-200 open:shadow-xl">
-                <summary className="flex list-none cursor-pointer items-start justify-between"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 text-3xl">{step.icon}</div><span className="text-sm font-bold text-purple-500">{index + 1}</span></summary>
-                <h3 className="mt-5 text-lg font-black">{step.title}</h3>
-                <p className="mt-2 text-sm leading-7 text-gray-500">{step.text}</p>
+                <summary className="flex list-none cursor-pointer items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 text-3xl">{step.icon}</div>
+                  <h3 className="flex-1 text-base font-black leading-6">{step.title}</h3>
+                  <span className="text-sm font-bold text-purple-500">{index + 1}</span>
+                </summary>
+                <p className="mt-4 mr- text-sm leading-7 text-gray-500">{step.text}</p>
               </details>
             ))}
           </div>
