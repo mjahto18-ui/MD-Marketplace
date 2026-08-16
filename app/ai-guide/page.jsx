@@ -10,18 +10,18 @@ export default function AIGuidePage() {
   const steps = [
     {
       icon: "👋",
-      title: "ابدأ المحادثة",
-      text: "تواصل مع MD-Marketplace AI عبر WhatsApp وابدأ بطلبك أو سؤالك مباشرة.",
+      title: "اكتب طلبك بطريقة طبيعية",
+      text: "اكتب اسم المنتج أو السؤال بطريقة بسيطة وطبيعية، بدون الحاجة لحفظ أوامر معقدة.",
     },
     {
       icon: "🔎",
       title: "ابحث عن المنتج",
-      text: "اكتب اسم المنتج الذي تريده بطريقة طبيعية، والمساعد يبحث لك عن المنتجات المتوفرة فعلياً.",
+      text: "المساعد يبحث لك عن المنتجات المتوفرة فعلياً ضمن متاجر MD-Marketplace.",
     },
     {
       icon: "🥤",
       title: "اختر الحجم أو الوحدة",
-      text: "إذا كان المنتج موجوداً بأكثر من حجم، سيطلب منك المساعد اختيار الحجم المناسب قبل إضافته إلى السلة.",
+      text: "إذا كان المنتج موجوداً بأكثر من حجم أو وحدة، سيطلب منك المساعد اختيار الخيار المناسب قبل إضافته إلى السلة.",
     },
     {
       icon: "🛒",
@@ -35,8 +35,8 @@ export default function AIGuidePage() {
     },
     {
       icon: "📍",
-      title: "حدد التوصيل",
-      text: "عند تجهيز الطلب، يتم تحديد منطقة وعنوان التوصيل وموقعك المسجل.",
+      title: "جهّز معلومات التوصيل",
+      text: "عند تجهيز الطلب، يتم استخدام منطقة وعنوان وموقع التوصيل المرتبط بحسابك.",
     },
     {
       icon: "✅",
@@ -46,7 +46,7 @@ export default function AIGuidePage() {
     {
       icon: "📦",
       title: "تابع طلبك",
-      text: "بعد إنشاء الطلب، يمكنك متابعة حالته والاستفسار عنه من خلال المساعد.",
+      text: "بعد إنشاء الطلب، يمكنك الاستفسار عن حالته ومتابعته من خلال خدمة MD-Marketplace AI.",
     },
   ];
 
@@ -75,17 +75,10 @@ export default function AIGuidePage() {
 
             <Link
               href="/"
-              className="hidden rounded-full border border-gray-200 px-5 py-2 text-sm font-semibold transition hover:border-purple-400 hover:text-purple-700 sm:block"
+              className="rounded-full border border-gray-200 px-5 py-2 text-sm font-semibold transition hover:border-purple-400 hover:text-purple-700"
             >
               الرئيسية
             </Link>
-
-            <a
-              href="https://wa.me/"
-              className="rounded-full bg-gradient-to-r from-[#641ee8] to-[#ed1687] px-5 py-2 text-sm font-bold text-white shadow-md transition hover:scale-105"
-            >
-              💬 تحدث مع AI
-            </a>
 
           </div>
         </div>
@@ -105,7 +98,6 @@ export default function AIGuidePage() {
 
             <div className="relative w-full max-w-[560px]">
 
-              {/* AI IMAGE - STATIC */}
               <div className="relative overflow-hidden rounded-[32px] bg-white shadow-[0_20px_70px_rgba(110,40,220,0.15)]">
 
                 <Image
@@ -131,7 +123,7 @@ export default function AIGuidePage() {
                 <br />
                 أنا مساعدك الذكي
                 <br />
-                جاهز لمساعدتك بأي وقت
+                لمساعدتك في طلباتك واستفساراتك
 
                 <div className="absolute bottom-[-8px] right-10 h-4 w-4 rotate-45 bg-white" />
 
@@ -161,27 +153,16 @@ export default function AIGuidePage() {
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-9 text-gray-600 lg:mx-0">
-              مساعدك الذكي للبحث، الشراء، متابعة الطلبات والاستفسار عن المنتجات
-              بطريقة سهلة وسريعة عبر WhatsApp.
+              مساعدك الذكي المخصّص لخدمة طلباتك والإجابة عن استفساراتك
+              بطريقة سهلة وسريعة، مع متاجر MD-Marketplace في طرابلس والشمال.
             </p>
 
-            <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
-
-              <a
-                href="https://wa.me/"
-                className="rounded-full bg-gradient-to-r from-purple-700 to-pink-500 px-7 py-4 font-bold text-white shadow-lg transition hover:scale-105"
-              >
-                💬 ابدأ المحادثة
-              </a>
-
-              <a
-                href="#how"
-                className="rounded-full border border-gray-200 px-7 py-4 font-bold transition hover:border-purple-400 hover:text-purple-700"
-              >
-                📖 كيف يعمل؟
-              </a>
-
-            </div>
+            <a
+              href="#how"
+              className="mt-8 inline-flex rounded-full border border-gray-200 px-7 py-4 font-bold transition hover:border-purple-400 hover:text-purple-700"
+            >
+              📖 تعرّف على طريقة الاستخدام
+            </a>
 
           </div>
 
@@ -212,6 +193,140 @@ export default function AIGuidePage() {
                 تجربة ذكية وسلسة مع متاجر طرابلس والشمال.
               </p>
 
+              <p className="mt-3 leading-8 text-gray-600">
+                تم تصميم الخدمة لتسهيل الوصول إلى حالة طلباتك، تقديم طلب
+                مباشر، أو الاستفسار عن أي منتج بطريقة بسيطة وطبيعية.
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* ================= REGISTERED / NON REGISTERED ================= */}
+      <section className="mx-auto max-w-7xl px-5 pb-20">
+
+        <div className="mb-10 text-center">
+
+          <span className="text-2xl">
+            🔐
+          </span>
+
+          <h2 className="mt-2 text-3xl font-black sm:text-4xl">
+            الخدمة للمسجّل وغير المسجّل
+          </h2>
+
+          <p className="mx-auto mt-3 max-w-2xl text-gray-500 leading-7">
+            يمكنك التعرّف على MD-Marketplace AI والاستفسار عن الخدمة،
+            أما الميزات الكاملة فتكون مرتبطة بحسابك.
+          </p>
+
+        </div>
+
+
+        <div className="grid gap-6 lg:grid-cols-2">
+
+          {/* NON REGISTERED */}
+          <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm transition hover:shadow-lg">
+
+            <div className="flex items-center gap-4">
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 text-3xl">
+                👤
+              </div>
+
+              <div>
+                <h3 className="text-xl font-black">
+                  للمستخدم غير المسجّل
+                </h3>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  تعرّف على الخدمة واطرح استفساراتك
+                </p>
+              </div>
+
+            </div>
+
+            <div className="mt-6 space-y-3 text-sm leading-7 text-gray-600">
+
+              <p>
+                ✔ يمكنك التعرّف على MD-Marketplace AI وطريقة استخدامه.
+              </p>
+
+              <p>
+                ✔ يمكنك الاستفسار والتعرّف على المنتجات والخدمات المتوفرة.
+              </p>
+
+              <p>
+                ✔ للاستفادة من خدمات الطلب والمتابعة والميزات المرتبطة
+                بحسابك، يجب إنشاء حساب أو تسجيل الدخول.
+              </p>
+
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-gray-50 p-5">
+
+              <p className="font-bold text-[#11183f]">
+                🔐 سجّل دخولك لتحصل على التجربة الكاملة والاستجابة الشخصية
+                لطلباتك.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          {/* REGISTERED */}
+          <div className="rounded-3xl border border-purple-100 bg-gradient-to-br from-purple-50/70 to-pink-50/50 p-8 shadow-sm transition hover:shadow-lg">
+
+            <div className="flex items-center gap-4">
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm">
+                ⭐
+              </div>
+
+              <div>
+                <h3 className="text-xl font-black">
+                  للمستخدم المسجّل
+                </h3>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  التجربة الكاملة لخدمات MD-Marketplace AI
+                </p>
+              </div>
+
+            </div>
+
+            <div className="mt-6 space-y-3 text-sm leading-7 text-gray-600">
+
+              <p>
+                ✔ البحث عن المنتجات المتوفرة فعلياً.
+              </p>
+
+              <p>
+                ✔ إضافة المنتجات إلى السلة وتعديلها.
+              </p>
+
+              <p>
+                ✔ تجهيز الطلب وتأكيده.
+              </p>
+
+              <p>
+                ✔ استخدام معلومات التوصيل المرتبطة بالحساب لتسهيل الطلب.
+              </p>
+
+              <p>
+                ✔ متابعة حالة الطلب والاستفسار عنه.
+              </p>
+
+              <p>
+                ✔ الاستفادة من المزايا المرتبطة بحسابك في MD-Marketplace.
+              </p>
+
             </div>
 
           </div>
@@ -236,7 +351,7 @@ export default function AIGuidePage() {
             </span>
 
             <h2 className="mt-2 text-3xl font-black sm:text-4xl">
-              ماذا يمكنك أن تفعل مع AI؟
+              كيف تستخدم MD-Marketplace AI؟
             </h2>
 
             <p className="mt-3 text-gray-500">
@@ -321,7 +436,7 @@ export default function AIGuidePage() {
                 </h2>
 
                 <p className="text-sm text-gray-500">
-                  مثال بسيط على طلب منتج
+                  عندما يكون للمنتج أكثر من حجم
                 </p>
 
               </div>
@@ -391,7 +506,7 @@ export default function AIGuidePage() {
             </div>
 
             <h2 className="mt-4 text-2xl font-black">
-              كيف تحكي مع المساعد؟
+              نصائح لاستخدام المساعد
             </h2>
 
             <div className="mt-6 space-y-4 text-sm leading-8 text-white/80">
@@ -415,6 +530,17 @@ export default function AIGuidePage() {
                 <br />
 
                 المساعد سيسألك عن الحجم قبل الإضافة.
+              </div>
+
+
+              <div>
+                <b className="text-white">
+                  ✔ حدد الكمية
+                </b>
+
+                <br />
+
+                يمكنك كتابة الكمية مع اسم المنتج أو تحديدها بعد اختيار الحجم.
               </div>
 
 
@@ -448,29 +574,71 @@ export default function AIGuidePage() {
       </section>
 
 
-      {/* ================= CTA ================= */}
+      {/* ================= IMPORTANT NOTICE ================= */}
       <section className="px-5 pb-20">
 
-        <div className="mx-auto max-w-5xl overflow-hidden rounded-[35px] bg-gradient-to-r from-purple-700 to-pink-500 p-8 text-center text-white shadow-2xl sm:p-12">
+        <div className="mx-auto max-w-5xl rounded-[35px] border border-purple-100 bg-gradient-to-br from-purple-50 to-pink-50 p-8 text-center sm:p-12">
 
           <div className="text-4xl">
-            🤖
+            🔐
+          </div>
+
+          <h2 className="mt-4 text-2xl font-black sm:text-3xl">
+            للحصول على التجربة الكاملة
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-2xl leading-8 text-gray-600">
+            سجّل دخولك إلى MD-Marketplace للاستفادة من الخدمات المرتبطة
+            بحسابك، مثل تقديم الطلبات، استخدام بيانات التوصيل، ومتابعة
+            طلباتك بطريقة شخصية ومنظمة.
+          </p>
+
+        </div>
+
+      </section>
+
+
+      {/* ================= CONTACT ================= */}
+      <section className="px-5 pb-20">
+
+        <div className="mx-auto max-w-5xl overflow-hidden rounded-[35px] bg-[#11183f] p-8 text-center text-white shadow-2xl sm:p-12">
+
+          <div className="text-4xl">
+            💬
           </div>
 
           <h2 className="mt-4 text-3xl font-black">
-            جاهز تجرب مساعدك الذكي؟
+            عندك استفسار أو بحاجة لمساعدة؟
           </h2>
 
-          <p className="mx-auto mt-3 max-w-xl leading-8 text-white/90">
-            ابحث عن منتج، أضفه إلى سلتك، جهّز طلبك وتابعه بسهولة.
+          <p className="mx-auto mt-3 max-w-xl leading-8 text-white/80">
+            فريق MD-Marketplace موجود لمساعدتك والإجابة عن أي استفسار
+            متعلق بالخدمة أو المنصة.
           </p>
 
-          <a
-            href="https://wa.me/"
-            className="mt-7 inline-flex rounded-full bg-white px-8 py-4 font-black text-purple-700 shadow-lg transition hover:scale-105"
-          >
-            💬 تواصل مع MD-Marketplace AI
-          </a>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
+
+            {/* ضع رقم WhatsApp هنا */}
+            <a
+              href="https://wa.me/ضع_رقم_الواتساب_هنا"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 font-black text-[#11183f] shadow-lg transition hover:scale-105"
+            >
+              💬 WhatsApp
+            </a>
+
+
+            {/* ضع الإيميل هنا */}
+            <a
+              href="mailto:ضع_الايميل_هنا"
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-7 py-4 font-black text-white transition hover:bg-white/20"
+            >
+              ✉️ البريد الإلكتروني
+            </a>
+
+          </div>
 
         </div>
 
@@ -488,8 +656,10 @@ export default function AIGuidePage() {
           className="mx-auto mb-3 w-[130px]"
         />
 
-        <p className="text-sm text-gray-500">
-          هذه الخدمة حصرية لشركة MD-Marketplace لضمان تجربة موثوقة ومنظمة.
+        <p className="mx-auto max-w-2xl px-5 text-sm leading-7 text-gray-500">
+          مساعدك الذكي مخصّص حصرياً لمعالجة طلباتك والإجابة عن
+          استفساراتك بشكل مباشر، لتقديم تجربة موثوقة ومنظمة مع
+          MD-Marketplace.
         </p>
 
         <p className="mt-2 text-xs text-gray-400">
@@ -497,16 +667,6 @@ export default function AIGuidePage() {
         </p>
 
       </footer>
-
-
-      {/* ================= FLOATING AI ================= */}
-      <a
-        href="https://wa.me/"
-        className="fixed bottom-6 left-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-700 to-pink-500 text-3xl shadow-2xl transition hover:scale-110"
-        aria-label="MD-Marketplace AI"
-      >
-        🤖
-      </a>
 
     </main>
   );
