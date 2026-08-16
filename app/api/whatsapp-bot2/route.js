@@ -411,7 +411,7 @@ async function getRecentConversation(phone) {
 async function saveToAppSheet(from, userMessage, aiReply) {
   if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) { console.error("❌ AppSheet credentials ناقصة"); return; }
   try {
-    const today = new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Beirut" });
+    const today = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Beirut" });
     const response = await fetch(`https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/Messages/Action`, {
       method: "POST",
       headers: { ApplicationAccessKey: APPSHEET_API_KEY, "Content-Type": "application/json" },
