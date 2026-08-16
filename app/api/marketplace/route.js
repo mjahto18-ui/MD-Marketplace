@@ -1,3 +1,4 @@
+process.removeAllListeners('warning'); // حل مشكلة DEP0169
 import { google } from "googleapis";
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,6 @@ let CACHE = null;
 let CODE_INDEX = new Map();
 let CACHE_TIME = 0;
 let LOADING_PROMISE = null;
-
-// حفظ اخر منتج لكل رقم عشان السعرات
 let LAST_PRODUCT = new Map();
 
 function getSheets() {
@@ -119,15 +118,19 @@ async function getCaloriesFromGoogle(barcode) {
       if (n.carbohydrates_100g) reply += `🍞 كارب: ${n.carbohydrates_100g}غ\n`;
       return reply + `\n📚 المصدر: OpenFoodFacts`;
     }
-    return `❌ ما لقيت سعرات للباركود ${barcode} على Google / OpenFoodFacts`;
+    return `❌ ما لقيت سعرات للباركود ${barcode}`;
   } catch(e) {
     return `❌ خطأ بجلب السعرات: ${e.message}`;
   }
 }
 
 function buildReply(p) {
-  let reply = `📦 *${p.name}*\n\n🏷 ${p.brand}\n🔢 ${p.code}\n⚖ ${p.quantity}\n🌍 ${p.countries}`;
-  return reply;
+  return `📦 *${p.name}*\n\n🏷 ${p.brand}\n🔢 ${p.code}\n⚖ ${p.quantity}\n🌍 ${p.countries}`;
+}
+
+function isCaloriesWord(text) {
+  const t = String(text||'').toLowerCase().trim();
+  return ["ايه","إيه","اي","نعم","yes","y","سعرات","بدي السعرات","ايه نعم"].some(w => t.includes(w)) || t.length <= 3;
 }
 
 export async function GET(req) {
@@ -153,11 +156,10 @@ export async function POST(req) {
       const userText = (waMessage.text?.body || "").trim();
       if (!from ||!userText) return Response.json({ status: "ok" }, { status: 200 });
 
-      const lower = userText.toLowerCase();
-
-      // اذا قال ايه / نعم -> جيب السعرات
-      if (["ايه","إيه","اي","نعم","yes","y","بدي","بدي السعرات"].includes(lower)) {
-        const last = LAST_PRODUCT.get(from);
+      // ✅ فحص السعرات قبل كل شي - مع normalize
+      if (isCaloriesWord(userText)) {
+        const cleanFrom = normalizeWhatsAppNumber(from);
+        const last = LAST_PRODUCT.get(cleanFrom) || LAST_PRODUCT.get(from);
         if (!last) {
           await sendMessage(from, "❌ ابعت باركود أول شي");
           return Response.json({ status: "ok" }, { status: 200 });
@@ -172,7 +174,7 @@ export async function POST(req) {
       let found = [];
       if (CODE_INDEX.has(userText)) found = [CODE_INDEX.get(userText)];
       else {
-        const q = lower;
+        const q = userText.toLowerCase();
         for (let i = 0; i < products.length; i++) {
           const p = products[i];
           if (p.nameLower.includes(q) || p.brandLower.includes(q)) { found.push(p); if(found.length>=1) break; }
@@ -183,7 +185,8 @@ export async function POST(req) {
         await sendMessage(from, `❌ "${userText}" مش موجود`);
       } else {
         const p = found[0];
-        LAST_PRODUCT.set(from, p); // حفظ للسعرات
+        LAST_PRODUCT.set(normalizeWhatsAppNumber(from), p); // ✅ نفس normalize
+        LAST_PRODUCT.set(from, p); // احتياط
         let reply = buildReply(p) + `\n\n❓ *بدك السعرات؟* اكتب: ايه`;
         if (p.image && p.image.startsWith('http')) await sendImageMessage(from, p.image, reply);
         else await sendMessage(from, reply);
@@ -196,20 +199,25 @@ export async function POST(req) {
     const phoneFromAppSheet = body.Mobile || body.mobile || body.Phone || body.phone || body.to || body.From;
     if (!query) return Response.json({ reply: "ابعت query" });
 
-    const lowerQ = query.toLowerCase();
-    if (["ايه","نعم","yes"].includes(lowerQ) && phoneFromAppSheet) {
-      const last = LAST_PRODUCT.get(normalizeWhatsAppNumber(phoneFromAppSheet));
-      if (last) {
-        const cal = await getCaloriesFromGoogle(last.code);
-        await sendMessage(phoneFromAppSheet, cal);
-        return Response.json({ reply: cal });
+    // ✅ فحص السعرات من AppSheet - هون كانت المشكلة!
+    if (isCaloriesWord(query)) {
+      const cleanPhone = normalizeWhatsAppNumber(phoneFromAppSheet);
+      const last = LAST_PRODUCT.get(cleanPhone) || LAST_PRODUCT.get(phoneFromAppSheet) || [...LAST_PRODUCT.values()].pop();
+      if (!last) {
+        const msg = `❌ ما في منتج محفوظ - ابعت باركود أول`;
+        if (phoneFromAppSheet) await sendMessage(phoneFromAppSheet, msg);
+        return Response.json({ reply: msg });
       }
+      const cal = await getCaloriesFromGoogle(last.code);
+      if (phoneFromAppSheet) await sendMessage(phoneFromAppSheet, cal);
+      return Response.json({ reply: cal });
     }
 
     const products = await loadAll();
     let found = [];
     if (CODE_INDEX.has(query)) found = [CODE_INDEX.get(query)];
     else {
+      const lowerQ = query.toLowerCase();
       for (let i = 0; i < products.length; i++) {
         const p = products[i];
         if (p.nameLower.includes(lowerQ) || p.brandLower.includes(lowerQ)) { found.push(p); if(found.length>=3) break; }
@@ -223,7 +231,10 @@ export async function POST(req) {
     }
 
     const p = found[0];
-    if (phoneFromAppSheet) LAST_PRODUCT.set(normalizeWhatsAppNumber(phoneFromAppSheet), p);
+    if (phoneFromAppSheet) {
+      LAST_PRODUCT.set(normalizeWhatsAppNumber(phoneFromAppSheet), p);
+      LAST_PRODUCT.set(phoneFromAppSheet, p);
+    }
     const reply = buildReply(p) + `\n\n❓ بدك السعرات؟ اكتب: ايه`;
 
     if (phoneFromAppSheet) {
