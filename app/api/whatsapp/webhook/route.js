@@ -19,6 +19,7 @@ const BOT1_SESSION = "BOT1";
 const BOT2_SESSION = "BOT2";
 const WEBSITE_URL = "https://www.md-marketplace.store";
 const INFO_EMAIL = "info@md-marketplace.store";
+const OFF_PROXY = "https://nameless-dream-8d63.mjahto18-454.workers.dev";
 
 if (!globalThis._processed) globalThis._processed = new Map();
 if (!globalThis._lastProduct) globalThis._lastProduct = new Map();
@@ -508,6 +509,11 @@ ${userContext}
 4. لا تسمح للمستخدم بالوصول إلى طلبات شخص آخر.
 5. بيانات الطلبات الموجودة أدناه تم تجهيزها من الكود بعد تطبيق صلاحيات المستخدم. اعتبرها بيانات موثوقة.
 6. لا تخترع أي طلب. لا تخترع أي سعر. لا تخترع أي منتج. لا تخترع أي متجر. لا تخترع أي منطقة. لا تخترع أي حالة طلب.
+7. اذا قال "بدي اطلب / بدي اوردر / بدي اعمل طلب / بدي اشتري" والمستخدم غير موجود في Users:
+   قل: "حتى تقدر تطلب اوردر لازم تكون مسجل عنا 😊 زور موقعنا https://www.md-marketplace.store وسجل حساب، وبعدا قلي بدي اطلب"
+   ممنوع تشرح PayPal او بطاقة ائتمان!
+
+8. ما تكتر حكي بلا فايدة - لازم كلامك يكون واضح ومفهوم ومختصر. جاوب مباشرة على قد السؤال. ممنوع تعطي وصفات طبخ او نصايح او شرح طويل!
 
 قواعد الموقع والايميل
 - اذا سأل "شو موقعكم / وين العنوان / شو عنوانكم / وين محلكم / رابط الموقع": جاوب "موقعنا هو ${WEBSITE_URL} فيك تشوف كل المنتجات والفروع هناك"
