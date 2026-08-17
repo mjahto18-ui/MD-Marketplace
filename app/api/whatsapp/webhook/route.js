@@ -93,49 +93,37 @@ function isPossiblePhoneNumber(num) {
 // ======================================================
 async function getProductFromOFF(barcode) {
   console.log(`🔎 OFF Proxy: ${barcode}`);
-  const target = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
-  
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`,
-    `https://corsproxy.io/?${encodeURIComponent(target)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(target)}`
-  ];
-
-  for (const proxyUrl of proxies) {
-    try {
-      console.log(`🔄 Trying proxy: ${proxyUrl.slice(0,40)}...`);
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(proxyUrl, { signal: controller.signal, cache: 'no-store' });
-      clearTimeout(t);
-      console.log(`📡 Proxy HTTP ${res.status}`);
-      const text = await res.text();
-      const data = JSON.parse(text);
-      console.log(`📦 status: ${data.status}`);
-      if (data.status === 1) {
-        const p = data.product; const n = p.nutriments || {};
-        console.log(`✅ Found: ${p.product_name}`);
-        return {
-          code: barcode,
-          name: p.product_name || "منتج",
-          brand: p.brands || "",
-          image: p.image_front_url || p.image_url || "",
-          nutriments: { kcal: n["energy-kcal_100g"]||"?", fat: n["fat_100g"]||"?", sugars: n["sugars_100g"]||"?", proteins: n["proteins_100g"]||"?", carbs: n["carbohydrates_100g"]||"?" }
-        };
-      }
-    } catch(e) {
-      console.log(`⚠ Proxy failed: ${e.message}`);
+  try {
+    const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    console.log(`📡 Proxy HTTP ${res.status}`);
+    const data = await res.json();
+    console.log(`📦 status: ${data.status} name: ${data.product?.product_name}`);
+    
+    if (data.status === 1) {
+      const p = data.product;
+      const n = p.nutriments || {};
+      return {
+        code: barcode,
+        name: p.product_name || "منتج",
+        brand: p.brands || "",
+        image: p.image_front_url || p.image_url || "",
+        nutriments: {
+          kcal: n["energy-kcal_100g"] || "?",
+          fat: n["fat_100g"] || "?",
+          sugars: n["sugars_100g"] || "?",
+          proteins: n["proteins_100g"] || "?",
+          carbs: n["carbohydrates_100g"] || "?"
+        }
+      };
     }
-  }
-  console.log(`❌ OFF not found: ${barcode}`);
-  return null;
-}
   } catch(e) {
     console.log(`❌ Proxy error: ${e.message}`);
   }
   console.log(`❌ OFF not found: ${barcode}`);
   return null;
 }
+
 function buildMarketplaceProductText(product) {
   return (
     `📦 *${product.name || "منتج"}*\n\n` +
