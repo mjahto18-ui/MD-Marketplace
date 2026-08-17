@@ -91,37 +91,59 @@ function isPossiblePhoneNumber(num) {
 // ======================================================
 // جديد: OpenFoodFacts مباشرة - بلا 2M - فوري
 // ======================================================
+import https from 'https';
+
 async function getProductFromOFF(barcode) {
-  console.log(`🔎 OFF Proxy: ${barcode}`);
-  try {
-    const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
-    const res = await fetch(url, { cache: 'no-store' });
-    console.log(`📡 Proxy HTTP ${res.status}`);
-    const data = await res.json();
-    console.log(`📦 status: ${data.status} name: ${data.product?.product_name}`);
+  console.log(`🔎 OFF Direct HTTPS: ${barcode}`);
+  
+  return new Promise((resolve) => {
+    const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+    console.log(`🌐 HTTPS GET: ${url}`);
     
-    if (data.status === 1) {
-      const p = data.product;
-      const n = p.nutriments || {};
-      return {
-        code: barcode,
-        name: p.product_name || "منتج",
-        brand: p.brands || "",
-        image: p.image_front_url || p.image_url || "",
-        nutriments: {
-          kcal: n["energy-kcal_100g"] || "?",
-          fat: n["fat_100g"] || "?",
-          sugars: n["sugars_100g"] || "?",
-          proteins: n["proteins_100g"] || "?",
-          carbs: n["carbohydrates_100g"] || "?"
+    https.get(url, {
+      headers: { 'User-Agent': 'MD-Marketplace/1.0' },
+      timeout: 8000
+    }, (res) => {
+      console.log(`📡 HTTPS status: ${res.statusCode}`);
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          console.log(`📦 status: ${json.status} name: ${json.product?.product_name}`);
+          if (json.status === 1) {
+            const p = json.product; const n = p.nutriments || {};
+            resolve({
+              code: barcode,
+              name: p.product_name || "منتج",
+              brand: p.brands || "",
+              image: p.image_front_url || p.image_url || "",
+              nutriments: {
+                kcal: n["energy-kcal_100g"] || "?",
+                fat: n["fat_100g"] || "?",
+                sugars: n["sugars_100g"] || "?",
+                proteins: n["proteins_100g"] || "?",
+                carbs: n["carbohydrates_100g"] || "?"
+              }
+            });
+          } else {
+            console.log(`❌ OFF not found: ${barcode}`);
+            resolve(null);
+          }
+        } catch(e) {
+          console.log(`❌ JSON error: ${e.message}`);
+          resolve(null);
         }
-      };
-    }
-  } catch(e) {
-    console.log(`❌ Proxy error: ${e.message}`);
-  }
-  console.log(`❌ OFF not found: ${barcode}`);
-  return null;
+      });
+    }).on('error', (e) => {
+      console.log(`❌ HTTPS error: ${e.message}`);
+      resolve(null);
+    }).on('timeout', function() {
+      console.log(`⏰ HTTPS timeout`);
+      this.destroy();
+      resolve(null);
+    });
+  });
 }
 
 function buildMarketplaceProductText(product) {
