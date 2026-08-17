@@ -19,7 +19,6 @@ const BOT1_SESSION = "BOT1";
 const BOT2_SESSION = "BOT2";
 const WEBSITE_URL = "https://www.md-marketplace.store";
 const INFO_EMAIL = "info@md-marketplace.store";
-const OFF_PROXY = "https://nameless-dream-8d63.mjahto18-454.workers.dev";
 
 if (!globalThis._processed) globalThis._processed = new Map();
 if (!globalThis._lastProduct) globalThis._lastProduct = new Map();
