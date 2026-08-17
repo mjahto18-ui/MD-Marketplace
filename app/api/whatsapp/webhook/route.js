@@ -28,7 +28,7 @@ const MARKETPLACE_SHEET_IDS = [
   "16Sx7YjtCMyVtvHTBLDowKeiUrLPDc9-PdD9hGgOLL6o",
   "1JdCGyVh6HZCBHlWgAVKuVsWwwoCgGf4__UUXP1YlPO4",
 ];
-const MARKETPLACE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 ساعة
+const MARKETPLACE_CACHE_TTL = 24 * 60 * 60 * 1000;
 let MARKETPLACE_PRODUCT_CACHE = null;
 let MARKETPLACE_BARCODE_INDEX = new Map();
 let MARKETPLACE_CACHE_TIME = 0;
@@ -82,15 +82,22 @@ function getGoogleSheetsClient() {
   } catch (error) { console.error("❌ خطأ إنشاء Google Sheets client:", error); return null; }
 }
 
-// ======================================================
-// MARKETPLACE BARCODE NORMALIZATION
-// ======================================================
 function normalizeMarketplaceBarcode(value) {
   return String(value || "").replace(/\D/g, "").trim();
 }
-// ======================================================
-// LOAD MARKETPLACE 2M PRODUCTS
-// ======================================================
+
+function isPossiblePhoneNumber(num) {
+  const n = String(num || "").replace(/\D/g, "");
+  if (n.length === 10 && n.startsWith("05")) return true;
+  if (n.length === 9 && n.startsWith("5")) return true;
+  if (n.length === 12 && n.startsWith("9665")) return true;
+  if (n.length === 8 && n.startsWith("03")) return true;
+  if (n.length === 7 && n.startsWith("3")) return true;
+  if (n.length === 11 && n.startsWith("961")) return true;
+  if (n.length >= 10 && n.length <= 12) return true;
+  return false;
+}
+
 async function loadMarketplaceProducts(forceRefresh = false) {
   const now = Date.now();
   if (!forceRefresh && MARKETPLACE_PRODUCT_CACHE && now - MARKETPLACE_CACHE_TIME < MARKETPLACE_CACHE_TTL) {
@@ -159,14 +166,48 @@ async function loadMarketplaceProducts(forceRefresh = false) {
   })();
   return await MARKETPLACE_LOADING_PROMISE;
 }
-// ======================================================
-// FIND MARKETPLACE PRODUCT BY BARCODE,
-// ======================================================
+
 async function findMarketplaceProductByBarcode(barcode) {
   const normalized = normalizeMarketplaceBarcode(barcode);
   if (!normalized) return null;
   await loadMarketplaceProducts();
   return MARKETPLACE_BARCODE_INDEX.get(normalized) || null;
+}
+
+async function getCaloriesFromNet(barcode, productName) {
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, { next: { revalidate: 3600 } });
+    const data = await res.json();
+    if (data.status === 1 && data.product?.nutriments) {
+      const n = data.product.nutriments;
+      const kcal = n["energy-kcal_100g"] || n["energy-kcal"] || "?";
+      const fat = n["fat_100g"] || "?";
+      const sugars = n["sugars_100g"] || "?";
+      const proteins = n["proteins_100g"] || "?";
+      const carbs = n["carbohydrates_100g"] || "?";
+      return `🔥 *السعرات الحرارية لـ ${productName}:*\n\n` +
+             `• لكل 100غ: ${kcal} سعرة\n` +
+             `• دهون: ${fat}غ\n` +
+             `• كارب: ${carbs}غ\n` +
+             `• سكر: ${sugars}غ\n` +
+             `• بروتين: ${proteins}غ\n\n` +
+             `📊 المصدر: OpenFoodFacts+MD-Marketplace`;
+    }
+  } catch(e) { console.error("Calories API error", e.message); }
+  if (!GROQ_KEY) return null;
+  try {
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b",
+        messages: [{ role: "system", content: `انت خبير تغذية. اعطي سعرات حرارية تقديرية لـ ${productName} بشكل مختصر و مفيد بالعربي بلبناني.` }, { role: "user", content: `سعرات ${productName} لكل 100غ` }],
+        temperature: 0.3
+      })
+    });
+    const d = await r.json();
+    return d.choices?.[0]?.message?.content || null;
+  } catch(e) { return null; }
 }
 
 const SHEETS_LOADING = new Map();
@@ -452,16 +493,14 @@ async function buildOrderContext(user, userMessage) {
   return { orders: safeOrders, selectedOrder: selectedOrder? { requestId: selectedOrder["Request ID"] || "", area: selectedOrder["Area"] || "", deliveryAddress: selectedOrder["Delivery Adress"] || "", deliveryFee: selectedOrder["Delivery Fee"] || "", assignedDriver: selectedOrder["Assigned Driver"] || "", approvalStatus: selectedOrder["Approval Status"] || "", deliveryStatus: selectedOrder["Delivery Status"] || "", itemsCost: selectedOrder["Items Cost"] || "", totalAmount: selectedOrder["Total Amount"] || "" } : null, details };
 }
 
-// ======================================================
-// MARKETPLACE PRODUCT RESPONSE
-// ======================================================
 function buildMarketplaceProductText(product) {
   return (
     `📦 *${product.name || "منتج"}*\n\n` +
     `🏷 الماركة: ${product.brand || "غير معروف"}\n` +
     `🔢 الباركود: ${product.code}\n` +
     `⚖ الحجم: ${product.quantity || "غير محدد"}\n` +
-    `🌍 البلد: ${product.countries || "غير محدد"}`
+    `🌍 البلد: ${product.countries || "غير محدد"}\n\n` +
+    `بدك اعطيك السعرات الحرارية؟ 😊`
   );
 }
 
@@ -472,34 +511,27 @@ async function getAIReply(userMessage, user, productResults, orderContext, histo
     if (user) {
       userContext = `\nالمستخدم مسجّل ومعروف في نظام Users.\nبيانات المستخدم الموثوقة:\nالاسم:\n${user.name || "غير معروف"}\nالدور:\n${user.role || "غير معروف"}\nCustomer ID:\n${user.customerId || "غير موجود"}\nUser ID:\n${user.userId || "غير موجود"}\nرقم WhatsApp:\n${user.whatsappNumber || "غير موجود"}\n`;
     } else {
-      userContext = `\n⚠ المستخدم زائر وغير مسجّل في نظام Users.\nهذا يعني:\n- لا يوجد User ID موثوق.\n- لا يوجد Customer ID موثوق.\n- لا يوجد وصول إلى الطلبات.\n- لا يوجد وصول إلى بيانات شخصية.\n- لا يجوز إعطاؤه أي معلومات عن طلبات أي شخص.\n- يمكن مساعدته في الاستفسارات العامة والمنتجات والمتاجر والموقع.\n- إذا أراد إنشاء طلب، يجب توجيهه بلطف إلى تسجيل الدخول أولاً.\n`;
+      userContext = `\n⚠ المستخدم زائر وغير مسجّل في نظام Users.\n`;
     }
     const productContext = productResults.length? JSON.stringify(productResults) : "لا توجد نتائج منتجات مؤكدة.";
     const orderData = orderContext.orders.length? JSON.stringify(orderContext.orders) : "لا توجد طلبات متاحة لهذا المستخدم.";
     const selectedOrder = orderContext.selectedOrder? JSON.stringify(orderContext.selectedOrder) : "لا يوجد طلب محدد.";
     const orderDetails = orderContext.details.length? JSON.stringify(orderContext.details) : "لا توجد تفاصيل للطلب المحدد.";
     const historyText = history.length? history.map(m => `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`).join("\n") : "لا توجد محادثة سابقة.";
-    const systemPrompt = `\nأنت مساعدك الذكي من MD-Marketplace.\nتحدث باللهجة اللبنانية الودودة والطبيعية.\nلا تكن دجّاً أو مزعجاً.\nلا تطلب من المستخدم تسجيل الدخول إلا عندما تكون الوظيفة التي يطلبها تحتاج فعلاً إلى حساب.\nموقعنا الرسمي:\n${WEBSITE_URL}\nايميلنا:\n${INFO_EMAIL}\n${userContext}\n==================================================\nقواعد أساسية\n==================================================\n1. إذا كان المستخدم معروفاً استخدم اسمه عند الحاجة.\n2. لا تنادِ المستخدم برقم الهاتف.\n3. إذا كان المستخدم غير مسجّل، لا تخبره أنه "غير موجود في النظام" بطريقة تقنية.\n4. إذا كان المستخدم غير مسجّل، عامله كزائر طبيعي.\n5. لا تعطي أي معلومات عن الطلبات لزائر غير مسجّل.\n6. لا تسمح للمستخدم بالوصول إلى طلبات شخص آخر.\n7. بيانات الطلبات الموجودة أدناه موثوقة فقط.\n8. لا تخترع أي طلب.\n9. لا تخترع أي سعر.\n10. لا تخترع أي منتج.\n11. لا تخترع أي متجر.\n12. لا تخترع أي منطقة.\n13. لا تخترع أي حالة طلب.\n14. إذا لم توجد معلومة مؤكدة، قل إن المعلومة غير متوفرة لديك.\n==================================================\nالزائر غير المسجّل\n==================================================\nإذا كان المستخدم غير مسجّل:\n- الاستفسارات العامة: جاوب مباشرة وبشكل طبيعي.\n- سؤال عن الموقع: أعطه رابط الموقع.\n- سؤال عن المنتجات: استخدم نتائج المنتجات المؤكدة الموجودة لديك.\n- سؤال عن متجر: استخدم بيانات المتجر المؤكدة الموجودة لديك.\n- سؤال عن التواصل: أعطه ايميل التواصل.\n- سؤال عن كيفية استخدام الموقع: اشرح له ببساطة.\n- سؤال عن إنشاء طلب / شراء / عمل أوردر: لا تنقله إلى BOT2.\n أخبره بلطف مثلاً:\n "أكيد 😊 فيك تعمل طلب بكل سهولة، بس حتى نقدر نسجّل طلبك ونحافظ على بياناتك ونخلي تجربة الطلب سلسة، يرجى تسجيل الدخول أو إنشاء حساب على موقعنا:\n ${WEBSITE_URL}"\n لا تكرر نفس الجملة حرفياً دائماً إذا كان السياق يسمح بصياغة ألطف.\n- إذا سأل عن طلبه أو حالة طلب: قل له إن متابعة الطلبات تحتاج تسجيل الدخول، مثلاً:\n "أكيد، فينا نساعدك بمتابعة طلبك 😊 بس حتى نعرضلك طلباتك بشكل آمن، يرجى تسجيل الدخول إلى حسابك على الموقع."\n- لا تقل له "سجّل الدخول" إذا كان فقط يسأل سؤالاً عاماً لا يحتاج حساب.\n==================================================\nالمستخدم المسجّل\n==================================================\nإذا كان المستخدم مسجلاً:\n- يمكنه الاستفسار عن المنتجات والمتاجر.\n- يمكنه الاستفسار عن طلباته فقط.\n- إذا أراد إنشاء طلب، النظام يتولى تحويله إلى BOT2.\n- لا تخبره بتفاصيل تقنية عن BOT1 أو BOT2.\n- لا تذكر رقم هاتف السائق إلا إذا طلبه صراحة.\n==================================================\nقواعد الموقع\n==================================================\nإذا سأل عن الموقع:\nجاوب:\n"موقعنا هو ${WEBSITE_URL} فيك تشوف المنتجات والمتاجر وتستفيد من خدماتنا 😊"\nإذا سأل عن التواصل:\nجاوب:\n"فيك تتواصل معنا على ${INFO_EMAIL} 😊"\nإذا سأل مين أنت:\nجاوب:\n"أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"\n==================================================\nقواعد المنتجات\n==================================================\nممنوع Markdown Tables.\nإذا لا توجد نتائج مؤكدة لا تخترع.\nإذا توجد نتائج اعرضها كما هي.\nشكل المنتج:\n🛒 المنتج: {Product Name} {Unit}\n💰 السعر: {Price}\n🏪 المتجر: {Store Name}\n📍 العنوان: {Address} - {Area}\n==================================================\nقواعد الطلبات\n==================================================\n- استخدم Order Request.\n- Delivery Status مهم.\n- لا تغيّر الحالة.\n- إذا Assigned Driver موجود يمكن ذكر اسمه.\n- لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك.\n- لا تستخدم بيانات الطلبات إلا للمستخدم المسجّل.\n- إذا المستخدم غير مسجّل فإن "طلبات المستخدم" يجب اعتبارها غير متاحة.\n- لا تحاول تخمين رقم طلب أو حالة طلب.\n==================================================\nأسلوب المحادثة\n==================================================\n- لا تعيد الترحيب في كل رسالة.\n- لا تقل "أنا ذكاء اصطناعي" إلا إذا سأل.\n- تحدث بلبناني طبيعي.\n- كن مفيداً ومختصراً.\n- لا تكن دجّاً.\n- لا تفرض التسجيل على المستخدم بدون سبب.\n- إذا السؤال يحتاج توضيحاً، اسأل سؤالاً واحداً فقط.\n- لا تعطِ معلومات تقنية عن النظام الداخلي.\n==================================================\nالمحادثة السابقة\n==================================================\n${historyText}\n==================================================\nنتائج المنتجات\n==================================================\n${productContext}\n==================================================\nطلبات المستخدم\n==================================================\n${orderData}\n==================================================\nالطلب المحدد\n==================================================\n${selectedOrder}\n==================================================\nتفاصيل الطلب\n==================================================\n${orderDetails}\n`;
+    const systemPrompt = `\nأنت مساعدك الذكي من MD-Marketplace.\nتحدث باللهجة اللبنانية الودودة.\nموقعنا الرسمي:\n${WEBSITE_URL}\nايميلنا:\n${INFO_EMAIL}\n${userContext}\nالمحادثة السابقة\n${historyText}\nنتائج المنتجات\n${productContext}\nطلبات المستخدم\n${orderData}\nالطلب المحدد\n${selectedOrder}\nتفاصيل الطلب\n${orderDetails}\n`;
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }], temperature: 0.4 })
     });
     const data = await res.json();
-    if (data.error ||!data.choices?.[0]?.message?.content) {
-      console.error("❌ Groq Error:", JSON.stringify(data.error));
-      return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
-    }
+    if (data.error ||!data.choices?.[0]?.message?.content) return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
     return data.choices?.[0]?.message?.content || "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
-  } catch (error) { console.error("❌ خطأ اتصال Groq:", error); return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية."; }
+  } catch (error) { return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية."; }
 }
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-
-  // ======================================================
-  // MARKETPLACE WARMUP - 2M CACHE
-  // ======================================================
   if (searchParams.get("warmup") === "true") {
     console.log("🔥 Warmup request - Loading 2M products...");
     const start = Date.now();
@@ -515,16 +547,29 @@ export async function GET(req) {
       cache_ttl_hours: 24
     }, { status: 200 });
   }
-
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
   if (mode === "subscribe" && token === VERIFY_TOKEN) return new Response(challenge, { status: 200 });
   return new Response("Forbidden", { status: 403 });
 }
+
 export async function POST(req) {
   try {
     const body = await req.json();
+
+    // ===== منع التكرار 5 مرات =====
+    const msgId = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.id || "";
+    if (!global._processed) global._processed = new Map();
+    if (msgId && global._processed.has(msgId)) {
+      console.log("⏭️ مكرر:", msgId);
+      return Response.json({ status: "ok", duplicate: true }, { status: 200 });
+    }
+    if (msgId) {
+      global._processed.set(msgId, Date.now());
+      setTimeout(() => global._processed.delete(msgId), 300000);
+    }
+
     const Name = body.name || body.Name;
     const PIN = body.password || body.PIN;
     const Mobile = body.from || body.Mobile;
@@ -543,12 +588,41 @@ export async function POST(req) {
     const userText = message?.text?.body || body.text;
     if (!from ||!userText) return Response.json({ status: "ok" }, { status: 200 });
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
+    const rawText = String(userText || "").trim();
+    const whatsappNumber = normalizeWhatsAppNumber(from);
 
-    // ======================================================
-    // MARKETPLACE 2M BARCODE SEARCH
-    // ======================================================
-    const marketplaceBarcode = normalizeMarketplaceBarcode(userText);
-    if (marketplaceBarcode && marketplaceBarcode.length >= 8 && marketplaceBarcode.length <= 14 && /^\d+$/.test(marketplaceBarcode)) {
+    // ===== سؤال السعرات - اذا قال ايه =====
+    const normalizedMsg = normalizeText(rawText);
+    if (/^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) {
+      const allMsgs = await getAllUserMessages(whatsappNumber);
+      const lastBot = allMsgs.slice().reverse().find(m => (m["AIReply"] || "").includes("بدك اعطيك السعرات"));
+      if (lastBot) {
+        const lastBarcodeMsg = allMsgs.slice().reverse().find(m => /^\d{8,14}$/.test(String(m["CustomerMessage"] || "").trim()));
+        const lastBarcode = lastBarcodeMsg? normalizeMarketplaceBarcode(lastBarcodeMsg["CustomerMessage"]) : null;
+        if (lastBarcode) {
+          const prod = await findMarketplaceProductByBarcode(lastBarcode);
+          if (prod) {
+            console.log(`🔥 طلب سعرات لـ ${prod.code}`);
+            const cal = await getCaloriesFromNet(prod.code, prod.name);
+            const reply = cal || `ما لقيت سعرات دقيقة لـ ${prod.name} 🙏 فيك تشوفها على العلبة`;
+            await sendMessage(from, reply);
+            await saveToAppSheet(from, userText, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "CALORIES" });
+            return Response.json({ status: "ok", calories: true }, { status: 200 });
+          }
+        }
+      }
+    }
+
+    // ===== BARCODE مع حماية ارقام التلفون =====
+    const isOnlyDigits = /^\d+$/.test(rawText.replace(/\s+/g, ""));
+    const marketplaceBarcode = normalizeMarketplaceBarcode(rawText);
+    if (marketplaceBarcode && isOnlyDigits && marketplaceBarcode.length >= 8 && marketplaceBarcode.length <= 14 && /^\d+$/.test(marketplaceBarcode) &&!isPossiblePhoneNumber(marketplaceBarcode)) {
+
+      if (!MARKETPLACE_PRODUCT_CACHE && MARKETPLACE_LOADING_PROMISE) {
+        await sendMessage(from, `⏳ القاعدة عم تحمل حالياً... ثانية و بيجهز 🙏`);
+        return Response.json({ status: "ok", loading: true }, { status: 200 });
+      }
+
       console.log(`🔎 Marketplace 2M Barcode Search: ${marketplaceBarcode}`);
       const marketplaceProduct = await findMarketplaceProductByBarcode(marketplaceBarcode);
       if (!marketplaceProduct) {
@@ -569,11 +643,9 @@ export async function POST(req) {
             }),
           });
           if (!imageResponse.ok) {
-            console.error("⚠ فشل إرسال صورة المنتج، إرسال النص بدلاً منها");
             await sendMessage(from, marketplaceReply);
           }
         } catch (error) {
-          console.error("❌ Marketplace image error:", error.message);
           await sendMessage(from, marketplaceReply);
         }
       } else {
@@ -583,37 +655,26 @@ export async function POST(req) {
       return Response.json({ status: "ok", found: true, source: "MARKETPLACE_2M", barcode: marketplaceProduct.code, product: marketplaceProduct }, { status: 200 });
     }
 
-    const whatsappNumber = normalizeWhatsAppNumber(from);
     const user = await getUserByWhatsAppNumber(whatsappNumber);
     const sessionRow = await getBotSessionTable(whatsappNumber);
     const currentBotSession = sessionRow? String(sessionRow["Active Bot"] || BOT1_SESSION).trim() : BOT1_SESSION;
-    console.log(`🤖 Bot Session من جدول Bot Sessions: ${currentBotSession}`);
     if (currentBotSession === BOT2_SESSION) {
-      console.log(`⛔ المستخدم مع BOT2 — تحويل رسالة واتساب من BOT1 لـ BOT2: ${whatsappNumber} | ${userText}`);
       try {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.md-marketplace.store";
-        const forwardRes = await fetch(`${siteUrl}/api/whatsapp-bot2`, {
+        await fetch(`${siteUrl}/api/whatsapp-bot2`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ from: whatsappNumber, text: userText, whatsappNumber: whatsappNumber })
         });
-        const forwardText = await forwardRes.text();
-        console.log(`📤 تحويل لـ BOT2: ${forwardRes.status} | ${forwardText.substring(0, 300)}`);
-      } catch (e) {
-        console.error("❌ فشل تحويل لـ BOT2:", e.message);
-      }
+      } catch (e) { console.error("❌ فشل تحويل لـ BOT2:", e.message); }
       return Response.json({ status: "ok", forwarded_to: "BOT2" }, { status: 200 });
     }
     const newOrderIntent = isNewOrderIntent(userText);
-    console.log(`🛒 نية إنشاء طلب جديد: ${newOrderIntent}`);
     if (newOrderIntent && user) {
-      console.log("🚀 المستخدم المسجّل يريد إنشاء طلب جديد - تحويل لبوابة BOT2");
       const transferred = await transferToBot2({ from: whatsappNumber, user, originalMessage: userText });
       if (transferred) {
-        console.log("✅ BOT1 سلم المحادثة إلى BOT2 عبر جدول Bot Sessions");
         return Response.json({ status: "ok", transferred: true, target: "BOT2", command: BOT2_START_COMMAND }, { status: 200 });
       }
-      console.error("⚠ فشل الانتقال إلى BOT2 — BOT1 سيكمل");
     }
     let productResults = [];
     let orderContext = { orders: [], selectedOrder: null, details: [] };
@@ -621,7 +682,6 @@ export async function POST(req) {
     if (user) orderContext = await buildOrderContext(user, userText);
     const history = await getConversationHistory(whatsappNumber);
     const aiReply = await getAIReply(userText, user, productResults, orderContext, history);
-    console.log("🤖 الرد:", aiReply);
     await sendMessage(whatsappNumber, aiReply);
     await saveToAppSheet(whatsappNumber, userText, aiReply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "WHATSAPP" });
     return Response.json({ status: "ok" }, { status: 200 });
