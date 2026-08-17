@@ -92,23 +92,24 @@ function isPossiblePhoneNumber(num) {
 // ======================================================
 // جديد: OpenFoodFacts + UPC - سريع وما بيعلق أبداً
 // ======================================================
-const OFF_WORKER_URL = "https://nameless-dream-8d63.mjahto18-454.workers.dev";
+const OFF_PROXY = "https://nameless-dream-8d63.mjahto18-454.workers.dev";
 
 async function getProductFromOFF(barcode) {
   try {
-    const res = await fetch(`${OFF_WORKER_URL}/?barcode=${barcode}`, { cache: 'no-store' });
+    const res = await fetch(`${OFF_PROXY}/?barcode=${barcode}`, { cache: 'no-store', headers: {'User-Agent':'MD-Marketplace/1.0'} });
     const data = await res.json();
-    console.log("OFF via Worker:", data.status);
-    if (data.status === 1) {
-      const p = data.product; const n = p.nutriments || {};
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      const n = p.nutriments || {};
       return {
         code: barcode,
-        name: p.product_name,
+        name: p.product_name || p.product_name_en || "منتج",
         brand: p.brands || "",
-        image: p.image_front_url || "",
+        image: p.image_front_url || p.image_url || "",
         quantity: p.quantity || "",
+        countries: p.countries || "",
         nutriments: {
-          kcal: n["energy-kcal_100g"]||"?",
+          kcal: n["energy-kcal_100g"]||n["energy-kcal"]||"?",
           fat: n["fat_100g"]||"?",
           sugars: n["sugars_100g"]||"?",
           proteins: n["proteins_100g"]||"?",
@@ -116,7 +117,9 @@ async function getProductFromOFF(barcode) {
         }
       };
     }
-  } catch(e) { console.log("Worker error:", e.message); }
+  } catch(e) {
+    console.log("OFF proxy error", e.message);
+  }
   return null;
 }
 function buildMarketplaceProductText(product) {
