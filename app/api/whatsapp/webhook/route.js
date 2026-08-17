@@ -21,6 +21,19 @@ const BOT2_SESSION = "BOT2";
 const WEBSITE_URL = "https://www.md-marketplace.store";
 const INFO_EMAIL = "info@md-marketplace.store";
 
+// ======================================================
+// MARKETPLACE - 2 MILLION PRODUCTS DATABASE
+// ======================================================
+const MARKETPLACE_SHEET_IDS = [
+  "16Sx7YjtCMyVtvHTBLDowKeiUrLPDc9-PdD9hGgOLL6o",
+  "1JdCGyVh6HZCBHlWgAVKuVsWwwoCgGf4__UUXP1YlPO4",
+];
+const MARKETPLACE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 ساعة
+let MARKETPLACE_PRODUCT_CACHE = null;
+let MARKETPLACE_BARCODE_INDEX = new Map();
+let MARKETPLACE_CACHE_TIME = 0;
+let MARKETPLACE_LOADING_PROMISE = null;
+
 const SHEETS_CACHE = new Map();
 const CACHE_TTL = 1000 * 60 * 5;
 const CACHEABLE_SHEETS = new Set(["Products", "Stores", "Categories", "Areas"]);
@@ -67,6 +80,93 @@ function getGoogleSheetsClient() {
     });
     return google.sheets({ version: "v4", auth });
   } catch (error) { console.error("❌ خطأ إنشاء Google Sheets client:", error); return null; }
+}
+
+// ======================================================
+// MARKETPLACE BARCODE NORMALIZATION
+// ======================================================
+function normalizeMarketplaceBarcode(value) {
+  return String(value || "").replace(/\D/g, "").trim();
+}
+// ======================================================
+// LOAD MARKETPLACE 2M PRODUCTS
+// ======================================================
+async function loadMarketplaceProducts(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && MARKETPLACE_PRODUCT_CACHE && now - MARKETPLACE_CACHE_TIME < MARKETPLACE_CACHE_TTL) {
+    return MARKETPLACE_PRODUCT_CACHE;
+  }
+  if (MARKETPLACE_LOADING_PROMISE) {
+    return await MARKETPLACE_LOADING_PROMISE;
+  }
+  const sheets = getGoogleSheetsClient();
+  if (!sheets) {
+    console.error("❌ Marketplace Google Sheets client unavailable");
+    return [];
+  }
+  MARKETPLACE_LOADING_PROMISE = (async () => {
+    try {
+      console.log("📡 Loading Marketplace 2M product database...");
+      const allProducts = [];
+      const newBarcodeIndex = new Map();
+      for (const spreadsheetId of MARKETPLACE_SHEET_IDS) {
+        try {
+          const metadata = await sheets.spreadsheets.get({ spreadsheetId });
+          const sheetList = metadata.data.sheets || [];
+          for (const sheet of sheetList) {
+            const title = sheet.properties?.title;
+            if (!title) continue;
+            try {
+              console.log(`📡 قراءة Marketplace Sheet: ${title}`);
+              const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${title}!A2:F` });
+              const rows = response.data.values || [];
+              for (const row of rows) {
+                const barcode = normalizeMarketplaceBarcode(row[0]);
+                if (!barcode) continue;
+                const product = {
+                  code: barcode,
+                  name: String(row[1] || "").trim(),
+                  brand: String(row[2] || "").trim(),
+                  quantity: String(row[3] || "").trim(),
+                  countries: String(row[4] || "").trim(),
+                  image: String(row[5] || "").trim(),
+                };
+                allProducts.push(product);
+                if (!newBarcodeIndex.has(barcode)) {
+                  newBarcodeIndex.set(barcode, product);
+                }
+              }
+            } catch (error) {
+              console.error(`⚠ Marketplace sheet "${title}" failed:`, error.message);
+            }
+          }
+        } catch (error) {
+          console.error(`⚠ Marketplace spreadsheet failed:`, spreadsheetId, error.message);
+        }
+      }
+      MARKETPLACE_PRODUCT_CACHE = allProducts;
+      MARKETPLACE_BARCODE_INDEX = newBarcodeIndex;
+      MARKETPLACE_CACHE_TIME = Date.now();
+      console.log(`✅ Marketplace products loaded: ${allProducts.length}`);
+      console.log(`✅ Marketplace unique barcodes: ${MARKETPLACE_BARCODE_INDEX.size}`);
+      return MARKETPLACE_PRODUCT_CACHE;
+    } catch (error) {
+      console.error("❌ Marketplace 2M database error:", error);
+      return MARKETPLACE_PRODUCT_CACHE || [];
+    } finally {
+      MARKETPLACE_LOADING_PROMISE = null;
+    }
+  })();
+  return await MARKETPLACE_LOADING_PROMISE;
+}
+// ======================================================
+// FIND MARKETPLACE PRODUCT BY BARCODE
+// ======================================================
+async function findMarketplaceProductByBarcode(barcode) {
+  const normalized = normalizeMarketplaceBarcode(barcode);
+  if (!normalized) return null;
+  await loadMarketplaceProducts();
+  return MARKETPLACE_BARCODE_INDEX.get(normalized) || null;
 }
 
 const SHEETS_LOADING = new Map();
@@ -153,9 +253,6 @@ async function appSheetAction(tableName, action, rows) {
   } catch (error) { console.error(`❌ AppSheet ${tableName}/${action}:`, error); return null; }
 }
 
-// ======================================================
-// Bot Sessions - الجدول المنفصل الوحيد
-// ======================================================
 async function getBotSessionTable(phone) {
   const rows = await getSheetRows("Bot Sessions");
   const normalized = normalizeWhatsAppNumber(phone);
@@ -197,7 +294,7 @@ async function saveToAppSheet(from, userMessage, aiReply, options = {}) {
   const messageType = options.messageType || "WHATSAPP";
   if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) return false;
   try {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD - يزبط مع AppSheet
+    const today = new Date().toISOString().split('T')[0];
     const row = {
       Phone: normalizeWhatsAppNumber(from),
       CustomerMessage: userMessage || "",
@@ -247,15 +344,11 @@ async function transferToBot2({ from, user, originalMessage }) {
   console.log("🔀 بدء الانتقال من BOT1 إلى BOT2 - بوابة فقط");
   console.log("📱 الهاتف:", normalizeWhatsAppNumber(from));
   console.log("================================================");
-
   await saveToAppSheet(from, originalMessage, "TRANSFER_TO_BOT2", { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BOT_TRANSFER" });
-
   const sent = await sendToBot2({ from, user, originalMessage });
   if (!sent) { console.error("❌ BOT2 لم يستقبل Bridge"); return false; }
-
   const opened = await openBot2Session(from);
   if (!opened?.ok) { console.error("❌ فشل فتح جلسة BOT2 في جدول Bot Sessions"); return false; }
-
   console.log("✅ تم الانتقال - Session = BOT2 في جدول Bot Sessions");
   return true;
 }
@@ -265,8 +358,6 @@ async function searchProducts(userMessage) {
   const stores = await getSheetRows("Stores");
   const areas = await getSheetRows("Areas");
   const message = normalizeText(userMessage);
-  const originalMessage = String(userMessage || "").toLowerCase();
-  const storeKeywords = ["سوبرماركت", "ميني ماركت", "بقالة", "محل", "متجر", "ماركت"];
   let mentionedStoreId = null;
   for (const store of stores) {
     const storeNameNorm = normalizeText(store["Store Name"]);
@@ -361,6 +452,19 @@ async function buildOrderContext(user, userMessage) {
   return { orders: safeOrders, selectedOrder: selectedOrder? { requestId: selectedOrder["Request ID"] || "", area: selectedOrder["Area"] || "", deliveryAddress: selectedOrder["Delivery Adress"] || "", deliveryFee: selectedOrder["Delivery Fee"] || "", assignedDriver: selectedOrder["Assigned Driver"] || "", approvalStatus: selectedOrder["Approval Status"] || "", deliveryStatus: selectedOrder["Delivery Status"] || "", itemsCost: selectedOrder["Items Cost"] || "", totalAmount: selectedOrder["Total Amount"] || "" } : null, details };
 }
 
+// ======================================================
+// MARKETPLACE PRODUCT RESPONSE
+// ======================================================
+function buildMarketplaceProductText(product) {
+  return (
+    `📦 *${product.name || "منتج"}*\n\n` +
+    `🏷 الماركة: ${product.brand || "غير معروف"}\n` +
+    `🔢 الباركود: ${product.code}\n` +
+    `⚖ الحجم: ${product.quantity || "غير محدد"}\n` +
+    `🌍 البلد: ${product.countries || "غير محدد"}`
+  );
+}
+
 async function getAIReply(userMessage, user, productResults, orderContext, history) {
   if (!GROQ_KEY) return user? "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊" : `أهلا وسهلا فيك بـ MD-Marketplace 😊\n\nكيف بقدر ساعدك اليوم؟`;
   try {
@@ -420,26 +524,59 @@ export async function POST(req) {
     const userText = message?.text?.body || body.text;
     if (!from ||!userText) return Response.json({ status: "ok" }, { status: 200 });
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
+
+    // ======================================================
+    // MARKETPLACE 2M BARCODE SEARCH
+    // ======================================================
+    const marketplaceBarcode = normalizeMarketplaceBarcode(userText);
+    if (marketplaceBarcode && marketplaceBarcode.length >= 8 && marketplaceBarcode.length <= 14 && /^\d+$/.test(marketplaceBarcode)) {
+      console.log(`🔎 Marketplace 2M Barcode Search: ${marketplaceBarcode}`);
+      const marketplaceProduct = await findMarketplaceProductByBarcode(marketplaceBarcode);
+      if (!marketplaceProduct) {
+        await sendMessage(from, `عذراً 🙏\n\nما لقينا منتج بالباركود:\n${marketplaceBarcode}\n\nتأكد من الرقم وجرب مرة تانية.`);
+        return Response.json({ status: "ok", found: false, barcode: marketplaceBarcode, source: "MARKETPLACE_2M" }, { status: 200 });
+      }
+      const marketplaceReply = buildMarketplaceProductText(marketplaceProduct);
+      if (marketplaceProduct.image && marketplaceProduct.image.startsWith("http")) {
+        try {
+          const imageResponse = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              to: normalizeWhatsAppNumber(from),
+              type: "image",
+              image: { link: marketplaceProduct.image, caption: marketplaceReply },
+            }),
+          });
+          if (!imageResponse.ok) {
+            console.error("⚠ فشل إرسال صورة المنتج، إرسال النص بدلاً منها");
+            await sendMessage(from, marketplaceReply);
+          }
+        } catch (error) {
+          console.error("❌ Marketplace image error:", error.message);
+          await sendMessage(from, marketplaceReply);
+        }
+      } else {
+        await sendMessage(from, marketplaceReply);
+      }
+      await saveToAppSheet(from, userText, marketplaceReply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "MARKETPLACE_BARCODE" });
+      return Response.json({ status: "ok", found: true, source: "MARKETPLACE_2M", barcode: marketplaceProduct.code, product: marketplaceProduct }, { status: 200 });
+    }
+
     const whatsappNumber = normalizeWhatsAppNumber(from);
     const user = await getUserByWhatsAppNumber(whatsappNumber);
-
-    // قراءة Bot Session من جدول Bot Sessions المنفصل
     const sessionRow = await getBotSessionTable(whatsappNumber);
     const currentBotSession = sessionRow? String(sessionRow["Active Bot"] || BOT1_SESSION).trim() : BOT1_SESSION;
     console.log(`🤖 Bot Session من جدول Bot Sessions: ${currentBotSession}`);
-
-        if (currentBotSession === BOT2_SESSION) {
+    if (currentBotSession === BOT2_SESSION) {
       console.log(`⛔ المستخدم مع BOT2 — تحويل رسالة واتساب من BOT1 لـ BOT2: ${whatsappNumber} | ${userText}`);
       try {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.md-marketplace.store";
         const forwardRes = await fetch(`${siteUrl}/api/whatsapp-bot2`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            from: whatsappNumber,
-            text: userText,
-            whatsappNumber: whatsappNumber
-          })
+          body: JSON.stringify({ from: whatsappNumber, text: userText, whatsappNumber: whatsappNumber })
         });
         const forwardText = await forwardRes.text();
         console.log(`📤 تحويل لـ BOT2: ${forwardRes.status} | ${forwardText.substring(0, 300)}`);
@@ -448,10 +585,8 @@ export async function POST(req) {
       }
       return Response.json({ status: "ok", forwarded_to: "BOT2" }, { status: 200 });
     }
-
     const newOrderIntent = isNewOrderIntent(userText);
     console.log(`🛒 نية إنشاء طلب جديد: ${newOrderIntent}`);
-
     if (newOrderIntent && user) {
       console.log("🚀 المستخدم المسجّل يريد إنشاء طلب جديد - تحويل لبوابة BOT2");
       const transferred = await transferToBot2({ from: whatsappNumber, user, originalMessage: userText });
@@ -461,7 +596,6 @@ export async function POST(req) {
       }
       console.error("⚠ فشل الانتقال إلى BOT2 — BOT1 سيكمل");
     }
-
     let productResults = [];
     let orderContext = { orders: [], selectedOrder: null, details: [] };
     productResults = await searchProducts(userText);
