@@ -91,58 +91,71 @@ function isPossiblePhoneNumber(num) {
 // ======================================================
 // جديد: OpenFoodFacts مباشرة - بلا 2M - فوري
 // ======================================================
-import https from 'https';
-
 async function getProductFromOFF(barcode) {
-  console.log(`🔎 OFF Direct HTTPS: ${barcode}`);
-  
+  console.log(`🔎 UPC Lookup: ${barcode}`);
+
+  try {
+    // 1. جرب UPCitemdb (ما بينحظر)
+    const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`, {
+      cache: 'no-store'
+    });
+    console.log(`📡 UPC status: ${res.status}`);
+    const data = await res.json();
+    console.log(`📦 UPC code: ${data.code} items: ${data.items?.length}`);
+
+    if (data.code === 'OK' && data.items?.length > 0) {
+      const item = data.items[0];
+      console.log(`✅ Found UPC: ${item.title}`);
+      return {
+        code: barcode,
+        name: item.title || item.description || "منتج",
+        brand: item.brand || "",
+        image: item.images?.[0] || "",
+        nutriments: { kcal: "?", fat: "?", sugars: "?", proteins: "?", carbs: "?" }
+      };
+    }
+
+    // 2. اذا ما لقاه، جرب OpenFoodFacts ب https
+    console.log(`🔄 UPC not found, trying OFF HTTPS`);
+    return await getFromOFF_HTTPS(barcode);
+
+  } catch(e) {
+    console.log(`❌ UPC error: ${e.message}`);
+    return await getFromOFF_HTTPS(barcode);
+  }
+}
+
+async function getFromOFF_HTTPS(barcode) {
+  const https = await import('https');
   return new Promise((resolve) => {
-    const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
-    console.log(`🌐 HTTPS GET: ${url}`);
-    
-    https.get(url, {
+    https.default.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
       headers: { 'User-Agent': 'MD-Marketplace/1.0' },
-      timeout: 8000
+      timeout: 15000
     }, (res) => {
-      console.log(`📡 HTTPS status: ${res.statusCode}`);
-      let data = '';
-      res.on('data', chunk => data += chunk);
+      let d = ''; res.on('data', c => d += c);
       res.on('end', () => {
         try {
-          const json = JSON.parse(data);
-          console.log(`📦 status: ${json.status} name: ${json.product?.product_name}`);
-          if (json.status === 1) {
-            const p = json.product; const n = p.nutriments || {};
+          const j = JSON.parse(d);
+          if (j.status === 1) {
+            const p = j.product; const n = p.nutriments || {};
             resolve({
               code: barcode,
               name: p.product_name || "منتج",
               brand: p.brands || "",
-              image: p.image_front_url || p.image_url || "",
+              image: p.image_front_url || "",
               nutriments: {
-                kcal: n["energy-kcal_100g"] || "?",
-                fat: n["fat_100g"] || "?",
-                sugars: n["sugars_100g"] || "?",
-                proteins: n["proteins_100g"] || "?",
-                carbs: n["carbohydrates_100g"] || "?"
+                kcal: n["energy-kcal_100g"]||"?",
+                fat: n["fat_100g"]||"?",
+                sugars: n["sugars_100g"]||"?",
+                proteins: n["proteins_100g"]||"?",
+                carbs: n["carbohydrates_100g"]||"?"
               }
             });
-          } else {
-            console.log(`❌ OFF not found: ${barcode}`);
-            resolve(null);
-          }
-        } catch(e) {
-          console.log(`❌ JSON error: ${e.message}`);
-          resolve(null);
-        }
+          } else resolve(null);
+        } catch { resolve(null); }
       });
-    }).on('error', (e) => {
-      console.log(`❌ HTTPS error: ${e.message}`);
-      resolve(null);
-    }).on('timeout', function() {
-      console.log(`⏰ HTTPS timeout`);
-      this.destroy();
-      resolve(null);
-    });
+    }).on('error', () => resolve(null))
+     .on('timeout', function(){ this.destroy(); resolve(null); });
   });
 }
 
