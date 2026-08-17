@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 export const dynamic = "force-dynamic";
-export const runtime = 'edge';
+
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
