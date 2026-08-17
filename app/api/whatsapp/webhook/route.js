@@ -496,13 +496,32 @@ async function getAIReply(userMessage, user, productResults, orderContext, histo
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
+
+  // ======================================================
+  // MARKETPLACE WARMUP - 2M CACHE
+  // ======================================================
+  if (searchParams.get("warmup") === "true") {
+    console.log("🔥 Warmup request - Loading 2M products...");
+    const start = Date.now();
+    const products = await loadMarketplaceProducts(true);
+    const duration = ((Date.now() - start) / 1000).toFixed(2);
+    return Response.json({
+      status: "ok",
+      warmed: true,
+      source: "MARKETPLACE_2M",
+      products_loaded: products.length,
+      unique_barcodes: MARKETPLACE_BARCODE_INDEX.size,
+      duration_seconds: duration,
+      cache_ttl_hours: 24
+    }, { status: 200 });
+  }
+
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
   if (mode === "subscribe" && token === VERIFY_TOKEN) return new Response(challenge, { status: 200 });
   return new Response("Forbidden", { status: 403 });
 }
-
 export async function POST(req) {
   try {
     const body = await req.json();
