@@ -1,7 +1,6 @@
 import { google } from "googleapis";
 export const dynamic = "force-dynamic";
 
-
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
@@ -98,6 +97,7 @@ async function getProductFromOFF(barcode) {
   try {
     const res = await fetch(`${OFF_PROXY}/?barcode=${barcode}`, { cache: 'no-store', headers: {'User-Agent':'MD-Marketplace/1.0'} });
     const data = await res.json();
+    console.log(`📦 OFF Raw status for ${barcode}:`, data.status);
     if (data.status === 1 && data.product) {
       const p = data.product;
       const n = p.nutriments || {};
@@ -541,36 +541,33 @@ export async function POST(req) {
     // ===== جديد: اذا بعت صورة باركود =====
     if (message?.type === "image" && message?.image?.id) {
       console.log(`📸 صورة باركود: ${message.image.id}`);
-      const earlyResponse = Response.json({ status: "ok", image: true }, { status: 200 });
-      (async () => {
-        const decoded = await decodeBarcodeFromImage(message.image.id);
-        if (!decoded) {
-          await sendMessage(from, "ما قدرت اقرا الباركود من الصورة 🙏\nجرب تصورها أوضح أو ابعت الرقم كتابة.");
-          return;
-        }
-        const product = await getProductFromOFF(decoded);
-        if (!product) {
-          await sendMessage(from, `عذراً 🙏\n\nما لقينا منتج بالباركود:\n${decoded}\nفي OpenFoodFacts`);
-          return;
-        }
-        globalThis._lastProduct.set(whatsappNumber, product);
-        setTimeout(() => globalThis._lastProduct.delete(whatsappNumber), 600000);
-        const reply = buildMarketplaceProductText(product);
-        if (product.image && product.image.startsWith("http")) {
-          try {
-            const imageResponse = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ messaging_product: "whatsapp", to: whatsappNumber, type: "image", image: { link: product.image, caption: reply } })
-            });
-            if (!imageResponse.ok) await sendMessage(from, reply);
-          } catch { await sendMessage(from, reply); }
-        } else {
-          await sendMessage(from, reply);
-        }
-        await saveToAppSheet(from, `صورة باركود ${decoded}`, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BARCODE_IMAGE_OFF" });
-      })();
-      return earlyResponse;
+      const decoded = await decodeBarcodeFromImage(message.image.id);
+      if (!decoded) {
+        await sendMessage(from, "ما قدرت اقرا الباركود من الصورة 🙏\nجرب تصورها أوضح أو ابعت الرقم كتابة.");
+        return Response.json({ status: "ok" }, { status: 200 });
+      }
+      const product = await getProductFromOFF(decoded);
+      if (!product) {
+        await sendMessage(from, `عذراً 🙏\n\nما لقينا منتج بالباركود:\n${decoded}\nفي OpenFoodFacts`);
+        return Response.json({ status: "ok" }, { status: 200 });
+      }
+      globalThis._lastProduct.set(whatsappNumber, product);
+      setTimeout(() => globalThis._lastProduct.delete(whatsappNumber), 600000);
+      const reply = buildMarketplaceProductText(product);
+      if (product.image && product.image.startsWith("http")) {
+        try {
+          const imageResponse = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ messaging_product: "whatsapp", to: whatsappNumber, type: "image", image: { link: product.image, caption: reply } })
+          });
+          if (!imageResponse.ok) await sendMessage(from, reply);
+        } catch { await sendMessage(from, reply); }
+      } else {
+        await sendMessage(from, reply);
+      }
+      await saveToAppSheet(from, `صورة باركود ${decoded}`, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BARCODE_IMAGE_OFF" });
+      return Response.json({ status: "ok" }, { status: 200 });
     }
 
     const userText = message?.text?.body || body.text;
@@ -607,7 +604,7 @@ export async function POST(req) {
       }
     }
 
-    // ===== البحث بالباركود من OFF مباشرة =====
+    // ===== البحث بالباركود من OFF مباشرة - تم التعديل هنا فقط =====
     const isOnlyDigits = /^\d+$/.test(rawText.replace(/\s+/g, ""));
     const barcode = normalizeBarcode(rawText);
     if (barcode && isOnlyDigits && barcode.length >= 8 && barcode.length <= 14 && /^\d+$/.test(barcode) &&!isPossiblePhoneNumber(barcode)) {
@@ -619,42 +616,41 @@ export async function POST(req) {
       globalThis._barcodeLock.set(lockKey, Date.now());
       setTimeout(() => globalThis._barcodeLock.delete(lockKey), 30000);
 
-      console.log(`🔎 OFF Barcode Search: ${barcode}`);
-      const earlyResponse = Response.json({ status: "ok", processing: true }, { status: 200 });
+      console.log(`🔎 OFF Barcode Search: ${barcode} via ${OFF_PROXY}`);
+      const product = await getProductFromOFF(barcode);
+      console.log(`📦 OFF Result:`, product? product.name : "null - not found");
 
-      (async () => {
-        const product = await getProductFromOFF(barcode);
-        if (!product) {
-          await sendMessage(from, `عذراً 🙏\n\nما لقينا منتج بالباركود:\n${barcode}\n\nتأكد من الرقم وجرب مرة تانية.`);
-          return;
-        }
-        globalThis._lastProduct.set(whatsappNumber, product);
-        setTimeout(() => globalThis._lastProduct.delete(whatsappNumber), 600000);
+      if (!product) {
+        await sendMessage(from, `عذراً 🙏\n\nما لقينا منتج بالباركود:\n${barcode}\n\nتأكد من الرقم وجرب مرة تانية.`);
+        await saveToAppSheet(from, rawText, "Not found OFF", { botSession: BOT1_SESSION, bot: "BOT1", messageType: "MARKETPLACE_BARCODE" });
+        return Response.json({ status: "ok" }, { status: 200 });
+      }
 
-        const reply = buildMarketplaceProductText(product);
-        if (product.image && product.image.startsWith("http")) {
-          try {
-            const imageResponse = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                messaging_product: "whatsapp",
-                to: normalizeWhatsAppNumber(from),
-                type: "image",
-                image: { link: product.image, caption: reply },
-              }),
-            });
-            if (!imageResponse.ok) await sendMessage(from, reply);
-          } catch (error) {
-            await sendMessage(from, reply);
-          }
-        } else {
+      globalThis._lastProduct.set(whatsappNumber, product);
+      setTimeout(() => globalThis._lastProduct.delete(whatsappNumber), 600000);
+
+      const reply = buildMarketplaceProductText(product);
+      if (product.image && product.image.startsWith("http")) {
+        try {
+          const imageResponse = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              to: normalizeWhatsAppNumber(from),
+              type: "image",
+              image: { link: product.image, caption: reply },
+            }),
+          });
+          if (!imageResponse.ok) await sendMessage(from, reply);
+        } catch (error) {
           await sendMessage(from, reply);
         }
-        saveToAppSheet(from, rawText, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "MARKETPLACE_BARCODE" });
-      })();
-
-      return earlyResponse;
+      } else {
+        await sendMessage(from, reply);
+      }
+      await saveToAppSheet(from, rawText, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "MARKETPLACE_BARCODE" });
+      return Response.json({ status: "ok" }, { status: 200 });
     }
 
     const user = await getUserByWhatsAppNumber(whatsappNumber);
