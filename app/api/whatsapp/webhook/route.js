@@ -94,37 +94,39 @@ function isPossiblePhoneNumber(num) {
 // ======================================================
 async function getProductFromOFF(barcode) {
   try {
-    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
-      headers: { 'User-Agent': 'MD-Marketplace/1.0' }
+    const res = await fetch(`https://world.openfoodfacts.net/api/v0/product/${barcode}.json`, {
+      headers: { 'User-Agent': 'MD-Marketplace/1.0' },
+      cache: 'no-store'
     });
     const data = await res.json();
     if (data.status === 1) {
-      const p = data.product; const n = p.nutriments || {};
+      const p = data.product; 
+      const n = p.nutriments || {};
       return {
         code: barcode,
-        name: p.product_name,
+        name: p.product_name || p.generic_name || "منتج",
         brand: p.brands || "",
-        image: p.image_front_url || "",
+        image: p.image_front_url || p.image_url || "",
+        quantity: p.quantity || "",
+        countries: p.countries || "",
         nutriments: {
           kcal: n["energy-kcal_100g"]||"?",
           fat: n["fat_100g"]||"?",
           sugars: n["sugars_100g"]||"?",
           proteins: n["proteins_100g"]||"?",
           carbs: n["carbohydrates_100g"]||"?"
-        }
+        },
+        isPlaceholder: false
       };
     }
-  } catch(e) {}
+  } catch(e) {
+    console.log(`OFF error: ${e.message}`);
+  }
+  // اذا ما لقاه - رجع null مش placeholder
   return null;
 }
+
 function buildMarketplaceProductText(product) {
-  if (product.isPlaceholder) {
-    return (
-      `⚠ *الباركود: ${product.code}*\n\n` +
-      `ما لقينا هالمنتج بقاعدة البيانات العالمية.\n` +
-      `فيك تبعتلي اسمو و سعرو و صورتو لأضيفو عالمتجر؟ 🙏`
-    );
-  }
   return (
     `📦 *${product.name || "منتج"}*\n\n` +
     `🏷 الماركة: ${product.brand || "غير معروف"}\n` +
@@ -137,14 +139,13 @@ function buildMarketplaceProductText(product) {
 
 function buildCaloriesText(product) {
   return `🔥 *السعرات الحرارية لـ ${product.name}:*\n\n` +
-         `• لكل 100غ: ${product.nutriments.kcal} سعرة\n` +
-         `• دهون: ${product.nutriments.fat}غ\n` +
-         `• كارب: ${product.nutriments.carbs}غ\n` +
-         `• سكر: ${product.nutriments.sugars}غ\n` +
-         `• بروتين: ${product.nutriments.proteins}غ\n\n` +
-         `📊 المصدر: قاعدة بيانات MD-Marketplace`;
+         `• لكل 100غ: ${product.nutriments?.kcal || "?"} سعرة\n` +
+         `• دهون: ${product.nutriments?.fat || "?"}غ\n` +
+         `• كارب: ${product.nutriments?.carbs || "?"}غ\n` +
+         `• سكر: ${product.nutriments?.sugars || "?"}غ\n` +
+         `• بروتين: ${product.nutriments?.proteins || "?"}غ\n\n` +
+         `📊 المصدر: OpenFoodFacts`;
 }
-
 async function getMediaUrlFromMeta(mediaId) {
   try {
     const res = await fetch(`https://graph.facebook.com/v26.0/${mediaId}`, {
