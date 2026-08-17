@@ -160,7 +160,7 @@ async function loadMarketplaceProducts(forceRefresh = false) {
   return await MARKETPLACE_LOADING_PROMISE;
 }
 // ======================================================
-// FIND MARKETPLACE PRODUCT BY BARCODE
+// FIND MARKETPLACE PRODUCT BY BARCODE,
 // ======================================================
 async function findMarketplaceProductByBarcode(barcode) {
   const normalized = normalizeMarketplaceBarcode(barcode);
