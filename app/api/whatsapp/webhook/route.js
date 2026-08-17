@@ -88,9 +88,6 @@ function isPossiblePhoneNumber(num) {
   return false;
 }
 
-// ======================================================
-// جديد: OpenFoodFacts + UPC - سريع وما بيعلق أبداً
-// ======================================================
 const OFF_PROXY = "https://nameless-dream-8d63.mjahto18-454.workers.dev";
 
 async function getProductFromOFF(barcode) {
@@ -140,7 +137,7 @@ function buildCaloriesText(product) {
          `• كارب: ${product.nutriments?.carbs || "?"}غ\n` +
          `• سكر: ${product.nutriments?.sugars || "?"}غ\n` +
          `• بروتين: ${product.nutriments?.proteins || "?"}غ\n\n` +
-         `📊 المصدر: OpenFoodFacts`;
+         `📊 المصدر: MD-Marketplace`;
 }
 async function getMediaUrlFromMeta(mediaId) {
   try {
@@ -470,30 +467,126 @@ async function buildOrderContext(user, userMessage) {
   return { orders: safeOrders, selectedOrder: selectedOrder? { requestId: selectedOrder["Request ID"] || "", area: selectedOrder["Area"] || "", deliveryAddress: selectedOrder["Delivery Adress"] || "", deliveryFee: selectedOrder["Delivery Fee"] || "", assignedDriver: selectedOrder["Assigned Driver"] || "", approvalStatus: selectedOrder["Approval Status"] || "", deliveryStatus: selectedOrder["Delivery Status"] || "", itemsCost: selectedOrder["Items Cost"] || "", totalAmount: selectedOrder["Total Amount"] || "" } : null, details };
 }
 
+// ======================================================
+// 13. Groq AI - القواعد الكاملة رجعت
+// ======================================================
 async function getAIReply(userMessage, user, productResults, orderContext, history) {
-  if (!GROQ_KEY) return user? "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊" : `أهلا وسهلا فيك بـ MD-Marketplace 😊\n\nكيف بقدر ساعدك اليوم؟`;
+  if (!GROQ_KEY) {
+    return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
+  }
   try {
-    let userContext = "";
+    let userContext = "المستخدم غير معروف في نظام Users.";
     if (user) {
-      userContext = `\nالمستخدم مسجّل ومعروف في نظام Users.\nبيانات المستخدم الموثوقة:\nالاسم:\n${user.name || "غير معروف"}\nالدور:\n${user.role || "غير معروف"}\nCustomer ID:\n${user.customerId || "غير موجود"}\nUser ID:\n${user.userId || "غير موجود"}\nرقم WhatsApp:\n${user.whatsappNumber || "غير موجود"}\n`;
-    } else {
-      userContext = `\n⚠ المستخدم زائر وغير مسجّل في نظام Users.\n`;
+      userContext = `
+بيانات المستخدم الموثوقة:
+الاسم: ${user.name || "غير معروف"}
+الدور: ${user.role || "غير معروف"}
+Customer ID: ${user.customerId || "غير موجود"}
+User ID: ${user.userId || "غير موجود"}
+رقم WhatsApp: ${user.whatsappNumber || "غير موجود"}
+`;
     }
+
     const productContext = productResults.length? JSON.stringify(productResults) : "لا توجد نتائج منتجات مؤكدة.";
     const orderData = orderContext.orders.length? JSON.stringify(orderContext.orders) : "لا توجد طلبات متاحة لهذا المستخدم.";
     const selectedOrder = orderContext.selectedOrder? JSON.stringify(orderContext.selectedOrder) : "لا يوجد طلب محدد.";
     const orderDetails = orderContext.details.length? JSON.stringify(orderContext.details) : "لا توجد تفاصيل للطلب المحدد.";
     const historyText = history.length? history.map(m => `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`).join("\n") : "لا توجد محادثة سابقة.";
-    const systemPrompt = `\nأنت مساعدك الذكي من MD-Marketplace.\nتحدث باللهجة اللبنانية الودودة.\nموقعنا الرسمي:\n${WEBSITE_URL}\nايميلنا:\n${INFO_EMAIL}\n${userContext}\nالمحادثة السابقة\n${historyText}\nنتائج المنتجات\n${productContext}\nطلبات المستخدم\n${orderData}\nالطلب المحدد\n${selectedOrder}\nتفاصيل الطلب\n${orderDetails}\n`;
+
+    const systemPrompt = `
+أنت مساعدك الذكي من MD-Marketplace.
+تحدث باللهجة اللبنانية الودودة والطبيعية، خليك مهضوم وطبيعي مش روبوت.
+موقعنا الرسمي: ${WEBSITE_URL}
+ايميلنا للتواصل: ${INFO_EMAIL}
+
+${userContext}
+
+قواعد الهوية والأمان
+1. إذا كان المستخدم معروفاً، استخدم اسمه.
+2. لا تنادِ المستخدم برقم الهاتف.
+3. إذا كان المستخدم غير موجود في Users: ممنوع إعطاؤه أي معلومات عن الطلبات.
+4. لا تسمح للمستخدم بالوصول إلى طلبات شخص آخر.
+5. بيانات الطلبات الموجودة أدناه تم تجهيزها من الكود بعد تطبيق صلاحيات المستخدم. اعتبرها بيانات موثوقة.
+6. لا تخترع أي طلب. لا تخترع أي سعر. لا تخترع أي منتج. لا تخترع أي متجر. لا تخترع أي منطقة. لا تخترع أي حالة طلب.
+
+قواعد الموقع والايميل
+- اذا سأل "شو موقعكم / وين العنوان / شو عنوانكم / وين محلكم / رابط الموقع": جاوب "موقعنا هو ${WEBSITE_URL} فيك تشوف كل المنتجات والفروع هناك"
+- اذا سأل "كيف بقدر اتواصل / شو ايميلكم / بدي احكي الادارة": جاوب "فيك تتواصل معنا على ${INFO_EMAIL}"
+- اذا سأل عن الموقع والتواصل مع بعض: جاوب "موقعنا ${WEBSITE_URL} وايميلنا ${INFO_EMAIL}"
+
+قواعد التعريف
+- اذا قال "مين معي / مين انت / شو اسمك": جاوب "أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"
+- لا تقل "أنا موظف خدمة العملاء" بعد اليوم، قول "أنا مساعدك الذكي من MD-Marketplace"
+
+=== قواعد المنتجات - نسخة نهائية بدون تكرار ===
+- قاعدة ذهبية: ممنوع منعاً باتاً تستعمل جدول Markdown مثل | | |. الواتساب لا يفهم الجداول!
+- اذا productContext = "لا توجد نتائج منتجات مؤكدة." و المستخدم غير معروف:
+  قل: "لتستفيد أكتر من خدماتنا وتعرف وين موجود المنتج وسعره، زور موقعنا ${WEBSITE_URL} وسجل دخول، وبعدا بقدر اعطيك كل المعلومات الصحيحة 😊" ولا تخترع منتج!
+- اذا productContext فاضي بس المستخدم معروف: قل "ما لقيت هالمنتج حالياً، بتحب جرب اسم تاني؟" ولا تخترع منتج من عندك!
+- اذا فيه نتائج: اعرض كل المنتجات بدون استثناء، لا تختار واحد فقط، لا تتجاهل أي متجر، لا تدمج المنتجات، لا تغيّر الترتيب.
+- شكل العرض الالزامي لكل منتج:
+
+🛒 المنتج: {Product Name} {Unit}
+💰 السعر: {Price}
+🏪 المتجر: {Store Name}
+📍 العنوان: {Address} - {Area}
+⏰ الدوام: {Open Time} - {Close Time}
+
+- افصل بين كل منتج بسطر فاضي.
+- ممنوع تعرض: Product ID, Store ID, Area ID, Category ID
+
+قواعد الطلبات
+- استخدم بيانات Order Request. يمكنك ذكر: Request ID, Delivery Status, Approval Status, Items Cost, Delivery Fee, Total Amount, Delivery Address, Assigned Driver, Area
+- اذا سأل "شو بقلب الطلب؟" استخدم Order Details وحوّل: Product ID → Product Name, Store ID → Store Name, Area → Area Name
+- Delivery Status مهم جداً. اذا كانت "في الطريق" أو "بيك اب" أو "تم التوصيل" استخدم الحالة كما هي بصياغة لبنانية واضحة. لا تغير حالة الطلب من عندك.
+
+السائق
+- اذا كان Assigned Driver موجوداً: يمكن ذكر اسم السائق. لا تذكر رقم هاتف السائق إلا إذا طلب المستخدم ذلك بشكل واضح.
+
+أسلوب المحادثة
+- لا تعيد الترحيب في كل رسالة. اذا شفت بالمحادثة السابقة انك قلت مرحبا قبل، لا تعيدها.
+- لا تقل "أنا ذكاء اصطناعي" إلا إذا سأل المستخدم.
+- لا تقل "حسب البيانات التي لدي..." في كل رد. أجب مباشرة.
+- إذا السؤال يحتاج توضيح: اسأل سؤالاً واحداً فقط.
+- إذا المستخدم قال مرحبا: رحب به بشكل طبيعي مرة وحدة: "أهلا وسهلا! أنا مساعدك الذكي من MD-Marketplace، كيف بقدر ساعدك؟"
+- لا تكرر معلومات قديمة بدون داع.
+
+المحادثة السابقة
+${historyText}
+
+نتائج المنتجات
+${productContext}
+
+طلبات المستخدم
+${orderData}
+
+الطلب المحدد
+${selectedOrder}
+
+تفاصيل الطلب المحدد
+${orderDetails}
+`;
+
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }], temperature: 0.4 })
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b",
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
+        temperature: 0.4
+      })
     });
+
     const data = await res.json();
-    if (data.error ||!data.choices?.[0]?.message?.content) return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
+    if (data.error ||!data.choices?.[0]?.message?.content) {
+      console.error("❌ Groq Error:", JSON.stringify(data.error));
+      return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
+    }
     return data.choices?.[0]?.message?.content || "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
-  } catch (error) { return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية."; }
+  } catch (error) {
+    console.error("❌ خطأ اتصال Groq:", error);
+    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
+  }
 }
 
 export async function GET(req) {
@@ -538,7 +631,6 @@ export async function POST(req) {
     if (!from) return Response.json({ status: "ok" }, { status: 200 });
     const whatsappNumber = normalizeWhatsAppNumber(from);
 
-    // ===== جديد: اذا بعت صورة باركود =====
     if (message?.type === "image" && message?.image?.id) {
       console.log(`📸 صورة باركود: ${message.image.id}`);
       const decoded = await decodeBarcodeFromImage(message.image.id);
@@ -575,7 +667,6 @@ export async function POST(req) {
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
     const rawText = String(userText || "").trim();
 
-    // ===== السعرات: اذا قال ايه / نعم =====
     const normalizedMsg = normalizeText(rawText);
     if (/^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) {
       const lastProduct = globalThis._lastProduct.get(whatsappNumber);
@@ -586,7 +677,6 @@ export async function POST(req) {
         await saveToAppSheet(from, userText, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "CALORIES" });
         return Response.json({ status: "ok", calories: true }, { status: 200 });
       }
-      // fallback قديم من الشيت
       const allMsgs = await getAllUserMessages(whatsappNumber);
       const lastBot = allMsgs.slice().reverse().find(m => (m["AIReply"] || "").includes("بدك اعطيك السعرات"));
       if (lastBot) {
@@ -604,7 +694,6 @@ export async function POST(req) {
       }
     }
 
-    // ===== البحث بالباركود من OFF مباشرة - تم التعديل هنا فقط =====
     const isOnlyDigits = /^\d+$/.test(rawText.replace(/\s+/g, ""));
     const barcode = normalizeBarcode(rawText);
     if (barcode && isOnlyDigits && barcode.length >= 8 && barcode.length <= 14 && /^\d+$/.test(barcode) &&!isPossiblePhoneNumber(barcode)) {
