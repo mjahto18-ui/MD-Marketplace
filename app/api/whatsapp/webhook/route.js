@@ -92,56 +92,56 @@ function isPossiblePhoneNumber(num) {
 // جديد: OpenFoodFacts مباشرة - بلا 2M - فوري
 // ======================================================
 async function getProductFromOFF(barcode) {
-  try {
-    console.log(`🔎 OFF: ${barcode}`);
+  const urls = [
+    `https://world.openfoodfacts.net/api/v0/product/${barcode}.json`,
+    `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
+  ];
+  
+  for (const url of urls) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    
-    const urls = [
-      `https://world.openfoodfacts.net/api/v0/product/${barcode}.json`,
-      `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
-      `https://it.openfoodfacts.org/api/v0/product/${barcode}.json`
-    ];
-    
-    for (const url of urls) {
-      try {
-        console.log(`🌐 Trying: ${url}`);
-        const res = await fetch(url, {
-          headers: {
-            "User-Agent": "MDMarketplace/1.0",
-            "Accept": "application/json"
-          },
-          signal: controller.signal,
-          cache: 'no-store'
-        });
-        console.log(`📡 HTTP ${res.status} from ${url}`);
-        const data = await res.json();
-        console.log(`📦 status: ${data.status} for ${barcode}`);
-        clearTimeout(timeout);
-        if (data.status === 1) {
-          const p = data.product;
-          const n = p.nutriments || {};
-          return {
-            code: barcode,
-            name: p.product_name || "منتج",
-            brand: p.brands || "غير معروف",
-            quantity: p.quantity || "غير محدد",
-            countries: p.countries || "غير محدد",
-            image: p.image_front_url || "",
-            nutriments: { kcal: n["energy-kcal_100g"] || "?", fat: n["fat_100g"] || "?", sugars: n["sugars_100g"] || "?", proteins: n["proteins_100g"] || "?", carbs: n["carbohydrates_100g"] || "?" }
-          };
-        }
-      } catch (e) {
-        console.log(`⚠ Failed ${url}: ${e.message}`);
-        continue;
+    const timer = setTimeout(() => controller.abort(), 8000); // 8 ثواني لكل رابط
+    try {
+      console.log(`🌐 Trying: ${url}`);
+      const res = await fetch(url, {
+        headers: { 
+          "User-Agent": "MD-Marketplace/1.0",
+          "Accept": "application/json"
+        },
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timer);
+      console.log(`📡 HTTP ${res.status} from ${url}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      console.log(`📦 status: ${data.status} for ${barcode}`);
+      if (data.status === 1) {
+        const p = data.product;
+        const n = p.nutriments || {};
+        return {
+          code: barcode,
+          name: p.product_name || p.product_name_en || "منتج",
+          brand: p.brands || "غير معروف",
+          quantity: p.quantity || "",
+          image: p.image_front_url || p.image_url || "",
+          nutriments: {
+            kcal: n["energy-kcal_100g"] || "?",
+            fat: n["fat_100g"] || "?",
+            sugars: n["sugars_100g"] || "?",
+            proteins: n["proteins_100g"] || "?",
+            carbs: n["carbohydrates_100g"] || "?"
+          }
+        };
       }
+    } catch(e) {
+      clearTimeout(timer);
+      console.log(`⚠ Failed ${url}: ${e.message}`);
+      continue;
     }
-    clearTimeout(timeout);
-    console.log(`❌ OFF not found: ${barcode}`);
-    return null;
-  } catch(e) { console.error(`❌ OFF error: ${e.message}`); return null; }
+  }
+  console.log(`❌ OFF not found: ${barcode}`);
+  return null;
 }
-
 function buildMarketplaceProductText(product) {
   return (
     `📦 *${product.name || "منتج"}*\n\n` +
