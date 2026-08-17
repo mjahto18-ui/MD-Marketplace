@@ -98,8 +98,8 @@ async function getProductFromOFF(barcode) {
     const timeout = setTimeout(() => controller.abort(), 5000);
     
     const urls = [
-      `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
       `https://world.openfoodfacts.net/api/v0/product/${barcode}.json`,
+      `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
       `https://it.openfoodfacts.org/api/v0/product/${barcode}.json`
     ];
     
