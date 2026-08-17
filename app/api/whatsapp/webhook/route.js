@@ -89,77 +89,102 @@ function isPossiblePhoneNumber(num) {
 }
 
 // ======================================================
-// جديد: OpenFoodFacts مباشرة - بلا 2M - فوري
+// جديد: OpenFoodFacts + UPC - سريع وما بيعلق أبداً
 // ======================================================
-async function getProductFromOFF(barcode) {
-  console.log(`🔎 UPC Lookup: ${barcode}`);
-
+async function fetchWithTimeout(url, ms = 4000) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), ms);
   try {
-    // 1. جرب UPCitemdb (ما بينحظر)
-    const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`, {
-      cache: 'no-store'
-    });
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    clearTimeout(t);
+    return res;
+  } catch(e) {
+    clearTimeout(t);
+    throw e;
+  }
+}
+
+async function getProductFromOFF(barcode) {
+  console.log(`🔎 Lookup: ${barcode}`);
+
+  // 1. UPCitemdb - أسرع وما بينحظر
+  try {
+    console.log(`🔎 UPC Lookup: ${barcode}`);
+    const res = await fetchWithTimeout(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`, 4000);
     console.log(`📡 UPC status: ${res.status}`);
     const data = await res.json();
     console.log(`📦 UPC code: ${data.code} items: ${data.items?.length}`);
-
     if (data.code === 'OK' && data.items?.length > 0) {
       const item = data.items[0];
       console.log(`✅ Found UPC: ${item.title}`);
       return {
         code: barcode,
-        name: item.title || item.description || "منتج",
+        name: item.title,
         brand: item.brand || "",
         image: item.images?.[0] || "",
-        nutriments: { kcal: "?", fat: "?", sugars: "?", proteins: "?", carbs: "?" }
+        quantity: "",
+        countries: "",
+        nutriments: { kcal: "?", fat: "?", sugars: "?", proteins: "?", carbs: "?" },
+        isPlaceholder: false
       };
     }
-
-    // 2. اذا ما لقاه، جرب OpenFoodFacts ب https
-    console.log(`🔄 UPC not found, trying OFF HTTPS`);
-    return await getFromOFF_HTTPS(barcode);
-
   } catch(e) {
-    console.log(`❌ UPC error: ${e.message}`);
-    return await getFromOFF_HTTPS(barcode);
+    console.log(`⚠ UPC fail: ${e.message}`);
   }
-}
 
-async function getFromOFF_HTTPS(barcode) {
-  const https = await import('https');
-  return new Promise((resolve) => {
-    https.default.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
-      headers: { 'User-Agent': 'MD-Marketplace/1.0' },
-      timeout: 15000
-    }, (res) => {
-      let d = ''; res.on('data', c => d += c);
-      res.on('end', () => {
-        try {
-          const j = JSON.parse(d);
-          if (j.status === 1) {
-            const p = j.product; const n = p.nutriments || {};
-            resolve({
-              code: barcode,
-              name: p.product_name || "منتج",
-              brand: p.brands || "",
-              image: p.image_front_url || "",
-              nutriments: {
-                kcal: n["energy-kcal_100g"]||"?",
-                fat: n["fat_100g"]||"?",
-                sugars: n["sugars_100g"]||"?",
-                proteins: n["proteins_100g"]||"?",
-                carbs: n["carbohydrates_100g"]||"?"
-              }
-            });
-          } else resolve(null);
-        } catch { resolve(null); }
-      });
-    }).on('error', () => resolve(null))
-     .on('timeout', function(){ this.destroy(); resolve(null); });
-  });
+  // 2. OFF ب timeout قصير 4 ثواني - اذا علق منلغيه
+  try {
+    console.log(`🌐 Trying OFF: ${barcode}`);
+    const res = await fetchWithTimeout(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, 4000);
+    console.log(`📡 OFF status: ${res.status}`);
+    const j = await res.json();
+    console.log(`📦 OFF status: ${j.status}`);
+    if (j.status === 1) {
+      const p = j.product; const n = p.nutriments || {};
+      console.log(`✅ Found OFF: ${p.product_name}`);
+      return {
+        code: barcode,
+        name: p.product_name || p.generic_name || "منتج",
+        brand: p.brands || "",
+        image: p.image_front_url || p.image_url || "",
+        quantity: p.quantity || "",
+        countries: p.countries || "",
+        nutriments: {
+          kcal: n["energy-kcal_100g"]||"?",
+          fat: n["fat_100g"]||"?",
+          sugars: n["sugars_100g"]||"?",
+          proteins: n["proteins_100g"]||"?",
+          carbs: n["carbohydrates_100g"]||"?"
+        },
+        isPlaceholder: false
+      };
+    }
+  } catch(e) {
+    console.log(`⚠ OFF fail: ${e.message}`);
+  }
+
+  // 3. اذا التنين فشلو - لا ترجع null! رجع placeholder
+  console.log(`⚠ Not in DB, placeholder: ${barcode}`);
+  return {
+    code: barcode,
+    name: `منتج ${barcode}`,
+    brand: "",
+    image: "",
+    quantity: "",
+    countries: "",
+    nutriments: {},
+    isPlaceholder: true
+  };
 }
 
 function buildMarketplaceProductText(product) {
+  if (product.isPlaceholder) {
+    return (
+      `⚠ *الباركود: ${product.code}*\n\n` +
+      `ما لقينا هالمنتج بقاعدة البيانات العالمية.\n` +
+      `فيك تبعتلي اسمو و سعرو و صورتو لأضيفو عالمتجر؟ 🙏`
+    );
+  }
   return (
     `📦 *${product.name || "منتج"}*\n\n` +
     `🏷 الماركة: ${product.brand || "غير معروف"}\n` +
