@@ -92,54 +92,45 @@ function isPossiblePhoneNumber(num) {
 // جديد: OpenFoodFacts مباشرة - بلا 2M - فوري
 // ======================================================
 async function getProductFromOFF(barcode) {
-  const directUrls = [
-    `https://world.openfoodfacts.net/api/v0/product/${barcode}.json`,
-    `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
-  ];
+  console.log(`🔎 OFF: ${barcode}`);
   
-  // 1. جرب مباشر
-  for (const url of directUrls) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 7000);
-    try {
-      console.log(`🌐 Trying: ${url}`);
-      const res = await fetch(url, {
-        headers: { "User-Agent": "MDMarketplace/1.0" },
-        signal: controller.signal,
-        cache: 'no-store'
-      });
-      clearTimeout(timer);
-      console.log(`📡 HTTP ${res.status} from ${url}`);
-      const data = await res.json();
-      if (data.status === 1) return formatOFF(data.product, barcode);
-    } catch(e) {
-      clearTimeout(timer);
-      console.log(`⚠ Direct failed ${url}: ${e.message}`);
-    }
-  }
-  
-  // 2. جرب عن طريق Proxy (بيكسر حظر Vercel)
+  const tryFetch = (url, ms) => Promise.race([
+    fetch(url, { 
+      headers: { "User-Agent": "MDMarketplace/1.0" }, 
+      cache: 'no-store' 
+    }).then(async r => {
+      console.log(`📡 HTTP ${r.status} from ${url}`);
+      const data = await r.json();
+      console.log(`📦 status: ${data.status}`);
+      return data;
+    }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout '+ms)), ms))
+  ]);
+
+  // 1. جرب .net 5 ثواني
   try {
-    console.log(`🔄 Trying via Proxy for ${barcode}`);
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
-    const res = await fetch(proxyUrl, { cache: 'no-store' });
-    console.log(`📡 Proxy HTTP ${res.status}`);
-    const data = await res.json();
-    console.log(`📦 Proxy status: ${data.status}`);
+    console.log(`🌐 Trying .net`);
+    const data = await tryFetch(`https://world.openfoodfacts.net/api/v0/product/${barcode}.json`, 5000);
     if (data.status === 1) return formatOFF(data.product, barcode);
-  } catch(e) {
-    console.log(`⚠ Proxy failed: ${e.message}`);
-  }
-  
+  } catch(e) { console.log(`⚠ .net failed: ${e.message}`); }
+
+  // 2. جرب proxy فوراً (بيكسر الحظر)
+  try {
+    console.log(`🔄 Trying Proxy`);
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
+    const data = await tryFetch(proxyUrl, 8000);
+    if (data.status === 1) return formatOFF(data.product, barcode);
+  } catch(e) { console.log(`⚠ Proxy failed: ${e.message}`); }
+
   console.log(`❌ OFF not found: ${barcode}`);
   return null;
 }
 
-function formatOFF(p, barcode) {
+function formatOFF(p, code) {
   const n = p.nutriments || {};
   console.log(`✅ Found: ${p.product_name}`);
   return {
-    code: barcode,
+    code, 
     name: p.product_name || "منتج",
     brand: p.brands || "",
     quantity: p.quantity || "",
