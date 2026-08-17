@@ -92,57 +92,36 @@ function isPossiblePhoneNumber(num) {
 // جديد: OpenFoodFacts مباشرة - بلا 2M - فوري
 // ======================================================
 async function getProductFromOFF(barcode) {
-  console.log(`🔎 OFF: ${barcode}`);
-  
-  const tryFetch = (url, ms) => Promise.race([
-    fetch(url, { 
-      headers: { "User-Agent": "MDMarketplace/1.0" }, 
-      cache: 'no-store' 
-    }).then(async r => {
-      console.log(`📡 HTTP ${r.status} from ${url}`);
-      const data = await r.json();
-      console.log(`📦 status: ${data.status}`);
-      return data;
-    }),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout '+ms)), ms))
-  ]);
-
-  // 1. جرب .net 5 ثواني
+  console.log(`🔎 OFF Proxy: ${barcode}`);
   try {
-    console.log(`🌐 Trying .net`);
-    const data = await tryFetch(`https://world.openfoodfacts.net/api/v0/product/${barcode}.json`, 5000);
-    if (data.status === 1) return formatOFF(data.product, barcode);
-  } catch(e) { console.log(`⚠ .net failed: ${e.message}`); }
-
-  // 2. جرب proxy فوراً (بيكسر الحظر)
-  try {
-    console.log(`🔄 Trying Proxy`);
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
-    const data = await tryFetch(proxyUrl, 8000);
-    if (data.status === 1) return formatOFF(data.product, barcode);
-  } catch(e) { console.log(`⚠ Proxy failed: ${e.message}`); }
-
+    const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    console.log(`📡 Proxy HTTP ${res.status}`);
+    const data = await res.json();
+    console.log(`📦 status: ${data.status} name: ${data.product?.product_name}`);
+    
+    if (data.status === 1) {
+      const p = data.product;
+      const n = p.nutriments || {};
+      return {
+        code: barcode,
+        name: p.product_name || "منتج",
+        brand: p.brands || "",
+        image: p.image_front_url || p.image_url || "",
+        nutriments: {
+          kcal: n["energy-kcal_100g"] || "?",
+          fat: n["fat_100g"] || "?",
+          sugars: n["sugars_100g"] || "?",
+          proteins: n["proteins_100g"] || "?",
+          carbs: n["carbohydrates_100g"] || "?"
+        }
+      };
+    }
+  } catch(e) {
+    console.log(`❌ Proxy error: ${e.message}`);
+  }
   console.log(`❌ OFF not found: ${barcode}`);
   return null;
-}
-
-function formatOFF(p, code) {
-  const n = p.nutriments || {};
-  console.log(`✅ Found: ${p.product_name}`);
-  return {
-    code, 
-    name: p.product_name || "منتج",
-    brand: p.brands || "",
-    quantity: p.quantity || "",
-    image: p.image_front_url || p.image_url || "",
-    nutriments: {
-      kcal: n["energy-kcal_100g"] || "?",
-      fat: n["fat_100g"] || "?",
-      sugars: n["sugars_100g"] || "?",
-      proteins: n["proteins_100g"] || "?",
-      carbs: n["carbohydrates_100g"] || "?"
-    }
-  };
 }
 function buildMarketplaceProductText(product) {
   return (
