@@ -94,9 +94,19 @@ function isPossiblePhoneNumber(num) {
 async function getProductFromOFF(barcode) {
   try {
     console.log(`🔎 OFF: ${barcode}`);
-    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, { cache: 'no-store' });
+    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
+      headers: {
+        "User-Agent": "MD-Marketplace - Android - Version 1.0 - https://www.md-marketplace.store",
+        "Accept": "application/json"
+      },
+      cache: 'no-store'
+    });
     const data = await res.json();
-    if (data.status!== 1) return null;
+    console.log(`📦 OFF status: ${data.status} for ${barcode}`);
+    if (data.status !== 1) {
+      console.log(`❌ OFF not found: ${barcode}`);
+      return null;
+    }
     const p = data.product;
     const n = p.nutriments || {};
     return {
