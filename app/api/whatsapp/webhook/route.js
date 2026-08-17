@@ -96,35 +96,40 @@ async function getProductFromOFF(barcode) {
     console.log(`🔎 OFF: ${barcode}`);
     const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
       headers: {
-        "User-Agent": "MD-Marketplace - Android - Version 1.0 - https://www.md-marketplace.store",
+        "User-Agent": "MD-Marketplace/1.0 (info@md-marketplace.store)",
         "Accept": "application/json"
       },
       cache: 'no-store'
     });
+    console.log(`📡 OFF HTTP: ${res.status}`);
     const data = await res.json();
-    console.log(`📦 OFF status: ${data.status} for ${barcode}`);
+    console.log(`📦 OFF API status: ${data.status} for ${barcode}`);
     if (data.status !== 1) {
       console.log(`❌ OFF not found: ${barcode}`);
       return null;
     }
     const p = data.product;
     const n = p.nutriments || {};
+    console.log(`✅ OFF Found: ${p.product_name}`);
     return {
       code: barcode,
-      name: p.product_name || p.product_name_en || p.generic_name || "منتج",
+      name: p.product_name || p.product_name_en || "منتج",
       brand: p.brands || "غير معروف",
-      quantity: p.quantity || p.product_quantity || "غير محدد",
+      quantity: p.quantity || "غير محدد",
       countries: p.countries || "غير محدد",
-      image: p.image_front_url || p.image_url || "",
+      image: p.image_front_url || "",
       nutriments: {
-        kcal: n["energy-kcal_100g"] || n["energy-kcal"] || "?",
+        kcal: n["energy-kcal_100g"] || "?",
         fat: n["fat_100g"] || "?",
         sugars: n["sugars_100g"] || "?",
         proteins: n["proteins_100g"] || "?",
         carbs: n["carbohydrates_100g"] || "?"
       }
     };
-  } catch(e) { console.error("OFF error", e.message); return null; }
+  } catch(e) { 
+    console.error(`❌ OFF fetch error: ${e.message}`); 
+    return null; 
+  }
 }
 
 function buildMarketplaceProductText(product) {
