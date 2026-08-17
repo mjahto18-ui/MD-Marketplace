@@ -92,40 +92,33 @@ function isPossiblePhoneNumber(num) {
 // ======================================================
 // جديد: OpenFoodFacts + UPC - سريع وما بيعلق أبداً
 // ======================================================
+const OFF_WORKER_URL = "https://nameless-dream-8d63.mjahto18-454.workers.dev";
+
 async function getProductFromOFF(barcode) {
   try {
-    const res = await fetch(`https://world.openfoodfacts.net/api/v0/product/${barcode}.json`, {
-      headers: { 'User-Agent': 'MD-Marketplace/1.0' },
-      cache: 'no-store'
-    });
+    const res = await fetch(`${OFF_WORKER_URL}/?barcode=${barcode}`, { cache: 'no-store' });
     const data = await res.json();
+    console.log("OFF via Worker:", data.status);
     if (data.status === 1) {
-      const p = data.product; 
-      const n = p.nutriments || {};
+      const p = data.product; const n = p.nutriments || {};
       return {
         code: barcode,
-        name: p.product_name || p.generic_name || "منتج",
+        name: p.product_name,
         brand: p.brands || "",
-        image: p.image_front_url || p.image_url || "",
+        image: p.image_front_url || "",
         quantity: p.quantity || "",
-        countries: p.countries || "",
         nutriments: {
           kcal: n["energy-kcal_100g"]||"?",
           fat: n["fat_100g"]||"?",
           sugars: n["sugars_100g"]||"?",
           proteins: n["proteins_100g"]||"?",
           carbs: n["carbohydrates_100g"]||"?"
-        },
-        isPlaceholder: false
+        }
       };
     }
-  } catch(e) {
-    console.log(`OFF error: ${e.message}`);
-  }
-  // اذا ما لقاه - رجع null مش placeholder
+  } catch(e) { console.log("Worker error:", e.message); }
   return null;
 }
-
 function buildMarketplaceProductText(product) {
   return (
     `📦 *${product.name || "منتج"}*\n\n` +
