@@ -2,10 +2,25 @@ import BackButton from './BackButton'
 import Image from 'next/image'
 
 export const metadata = {
-  title: 'سياسة الخصوصية - MD Marketplace',
-  description: 'كيف نحمي بياناتك في MD Marketplace'
-}
-
+  title: "سياسة الخصوصية - كيف نحمي بياناتك | MD-Marketplace",
+  description: "تعرف على سياسة الخصوصية في MD-Marketplace. كيف نجمع بياناتك، نحميها بتشفير SSL، حقوقك في حذف بياناتك، وعدم بيع معلوماتك لأي طرف ثالث. آخر تحديث تموز 2025.",
+  keywords: ["سياسة الخصوصية", "حماية البيانات MD Marketplace", "خصوصية لبنان"],
+  openGraph: {
+    title: "سياسة الخصوصية - MD-Marketplace",
+    description: "لا نبيع بياناتك. حماية متقدمة بتشفير SSL وحقوق كاملة للمستخدم",
+    url: "https://www.md-marketplace.store/privacy",
+    siteName: "MD-Marketplace",
+    locale: "ar_LB",
+    type: "website",
+  },
+  alternates: {
+    canonical: "https://www.md-marketplace.store/privacy",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 export default function PrivacyPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-[#0D0D21] text-white">
