@@ -68,19 +68,24 @@ export async function POST(req) {
         Action: "Add",
         Properties: { Locale: "en-US" },
         Rows: [{
-          "Case ID": caseID,
-          "Order ID": body.orderId || "",
-          "Customer ID": customerName, // هون من جدول Users
-          "Store ID": body.storeId || "",
-          "Driver ID": body.driverId || "",
-          "Case Type": body.caseType || "",
-          "Description": body.description || "",
-          "Photo 1": body.photo1 || "",
-          "Photo 2": body.photo2 || "",
-          "Photo 3": body.photo3 || "",
-          "Status": "Pending",
-          "WhatsApp Chat": body.whatsapp || ""
-        }]
+  "Case ID": caseID,
+  "Order ID": body.orderId || "",
+  "Customer ID": customerName,
+  "Store ID": body.storeId || "",
+  "Driver ID": body.driverId || "",
+  "Case Type": body.caseType || "",
+  "Description": body.description || "",
+  "Photo 1": body.photo1 || "",
+  "Photo 2": body.photo2 || "",
+  "Photo 3": body.photo3 || "",
+  "Status": "Pending",
+  "Decision": "",
+  "Refund Amount": "",
+  "Admin Note": "",
+  "WhatsApp Chat": body.whatsapp || "",
+  "Created Date": new Date().toISOString(),
+  "Close Date": ""  // 🔥 هون - فاضي مشان ما تتسكر
+}]
       })
     });
 
