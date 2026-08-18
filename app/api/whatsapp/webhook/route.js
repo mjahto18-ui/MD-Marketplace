@@ -541,7 +541,8 @@ ${userContext}
 💰 السعر: {Price}
 🏪 المتجر: {Store Name}
 📍 العنوان: {Address} - {Area}
-⏰ الدوام: {Open Time} - {Close Time}
+⏰ الدوام: {Open Time} - {Close Time} (اعرض الوقت بصيغة HH:MM فقط بدون ثواني، مثلاً 08:00 - 23:00)
+🕒 الحالة: اذا الوقت الحالي ضمن الدوام اكتب ✅ فاتح الآن، اذا لا اكتب ❌ مغلق الآن
 
 - افصل بين كل منتج بسطر فاضي.
 - ممنوع تعرض: Product ID, Store ID, Area ID, Category ID
