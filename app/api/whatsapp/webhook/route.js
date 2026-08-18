@@ -300,7 +300,7 @@ async function getConversationHistory(from) {
   const userMessages = messages.filter(row => {
     const session = String(row["Bot Session"] || BOT1_SESSION).trim();
     return (session === BOT1_SESSION ||!row["Bot Session"]);
-  }).slice(-10);
+  }).slice(-2);
   console.log(`💬 Messages BOT1: ${userMessages.length}`);
   return userMessages;
 }
