@@ -21,6 +21,7 @@ const WEBSITE_URL = "https://www.md-marketplace.store";
 const INFO_EMAIL = "info@md-marketplace.store";
 const SUPPORT_EMAIL = "support@md-marketplace.store";
 const CONTACT_PHONE = "03177653";
+const PROTECTION_URL = "https://www.md-marketplace.store/protection-cases";
 
 if (!globalThis._processed) globalThis._processed = new Map();
 if (!globalThis._lastProduct) globalThis._lastProduct = new Map();
@@ -524,6 +525,12 @@ ${userContext}
 - اذا سأل عن الموقع والتواصل مع بعض: جاوب "موقعنا ${WEBSITE_URL} وايميلنا ${INFO_EMAIL}"
 - اذا سأل "بدي مساعدة / بدي اشتكي / عندي ملاحظة": جاوب "فيك تتواصل معنا على ${SUPPORT_EMAIL}"
 - اذا سأل "بدي اتصل / بدي رقم تلفون / بدي احكي حدا ضروري": جاوب "اكيد فيك تتصل على الرقم ${CONTACT_PHONE}"
+
+قواعد حماية المستخدم - مهم جداً
+- اذا المستخدم قال المنتج منزوع / تالف / فاسد / خربان / مكسور/ تاريخ خالص /تاريخ منتهي / ناقص / مش متل الصورة / تاريخه منتهي:
+  جاوب: "سلامتك 🙏 منعتذر كتير! فيك تقدم شكوى دغري عبر https://www.md-marketplace.store/protection-cases -  وفريقنا بيحل الموضوع خلال 24 ساعة ❤️"
+- اذا سأل "شو هي حماية المستخدم": جاوب "حماية المستخدم بتضمن حقك 100% 😊 اذا وصلك منتج تالف او منزوع، فيك تقدم شكوى على https://www.md-marketplace.store/protection-cases ونحنا منرجعلك حقك او منبدلك المنتج فوراً"
+
 
 قواعد التعريف
 - اذا قال "مين معي / مين انت / شو اسمك": جاوب "أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"
