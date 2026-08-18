@@ -1,53 +1,21 @@
-import { NextResponse } from "next/server";
-import { google } from "googleapis";
-import { Readable } from "stream";
-
 export async function POST(req) {
   try {
     const form = await req.formData();
-    const file = form.get("file");
-    if (!file) return NextResponse.json({ error: "no file" }, { status: 400 });
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/drive"],
+    
+    const res = await fetch("https://md-uploads.mjahto18-454.workers.dev/", {
+      method: "POST",
+      body: form,
     });
 
-    const drive = google.drive({ version: "v3", auth });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(t);
+    }
 
-    const res = await drive.files.create({
-      requestBody: { 
-        name: `prot_${Date.now()}_${file.name}`,
-        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID]
-      },
-      media: { mimeType: file.type, body: Readable.from(buffer) },
-      fields: "id",
-    });
-
-    // انقل الملكية لالك
-    await drive.permissions.create({
-      fileId: res.data.id,
-      requestBody: { 
-        role: "owner", 
-        type: "user",
-        emailAddress: process.env.GOOGLE_OWNER_EMAIL // رح نضيفو
-      },
-      transferOwnership: true,
-    });
-
-    await drive.permissions.create({
-      fileId: res.data.id,
-      requestBody: { role: "reader", type: "anyone" },
-    });
-
-    return NextResponse.json({ url: `https://drive.google.com/uc?export=view&id=${res.data.id}` });
+    const data = await res.json();
+    return Response.json(data);
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return Response.json({ error: e.message }, { status: 500 });
   }
 }
