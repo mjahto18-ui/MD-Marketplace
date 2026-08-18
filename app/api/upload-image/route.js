@@ -21,7 +21,10 @@ export async function POST(req) {
     const drive = google.drive({ version: "v3", auth });
 
     const res = await drive.files.create({
-      requestBody: { name: `prot_${Date.now()}_${file.name}` },
+      requestBody: { 
+        name: `prot_${Date.now()}_${file.name}`,
+        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID] // <-- هاد السطر بيحل كل شي
+      },
       media: { mimeType: file.type, body: Readable.from(buffer) },
       fields: "id",
     });
