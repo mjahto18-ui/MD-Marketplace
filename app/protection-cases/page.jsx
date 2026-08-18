@@ -77,7 +77,7 @@ export default function ProtectionCasesPage() {
             <select name="caseType" required className="w-full border rounded-md p-2 bg-white text-black">
               <option value="">اختر نوع البلاغ</option>
               <option value="طلب لم يصل">طلب لم يصل</option>
-              <option value="خطأ في الشحن">خطأ في الشحن</option>
+              <option value="خطأ في المنتج">خطأ في الشحن</option>
               <option value="منتج تالف">منتج تالف</option>
               <option value="منتج مفقود ضمن الطلب">منتج مفقود ضمن الطلب</option>
               <option value="تأخير في التوصيل">تأخير في التوصيل</option>
