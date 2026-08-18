@@ -381,7 +381,7 @@ async function searchProducts(userMessage) {
     if (!storeNameNorm) continue;
     if (message.includes(storeNameNorm)) { mentionedStoreId = store["Store ID"]; break; }
   }
-  const stopWords = ["بدي", "بدّي", "اريد", "أريد", "اعرف", "موجود", "وين", "باي", "متجر", "سوبرماركت", "ميني", "ماركت", "بقالة", "محل", "عند", "شو", "عن", "المنتج", "منتج", "في", "منو", "فيه"];
+  const stopWords = ["بدي", "بدّي", "اريد", "أريد", "اعرف", "موجود", "وين", "باي", "متجر", "سوبرماركت","لاقي", "بلاقي","لاقيلي", "عندك", "عندكن", "عندكم", "دور", "ببرم", "ابحث","ابحثلي", "برملي", "دورلي", "فتشلي", "شفلي", "شوفلي", "جبلي", "بدور", "عم دور", "على", "بلاقيه", "بلاقيها", "الاقي", "ميني", "ماركت", "بقالة", "محل", "عند", "شو", "عن", "المنتج", "منتج", "في", "منو", "فيه"];
   const words = message.split(" ").filter(w => w.length >= 2 &&!stopWords.includes(w));
   if (!words.length) return [];
   const results = [];
