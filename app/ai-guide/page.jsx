@@ -55,7 +55,6 @@ export default function AIGuidePage() {
           <div className="order-2 flex justify-center lg:order-1">
             <div className="relative w-full max-w-">
               <div className="relative overflow-hidden rounded- bg-white shadow-[0_20px_70px_rgba(110,40,220,0.15)]"><Image src="/ai-guide.webp" alt="MD-Marketplace AI" width={800} height={450} priority className="h-auto w-full object-cover" /></div>
-              {/* شلت AI badge من هون */}
               <div className="absolute -right-3 -top-7 hidden max-w- rounded-3xl bg-white p-4 text-center text-sm font-bold shadow-xl sm:block">👋 مرحباً!<br/>أنا مساعدك الذكي<br/>لمساعدتك في طلباتك واستفساراتك<div className="absolute bottom-[-8px] right-10 h-4 w-4 rotate-45 bg-white" /></div>
             </div>
           </div>
@@ -126,6 +125,79 @@ export default function AIGuidePage() {
           </div>
         </div>
       </section>
+
+      {/* ===== فقط البوكسين الجديدين متل الصورة ===== */}
+      <section className="mx-auto max-w-6xl px-5 pb-20">
+        <div className="mb-8 text-center">
+          <div className="mx-auto inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-5 py-2 text-xs font-black tracking-widest text-amber-800">ميزات جديدة • NEW FEATURES</div>
+          <h2 className="mt-5 text-3xl font-black sm:text-4xl">ميزات ذكية جديدة</h2>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+
+          {/* بوكس السلة المؤقتة - على اليمين متل الصورة */}
+          <div className="relative overflow-hidden rounded-[32px] border border-amber-200/60 bg-gradient-to-b from-amber-50 to-white p-7 shadow-[0_20px_60px_rgba(251,191,36,0.12)] sm:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-[18px] font-black leading-6 text-[#11183f]">السلة المؤقتة على واتساب</h3>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-200 px-3 py-1 text-[11px] font-black text-amber-900">30 دقيقة <span className="h-1.5 w-1.5 rounded-full bg-amber-700"></span> <span className="text-[10px]">⏰</span></span>
+                </div>
+                <p className="mt-4 text-[13.5px] leading-7 text-gray-700">
+                  سلتك محفوظة لمدة <b className="text-[#11183f]">30 دقيقة</b> من آخر تفاعل. في حال عدم النشاط يتم حذف السلة تلقائياً مع إرسال إشعار لك.
+                </p>
+              </div>
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3 5H21L19 18H5L3 5Z" stroke="white" strokeWidth="2" strokeLinejoin="round"/><path d="M8 5V3M16 5V3" stroke="white" strokeWidth="2" strokeLinecap="round"/><path d="M9 11L9.5 11.5L11 10" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-amber-200/60 bg-amber-50 p-5">
+              <div className="flex items-center gap-2 font-black text-[13px] text-amber-950"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-600 text-[11px] text-white">!</span> ماذا يحدث بعد الحذف؟</div>
+              <p className="mt-3 text-[13px] leading-7 text-amber-900/80">
+                يصلك تنبيه <b className="text-amber-950">“تم حذف السلة”</b> وتستطيع بدء طلب جديد في أي وقت بكتابة <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-black text-amber-950">“بدي اطلب”</span>.
+              </p>
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-[11px] text-amber-800/60"><span className="h-px w-8 bg-amber-300"></span> يتم احتساب الوقت من آخر رسالة</div>
+          </div>
+
+          {/* بوكس استكشاف المنتجات العالمية - على الشمال متل الصورة */}
+          <div className="relative overflow-hidden rounded-[32px] bg-[#12193d] p-7 text-white shadow-[0_20px_60px_rgba(17,24,63,0.25)] sm:p-8">
+            <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage: `radial-gradient(white 1px, transparent 1px)`, backgroundSize: '18px 18px'}} />
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-[18px] font-black">استكشاف المنتجات العالمية</h3>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[10px] font-black tracking-widest text-cyan-200 border border-white/10">ENTERTAINMENT <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.8)]"></span></span>
+                  </div>
+                  <p className="mt-4 text-[13px] leading-7 text-white/70">
+                    اكتب <b className="text-white">رقم الباركود</b> الموجود على أي منتج عالمي، واحصل على تفاصيله: الاسم، العلامة التجارية وبلد المنشأ، مع إمكانية الاستفسار عن السعرات الحرارية لكل 100غ.
+                  </p>
+                </div>
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[#12193d] shadow-lg">
+                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="9" cy="14" r="6" stroke="#12193d" strokeWidth="1.5"/><path d="M6.5 14C6.5 14 8 11.2 10 11.2C12 11.2 13.5 14 13.5 14C13.5 14 12 16.8 10 16.8C8 16.8 6.5 14 6.5 14Z" stroke="#12193d" strokeWidth="1.2"/><path d="M4 14H15.5" stroke="#12193d" strokeWidth="1" opacity="0.5"/><g><rect x="18" y="7" width="1.4" height="14" rx="0.5" fill="#12193d"/><rect x="20.6" y="7" width="1" height="14" rx="0.5" fill="#12193d" opacity="0.8"/><rect x="23" y="7" width="2.2" height="14" rx="0.5" fill="#12193d"/><rect x="26.2" y="7" width="1" height="14" rx="0.5" fill="#12193d" opacity="0.6"/></g></svg>
+                </div>
+              </div>
+
+              <div className="mt-7 grid grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center backdrop-blur"><div className="text-[18px]">🏷️</div><div className="mt-2 text-[11px] font-bold text-white/80">الماركة</div></div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center backdrop-blur"><div className="text-[18px]">🌍</div><div className="mt-2 text-[11px] font-bold text-white/80">المنشأ</div></div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center backdrop-blur"><div className="text-[18px]">🔥</div><div className="mt-2 text-[11px] font-bold text-white/80">السعرات</div></div>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.08] p-4">
+                <p className="text-[12px] leading-6 text-cyan-100/80">
+                  <span className="text-amber-200">💡 تنويه:</span> هذه الميزة مخصصة للاستفسار والاطلاع فقط ولا ترتبط بعملية الطلب من متاجرنا. جميع المعلومات <span className="font-black text-white underline decoration-white/30 underline-offset-4">مأخوذة</span> من قاعدة بيانات MD-Marketplace.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+      {/* ===== نهاية البوكسين فقط ===== */}
 
       <section className="px-5 pb-20">
         <div className="mx-auto max-w-5xl rounded- border border-purple-100 bg-gradient-to-br from-purple-50 to-pink-50 p-8 text-center sm:p-12">
