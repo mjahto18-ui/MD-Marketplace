@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { Readable } from "stream";
 
-export async function POST(req: Request) {
+export async function POST(req) {
   try {
     const form = await req.formData();
-    const file = form.get("file") as File;
+    const file = form.get("file");
     if (!file) return NextResponse.json({ error: "no file" }, { status: 400 });
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -27,12 +27,13 @@ export async function POST(req: Request) {
     });
 
     await drive.permissions.create({
-      fileId: res.data.id!,
+      fileId: res.data.id,
       requestBody: { role: "reader", type: "anyone" },
     });
 
     return NextResponse.json({ url: `https://drive.google.com/uc?export=view&id=${res.data.id}` });
-  } catch (e: any) {
+  } catch (e) {
+    console.error(e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
