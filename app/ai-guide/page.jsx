@@ -4,10 +4,14 @@ import Link from "next/link";
 export const metadata = {
   title: "دليل استخدام MD-Marketplace AI | مساعدك الذكي",
   description: "تعلم كيف تستخدم مساعد MD-Marketplace الذكي لطلب المنتجات من متاجر طرابلس والشمال ومتابعة طلباتك بسهولة عبر الواتساب",
+  alternates: {
+    canonical: "https://www.md-marketplace.store/ai-guide"
+  },
   openGraph: {
     title: "دليل استخدام MD-Marketplace AI",
     description: "مساعدك الذكي لطلب المنتجات ومتابعة الطلبات",
     url: "https://www.md-marketplace.store/ai-guide",
+    type: "website",
     images: [{
       url: "https://www.md-marketplace.store/ai-guide.webp",
       width: 1200,
@@ -15,6 +19,12 @@ export const metadata = {
       alt: "MD-Marketplace AI"
     }],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "دليل استخدام MD-Marketplace AI",
+    description: "مساعدك الذكي لطلب المنتجات ومتابعة الطلبات",
+    images: ["https://www.md-marketplace.store/ai-guide.webp"]
+  }
 };
 
 export default function AIGuidePage() {
