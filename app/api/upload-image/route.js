@@ -3,35 +3,39 @@ const API_KEY = process.env.APPSHEET_API_KEY;
 
 export async function POST(req) {
   try {
-    const data = await req.json(); // { ref, description, photo1, photo2, photo3 ... }
+    const data = await req.json();
+    console.log("Incoming data ref:", data.ref);
     
+    const payload = {
+      Action: "Add",
+      Properties: { Locale: "en-US" },
+      Rows: [{
+        "REF": data.ref,
+        "Photo 1": data.photo1 || "",
+        "Photo 2": data.photo2 || "",
+        "Photo 3": data.photo3 || "",
+      }]
+    };
+
+    console.log("Sending to AppSheet:", APP_ID);
+
     const res = await fetch(`https://api.appsheet.com/api/v2/apps/${APP_ID}/tables/Protection Cases/Action`, {
       method: "POST",
       headers: {
         "ApplicationAccessKey": API_KEY,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        Action: "Add",
-        Properties: { Locale: "en-US", Timezone: "Arabian Standard Time" },
-        Rows: [
-          {
-            "REF": data.ref,
-            "Description": data.description,
-            "Photo 1": data.photo1 || "", // base64 من الفرونت
-            "Photo 2": data.photo2 || "",
-            "Photo 3": data.photo3 || "",
-            "Date": new Date().toISOString(),
-          }
-        ]
-      })
+      body: JSON.stringify(payload)
     });
 
-    const result = await res.text();
-    if (!res.ok) throw new Error(result);
+    const text = await res.text();
+    console.log("AppSheet response:", res.status, text);
 
-    return Response.json({ success: true, result });
+    if (!res.ok) throw new Error(`AppSheet ${res.status}: ${text}`);
+
+    return Response.json({ success: true, result: text });
   } catch (e) {
+    console.error("ERROR:", e.message);
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
