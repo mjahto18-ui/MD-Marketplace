@@ -92,7 +92,9 @@ export async function POST(req) {
       body.description,
 
       // الصور منظر فقط — ما بتنرفع نهائياً
-      "", "", "",
+      body.photo1 || "",
+      body.photo2 || "",
+      body.photo3 || "",
 
       "",
       "Pending",
