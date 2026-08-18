@@ -7,8 +7,11 @@ import Script from 'next/script';
 export const metadata = {
   metadataBase: new URL("https://www.md-marketplace.store"),
     
-  title: "MD-Marketplace | One App For Everything",
-  description: "MD Marketplace - أول موقع شامل بلبنان: تسوق سوبرماركت، خضرة، لحمة، البسة، وتوصيل سريع لكل مناطق طرابلس ولبنان. محفظة إلكترونية، جوائز، تتبع مباشر للطلبات.",
+    title: {
+    default: "MD-Marketplace | كل شي بدك ياه بمكان واحد - توصيل سريع لبنان",
+    template: "%s | MD-Marketplace",
+  },
+  description: "MD-Marketplace أول منصة شاملة بلبنان: +30 متجر، +1350 عميل، سوبرماركت، خضرة، لحمة، ألبسة، مطاعم وتوصيل سريع لكل طرابلس ولبنان. دفع عند الاستلام، محفظة إلكترونية، تتبع مباشر.",
   applicationName: "MD-Marketplace",
   keywords: [
     "MD Marketplace",
@@ -41,6 +44,18 @@ export const metadata = {
     title: "MD-Marketplace",
     description: "One App For Everything",
     images: ["/logo.png"],
+  },
+    robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+    },
+  },
+  alternates: {
+    canonical: "https://www.md-marketplace.store/",
   },
 };
 
