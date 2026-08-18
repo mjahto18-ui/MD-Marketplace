@@ -403,6 +403,7 @@ async function searchProducts(userMessage) {
     results.push({
       score, storeId: product["Store ID"], productName: product["Product Name"], unit: product["Unit"], price: product["Price"],
       storeName: store?.["Store Name"] || "غير معروف", address: store?.["Adress"] || "",
+      openTime: store?.["Open Time"] || "", closeTime: store?.["Close Time"] || "",
       areaName: areas.find(a => String(a["Area ID"]) === String(store?.["Area"] || product["Area"]))?.["Area Name"] || ""
     });
   }
