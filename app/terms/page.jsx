@@ -3,9 +3,22 @@ import BackButton from './BackButton'
 import Image from 'next/image'
 
 export const metadata = {
-  title: 'الشروط والاحكام - MD-Marketplace',
-  description: 'شروط استخدام منصة MD-Marketplace'
-}
+  title: "الشروط والأحكام - حقوقك وضماناتك | MD-Marketplace",
+  description: "اقرأ شروط وأحكام MD-Marketplace: دفع عند الاستلام، 5 توصيلات مجانية، خدمة حماية المستخدم، سياسة الإرجاع خلال 12 ساعة، ومسؤوليات العميل والتاجر. آخر تحديث تموز 2025.",
+  keywords: ["شروط واحكام MD Marketplace", "ضمان حق العميل", "سياسة الارجاع لبنان"],
+  openGraph: {
+    title: "الشروط والأحكام - MD-Marketplace",
+    description: "دفع عند الاستلام - حماية المستخدم - إرجاع خلال 12 ساعة",
+    url: "https://www.md-marketplace.store/terms",
+    siteName: "MD-Marketplace",
+    locale: "ar_LB",
+    type: "website",
+  },
+  alternates: {
+    canonical: "https://www.md-marketplace.store/terms",
+  },
+  robots: { index: true, follow: true },
+};
 
 export default function TermsPage() {
   return (
