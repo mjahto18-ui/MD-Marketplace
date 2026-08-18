@@ -406,7 +406,7 @@ async function runRealCheckout(customerID, readiness) {
 async function getRecentConversation(phone) {
   const messages = await getSheetRows("Messages");
   const normalizedPhone = normalizeWhatsAppNumber(phone);
-  return messages.filter(row => normalizeWhatsAppNumber(row["Phone"] || "") === normalizedPhone).slice(-10).map(row => ({ customerMessage: row["CustomerMessage"] || "", botReply: row["AIReply"] || "", date: row["Date"] || "" }));
+  return messages.filter(row => normalizeWhatsAppNumber(row["Phone"] || "") === normalizedPhone).slice(-2).map(row => ({ customerMessage: row["CustomerMessage"] || "", botReply: row["AIReply"] || "", date: row["Date"] || "" }));
 }
 async function saveToAppSheet(from, userMessage, aiReply) {
   if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) { console.error("❌ AppSheet credentials ناقصة"); return; }
