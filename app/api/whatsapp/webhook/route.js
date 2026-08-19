@@ -1,10 +1,10 @@
 import { google } from "googleapis";
+import { callGroqWithFallback } from "@/lib/groq.js";
 export const dynamic = "force-dynamic";
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
-const GROQ_KEY = process.env.GROQ_API_KEY;
 const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
 const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
 const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
@@ -171,21 +171,15 @@ async function decodeBarcodeFromImage(mediaId) {
 async function getCaloriesFromNet(barcode, productName) {
   const p = await getProductFromOFF(barcode);
   if (p) return buildCaloriesText(p);
-  if (!GROQ_KEY) return null;
   try {
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
-        messages: [{ role: "system", content: `انت خبير تغذية. اعطي سعرات حرارية تقديرية لـ ${productName} بشكل مختصر و مفيد بالعربي بلبناني.` }, { role: "user", content: `سعرات ${productName} لكل 100غ` }],
-        temperature: 0.3
-      })
-    });
-    const d = await r.json();
+    const d = await callGroqWithFallback([
+      { role: "system", content: `انت خبير تغذية. اعطي سعرات حرارية تقديرية لـ ${productName} بشكل مختصر و مفيد بالعربي بلبناني.` },
+      { role: "user", content: `سعرات ${productName} لكل 100غ` }
+    ], 200);
     return d.choices?.[0]?.message?.content || null;
   } catch(e) { return null; }
 }
+   
 
 const SHEETS_LOADING = new Map();
 async function getSheetRows(sheetName) {
@@ -475,9 +469,7 @@ async function buildOrderContext(user, userMessage) {
 // 13. Groq AI - القواعد الكاملة رجعت
 // ======================================================
 async function getAIReply(userMessage, user, productResults, orderContext, history) {
-  if (!GROQ_KEY) {
-    return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
-  }
+  
   try {
     let userContext = "المستخدم غير معروف في نظام Users.";
     if (user) {
@@ -588,17 +580,11 @@ ${selectedOrder}
 ${orderDetails}
 `;
 
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
-        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-        temperature: 0.4
-      })
-    });
-
-    const data = await res.json();
+        const data = await callGroqWithFallback([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage }
+    ], 300);
+    
     if (data.error ||!data.choices?.[0]?.message?.content) {
       console.error("❌ Groq Error:", JSON.stringify(data.error));
       return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
