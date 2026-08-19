@@ -272,17 +272,40 @@ async function getBotSessionTable(phone) {
 }
 
 async function openBot2Session(phone) {
-  const now = new Date().toISOString();
+  const sheets = getGoogleSheetsClient();
+  if (!sheets) {
+    console.error("❌ ما في Google Sheets Client");
+    return null;
+  }
 
-  return await appSheetAction("Bot Sessions", "Add", [{
-    Phone: normalizeWhatsAppNumber(phone),
-    "Active Bot": "BOT2",
-    Status: "ACTIVE",
-    "Request ID": "",
-    "Started At": now,
-    "Closed At": "",
-    "Last Activity": now
-  }]);
+  const now = new Date().toISOString();
+  const normalized = normalizeWhatsAppNumber(phone);
+
+  try {
+    const res = await sheets.spreadsheets.values.append({
+      spreadsheetId: GOOGLE_SHEETS_ID,
+      range: "Bot Sessions!A:G",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[
+          normalized, // Phone
+          "BOT2",      // Active Bot
+          "ACTIVE",    // Status
+          "",          // Request ID
+          now,         // Started At - ISO!
+          "",          // Closed At
+          now          // Last Activity - ISO!
+        ]]
+      }
+    });
+
+    console.log(`✅ BOT1 كتب جلسة مباشرة بالشيت: ${normalized} | ${now}`);
+    return { ok: true, status: 200 };
+
+  } catch (error) {
+    console.error("❌ فشل كتابة جلسة مباشرة:", error.message);
+    return null;
+  }
 }
 async function getAllUserMessages(from) {
   const messages = await getSheetRows("Messages");
