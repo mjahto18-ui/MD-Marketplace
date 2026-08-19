@@ -278,7 +278,17 @@ async function openBot2Session(phone) {
     return null;
   }
 
-  const now = new Date().toISOString();
+  const now = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Beirut",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+
   const normalized = normalizeWhatsAppNumber(phone);
 
   try {
@@ -292,18 +302,18 @@ async function openBot2Session(phone) {
           "BOT2",      // Active Bot
           "ACTIVE",    // Status
           "",          // Request ID
-          now,         // Started At - ISO!
+          now,         // Started At - en-US Asia/Beirut
           "",          // Closed At
-          now          // Last Activity - ISO!
+          now          // Last Activity - en-US Asia/Beirut
         ]]
       }
     });
 
-    console.log(`✅ BOT1 كتب جلسة مباشرة بالشيت: ${normalized} | ${now}`);
+    console.log(`✅ BOT1 كتب جلسة en-US مباشرة: ${normalized} | ${now}`);
     return { ok: true, status: 200 };
 
   } catch (error) {
-    console.error("❌ فشل كتابة جلسة مباشرة:", error.message);
+    console.error("❌ فشل كتابة جلسة:", error.message);
     return null;
   }
 }
