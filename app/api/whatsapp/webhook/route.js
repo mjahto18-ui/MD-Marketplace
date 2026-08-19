@@ -278,16 +278,7 @@ async function getBotSessionTable(phone) {
 }
 
 async function openBot2Session(phone) {
-  const now = new Date().toISOString("en-US", {
-    timeZone: "Asia/Beirut",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  });
+  const now = new Date().toISOString();
   return await appSheetAction("Bot Sessions", "Add", [{
     Phone: normalizeWhatsAppNumber(phone),
     "Active Bot": "BOT2",
@@ -298,6 +289,7 @@ async function openBot2Session(phone) {
     "Last Activity": now
   }]);
 }
+
 
 async function getAllUserMessages(from) {
   const messages = await getSheetRows("Messages");
