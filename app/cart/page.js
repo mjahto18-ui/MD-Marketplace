@@ -18,9 +18,9 @@ export default function CartPage() {
 
   useEffect(() => {
     fetch('/api/global-config', { cache: 'no-store' })
- .then(r=>r.json())
- .then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
- .catch(()=>setConfigLoading(false));
+.then(r=>r.json())
+.then(d=>{ setGlobalCfg(d); setConfigLoading(false); })
+.catch(()=>setConfigLoading(false));
   }, []);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function CartPage() {
     if(globalCfg?.isLocked) { setLoading(false); return; }
     let cancelled = false;
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
- .then(async (res) => {
+.then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -47,19 +47,19 @@ export default function CartPage() {
           }
         }
       })
- .catch(()=> {
+.catch(()=> {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
- .finally(()=> { if(!cancelled) setLoading(false); });
+.finally(()=> { if(!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [router, configLoading, globalCfg]);
 
   const fetchCart = async () => {
     if (!customerID) return;
-    if(globalCfg?.isCartClosed) return;
+    if(globalCfg?.isCartClosed || globalCfg?.isCartInHours === false) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/cart?customerID=${customerID}`, { credentials: 'include', cache: 'no-store' });
@@ -80,10 +80,10 @@ export default function CartPage() {
     setLoading(false);
   };
 
-  useEffect(()=>{ if(customerID &&!globalCfg?.isCartClosed) fetchCart(); }, [customerID, globalCfg]);
+  useEffect(()=>{ if(customerID &&!globalCfg?.isCartClosed && globalCfg?.isCartInHours!== false) fetchCart(); }, [customerID, globalCfg]);
 
   const updateQty = async (cartID, newQty) => {
-    if (globalCfg?.isCartClosed) return;
+    if (globalCfg?.isCartClosed || globalCfg?.isCartInHours === false) return;
     if (newQty < 1) return;
     await fetch('/api/cart/update', {
       method: 'PUT',
@@ -95,7 +95,7 @@ export default function CartPage() {
   };
 
   const removeItem = async (productID) => {
-    if (globalCfg?.isCartClosed) return;
+    if (globalCfg?.isCartClosed || globalCfg?.isCartInHours === false) return;
     await fetch(`/api/cart/remove?customerID=${customerID}&productID=${productID}`, {
       method: 'DELETE',
       credentials: 'include'
@@ -143,7 +143,8 @@ export default function CartPage() {
     );
   }
 
-  if (globalCfg?.isCartClosed) {
+  if (globalCfg?.isCartClosed || globalCfg?.isCartInHours === false) {
+    const isOutOfHours = globalCfg?.isCartInHours === false;
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
         {globalCfg?.isComingSoon && (
@@ -153,9 +154,14 @@ export default function CartPage() {
         )}
         <div className="flex flex-col items-center justify-center min-h-screen px-6">
           <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/20 text-center max-w-md w-full">
-            <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🛒</div>
+            <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">{isOutOfHours? '🕐' : '🛒'}</div>
             <h1 className="text-2xl font-bold mb-3">السلة مغلقة حالياً</h1>
-            <p className="text-white/70 mb-6">{globalCfg.cart_closed_message || 'السلة مغلقة حاليا'}</p>
+            <p className="text-white/70 mb-6 whitespace-pre-line">
+              {isOutOfHours
+               ? `نعتذر، نحن مغلقون حالياً\nتفتح الساعة ${globalCfg.cart_open_time || '08:00'} بتوقيت لبنان 🇱🇧`
+                : (globalCfg.cart_closed_message || 'السلة مغلقة حاليا')
+              }
+            </p>
             <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold flex items-center justify-center gap-2">
               <ArrowLeft className="w-4 h-4"/> رجوع للمتجر
             </button>
@@ -180,7 +186,7 @@ export default function CartPage() {
         <header className="px-4 pt-6 pb-4">
           <div className="flex items-center justify-between mb-3">
             <button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button>
-            <div className="bg-white p-2 rounded-[16px] shadow-lg">
+            <div className="bg-white p-2 rounded- shadow-lg">
               <Image src="/icon.png" alt="MD Marketplace" width={40} height={40} />
             </div>
             <div className="w-6"></div>
@@ -207,7 +213,7 @@ export default function CartPage() {
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-3">
           <button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button>
-          <div className="bg-white p-2 rounded-[16px] shadow-lg">
+          <div className="bg-white p-2 rounded- shadow-lg">
             <Image src="/icon.png" alt="MD Marketplace" width={40} height={40} />
           </div>
           <div className="w-6"></div>
