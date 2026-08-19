@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { callGroqWithFallback } from "@/lib/groq.js";
 import { google } from "googleapis";
 
 export const dynamic = "force-dynamic";
@@ -6,7 +7,6 @@ export const dynamic = "force-dynamic";
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
-const GROQ_KEY = process.env.GROQ_API_KEY;
 const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
 const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
 const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
@@ -500,8 +500,8 @@ async function handleCheckout(customerID, message) {
   return { success: true, checkout: true, reply: `✅ *تم تأكيد طلبك بنجاح!*\n\n🧾 رقم الطلب: *${checkout.request_id}*\n📍 المنطقة: ${readiness.area.areaName}\n🏠 العنوان: ${readiness.address}\n\nتم إرسال الطلب للمراجعة، ورح نخبرك بالتحديثات. ❤` };
 }
 async function runAI(userMessage, context) {
-  if (!GROQ_KEY) return { success: false, reply: "أهلا وسهلا! كيف بقدر ساعدك؟ 😊" };
   try {
+    
     const prompt = `
 أنت Bot 2 الخاص بـ MD-Marketplace.
 أنت مساعد شراء عبر WhatsApp.
@@ -545,12 +545,11 @@ ${context.intent}
 جاوب بجملة أو جملتين عند الحاجة.
 لا تكرر كل البيانات إذا لم تكن ضرورية.
 `;
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "openai/gpt-oss-20b", messages: [{ role: "system", content: prompt }, { role: "user", content: userMessage }], temperature: 0.2 })
-    });
-    const data = await response.json();
+        const data = await callGroqWithFallback([
+      { role: "system", content: prompt },
+      { role: "user", content: userMessage }
+    ], 250);
+    
     const reply = data?.choices?.[0]?.message?.content;
     if (!reply) return { success: false, reply: "ما قدرت أفهم الرسالة، جرب اكتبلي بطريقة أبسط 🙏" };
     return { success: true, reply: reply.trim() };
