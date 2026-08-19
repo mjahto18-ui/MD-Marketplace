@@ -652,6 +652,30 @@ export async function POST(req) {
     if (!from) return Response.json({ status: "ok" }, { status: 200 });
     const whatsappNumber = normalizeWhatsAppNumber(from);
 
+    // ====== زر الطوارئ - بلا توكن بلا API ======
+    try {
+      const { getGlobalConfig } = await import('@/lib/getGlobalConfig');
+      const config = await getGlobalConfig();
+
+      if (!config.isWhatsappEnabled) {
+        console.log("🚨 واتساب مقفل من الشيت");
+        await sendMessage(from, config.whatsapp_disabled_message);
+        return Response.json({ status: "ok", blocked: "whatsapp_disabled" }, { status: 200 });
+      }
+
+      const lower = (message?.text?.body || body.text || "").toLowerCase();
+      const wantsOrder = lower.includes("طلب") || lower.includes("اطلب") || lower.includes("order") || lower.includes("سلة");
+      if (wantsOrder) {
+        if (config.isWhatsappCartClosed ||!config.isWhatsappCartInHours) {
+          await sendMessage(from, config.whatsapp_cart_closed_message);
+          return Response.json({ status: "ok", blocked: "whatsapp_cart_closed" }, { status: 200 });
+        }
+      }
+    } catch(e) {
+      console.log("Global check error (تجاهل):", e.message)
+    }
+    // ====== خلص زر الطوارئ ======
+
     if (message?.type === "image" && message?.image?.id) {
       console.log(`📸 صورة باركود: ${message.image.id}`);
       const decoded = await decodeBarcodeFromImage(message.image.id);
