@@ -301,6 +301,8 @@ function formatCart(cart) {
 // === الإضافات الجديدة - بدون حذف أي شي قديم ===
 // ======================================================
 const LAST_SHOWN = new Map(); // يحفظ آخر لستة لكل زبون
+const LAST_ORDER_ADDRESS = new Map(); // عنوان الطلب فقط - مش عنوان الزبون الأساسي!
+const LAST_ORDER_AREA = new Map(); // منطقة الطلب فقط
 function parseChoice(text) {
   const t = normalizeText(text);
   let m = t.match(/رقم\s*(\d+).*?(?:الكمية|كميه|كمية|عدد)?\s*(\d+)/);
@@ -314,6 +316,58 @@ function parseChoice(text) {
     if (idx >=0) return { idx, qty };
   }
   return null;
+}
+// === فنكشن جديدة للطلب فقط - ما بتلمس Customers ===
+async function checkCheckoutReadinessForOrder(customerID, message) {
+  const cart = await buildCartView(customerID);
+  if (!cart.items.length) return { ready: false, reason: "EMPTY_CART", cart };
+  const delivery = await getCustomerDeliveryData(customerID);
+  if (!delivery.exists) return { ready: false, reason: "CUSTOMER_NOT_FOUND", cart };
+  // المنطقة - لازم تطابق Areas
+  let finalArea = delivery.area;
+  const detectedArea = await detectAreaFromMessage(message);
+  if (detectedArea) {
+    finalArea = detectedArea;
+    LAST_ORDER_AREA.set(customerID, detectedArea);
+    console.log(`📍 منطقة الطلب: ${detectedArea.areaName}`);
+  } else if (LAST_ORDER_AREA.has(customerID)) {
+    finalArea = LAST_ORDER_AREA.get(customerID);
+  }
+  if (!finalArea) {
+    return { ready: false, reason: "AREA_MISSING", cart, delivery };
+  }
+  // العنوان - للطلب فقط!
+  let finalAddress = delivery.address;
+  const text = String(message || "").trim();
+  const isConfirm = isCheckoutConfirmation(message);
+  if (!isConfirm && text.length > 8 &&!detectedArea) {
+    const hasAddressKeyword = text.includes("شارع") || text.includes("الخية") || text.includes("حي") || text.includes("طريق") || text.includes("بناية");
+    if (hasAddressKeyword || text.length > 12) {
+      if (!text.includes("تأكيد") &&!text.includes("تاكيد") &&!text.includes("بدي")) {
+        finalAddress = text;
+        LAST_ORDER_ADDRESS.set(customerID, text);
+        console.log(`📦 عنوان الطلب (مش عنوان الزبون): ${text}`);
+      }
+    }
+  } else if (LAST_ORDER_ADDRESS.has(customerID)) {
+    finalAddress = LAST_ORDER_ADDRESS.get(customerID);
+  }
+  if (!finalAddress) {
+    return { ready: false, reason: "ADDRESS_MISSING", cart, delivery, area: finalArea };
+  }
+  // اللوكيشن - من Customers بس!
+  if (!delivery.lat ||!delivery.lng) {
+    return {
+      ready: false,
+      reason: "LOCATION_MISSING",
+      cart,
+      delivery,
+      area: finalArea,
+      address: finalAddress,
+      customMessage: "📍 حسابك ما فيه Location مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد الاحداثيات تلقائياً، وبعدين فيك ترجع تطلب من الواتساب عادي ❤"
+    };
+  }
+  return { ready: true, reason: "READY", cart, delivery, area: finalArea, address: finalAddress };
 }
 // ======================================================
 function productToObject(row) {
@@ -369,11 +423,12 @@ function extractQuantity(message) {
 }
 function detectCartCommand(message) {
   const text = normalizeText(message);
+  if (text.includes("امحي") || text.includes("امسح")) return "REMOVE";
   if (text.includes("السله") || text.includes("سلة") || text.includes("سلت") || text.includes("cart")) {
     if (text.includes("شو فيها") || text.includes("شو بالسله") || text.includes("عرض") || text.includes("شوف") || text.includes("view")) return "SHOW";
   }
   if (text.includes("احذف") || text.includes("شيل") || text.includes("حذف") || text.includes("remove")) return "REMOVE";
-  if (text.includes("غير الكميه") || text.includes("عدل الكميه") || text.includes("بدل الكميه") || text.includes("update")) return "UPDATE";
+  if (text.includes("غير الكميه") || text.includes("عدل الكميه") || text.includes("بدل الكميه") || text.includes("update") || text.includes("عدل")) return "UPDATE";
   return null;
 }
 function isCheckoutConfirmation(message) {
@@ -473,7 +528,6 @@ async function handleShopping(customerID, message) {
     reply += "\n\n";
   });
   reply += "قلّي رقم الخيار والكمية، مثلاً: *1 عدد 2*.";
-  // === إضافة جديدة: حفظ اللستة ===
   LAST_SHOWN.set(customerID, products.slice(0, 5));
   return { success: true, reply };
 }
@@ -483,42 +537,48 @@ async function handleCart(customerID, message) {
   const cart = await buildCartView(customerID);
   if (!cart.items.length) return { success: true, reply: "🛒 السلة فاضية." };
   if (command === "REMOVE") {
-    const found = cart.items.find(item => normalizeText(message).includes(normalizeText(item.productName)));
+    const found = cart.items.find(item => normalizeText(message).includes(normalizeText(item.productName))) || cart.items[0];
     if (!found) return { success: false, reply: "أي منتج بدك شيل من السلة؟ اكتبلي اسمه." };
     const removed = await removeFromCart(customerID, found.productId);
     if (!removed.success) return { success: false, reply: removed.message };
+    clearCache("Cart");
     const newCart = await buildCartView(customerID);
     return { success: true, reply: `🗑 شلت ${found.productName} من السلة.\n\n${formatCart(newCart)}` };
   }
   if (command === "UPDATE") {
-    const found = cart.items.find(item => normalizeText(message).includes(normalizeText(item.productName)));
+    const found = cart.items.find(item => normalizeText(message).includes(normalizeText(item.productName))) || cart.items[0];
     if (!found) return { success: false, reply: "أي منتج بدك تغيّر كميته؟" };
     const qty = extractQuantity(message);
     const updated = await updateCartQty(customerID, found.productId, qty);
     if (!updated.success) return { success: false, reply: updated.message };
+    clearCache("Cart");
     const newCart = await buildCartView(customerID);
     return { success: true, reply: `✅ عدلت كمية ${found.productName} لـ ${qty}.\n\n${formatCart(newCart)}` };
   }
   return { success: true, reply: formatCart(cart) };
 }
 async function handleCheckout(customerID, message) {
-  const readiness = await checkCheckoutReadiness(customerID, message);
+  const readiness = await checkCheckoutReadinessForOrder(customerID, message);
   if (readiness.reason === "EMPTY_CART") return { success: false, reply: "🛒 قبل ما نأكد الطلب، السلة فاضية. خبرني شو بدك تشتري." };
   if (readiness.reason === "CUSTOMER_NOT_FOUND") return { success: false, reply: "ما قدرت لاقي بيانات حسابك." };
   if (readiness.reason === "AREA_MISSING") return { success: false, reply: "📍 ناقصني *المنطقة*.\nاكتبلي المنطقة المطلوبة للتوصيل، وأنا بتأكد إنها موجودة بجدول المناطق." };
-  if (readiness.reason === "ADDRESS_MISSING") return { success: false, reply: "🏠 ناقصني *العنوان التفصيلي*.\nاكتبلي عنوان التوصيل حتى نقدر نكمل الطلب." };
-  if (readiness.reason === "LOCATION_MISSING") return { success: false, reply: "📍 حسابك ما فيه Location مسجل.\nلازم نحدد موقعك أولاً قبل تأكيد الطلب." };
+  if (readiness.reason === "ADDRESS_MISSING") return { success: false, reply: "🏠 ناقصني *العنوان التفصيلي للطلب*.\nاكتبلي عنوان التوصيل للطلب الحالي (مش رح يتغير عنوانك الأساسي)." };
+  if (readiness.reason === "LOCATION_MISSING") return { success: false, reply: readiness.customMessage || "📍 حسابك ما فيه Location مسجل.\nلازم تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك." };
   if (!isCheckoutConfirmation(message)) {
     let confirmation = "🧾 *ملخص طلبك قبل التأكيد:*\n\n";
     confirmation += formatCart(readiness.cart);
     confirmation += `\n\n📍 المنطقة: ${readiness.area.areaName}`;
-    confirmation += `\n🏠 العنوان: ${readiness.address}`;
+    confirmation += `\n🏠 عنوان الطلب: ${readiness.address}`;
+    confirmation += `\n📌 عنوانك الأساسي محفوظ - ما تغير`;
     confirmation += "\n\nإذا كل شي صحيح، اكتب بالضبط: *تأكيد الطلب*";
     return { success: true, reply: confirmation };
   }
   const checkout = await runRealCheckout(customerID, readiness);
   if (!checkout?.success) return { success: false, reply: checkout?.message || "صار خطأ أثناء تأكيد الطلب، وما تم اعتماد الطلب." };
-  return { success: true, checkout: true, reply: `✅ *تم تأكيد طلبك بنجاح!*\n\n🧾 رقم الطلب: *${checkout.request_id}*\n📍 المنطقة: ${readiness.area.areaName}\n🏠 العنوان: ${readiness.address}\n\nتم إرسال الطلب للمراجعة، ورح نخبرك بالتحديثات. ❤` };
+  LAST_ORDER_ADDRESS.delete(customerID);
+  LAST_ORDER_AREA.delete(customerID);
+  LAST_SHOWN.delete(customerID);
+  return { success: true, checkout: true, reply: `✅ *تم تأكيد طلبك بنجاح!*\n\n🧾 رقم الطلب: *${checkout.request_id}*\n📍 المنطقة: ${readiness.area.areaName}\n🏠 عنوان الطلب: ${readiness.address}\n\nتم إرسال الطلب للمراجعة، ورح نخبرك بالتحديثات. ❤` };
 }
 async function runAI(userMessage, context) {
   if (!GROQ_KEY) return { success: false, reply: "أهلا وسهلا! كيف بقدر ساعدك؟ 😊" };
@@ -698,9 +758,6 @@ export async function POST(req) {
     const body = await req.json();
     console.log("📩 Bot 2:", JSON.stringify(body));
 
-    // ==================================================
-    // BRIDGE FROM BOT1 - بوابة START_ORDER
-    // ==================================================
     if (body.command === "START_ORDER" || body.transferKey === "START_ORDER" || body.event === "NEW_ORDER") {
       const bridgePhone = normalizeWhatsAppNumber(body.phone || body.Phone || body.from || "");
       if (!bridgePhone) return NextResponse.json({ status: "ok", error: "NO_PHONE" });
@@ -740,9 +797,6 @@ export async function POST(req) {
     const whatsappNumber = normalizeWhatsAppNumber(from);
     console.log(`📱 Customer BOT2: ${whatsappNumber} | ${userText}`);
 
-    // ======================================================
-    // === إضافة جديدة - حل مشكلة رقم 1 و الكمية 1 ===
-    // ======================================================
     const user = await getUserByWhatsAppNumber(whatsappNumber);
     const customerIDForChoice = user?.customerId || "";
     if (customerIDForChoice) {
@@ -764,15 +818,12 @@ export async function POST(req) {
         }
       }
     }
-    // ======================================================
 
-    // فحص Timeout 30 دقيقة قبل أي شي
     const isTimedOut = await checkAndHandleTimeout(whatsappNumber);
     if (isTimedOut) {
       return NextResponse.json({ status: "ok", action: "TIMEOUT_RETURNED_TO_BOT1" });
     }
 
-    // تمديد الجلسة
     await touchBotSession(whatsappNumber);
 
     if (!user) {
@@ -796,7 +847,6 @@ export async function POST(req) {
       await sendMessage(whatsappNumber, result.reply);
       await saveToAppSheet(from, userText, result.reply);
 
-      // اذا تم الطلب بنجاح → سكر الجلسة + امسح السلة + رجع لـ BOT1
       if (result.checkout) {
         console.log("✅ طلب ناجح - تسكير الجلسة وارجاع لـ BOT1");
         await closeBotSessionAndReturnToBot1(whatsappNumber, "CHECKOUT_SUCCESS");
