@@ -272,15 +272,27 @@ async function getBotSessionTable(phone) {
 }
 
 async function openBot2Session(phone) {
-  const now = new Date().toISOString();
+  const nowBeirut = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Beirut",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+  // toLocaleString بيرجع "08/19/2026, 12:50:34" - منشيل الفاصلة ليصير متل الكرون
+  const beirutTime = nowBeirut.replace(",", "");
+
   return await appSheetAction("Bot Sessions", "Add", [{
     Phone: normalizeWhatsAppNumber(phone),
     "Active Bot": "BOT2",
     Status: "ACTIVE",
     "Request ID": "",
-    "Started At": now,
+    "Started At": beirutTime,
     "Closed At": "",
-    "Last Activity": now
+    "Last Activity": beirutTime
   }]);
 }
 
