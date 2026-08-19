@@ -653,27 +653,36 @@ export async function POST(req) {
     const whatsappNumber = normalizeWhatsAppNumber(from);
 
     // ====== زر الطوارئ - بلا توكن بلا API ======
+        // ====== زر الطوارئ ======
     try {
       const { getGlobalConfig } = await import('@/lib/getGlobalConfig');
       const config = await getGlobalConfig();
 
+      // 1. واتساب كلو مسكر (انت بتحدد المسج بالشيت)
       if (!config.isWhatsappEnabled) {
-        console.log("🚨 واتساب مقفل من الشيت");
         await sendMessage(from, config.whatsapp_disabled_message);
         return Response.json({ status: "ok", blocked: "whatsapp_disabled" }, { status: 200 });
       }
 
       const lower = (message?.text?.body || body.text || "").toLowerCase();
       const wantsOrder = lower.includes("طلب") || lower.includes("اطلب") || lower.includes("order") || lower.includes("سلة");
+
       if (wantsOrder) {
-        if (config.isWhatsappCartClosed ||!config.isWhatsappCartInHours) {
+        // 2. مسكرة يدوي FALSE (انت بتحدد المسج بالشيت)
+        if (config.isWhatsappCartClosed) {
           await sendMessage(from, config.whatsapp_cart_closed_message);
           return Response.json({ status: "ok", blocked: "whatsapp_cart_closed" }, { status: 200 });
         }
+        // 3. برا الدوام (مسج ثابتة)
+        if (!config.isWhatsappCartInHours) {
+          const open = config.cart_open_time || '08:00';
+          const fixedMsg = `نعتذر، سلة الواتساب مغلقة حالياً.\n\nتفتح الساعة ${open} بتوقيت لبنان 🇱🇧\n\nنأسف للإزعاج\nمع تحيات MD-Marketplace ❤️`;
+          await sendMessage(from, fixedMsg);
+          return Response.json({ status: "ok", blocked: "whatsapp_out_of_hours" }, { status: 200 });
+        }
       }
-    } catch(e) {
-      console.log("Global check error (تجاهل):", e.message)
-    }
+    } catch(e) { console.log("Global check error", e.message) }
+    // ====== خلص ======
     // ====== خلص زر الطوارئ ======
 
     if (message?.type === "image" && message?.image?.id) {
