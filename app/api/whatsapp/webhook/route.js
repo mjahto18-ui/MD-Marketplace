@@ -271,52 +271,26 @@ async function getBotSessionTable(phone) {
   return rows.find(r => normalizeWhatsAppNumber(r["Phone"] || "") === normalized) || null;
 }
 
-async function openBot2Session(phone) {
-  const sheets = getGoogleSheetsClient();
-  if (!sheets) {
-    console.error("❌ ما في Google Sheets Client");
-    return null;
-  }
-
-  const now = new Date().toLocaleString("en-US", {
-    timeZone: "Asia/Beirut",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  });
-
+async function getBotSessionTable(phone) {
+  const rows = await getSheetRows("Bot Sessions");
   const normalized = normalizeWhatsAppNumber(phone);
-
-  try {
-    const res = await sheets.spreadsheets.values.append({
-      spreadsheetId: GOOGLE_SHEETS_ID,
-      range: "Bot Sessions!A:G",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[
-          normalized, // Phone
-          "BOT2",      // Active Bot
-          "ACTIVE",    // Status
-          "",          // Request ID
-          now,         // Started At - en-US Asia/Beirut
-          "",          // Closed At
-          now          // Last Activity - en-US Asia/Beirut
-        ]]
-      }
-    });
-
-    console.log(`✅ BOT1 كتب جلسة en-US مباشرة: ${normalized} | ${now}`);
-    return { ok: true, status: 200 };
-
-  } catch (error) {
-    console.error("❌ فشل كتابة جلسة:", error.message);
-    return null;
-  }
+  return rows.find(r => normalizeWhatsAppNumber(r["Phone"] || "") === normalized) || null;
 }
+
+async function openBot2Session(phone) {
+  const now = new Date().toISOString("en-US", 
+    timeZone: "Asia/Beirut");
+  return await appSheetAction("Bot Sessions", "Add", [{
+    Phone: normalizeWhatsAppNumber(phone),
+    "Active Bot": "BOT2",
+    Status: "ACTIVE",
+    "Request ID": "",
+    "Started At": now,
+    "Closed At": "",
+    "Last Activity": now
+  }]);
+}
+
 async function getAllUserMessages(from) {
   const messages = await getSheetRows("Messages");
   const normalized = normalizeWhatsAppNumber(from);
