@@ -141,8 +141,10 @@ async function getCustomerDeliveryData(customerID) {
   const areaValue = String(customer["Area"] || customer["Area ID"] || "").trim();
   const area = await findArea(areaValue);
   const address = String(customer["Address"] || customer["Delivery Address"] || customer["Old Address"] || "").trim();
-  const lat = String(customer["Latitude"] || customer["Lat"] || customer["Customer Latitude"] || "").trim();
-  const lng = String(customer["Longitude"] || customer["Lng"] || customer["Customer Longitude"] || "").trim();
+  // FIX L & M
+  const lat = String(customer["Current Latitude"] || customer["Registration Latitude"] || customer["Latitude"] || customer["Lat"] || customer["Customer Latitude"] || "").trim();
+  const lng = String(customer["Current Longitude"] || customer["Registration Longitude"] || customer["Longitude"] || customer["Lng"] || customer["Customer Longitude"] || "").trim();
+  console.log(`📍 L=${customer["Current Latitude"]} M=${customer["Current Longitude"]} => lat=${lat} lng=${lng}`);
   return { exists: true, area, address, lat, lng };
 }
 
