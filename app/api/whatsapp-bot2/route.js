@@ -140,7 +140,7 @@ async function getCustomerDeliveryData(customerID) {
   if (!customer) return { exists: false, area: null, address: "", lat: "", lng: "" };
   const areaValue = String(customer["Area"] || customer["Area ID"] || "").trim();
   const area = await findArea(areaValue);
-  const address = String(customer["Address"] || customer["Delivery Address"] || customer["Old Address"] || "").trim();
+  const address = String(customer["Adress"] || customer["Delivery Address"] || customer["Old Address"] || "").trim();
   // FIX L & M
   const lat = String(customer["Current Latitude"] || customer["Registration Latitude"] || customer["Latitude"] || customer["Lat"] || customer["Customer Latitude"] || "").trim();
   const lng = String(customer["Current Longitude"] || customer["Registration Longitude"] || customer["Longitude"] || customer["Lng"] || customer["Customer Longitude"] || "").trim();
