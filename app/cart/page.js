@@ -143,8 +143,7 @@ export default function CartPage() {
     );
   }
 
-  if (globalCfg?.isCartClosed || globalCfg?.isCartInHours === false) {
-    const isOutOfHours = globalCfg?.isCartInHours === false;
+    if (globalCfg?.isCartClosed) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
         {globalCfg?.isComingSoon && (
@@ -154,13 +153,34 @@ export default function CartPage() {
         )}
         <div className="flex flex-col items-center justify-center min-h-screen px-6">
           <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/20 text-center max-w-md w-full">
-            <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">{isOutOfHours? '🕐' : '🛒'}</div>
+            <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🛒</div>
             <h1 className="text-2xl font-bold mb-3">السلة مغلقة حالياً</h1>
             <p className="text-white/70 mb-6 whitespace-pre-line">
-              {isOutOfHours
-               ? `نعتذر، نحن مغلقون حالياً\nتفتح الساعة ${globalCfg.cart_open_time || '08:00'} بتوقيت لبنان 🇱🇧`
-                : (globalCfg.cart_closed_message || 'السلة مغلقة حاليا')
-              }
+              {globalCfg.cart_closed_message || 'السلة مغلقة حاليا'}
+            </p>
+            <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold flex items-center justify-center gap-2">
+              <ArrowLeft className="w-4 h-4"/> رجوع للمتجر
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (globalCfg?.isCartInHours === false) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-slate-950 text-white" style={{ direction: 'rtl' }}>
+        {globalCfg?.isComingSoon && (
+          <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-center py-3 px-4 font-bold">
+            ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
+          </div>
+        )}
+        <div className="flex flex-col items-center justify-center min-h-screen px-6">
+          <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/20 text-center max-w-md w-full">
+            <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🕐</div>
+            <h1 className="text-2xl font-bold mb-3">السلة مغلقة حالياً</h1>
+            <p className="text-white/70 mb-6 whitespace-pre-line">
+              {`نعتذر، نحن مغلقون حالياً\nتفتح الساعة ${globalCfg.cart_open_time || '08:00'} بتوقيت لبنان 🇱🇧`}
             </p>
             <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold flex items-center justify-center gap-2">
               <ArrowLeft className="w-4 h-4"/> رجوع للمتجر
