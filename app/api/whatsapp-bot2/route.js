@@ -75,6 +75,11 @@ function normalizeText(text) {
   return String(text || "").toLowerCase().trim().replace(/[إأآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[؟?!.,،:؛]/g, " ").replace(/\s+/g, " ");
 }
 
+function convertArabicNumbers(text) {
+  const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+  return String(text||"").replace(/[٠-٩]/g, d => map[d]);
+}
+
 async function sendMessage(to, text) {
   if (!WHATSAPP_TOKEN) { console.error("❌ WHATSAPP_TOKEN غير موجود"); return; }
   const cleanPhone = normalizeWhatsAppNumber(to);
@@ -141,7 +146,6 @@ async function getCustomerDeliveryData(customerID) {
   return { exists: true, area, address, lat, lng };
 }
 
-const CART_HEADERS = ["Cart ID","Customer ID","Product ID","Qty","Store ID","Line Total","Checked Out","Check Out Flag","Request ID","Line Points"];
 function cartRowToObject(row) {
   return {
     cartId: row["Cart ID"] || "", customerId: row["Customer ID"] || "", productId: row["Product ID"] || "",
@@ -298,13 +302,12 @@ function formatCart(cart) {
   return text;
 }
 // ======================================================
-// === الإضافات الجديدة - بدون حذف أي شي قديم ===
+// === الحل الحلو - بدون تعقيد ===
 // ======================================================
-const LAST_SHOWN = new Map(); // يحفظ آخر لستة لكل زبون
-const LAST_ORDER_ADDRESS = new Map(); // عنوان الطلب فقط - مش عنوان الزبون الأساسي!
-const LAST_ORDER_AREA = new Map(); // منطقة الطلب فقط
+const LAST_SHOWN = new Map();
 function parseChoice(text) {
-  const t = normalizeText(text);
+  const raw = convertArabicNumbers(text);
+  const t = normalizeText(raw);
   let m = t.match(/رقم\s*(\d+).*?(?:الكمية|كميه|كمية|عدد)?\s*(\d+)/);
   if (m) return { idx: parseInt(m[1])-1, qty: parseInt(m[2]) };
   m = t.match(/^(\d+)\s+(\d+)$/);
@@ -316,58 +319,6 @@ function parseChoice(text) {
     if (idx >=0) return { idx, qty };
   }
   return null;
-}
-// === فنكشن جديدة للطلب فقط - ما بتلمس Customers ===
-async function checkCheckoutReadinessForOrder(customerID, message) {
-  const cart = await buildCartView(customerID);
-  if (!cart.items.length) return { ready: false, reason: "EMPTY_CART", cart };
-  const delivery = await getCustomerDeliveryData(customerID);
-  if (!delivery.exists) return { ready: false, reason: "CUSTOMER_NOT_FOUND", cart };
-  // المنطقة - لازم تطابق Areas
-  let finalArea = delivery.area;
-  const detectedArea = await detectAreaFromMessage(message);
-  if (detectedArea) {
-    finalArea = detectedArea;
-    LAST_ORDER_AREA.set(customerID, detectedArea);
-    console.log(`📍 منطقة الطلب: ${detectedArea.areaName}`);
-  } else if (LAST_ORDER_AREA.has(customerID)) {
-    finalArea = LAST_ORDER_AREA.get(customerID);
-  }
-  if (!finalArea) {
-    return { ready: false, reason: "AREA_MISSING", cart, delivery };
-  }
-  // العنوان - للطلب فقط!
-  let finalAddress = delivery.address;
-  const text = String(message || "").trim();
-  const isConfirm = isCheckoutConfirmation(message);
-  if (!isConfirm && text.length > 8 &&!detectedArea) {
-    const hasAddressKeyword = text.includes("شارع") || text.includes("الخية") || text.includes("حي") || text.includes("طريق") || text.includes("بناية");
-    if (hasAddressKeyword || text.length > 12) {
-      if (!text.includes("تأكيد") &&!text.includes("تاكيد") &&!text.includes("بدي")) {
-        finalAddress = text;
-        LAST_ORDER_ADDRESS.set(customerID, text);
-        console.log(`📦 عنوان الطلب (مش عنوان الزبون): ${text}`);
-      }
-    }
-  } else if (LAST_ORDER_ADDRESS.has(customerID)) {
-    finalAddress = LAST_ORDER_ADDRESS.get(customerID);
-  }
-  if (!finalAddress) {
-    return { ready: false, reason: "ADDRESS_MISSING", cart, delivery, area: finalArea };
-  }
-  // اللوكيشن - من Customers بس!
-  if (!delivery.lat ||!delivery.lng) {
-    return {
-      ready: false,
-      reason: "LOCATION_MISSING",
-      cart,
-      delivery,
-      area: finalArea,
-      address: finalAddress,
-      customMessage: "📍 حسابك ما فيه Location مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد الاحداثيات تلقائياً، وبعدين فيك ترجع تطلب من الواتساب عادي ❤"
-    };
-  }
-  return { ready: true, reason: "READY", cart, delivery, area: finalArea, address: finalAddress };
 }
 // ======================================================
 function productToObject(row) {
@@ -387,7 +338,7 @@ async function searchProducts(message, customerID) {
   const customerDelivery = await getCustomerDeliveryData(customerID);
   const customerAreaId = customerDelivery?.area?.areaId || "";
   const customerAreaName = customerDelivery?.area?.areaName || "";
-  const normalized = normalizeText(message);
+  const normalized = normalizeText(convertArabicNumbers(message));
   const stopWords = ["بدي","بدّي","اريد","أريد","عايز","عندي","من","عطيني","اعطيني","لو سمحت","please","موجود","عندكم","سعر","كم","في","فيه","شو","شو عندكم","منتج","منتجات","قطعة","قطع","واحد","اتنين","اثنين","ثلاثة","تلاته","اربعة","خمسة","و","ال"];
   const words = normalized.split(" ").filter(word => word.length >= 2 &&!stopWords.includes(word));
   if (!words.length) return [];
@@ -414,7 +365,7 @@ async function searchProducts(message, customerID) {
   return results.slice(0, 10);
 }
 function extractQuantity(message) {
-  const normalized = normalizeText(message);
+  const normalized = normalizeText(convertArabicNumbers(message));
   const arabicNumbers = { "واحد": 1,"وحدة": 1,"قطعة": 1,"اتنين": 2,"اثنين": 2,"تنين": 2,"ثلاثة": 3,"تلاته": 3,"تلات": 3,"اربعة": 4,"أربعة": 4,"خمسة": 5,"خمسه": 5,"ستة": 6,"سته": 6,"سبعة": 7,"سبعه": 7,"ثمانية": 8,"تمانية": 8,"تسعة": 9,"تسعه": 9,"عشرة": 10 };
   for (const key of Object.keys(arabicNumbers)) { if (normalized.includes(key)) return arabicNumbers[key]; }
   const match = normalized.match(/(?:^|\s)(\d+)(?:\s|$)/);
@@ -425,7 +376,7 @@ function detectCartCommand(message) {
   const text = normalizeText(message);
   if (text.includes("امحي") || text.includes("امسح")) return "REMOVE";
   if (text.includes("السله") || text.includes("سلة") || text.includes("سلت") || text.includes("cart")) {
-    if (text.includes("شو فيها") || text.includes("شو بالسله") || text.includes("عرض") || text.includes("شوف") || text.includes("view")) return "SHOW";
+    if (text.includes("شو فيها") || text.includes("شو بالسله") || text.includes("عرض") || text.includes("شوف") || text.includes("view") || text.includes("فيها")) return "SHOW";
   }
   if (text.includes("احذف") || text.includes("شيل") || text.includes("حذف") || text.includes("remove")) return "REMOVE";
   if (text.includes("غير الكميه") || text.includes("عدل الكميه") || text.includes("بدل الكميه") || text.includes("update") || text.includes("عدل")) return "UPDATE";
@@ -436,21 +387,44 @@ function isCheckoutConfirmation(message) {
   const confirmations = ["تأكيد الطلب","تاكيد الطلب","أكد الطلب","اكد الطلب","تأكيد","تاكيد","أكد","اكد","confirm order","confirm"];
   return confirmations.some(item => text === normalizeText(item));
 }
-async function checkCheckoutReadiness(customerID, message) {
+// === الحل الحلو - يشيك بس من Customers ===
+async function checkCheckoutReadinessSimple(customerID) {
   const cart = await buildCartView(customerID);
   if (!cart.items.length) return { ready: false, reason: "EMPTY_CART", cart };
+
   const delivery = await getCustomerDeliveryData(customerID);
   if (!delivery.exists) return { ready: false, reason: "CUSTOMER_NOT_FOUND", cart };
-  let finalArea = delivery.area;
-  const detectedArea = await detectAreaFromMessage(message);
-  if (detectedArea) finalArea = detectedArea;
-  if (!finalArea) return { ready: false, reason: "AREA_MISSING", cart, delivery };
-  let finalAddress = delivery.address;
-  if (!isCheckoutConfirmation(message) && normalizeText(message).length > 8 &&!detectedArea) finalAddress = message.trim();
-  if (!finalAddress) return { ready: false, reason: "ADDRESS_MISSING", cart, delivery, area: finalArea };
-  if (!delivery.lat ||!delivery.lng) return { ready: false, reason: "LOCATION_MISSING", cart, delivery, area: finalArea, address: finalAddress };
-  return { ready: true, reason: "READY", cart, delivery, area: finalArea, address: finalAddress };
+
+  if (!delivery.area) {
+    return {
+      ready: false,
+      reason: "AREA_MISSING",
+      cart,
+      customMessage: "📍 ما عندك منطقة محفوظة بملفك.\nفوت على الموقع www.md-marketplace.store وحدد منطقتك وعنوانك، وبعدين ارجع اطلب واتساب ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة."
+    };
+  }
+
+  if (!delivery.address) {
+    return {
+      ready: false,
+      reason: "ADDRESS_MISSING",
+      cart,
+      customMessage: "🏠 ما عندك عنوان محفوظ بملفك.\nفوت على الموقع www.md-marketplace.store وكمل عنوانك، وبعدين ارجع اطلب واتساب ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة."
+    };
+  }
+
+  if (!delivery.lat ||!delivery.lng) {
+    return {
+      ready: false,
+      reason: "LOCATION_MISSING",
+      cart,
+      customMessage: "📍 حسابك ما فيه لوكيشن مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك تلقائياً، وبعدين فيك تطلب من الواتساب عادي ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة."
+    };
+  }
+
+  return { ready: true, reason: "READY", cart, delivery, area: delivery.area, address: delivery.address };
 }
+
 async function detectAreaFromMessage(message) {
   const areas = await getSheetRows("Areas");
   const text = normalizeText(message);
@@ -557,28 +531,32 @@ async function handleCart(customerID, message) {
   }
   return { success: true, reply: formatCart(cart) };
 }
+// === الحل الحلو - تأكيد بسيط ===
 async function handleCheckout(customerID, message) {
-  const readiness = await checkCheckoutReadinessForOrder(customerID, message);
+  const readiness = await checkCheckoutReadinessSimple(customerID);
+
   if (readiness.reason === "EMPTY_CART") return { success: false, reply: "🛒 قبل ما نأكد الطلب، السلة فاضية. خبرني شو بدك تشتري." };
   if (readiness.reason === "CUSTOMER_NOT_FOUND") return { success: false, reply: "ما قدرت لاقي بيانات حسابك." };
-  if (readiness.reason === "AREA_MISSING") return { success: false, reply: "📍 ناقصني *المنطقة*.\nاكتبلي المنطقة المطلوبة للتوصيل، وأنا بتأكد إنها موجودة بجدول المناطق." };
-  if (readiness.reason === "ADDRESS_MISSING") return { success: false, reply: "🏠 ناقصني *العنوان التفصيلي للطلب*.\nاكتبلي عنوان التوصيل للطلب الحالي (مش رح يتغير عنوانك الأساسي)." };
-  if (readiness.reason === "LOCATION_MISSING") return { success: false, reply: readiness.customMessage || "📍 حسابك ما فيه Location مسجل.\nلازم تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك." };
+  if (readiness.reason === "AREA_MISSING" || readiness.reason === "ADDRESS_MISSING" || readiness.reason === "LOCATION_MISSING") {
+    return { success: false, reply: readiness.customMessage };
+  }
+
   if (!isCheckoutConfirmation(message)) {
     let confirmation = "🧾 *ملخص طلبك قبل التأكيد:*\n\n";
     confirmation += formatCart(readiness.cart);
     confirmation += `\n\n📍 المنطقة: ${readiness.area.areaName}`;
-    confirmation += `\n🏠 عنوان الطلب: ${readiness.address}`;
-    confirmation += `\n📌 عنوانك الأساسي محفوظ - ما تغير`;
-    confirmation += "\n\nإذا كل شي صحيح، اكتب بالضبط: *تأكيد الطلب*";
+    confirmation += `\n🏠 العنوان: ${readiness.address}`;
+    confirmation += `\n\n📌 العنوان كامل رح يتاخد من ملفك المحفوظ:\n${readiness.area.areaName} - ${readiness.address}`;
+    confirmation += `\n\n💡 اذا بدك تغير العنوان، السلة بتضل محفوظة نص ساعة.\nفوت على الموقع www.md-marketplace.store وكفي الطلب من هنيك.`;
+    confirmation += "\n\nاذا كل شي صحيح، اكتب بالضبط: *تأكيد الطلب*";
     return { success: true, reply: confirmation };
   }
+
   const checkout = await runRealCheckout(customerID, readiness);
   if (!checkout?.success) return { success: false, reply: checkout?.message || "صار خطأ أثناء تأكيد الطلب، وما تم اعتماد الطلب." };
-  LAST_ORDER_ADDRESS.delete(customerID);
-  LAST_ORDER_AREA.delete(customerID);
+
   LAST_SHOWN.delete(customerID);
-  return { success: true, checkout: true, reply: `✅ *تم تأكيد طلبك بنجاح!*\n\n🧾 رقم الطلب: *${checkout.request_id}*\n📍 المنطقة: ${readiness.area.areaName}\n🏠 عنوان الطلب: ${readiness.address}\n\nتم إرسال الطلب للمراجعة، ورح نخبرك بالتحديثات. ❤` };
+  return { success: true, checkout: true, reply: `✅ *تم تأكيد طلبك بنجاح!*\n\n🧾 رقم الطلب: *${checkout.request_id}*\n📍 المنطقة: ${readiness.area.areaName}\n🏠 العنوان: ${readiness.address}\n\nتم إرسال الطلب للمراجعة، ورح نخبرك بالتحديثات. ❤\n\n💡 اذا بدك تغير عنوانك للمرات الجاي، فوت على الموقع وعدلو.` };
 }
 async function runAI(userMessage, context) {
   if (!GROQ_KEY) return { success: false, reply: "أهلا وسهلا! كيف بقدر ساعدك؟ 😊" };
@@ -842,7 +820,7 @@ export async function POST(req) {
 
     const context = await buildContext(user, userText);
 
-    if (isCheckoutConfirmation(userText)) {
+    if (isCheckoutConfirmation(userText) || normalizeText(userText).includes("خلص") || normalizeText(userText).includes("جاهز")) {
       const result = await handleCheckout(customerID, userText);
       await sendMessage(whatsappNumber, result.reply);
       await saveToAppSheet(from, userText, result.reply);
@@ -870,14 +848,6 @@ export async function POST(req) {
       await sendMessage(whatsappNumber, result.reply);
       await saveToAppSheet(from, userText, result.reply);
       return NextResponse.json({ status: "ok", action: "SHOPPING" });
-    }
-
-    const text = normalizeText(userText);
-    if (text.includes("خلص") || text.includes("جاهز") || text.includes("بدي اطلب") || text.includes("بدي أكد") || text.includes("بدي اكد") || text.includes("checkout")) {
-      const result = await handleCheckout(customerID, "");
-      await sendMessage(whatsappNumber, result.reply);
-      await saveToAppSheet(from, userText, result.reply);
-      return NextResponse.json({ status: "ok", action: "CHECKOUT_PREVIEW" });
     }
 
     const history = await getRecentConversation(whatsappNumber);
