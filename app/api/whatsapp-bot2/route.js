@@ -297,6 +297,25 @@ function formatCart(cart) {
   text += `📦 عدد القطع: ${cart.count}`;
   return text;
 }
+// ======================================================
+// === الإضافات الجديدة - بدون حذف أي شي قديم ===
+// ======================================================
+const LAST_SHOWN = new Map(); // يحفظ آخر لستة لكل زبون
+function parseChoice(text) {
+  const t = normalizeText(text);
+  let m = t.match(/رقم\s*(\d+).*?(?:الكمية|كميه|كمية|عدد)?\s*(\d+)/);
+  if (m) return { idx: parseInt(m[1])-1, qty: parseInt(m[2]) };
+  m = t.match(/^(\d+)\s+(\d+)$/);
+  if (m) return { idx: parseInt(m[1])-1, qty: parseInt(m[2]) };
+  m = t.match(/^(?:رقم)?\s*(\d+)\s*(?:عدد|كمية|كميه)?\s*(\d+)?/);
+  if (m) {
+    const idx = parseInt(m[1])-1;
+    const qty = m[2]? parseInt(m[2]) : 1;
+    if (idx >=0) return { idx, qty };
+  }
+  return null;
+}
+// ======================================================
 function productToObject(row) {
   const price = Number(row["Price"] || 0);
   const points = Number(row["Points"] || row["Point"] || row["Loyalty Points"] || 0);
@@ -454,6 +473,8 @@ async function handleShopping(customerID, message) {
     reply += "\n\n";
   });
   reply += "قلّي رقم الخيار والكمية، مثلاً: *1 عدد 2*.";
+  // === إضافة جديدة: حفظ اللستة ===
+  LAST_SHOWN.set(customerID, products.slice(0, 5));
   return { success: true, reply };
 }
 async function handleCart(customerID, message) {
@@ -575,7 +596,7 @@ ${context.intent}
 6. إذا intent غير واضح:
    - اسأل سؤال واحد فقط لتوضيح النية.
 
-🎙️ أسلوب الرد:
+🎙 أسلوب الرد:
 - لهجة لبنانية طبيعية، ودّية، مختصرة.
 - جملة أو جملتين فقط.
 - بدون تكرار، بدون حكي زايد، بدون سرد بيانات غير مطلوبة.
@@ -719,6 +740,32 @@ export async function POST(req) {
     const whatsappNumber = normalizeWhatsAppNumber(from);
     console.log(`📱 Customer BOT2: ${whatsappNumber} | ${userText}`);
 
+    // ======================================================
+    // === إضافة جديدة - حل مشكلة رقم 1 و الكمية 1 ===
+    // ======================================================
+    const user = await getUserByWhatsAppNumber(whatsappNumber);
+    const customerIDForChoice = user?.customerId || "";
+    if (customerIDForChoice) {
+      const choice = parseChoice(userText);
+      if (choice) {
+        const lastProducts = LAST_SHOWN.get(customerIDForChoice);
+        console.log(`🔍 Choice detected: idx=${choice.idx} qty=${choice.qty} | lastProducts=${lastProducts?.length || 0}`);
+        if (lastProducts && lastProducts[choice.idx]) {
+          const prod = lastProducts[choice.idx];
+          const added = await addToCart(customerIDForChoice, prod, choice.qty);
+          if (added.success) {
+            const cart = await buildCartView(customerIDForChoice);
+            const reply = `✅ ضفت ${choice.qty} × ${prod.productName} بالسلة.\n🏪 ${prod.storeName}\n💰 ${prod.price.toLocaleString()} ل.ل\n\n${formatCart(cart)}\n\nإذا خلصت، اكتب *تأكيد الطلب*.`;
+            await sendMessage(whatsappNumber, reply);
+            await saveToAppSheet(from, userText, reply);
+            await touchBotSession(whatsappNumber);
+            return NextResponse.json({ status: "ok", action: "CHOICE_ADDED" });
+          }
+        }
+      }
+    }
+    // ======================================================
+
     // فحص Timeout 30 دقيقة قبل أي شي
     const isTimedOut = await checkAndHandleTimeout(whatsappNumber);
     if (isTimedOut) {
@@ -728,7 +775,6 @@ export async function POST(req) {
     // تمديد الجلسة
     await touchBotSession(whatsappNumber);
 
-    const user = await getUserByWhatsAppNumber(whatsappNumber);
     if (!user) {
       const reply = "أهلا وسهلا فيك بـ MD-Marketplace ❤\n\nلازم يكون عندك حساب مسجل حتى أقدر ساعدك بالشراء والطلبات.";
       await sendMessage(whatsappNumber, reply);
