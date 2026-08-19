@@ -278,8 +278,16 @@ async function getBotSessionTable(phone) {
 }
 
 async function openBot2Session(phone) {
-  const now = new Date().toISOString("en-US", 
-    timeZone: "Asia/Beirut");
+  const now = new Date().toISOString("en-US", {
+    timeZone: "Asia/Beirut",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
   return await appSheetAction("Bot Sessions", "Add", [{
     Phone: normalizeWhatsAppNumber(phone),
     "Active Bot": "BOT2",
