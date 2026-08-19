@@ -271,11 +271,6 @@ async function getBotSessionTable(phone) {
   return rows.find(r => normalizeWhatsAppNumber(r["Phone"] || "") === normalized) || null;
 }
 
-async function getBotSessionTable(phone) {
-  const rows = await getSheetRows("Bot Sessions");
-  const normalized = normalizeWhatsAppNumber(phone);
-  return rows.find(r => normalizeWhatsAppNumber(r["Phone"] || "") === normalized) || null;
-}
 
 async function openBot2Session(phone) {
   const now = new Date().toISOString();
