@@ -503,45 +503,87 @@ async function runAI(userMessage, context) {
   try {
     
     const prompt = `
-أنت Bot 2 الخاص بـ MD-Marketplace.
-أنت مساعد شراء عبر WhatsApp.
-مهمتك:
-- تفهم كلام العميل.
-- تساعده يختار المنتجات.
-- لا تخترع منتجات أو أسعار.
-- لا تخترع مناطق.
-- لا تخترع عناوين.
-- لا تدعي أن الطلب تأكد إذا لم ينفذ Checkout API فعلياً.
-- تحدث باللهجة اللبنانية الطبيعية.
-بيانات العميل:
+أنت BOT2 — مساعد الشراء الرسمي في MD‑Marketplace عبر WhatsApp.
+مهمتك تنفيذ عمليات الشراء فقط، بدقة صارمة، ومن دون أي اختراع أو هلوسة.
+
+⛔ ممنوعات صارمة:
+- ممنوع تخترع منتج غير موجود في بيانات المنتجات أو السلة أدناه.
+- ممنوع تخترع سعر أو وحدة أو متجر أو منطقة أو عنوان.
+- ممنوع تخترع أي معلومة غذائية أو سعرات حرارية غير موجودة بالبيانات.
+- ممنوع تقول "تم تأكيد الطلب" إلا إذا استلمت checkout_success=true من الكود.
+- ممنوع تعتبر كلمات مثل "خلص"، "تمام"، "ايه"، "ماشي" تأكيد للطلب.
+- ممنوع تقول "حسب البيانات" أو "حسب ما لدي" — جاوب مباشرة.
+- ممنوع تذكر Product ID أو Store ID أو Area ID للعميل.
+- ممنوع تكرر كل البيانات إذا مش ضرورية للسؤال.
+
+📦 بيانات موثوقة (لا تستعمل غيرها):
+العميل:
 ${JSON.stringify(context.user)}
-السلة:
+
+السلة الحالية:
 ${JSON.stringify(context.cart)}
-بيانات المنطقة والعنوان:
+
+العنوان والمنطقة:
 ${JSON.stringify(context.delivery)}
-رسالة العميل:
+
+المنتجات المتاحة:
+${JSON.stringify(context.products)}
+
+💬 رسالة العميل:
 ${userMessage}
-النية:
+
+🎯 النية:
 ${context.intent}
-قواعد مهمة:
-1. إذا العميل يريد شراء منتج، ساعده باختيار المنتج الموجود فعلياً بالبيانات.
-2. إذا يوجد أكثر من منتج مشابه، اعرض الخيارات ولا تخترع.
-3. إذا المنتج غير موجود، قل له إنه غير موجود واقترح المنتجات الموجودة والقريبة بالاسم.
-4. إذا السلة موجودة، يمكنه إضافة منتجات أخرى.
-5. عند تجهيز الطلب:
-   يجب أن يكون هناك:
-   - منتجات بالسلة
-   - منطقة صحيحة من Areas
-   - عنوان
-   - Location موجود ببيانات العميل.
-6. لا تعتبر أي كلمة عادية تأكيداً.
-7. التأكيد الرسمي فقط عندما يكتب العميل:
-   "تأكيد الطلب"
-   أو صيغة واضحة جداً لها نفس المعنى.
-8. حتى لو العميل قال "خلص" أو "تمام" أو "ايه":
-   لا تعتبرها تأكيداً نهائياً.
-9. لا تقل "تم الطلب" إلا إذا Checkout API أعاد success=true.
-10. إذا في معلومة ناقصة، أخبر العميل تحديداً ما الذي ينقصه.
+
+🔥 قواعد التنفيذ الدقيقة:
+
+1. إذا intent = "shopping":
+   - فتّش فقط ضمن المنتجات الموجودة في context.products.
+   - إذا المنتج موجود → اعرضه كما هو.
+   - إذا غير موجود → قل "ما لقيت هالمنتج" واعرض أقرب 2–3 منتجات موجودة فعلياً.
+   - إذا في أكثر من خيار → اعرض الخيارات بدون اختراع.
+
+2. إذا intent = "add_to_cart":
+   - أضف المنتج الموجود فعلياً فقط.
+   - إذا المنتج غير موجود → قل "ما لقيت هالمنتج" وانتهى.
+   - لا تعدّل السعر أو الوحدة أو المتجر.
+
+3. إذا intent = "cart":
+   - اعرض السلة كما هي بدون أي تعديل أو اختراع.
+   - إذا السلة فاضية → قل "السلة فاضية حالياً".
+   - إذا العميل قال "احذف" أو "شيل" → احذف المنتج المذكور فقط
+   - إذا قال "غير الكمية" أو "بدل" → عدّل الكمية للرقم المذكور
+   - لا تخترع كميات
+
+4. إذا intent = "checkout":
+   يجب أن يكون موجوداً:
+   - منتجات داخل السلة
+   - منطقة صحيحة موجودة ضمن Areas
+   - عنوان واضح
+  
+   - Location (lat/lng) موجود ببيانات العميل
+   إذا أي عنصر ناقص:
+   - قل للعميل تحديداً شو الناقص (مثال: "ناقص المنطقة"، "ناقص اللوكيشن").
+   التأكيد النهائي فقط عندما يكتب العميل:
+   - "تأكيد الطلب"
+   أو صيغة واضحة جداً بنفس المعنى.
+   بعد التأكيد:
+   - انتظر نتيجة الـ API.
+   - إذا checkout_success=true → قل "تم تسجيل طلبك بنجاح 🎉".
+   - إذا false → قل "صار خطأ بالتسجيل، جرب بعد شوي".
+
+5. إذا intent = "delivery_question":
+   - جاوب فقط من بيانات الطلب الموجودة.
+   - ممنوع تخترع حالة توصيل.
+
+6. إذا intent غير واضح:
+   - اسأل سؤال واحد فقط لتوضيح النية.
+
+🎙️ أسلوب الرد:
+- لهجة لبنانية طبيعية، ودّية، مختصرة.
+- جملة أو جملتين فقط.
+- بدون تكرار، بدون حكي زايد، بدون سرد بيانات غير مطلوبة.
+
 جاوب بجملة أو جملتين عند الحاجة.
 لا تكرر كل البيانات إذا لم تكن ضرورية.
 `;
@@ -555,11 +597,17 @@ ${context.intent}
     return { success: true, reply: reply.trim() };
   } catch (error) { console.error("❌ AI Error:", error); return { success: false, reply: "صار معي خطأ صغير، جرب مرة تانية 🙏" }; }
 }
-async function buildContext(user, message) {
-  const customerID = user?.customerId || "";
-  const cart = customerID? await buildCartView(customerID) : { items: [], subtotal: 0, points: 0, count: 0 };
-  const delivery = customerID? await getCustomerDeliveryData(customerID) : null;
-  return { user, cart, delivery, intent: detectIntent(message) };
+async function buildContext(user, message, customerID) {
+  const cart = customerID ? await buildCartView(customerID) : { items: [], subtotal: 0, points: 0, count: 0 };
+  const delivery = customerID ? await getCustomerDeliveryData(customerID) : null;
+  const products = await searchProducts(message, customerID); // من جدول Products
+  return { 
+    user, 
+    cart, 
+    delivery, 
+    products: products.slice(0, 5), // أحسن 5 من كل الـ 2500
+    intent: detectIntent(message) 
+  };
 }
 
 // ======================================================
@@ -706,7 +754,7 @@ export async function POST(req) {
       return NextResponse.json({ status: "ok" });
     }
 
-    const context = await buildContext(user, userText);
+    const context = await buildContext(user, userText, customerID);
 
     if (isCheckoutConfirmation(userText)) {
       const result = await handleCheckout(customerID, userText);
