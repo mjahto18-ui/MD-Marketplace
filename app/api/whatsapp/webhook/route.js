@@ -675,7 +675,7 @@ export async function POST(req) {
         }
         // 3. برا الدوام (مسج ثابتة)
         if (!config.isWhatsappCartInHours) {
-          const open = config.cart_open_time || '08:00';
+          const open = config.whatsapp_open_time || '08:00';
           const fixedMsg = `نعتذر، سلة الواتساب مغلقة حالياً.\n\nتفتح الساعة ${open} بتوقيت لبنان 🇱🇧\n\nنأسف للإزعاج\nمع تحيات MD-Marketplace ❤️`;
           await sendMessage(from, fixedMsg);
           return Response.json({ status: "ok", blocked: "whatsapp_out_of_hours" }, { status: 200 });
