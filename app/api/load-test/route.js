@@ -1,8 +1,9 @@
 // حط هاد الكود مكان القديم: app/api/load-test/route.js
 
-export async function GET() {
+export async function GET(req) {
   const BASE_URL = 'https://www.md-marketplace.store';
-  const CLIENTS = 50;
+  const url = new URL(req.url);
+const CLIENTS = parseInt(url.searchParams.get("clients") || "50", 10);
 
   const tests = [
     { name: 'الصفحة الرئيسية', url: `${BASE_URL}/` },
