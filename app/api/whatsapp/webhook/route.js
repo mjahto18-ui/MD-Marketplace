@@ -288,8 +288,12 @@ async function getBotSessionTable(phone) {
 
 async function openBot2Session(phone) {
   const now = new Date();
-  const beirutNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
-  const isoBeirut = beirutNow.toISOString().replace("Z", "").replace("T", " ") + ""; // AppSheet بيفهمو
+now.setHours(now.getHours() + 3); // زيد 3 ساعات يا شرموط 😂
+
+const beirutString = now.toLocaleString("en-US", { 
+  timeZone: "Asia/Beirut", 
+  hour12: false 
+});
 
   return await appSheetAction("Bot Sessions", "Add", [{
     Phone: normalizeWhatsAppNumber(phone),
@@ -324,7 +328,7 @@ async function saveToAppSheet(from, userMessage, aiReply, options = {}) {
   const messageType = options.messageType || "WHATSAPP";
   if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) return false;
   try {
-    const today = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Beirut" }); // 08/20/2026
+    const today = new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }); // 08/20/2026, 7:14:23 AM
     const row = {
       Phone: normalizeWhatsAppNumber(from),
       CustomerMessage: userMessage || "",
