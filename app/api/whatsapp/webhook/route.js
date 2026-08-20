@@ -455,10 +455,23 @@ async function getOrderDetails(requestId) {
   }
   return result;
 }
+async function getDriverById(driverId) {
+  if (!driverId) return null;
+  const drivers = await getSheetRows("Drivers");
+  const id = String(driverId).trim().toLowerCase();
+  const driver = drivers.find(d => 
+    String(d["Driver ID"] || d["ID"] || "").trim().toLowerCase() === id
+  );
+  if (!driver) return null;
+  return {
+    name: driver["Driver Name"] || driver["Name"] || "غير معروف",
+    phone: driver["Phone"] || driver["Mobile"] || driver["WhatsApp"] || ""
+  };
+}
 
 async function buildOrderContext(user, userMessage) {
   const orders = await getUserOrders(user);
-  if (!orders.length) return { orders: [], selectedOrder: null, details: [] };
+  if (!orders.length) return { orders: [], selectedOrder: null, details: [], driver: null };
   const message = normalizeText(userMessage);
   let selectedOrder = null;
   for (const order of orders) {
@@ -467,8 +480,17 @@ async function buildOrderContext(user, userMessage) {
   }
   if (!selectedOrder) selectedOrder = orders[orders.length - 1];
   const details = await getOrderDetails(selectedOrder["Request ID"]);
+  
+  // هون الجديد - يجيب السائق
+  const driver = await getDriverById(selectedOrder["Assigned Driver"]);
+
   const safeOrders = orders.map(order => ({ requestId: order["Request ID"] || "", area: order["Area"] || "", deliveryAddress: order["Delivery Adress"] || "", deliveryFee: order["Delivery Fee"] || "", assignedDriver: order["Assigned Driver"] || "", approvalStatus: order["Approval Status"] || "", deliveryStatus: order["Delivery Status"] || "", itemsCost: order["Items Cost"] || "", totalAmount: order["Total Amount"] || "" }));
-  return { orders: safeOrders, selectedOrder: selectedOrder? { requestId: selectedOrder["Request ID"] || "", area: selectedOrder["Area"] || "", deliveryAddress: selectedOrder["Delivery Adress"] || "", deliveryFee: selectedOrder["Delivery Fee"] || "", assignedDriver: selectedOrder["Assigned Driver"] || "", approvalStatus: selectedOrder["Approval Status"] || "", deliveryStatus: selectedOrder["Delivery Status"] || "", itemsCost: selectedOrder["Items Cost"] || "", totalAmount: selectedOrder["Total Amount"] || "" } : null, details };
+  return { 
+    orders: safeOrders, 
+    selectedOrder: selectedOrder ? { requestId: selectedOrder["Request ID"] || "", area: selectedOrder["Area"] || "", deliveryAddress: selectedOrder["Delivery Adress"] || "", deliveryFee: selectedOrder["Delivery Fee"] || "", assignedDriver: selectedOrder["Assigned Driver"] || "", approvalStatus: selectedOrder["Approval Status"] || "", deliveryStatus: selectedOrder["Delivery Status"] || "", itemsCost: selectedOrder["Items Cost"] || "", totalAmount: selectedOrder["Total Amount"] || "" } : null, 
+    details,
+    driver
+  };
 }
 
 // ======================================================
@@ -496,6 +518,9 @@ User ID: ${user.userId || "غير موجود"}
     const selectedOrder = orderContext.selectedOrder? JSON.stringify(orderContext.selectedOrder) : "لا يوجد طلب محدد.";
     const orderDetails = orderContext.details.length? JSON.stringify(orderContext.details) : "لا توجد تفاصيل للطلب المحدد.";
     const historyText = history.length? history.map(m => `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`).join("\n") : "لا توجد محادثة سابقة.";
+        const driverContext = orderContext.driver 
+      ? `اسم السائق: ${orderContext.driver.name}\nرقم السائق: ${orderContext.driver.phone}` 
+      : "لا يوجد سائق معين بعد - الطلب قيد الانتظار";
 
     const systemPrompt = `
 أنت مساعدك الذكي من MD-Marketplace.
@@ -586,6 +611,9 @@ ${selectedOrder}
 
 تفاصيل الطلب المحدد
 ${orderDetails}
+
+بيانات السائق
+${driverContext}
 `;
 
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -818,7 +846,7 @@ export async function POST(req) {
       }
     }
     let productResults = [];
-    let orderContext = { orders: [], selectedOrder: null, details: [] };
+    let orderContext = { orders: [], selectedOrder: null, details: [], driver: null };
     productResults = await searchProducts(userText);
     if (user) orderContext = await buildOrderContext(user, userText);
     const history = await getConversationHistory(whatsappNumber);
