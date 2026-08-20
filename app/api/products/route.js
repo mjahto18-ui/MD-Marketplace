@@ -1,7 +1,9 @@
-export const dynamic = "force-dynamic";
+// الملف المصلح: app/api/products/route.js
+// انسخ هاد مكان ملفك الحالي
 
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { getCachedProductsAndStores } from "@/lib/googlesheets"; // استخدم ملفك الحالي
 
 export async function GET(req) {
   try {
@@ -10,32 +12,17 @@ export async function GET(req) {
     const limit = parseInt(req.nextUrl.searchParams.get("limit") || "20", 10);
     const page = parseInt(req.nextUrl.searchParams.get("page") || "1", 10);
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    // هون بيجيب من الكاش - 50 زبون = ضربة وحدة لـ Google
+    const { productsValues, storesValues } = await getCachedProductsAndStores();
+    
+    const productsRows = productsValues.slice(1);
+    const storesData = storesValues.slice(1);
 
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-
-    const [productsRes, storesRes] = await Promise.all([
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Products!A:L" }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Stores!A:O" }),
-    ]);
-
-    const productsRows = (productsRes.data.values || []).slice(1);
-    const storesData = (storesRes.data.values || []).slice(1);
-
-    // 1. فلترة بالمتجر - نفس منطقك القديم
     let filteredProducts = productsRows;
     if (storeID) {
       filteredProducts = productsRows.filter((row) => row[1] === storeID);
     }
 
-    // 2. فلترة بالبحث - جديد: بيدور بكل المنتجات على السيرفر حتى رقم 720
     if (search) {
       filteredProducts = filteredProducts.filter((row) => {
         const name = (row[2] || "").toLowerCase();
@@ -43,7 +30,6 @@ export async function GET(req) {
       });
     }
 
-    // 3. Pagination - جديد: بياخد بس 20
     const total = filteredProducts.length;
     const start = (page - 1) * limit;
     const end = start + limit;
@@ -64,7 +50,7 @@ export async function GET(req) {
         stock: Number(row[9]),
         active: row[10],
         weightPoint: Number(row[11]),
-        storeName: store? store[1] : "متجر محذوف",
+        storeName: store ? store[1] : "متجر محذوف",
       };
     });
 
