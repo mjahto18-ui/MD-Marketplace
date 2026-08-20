@@ -287,22 +287,19 @@ async function getBotSessionTable(phone) {
 }
 
 async function openBot2Session(phone) {
-  const now = new Date();
-now.setHours(now.getHours() + 3); // زيد 3 ساعات يا شرموط 😂
-
-const beirutString = now.toLocaleString("en-US", { 
-  timeZone: "Asia/Beirut", 
-  hour12: false 
-});
+  const beirutString = new Date().toLocaleString("en-US", { 
+    timeZone: "Asia/Beirut", 
+    hour12: false 
+  }).replace(",", ""); // بيعطي 2026-08-20 10:30:15
 
   return await appSheetAction("Bot Sessions", "Add", [{
     Phone: normalizeWhatsAppNumber(phone),
     "Active Bot": "BOT2",
     Status: "ACTIVE",
     "Request ID": "",
-    "Started At": now,
+    "Started At": beirutString,
     "Closed At": "",
-    "Last Activity": now
+    "Last Activity": beirutString
   }]);
 }
 
