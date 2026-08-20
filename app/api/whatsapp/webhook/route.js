@@ -30,8 +30,7 @@ if (!globalThis._barcodeLock) globalThis._barcodeLock = new Map();
 
 const SHEETS_CACHE = new Map();
 const CACHE_TTL = 1000 * 60 * 5;
-// ضفنا Personas و Users للكاش مشان نوفر توكن وسرعة
-const CACHEABLE_SHEETS = new Set(["Products", "Stores", "Categories", "Areas", "Personas", "Users"]);
+const CACHEABLE_SHEETS = new Set(["Products", "Stores", "Categories", "Areas", "Personas"]);
 
 function getCache(key) {
   const item = SHEETS_CACHE.get(key);
@@ -70,14 +69,12 @@ async function sendImageMessage(to, imageUrl, caption) {
   if (!WHATSAPP_TOKEN) return false;
   const cleanPhone = normalizeWhatsAppNumber(to);
   try {
-    // واتساب احيانا ما بيقبل webp كصورة، منجرب نبعتو، اذا فشل منبعتو كـ document
     let res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "image", image: { link: imageUrl, caption: String(caption || "") } })
     });
     if (!res.ok) {
-      // fallback كـ document اذا رفض webp
       console.log("⚠️ Image failed, trying as document fallback");
       res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
         method: "POST",
@@ -91,7 +88,7 @@ async function sendImageMessage(to, imageUrl, caption) {
   } catch (e) { console.error("❌ خطأ ارسال صورة:", e); return false; }
 }
 
-function getGoogleSheetsClient() {
+function getGoogleSheetsClientReadOnly() {
   if (!GOOGLE_SHEETS_ID ||!GOOGLE_CLIENT_EMAIL ||!GOOGLE_PRIVATE_KEY) return null;
   try {
     const auth = new google.auth.GoogleAuth({
@@ -100,6 +97,17 @@ function getGoogleSheetsClient() {
     });
     return google.sheets({ version: "v4", auth });
   } catch (error) { console.error("❌ خطأ إنشاء Google Sheets client:", error); return null; }
+}
+
+function getGoogleSheetsClientWrite() {
+  if (!GOOGLE_SHEETS_ID ||!GOOGLE_CLIENT_EMAIL ||!GOOGLE_PRIVATE_KEY) return null;
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: { client_email: GOOGLE_CLIENT_EMAIL, private_key: GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n") },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
+    });
+    return google.sheets({ version: "v4", auth });
+  } catch (error) { console.error("❌ خطأ إنشاء Google Sheets Write client:", error); return null; }
 }
 
 function normalizeBarcode(value) {
@@ -225,7 +233,7 @@ async function getSheetRows(sheetName) {
     const loading = SHEETS_LOADING.get(sheetName);
     if (loading) { try { return await loading; } catch (error) { return []; } }
   }
-  const sheets = getGoogleSheetsClient();
+  const sheets = getGoogleSheetsClientReadOnly();
   if (!sheets) return [];
   const loadPromise = (async () => {
     try {
@@ -262,21 +270,24 @@ function isNewOrderIntent(userMessage) {
   return newOrderPatterns.some(pattern => message.includes(normalizeText(pattern)));
 }
 
-// ===== PERSONAS SYSTEM - جديد كلو هون =====
+// ===== PERSONAS SYSTEM - مصحح =====
 function isPhotoRequest(text) {
   const t = normalizeText(text);
-  return ["صورتك", "شكلك", "فرجيني", "ورجيني", "صورة", "photo", "pic", "your photo", "شوفك"].some(k => t.includes(k));
+  if (t.includes("صورة") || t.includes("صور")) return true;
+  if (t.includes("شكلك")) return true;
+  return ["photo","pic","your photo","فرجيني","ورجيني","شوفك"].some(k => t.includes(k));
 }
 
 async function getPersonasFromSheet() {
   try {
+    SHEETS_CACHE.delete("Personas");
     const rows = await getSheetRows("Personas");
+    console.log("📋 Personas من الشيت:", rows.length);
     if (!rows.length) return Object.values(PERSONAS_FALLBACK);
-    // نتوقع اعمدة: Name, Gender, Age, PhotoFolder, Personality
     return rows.filter(r => r["Name"] && r["PhotoFolder"]).map(r => ({
       Name: r["Name"],
       Gender: String(r["Gender"]||"").toLowerCase(),
-      Age: r["Age"],
+      Age: String(r["Age"]||"").trim(),
       PhotoFolder: String(r["PhotoFolder"]||"").toLowerCase().trim(),
       Personality: r["Personality"] || ""
     }));
@@ -292,7 +303,11 @@ function pickOppositeGenderPersona(allPersonas, userGender) {
 
 function findPersonaByFolder(allPersonas, folder) {
   const f = String(folder||"").toLowerCase().trim();
-  return allPersonas.find(p => String(p.PhotoFolder).toLowerCase().trim() === f) || PERSONAS_FALLBACK[f] || null;
+  console.log("🔍 بدور على شخصية:", f);
+  let persona = allPersonas.find(p => String(p.PhotoFolder).toLowerCase().trim() === f);
+  if (!persona) persona = PERSONAS_FALLBACK[f];
+  console.log("✅ لقيت الشخصية:", persona? `${persona.Name} عمر ${persona.Age}` : "لا يوجد");
+  return persona;
 }
 
 async function getSmartMemory(user) {
@@ -301,7 +316,6 @@ async function getSmartMemory(user) {
     const orders = await getSheetRows("Order Requuest");
     const userOrders = orders.filter(o => String(o["Customer ID"]||"").trim() === String(user.customerId).trim());
     if (!userOrders.length) return { lastProducts: [], lastOrderText: "" };
-    // نرتب من الاحدث - نفترض اخر صفوف هي الاحدث اذا مافي تاريخ
     const lastTwo = userOrders.slice(-2).reverse();
     const details = await getSheetRows("Order Details");
     const products = await getSheetRows("Products");
@@ -339,8 +353,8 @@ async function getUserByWhatsAppNumber(whatsappNumber) {
         area: row["Area"] || "",
         status: row["Status"] || "",
         active: row["Active"] || "",
-        gender: String(row["Gender"] || "").toLowerCase().trim(), // جديد
-        assignedPersona: String(row["Assigned Persona"] || "").toLowerCase().trim(), // جديد
+        gender: String(row["Gender"] || "").toLowerCase().trim(),
+        assignedPersona: String(row["Assigned Persona"] || "").toLowerCase().trim(),
         acceptedTerms: row["AcceptedTerms"] || ""
       };
       console.log("🎯 المستخدم:", JSON.stringify(user));
@@ -587,9 +601,6 @@ async function buildOrderContext(user, userMessage) {
   };
 }
 
-// ======================================================
-// 13. Groq AI - القواعد الكاملة + طبقة الشخصية + الذاكرة الذكية
-// ======================================================
 async function getAIReply(userMessage, user, productResults, orderContext, history, persona, smartMemory) {
   if (!GROQ_KEY) {
     return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
@@ -615,14 +626,12 @@ User ID: ${user.userId || "غير موجود"}
     const orderDetails = orderContext.details.length? JSON.stringify(orderContext.details) : "لا توجد تفاصيل للطلب المحدد.";
     const historyText = history.length? history.map(m => `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`).join("\n") : "لا توجد محادثة سابقة.";
     const driverContext = orderContext.driver
-     ? `اسم السائق: ${orderContext.driver.name}\nرقم السائق: ${orderContext.driver.phone}`
+    ? `اسم السائق: ${orderContext.driver.name}\nرقم السائق: ${orderContext.driver.phone}`
       : "لا يوجد سائق معين بعد - الطلب قيد الانتظار";
 
-    // ===== PERSONA LAYER - موفر توكن =====
     let personaLayer = "";
     let smartMemoryLayer = "";
     if (persona && user) {
-      // ما نذكر العمر الا اذا انسأل
       personaLayer = `
 === PERSONA LAYER - التزم به 100% ===
 أنت ${persona.Name}، موظف/ة في MD-Marketplace.
@@ -802,7 +811,6 @@ export async function POST(req) {
     if (!from) return Response.json({ status: "ok" }, { status: 200 });
     const whatsappNumber = normalizeWhatsAppNumber(from);
 
-    // ====== زر الطوارئ ======
     try {
       const { getGlobalConfig } = await import('@/lib/getGlobalConfig');
       const config = await getGlobalConfig();
@@ -972,37 +980,69 @@ export async function POST(req) {
       }
     }
 
-    // ===== PERSONA ASSIGNMENT LOGIC =====
+    // ===== PERSONA ASSIGNMENT LOGIC - FIXED WITH SHEETS WRITE =====
     let persona = null;
     let smartMemory = { lastProducts: [], lastOrderText: "" };
     if (user && user.gender) {
       const allPersonas = await getPersonasFromSheet();
+      console.log("👤 User gender:", user.gender, "assigned:", user.assignedPersona);
       if (!user.assignedPersona) {
-        // اول مرة - نقي عكس الجنس
         const picked = pickOppositeGenderPersona(allPersonas, user.gender);
         if (picked) {
-          console.log(`🎭 تعيين شخصية جديدة: ${picked.PhotoFolder} للزبون ${user.name} (${user.gender})`);
-          // حفظ بجدول Users عن طريق AppSheet
-          try {
-            await appSheetAction("Users", "Edit", [{
-              "User ID": user.userId,
-              "Assigned Persona": picked.PhotoFolder
-            }]);
-            // حدث الكاش
-            SHEETS_CACHE.delete("Users");
-          } catch (e) { console.log("فشل حفظ Assigned Persona", e.message); }
+          console.log(`🎭 رح عيّن شخصية جديدة: ${picked.PhotoFolder} للزبون ${user.name}`);
           persona = picked;
+          try {
+            const sheetsWrite = getGoogleSheetsClientWrite();
+            if (sheetsWrite) {
+              const allRows = await sheetsWrite.spreadsheets.values.get({
+                spreadsheetId: GOOGLE_SHEETS_ID,
+                range: `Users!A:Z`
+              });
+              const headers = allRows.data.values[0].map(h=>String(h).trim());
+              const userIdIdx = headers.indexOf("User ID");
+              const assignedIdx = headers.indexOf("Assigned Persona");
+              console.log("📑 Headers:", headers, "UserID idx", userIdIdx, "Assigned idx", assignedIdx);
+              if (userIdIdx!== -1 && assignedIdx!== -1) {
+                const rowIndex = allRows.data.values.findIndex((r, i) => i>0 && String(r[userIdIdx]||"").trim() === String(user.userId||"").trim());
+                if (rowIndex!== -1) {
+                  const colLetter = String.fromCharCode(65 + assignedIdx);
+                  if (assignedIdx >= 26) {
+                    const first = String.fromCharCode(64 + Math.floor(assignedIdx/26));
+                    const second = String.fromCharCode(65 + (assignedIdx%26));
+                    const range = `Users!${first}${second}${rowIndex+1}`;
+                    console.log("💾 عم احفظ بـ", range, "القيمة", picked.PhotoFolder);
+                    await sheetsWrite.spreadsheets.values.update({
+                      spreadsheetId: GOOGLE_SHEETS_ID,
+                      range: range,
+                      valueInputOption: "USER_ENTERED",
+                      resource: { values: [[picked.PhotoFolder]] }
+                    });
+                  } else {
+                    const range = `Users!${colLetter}${rowIndex+1}`;
+                    console.log("💾 عم احفظ بـ", range, "القيمة", picked.PhotoFolder);
+                    await sheetsWrite.spreadsheets.values.update({
+                      spreadsheetId: GOOGLE_SHEETS_ID,
+                      range: range,
+                      valueInputOption: "USER_ENTERED",
+                      resource: { values: [[picked.PhotoFolder]] }
+                    });
+                  }
+                  console.log("✅ انحفظت الشخصية بنجاح!");
+                } else {
+                  console.log("❌ ما لقيت صف المستخدم بـ User ID", user.userId);
+                }
+              }
+            }
+          } catch (e) { console.log("❌ فشل حفظ Assigned Persona", e.message, e.stack); }
           user.assignedPersona = picked.PhotoFolder;
         }
       } else {
         persona = findPersonaByFolder(allPersonas, user.assignedPersona);
       }
-      // جيب الذاكرة الذكية
       if (persona) {
         smartMemory = await getSmartMemory(user);
       }
     }
-    // اذا مش مسجل -> persona = null -> بيضل بوت ديفولت عادي متل ما طلبت
 
     let productResults = [];
     let orderContext = { orders: [], selectedOrder: null, details: [], driver: null };
