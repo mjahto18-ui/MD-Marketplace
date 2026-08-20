@@ -1,9 +1,9 @@
-// حط هاد الكود مكان القديم: app/api/load-test/route.js
+// app/api/load-test/route.js - V3 مع عدد عملاء متغير
 
 export async function GET(req) {
   const BASE_URL = 'https://www.md-marketplace.store';
   const url = new URL(req.url);
-const CLIENTS = parseInt(url.searchParams.get("clients") || "50", 10);
+  const CLIENTS = parseInt(url.searchParams.get("clients") || "50", 10);
 
   const tests = [
     { name: 'الصفحة الرئيسية', url: `${BASE_URL}/` },
@@ -25,7 +25,7 @@ const CLIENTS = parseInt(url.searchParams.get("clients") || "50", 10);
           status: res.status, 
           duration: Date.now() - t0, 
           ok: res.ok,
-          body: text.slice(0, 200) // اول 200 حرف من الخطأ
+          body: text.slice(0, 200)
         };
       } catch (err) {
         return { client: i + 1, status: 0, duration: Date.now() - t0, ok: false, body: err.message };
@@ -36,7 +36,6 @@ const CLIENTS = parseInt(url.searchParams.get("clients") || "50", 10);
     const success = responses.filter(r => r.ok).length;
     const failed = CLIENTS - success;
     
-    // جمع اكواد الخطأ
     const statusCounts = {};
     const errorBodies = {};
     responses.forEach(r => {
