@@ -69,25 +69,21 @@ async function sendImageMessage(to, imageUrl, caption) {
   if (!WHATSAPP_TOKEN) return false;
   const cleanPhone = normalizeWhatsAppNumber(to);
   try {
-    let res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+    const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "image", image: { link: imageUrl, caption: String(caption || "") } })
+      body: JSON.stringify({ 
+        messaging_product: "whatsapp", 
+        to: cleanPhone, 
+        type: "image", 
+        image: { link: imageUrl, caption: String(caption || "") } 
+      })
     });
-    if (!res.ok) {
-      console.log("⚠️ Image failed, trying as document fallback");
-      res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "document", document: { link: imageUrl, caption: String(caption || "") } })
-      });
-    }
     const data = await res.json();
     console.log("📤 WhatsApp Image:", JSON.stringify(data));
     return res.ok;
   } catch (e) { console.error("❌ خطأ ارسال صورة:", e); return false; }
 }
-
 function getGoogleSheetsClientReadOnly() {
   if (!GOOGLE_SHEETS_ID ||!GOOGLE_CLIENT_EMAIL ||!GOOGLE_PRIVATE_KEY) return null;
   try {
