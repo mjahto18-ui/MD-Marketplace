@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { PERSONAS_PHOTOS, PERSONAS_FALLBACK } from "@/lib/personas";
 export const dynamic = "force-dynamic";
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
@@ -29,7 +30,8 @@ if (!globalThis._barcodeLock) globalThis._barcodeLock = new Map();
 
 const SHEETS_CACHE = new Map();
 const CACHE_TTL = 1000 * 60 * 5;
-const CACHEABLE_SHEETS = new Set(["Products", "Stores", "Categories", "Areas"]);
+// ضفنا Personas و Users للكاش مشان نوفر توكن وسرعة
+const CACHEABLE_SHEETS = new Set(["Products", "Stores", "Categories", "Areas", "Personas", "Users"]);
 
 function getCache(key) {
   const item = SHEETS_CACHE.get(key);
@@ -62,6 +64,31 @@ async function sendMessage(to, text) {
     console.log("📤 WhatsApp:", JSON.stringify(data));
     return res.ok;
   } catch (error) { console.error("❌ خطأ إرسال WhatsApp:", error); return false; }
+}
+
+async function sendImageMessage(to, imageUrl, caption) {
+  if (!WHATSAPP_TOKEN) return false;
+  const cleanPhone = normalizeWhatsAppNumber(to);
+  try {
+    // واتساب احيانا ما بيقبل webp كصورة، منجرب نبعتو، اذا فشل منبعتو كـ document
+    let res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "image", image: { link: imageUrl, caption: String(caption || "") } })
+    });
+    if (!res.ok) {
+      // fallback كـ document اذا رفض webp
+      console.log("⚠️ Image failed, trying as document fallback");
+      res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ messaging_product: "whatsapp", to: cleanPhone, type: "document", document: { link: imageUrl, caption: String(caption || "") } })
+      });
+    }
+    const data = await res.json();
+    console.log("📤 WhatsApp Image:", JSON.stringify(data));
+    return res.ok;
+  } catch (e) { console.error("❌ خطأ ارسال صورة:", e); return false; }
 }
 
 function getGoogleSheetsClient() {
@@ -224,20 +251,75 @@ function normalizeText(text) {
 
 function isNewOrderIntent(userMessage) {
   const message = normalizeText(userMessage);
-  
-  // اي شي فيو وين / حالة / وصل / شو صار = استفسار عن طلب موجود، مش طلب جديد
   const existingOrderPatterns = [
     "وين طلبي", "وين الطلب", "وين اوردري", "وين الاوردر", "وين صار الطلب", "وين صار طلبي", "وين صار الاوردر", "وين صار اوردري",
     "شو صار بطلب", "شو صار بالطلب", "شو صار بطلبي", "شو صار بالاوردر", "شو صار باوردري",
     "حالة الطلب", "حاله الطلب", "حالة طلبي", "حالة اوردري", "حالة الأوردر", "حالة الاوردر",
     "طلبي وين صار", "وين صار طلبي", "وصل طلبي", "وصل الطلب", "وصل الاوردر", "طلبتي وين", "اوردري وين"
   ];
-  
   if (existingOrderPatterns.some(pattern => message.includes(normalizeText(pattern)))) return false;
-
   const newOrderPatterns = ["بدي اطلب", "بدي طلب", "بدي اعمل طلب", "بدي اوردر", "بدي اعمل اوردر", "بدي اشتري", "بدي شراء", "اعمللي طلب", "اعمل لي طلب", "اعمللي اوردر", "اعمل لي اوردر", "سجللي طلب", "سجل لي طلب", "حطلي طلب", "حط لي طلب", "فيني اطلب", "فيني أطلب", "بدي اشراء"];
   return newOrderPatterns.some(pattern => message.includes(normalizeText(pattern)));
 }
+
+// ===== PERSONAS SYSTEM - جديد كلو هون =====
+function isPhotoRequest(text) {
+  const t = normalizeText(text);
+  return ["صورتك", "شكلك", "فرجيني", "ورجيني", "صورة", "photo", "pic", "your photo", "شوفك"].some(k => t.includes(k));
+}
+
+async function getPersonasFromSheet() {
+  try {
+    const rows = await getSheetRows("Personas");
+    if (!rows.length) return Object.values(PERSONAS_FALLBACK);
+    // نتوقع اعمدة: Name, Gender, Age, PhotoFolder, Personality
+    return rows.filter(r => r["Name"] && r["PhotoFolder"]).map(r => ({
+      Name: r["Name"],
+      Gender: String(r["Gender"]||"").toLowerCase(),
+      Age: r["Age"],
+      PhotoFolder: String(r["PhotoFolder"]||"").toLowerCase().trim(),
+      Personality: r["Personality"] || ""
+    }));
+  } catch { return Object.values(PERSONAS_FALLBACK); }
+}
+
+function pickOppositeGenderPersona(allPersonas, userGender) {
+  const opposite = userGender === "male"? "female" : "male";
+  const pool = allPersonas.filter(p => String(p.Gender).toLowerCase() === opposite);
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function findPersonaByFolder(allPersonas, folder) {
+  const f = String(folder||"").toLowerCase().trim();
+  return allPersonas.find(p => String(p.PhotoFolder).toLowerCase().trim() === f) || PERSONAS_FALLBACK[f] || null;
+}
+
+async function getSmartMemory(user) {
+  if (!user?.customerId) return { lastProducts: [], lastOrderText: "" };
+  try {
+    const orders = await getSheetRows("Order Requuest");
+    const userOrders = orders.filter(o => String(o["Customer ID"]||"").trim() === String(user.customerId).trim());
+    if (!userOrders.length) return { lastProducts: [], lastOrderText: "" };
+    // نرتب من الاحدث - نفترض اخر صفوف هي الاحدث اذا مافي تاريخ
+    const lastTwo = userOrders.slice(-2).reverse();
+    const details = await getSheetRows("Order Details");
+    const products = await getSheetRows("Products");
+    let lastProducts = [];
+    for (const ord of lastTwo) {
+      const reqId = String(ord["Request ID"]||"").trim();
+      const d = details.filter(dd => String(dd["Request ID"]||"").trim() === reqId);
+      for (const item of d) {
+        const prod = products.find(p => String(p["Product ID"]) === String(item["Product ID"]));
+        if (prod?.["Product Name"]) lastProducts.push(prod["Product Name"]);
+      }
+      if (lastProducts.length >= 3) break;
+    }
+    lastProducts = [...new Set(lastProducts)].slice(0, 3);
+    return { lastProducts, lastOrderText: lastProducts.join("، ") };
+  } catch (e) { console.log("Smart memory error", e.message); return { lastProducts: [], lastOrderText: "" }; }
+}
+// ===== END PERSONAS SYSTEM =====
 
 async function getUserByWhatsAppNumber(whatsappNumber) {
   const normalized = normalizeWhatsAppNumber(whatsappNumber);
@@ -256,7 +338,10 @@ async function getUserByWhatsAppNumber(whatsappNumber) {
         storeId: row["Store ID"] || "",
         area: row["Area"] || "",
         status: row["Status"] || "",
-        active: row["Active"] || ""
+        active: row["Active"] || "",
+        gender: String(row["Gender"] || "").toLowerCase().trim(), // جديد
+        assignedPersona: String(row["Assigned Persona"] || "").toLowerCase().trim(), // جديد
+        acceptedTerms: row["AcceptedTerms"] || ""
       };
       console.log("🎯 المستخدم:", JSON.stringify(user));
       return user;
@@ -287,11 +372,10 @@ async function getBotSessionTable(phone) {
 }
 
 async function openBot2Session(phone) {
-  const beirutString = new Date().toLocaleString("en-US", { 
-    timeZone: "Asia/Beirut", 
-    hour12: false 
-  }).replace(",", ""); // بيعطي 2026-08-20 10:30:15
-
+  const beirutString = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Beirut",
+    hour12: false
+  }).replace(",", "");
   return await appSheetAction("Bot Sessions", "Add", [{
     Phone: normalizeWhatsAppNumber(phone),
     "Active Bot": "BOT2",
@@ -325,7 +409,7 @@ async function saveToAppSheet(from, userMessage, aiReply, options = {}) {
   const messageType = options.messageType || "WHATSAPP";
   if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) return false;
   try {
-    const today = new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }); // 08/20/2026, 7:14:23 AM
+    const today = new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" });
     const row = {
       Phone: normalizeWhatsAppNumber(from),
       CustomerMessage: userMessage || "",
@@ -472,7 +556,7 @@ async function getDriverById(driverId) {
   if (!driverId) return null;
   const drivers = await getSheetRows("Drivers");
   const id = String(driverId).trim().toLowerCase();
-  const driver = drivers.find(d => 
+  const driver = drivers.find(d =>
     String(d["Driver ID"] || d["ID"] || "").trim().toLowerCase() === id
   );
   if (!driver) return null;
@@ -493,23 +577,20 @@ async function buildOrderContext(user, userMessage) {
   }
   if (!selectedOrder) selectedOrder = orders[orders.length - 1];
   const details = await getOrderDetails(selectedOrder["Request ID"]);
-  
-  // هون الجديد - يجيب السائق
   const driver = await getDriverById(selectedOrder["Assigned Driver"]);
-
   const safeOrders = orders.map(order => ({ requestId: order["Request ID"] || "", area: order["Area"] || "", deliveryAddress: order["Delivery Adress"] || "", deliveryFee: order["Delivery Fee"] || "", assignedDriver: order["Assigned Driver"] || "", approvalStatus: order["Approval Status"] || "", deliveryStatus: order["Delivery Status"] || "", itemsCost: order["Items Cost"] || "", totalAmount: order["Total Amount"] || "" }));
-  return { 
-    orders: safeOrders, 
-    selectedOrder: selectedOrder ? { requestId: selectedOrder["Request ID"] || "", area: selectedOrder["Area"] || "", deliveryAddress: selectedOrder["Delivery Adress"] || "", deliveryFee: selectedOrder["Delivery Fee"] || "", assignedDriver: selectedOrder["Assigned Driver"] || "", approvalStatus: selectedOrder["Approval Status"] || "", deliveryStatus: selectedOrder["Delivery Status"] || "", itemsCost: selectedOrder["Items Cost"] || "", totalAmount: selectedOrder["Total Amount"] || "" } : null, 
+  return {
+    orders: safeOrders,
+    selectedOrder: selectedOrder? { requestId: selectedOrder["Request ID"] || "", area: selectedOrder["Area"] || "", deliveryAddress: selectedOrder["Delivery Adress"] || "", deliveryFee: selectedOrder["Delivery Fee"] || "", assignedDriver: selectedOrder["Assigned Driver"] || "", approvalStatus: selectedOrder["Approval Status"] || "", deliveryStatus: selectedOrder["Delivery Status"] || "", itemsCost: selectedOrder["Items Cost"] || "", totalAmount: selectedOrder["Total Amount"] || "" } : null,
     details,
     driver
   };
 }
 
 // ======================================================
-// 13. Groq AI - القواعد الكاملة رجعت
+// 13. Groq AI - القواعد الكاملة + طبقة الشخصية + الذاكرة الذكية
 // ======================================================
-async function getAIReply(userMessage, user, productResults, orderContext, history) {
+async function getAIReply(userMessage, user, productResults, orderContext, history, persona, smartMemory) {
   if (!GROQ_KEY) {
     return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
   }
@@ -523,6 +604,8 @@ async function getAIReply(userMessage, user, productResults, orderContext, histo
 Customer ID: ${user.customerId || "غير موجود"}
 User ID: ${user.userId || "غير موجود"}
 رقم WhatsApp: ${user.whatsappNumber || "غير موجود"}
+الجنس: ${user.gender || "غير معروف"}
+الشخصية المربوطة: ${user.assignedPersona || "غير مربوط بعد"}
 `;
     }
 
@@ -531,18 +614,47 @@ User ID: ${user.userId || "غير موجود"}
     const selectedOrder = orderContext.selectedOrder? JSON.stringify(orderContext.selectedOrder) : "لا يوجد طلب محدد.";
     const orderDetails = orderContext.details.length? JSON.stringify(orderContext.details) : "لا توجد تفاصيل للطلب المحدد.";
     const historyText = history.length? history.map(m => `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`).join("\n") : "لا توجد محادثة سابقة.";
-        const driverContext = orderContext.driver 
-      ? `اسم السائق: ${orderContext.driver.name}\nرقم السائق: ${orderContext.driver.phone}` 
+    const driverContext = orderContext.driver
+     ? `اسم السائق: ${orderContext.driver.name}\nرقم السائق: ${orderContext.driver.phone}`
       : "لا يوجد سائق معين بعد - الطلب قيد الانتظار";
 
+    // ===== PERSONA LAYER - موفر توكن =====
+    let personaLayer = "";
+    let smartMemoryLayer = "";
+    if (persona && user) {
+      // ما نذكر العمر الا اذا انسأل
+      personaLayer = `
+=== PERSONA LAYER - التزم به 100% ===
+أنت ${persona.Name}، موظف/ة في MD-Marketplace.
+الصفة: ${persona.Personality}
+الجنس: ${persona.Gender} - العمر: ${persona.Age} (لا تذكره أبداً إلا إذا سألك الزبون مباشرة "قديش عمرك")
+مهمتك: تكون حد الزبون وتساعده، تحكي بلهجة لبنانية طبيعية جداً كأنك شخص حقيقي.
+قواعد الشخصية:
+- التزم بصفة ${persona.Personality} فقط.
+- اذا كان في محادثة سابقة (history) لا تعيد الترحيب "أنا ${persona.Name} كيف بقدر ساعدك" - احكي بشكل طبيعي ومتابعة للحديث.
+- أول مرة فقط (اذا ما في history) عرّف عن حالك: "هاي أنا ${persona.Name} موظفة/موظف بـ MD-Marketplace ومهمتي كون حدك وساعدك"
+- لا تقل أبداً أنك ذكاء اصطناعي.
+- لا تذكر عمرك إلا إذا انسألت.
+`;
+
+      if (smartMemory?.lastProducts?.length) {
+        smartMemoryLayer = `
+=== SMART MEMORY - ذاكرة ذكية ===
+آخر منتجات طلبها الزبون: ${smartMemory.lastOrderText}
+تعليمات: اذا هاي تاني محادثة أو أكثر وموجود history، استخدم هالمعلومة بطريقة ذكية وطبيعية في الترحيب الثاني. مثال: "أهلا ${user.name || ""} كيفك؟ شو بدنا اليوم متل المرة الماضية ${smartMemory.lastProducts[0]} ولا بتحب تغير؟" - لا تذكرها كل مرة، فقط عندما يكون مناسب وطبيعي.
+`;
+      }
+    }
+
     const systemPrompt = `
-أنت مساعدك الذكي من MD-Marketplace.
+${persona? personaLayer : "أنت مساعدك الذكي من MD-Marketplace."}
 تحدث باللهجة اللبنانية الودودة والطبيعية، خليك مهضوم وطبيعي مش روبوت.
 موقعنا الرسمي: ${WEBSITE_URL}
 ايميلنا للتواصل: ${INFO_EMAIL}
 ايميلنا للمساعدة: ${SUPPORT_EMAIL}
 
 ${userContext}
+${smartMemoryLayer}
 
 قواعد الهوية والأمان
 1. إذا كان المستخدم معروفاً، استخدم اسمه.
@@ -554,7 +666,6 @@ ${userContext}
 7. اذا قال "بدي اطلب / بدي اوردر / بدي اعمل طلب / بدي اشتري" والمستخدم غير موجود في Users:
    قل: "تكرم عينك! 😊 حتى اقدر بلشلك الأوردر، بس سجل حساب سريع على موقعنا https://www.md-marketplace.store وبس تخلص قلي شو حابب تطلب وانا جاهز دغري"
    ممنوع تشرح PayPal او بطاقة ائتمان!
-
 8. ما تكتر حكي بلا فايدة - لازم كلامك يكون واضح ومفهوم ومختصر. جاوب مباشرة على قد السؤال. ممنوع تعطي وصفات طبخ او نصايح او شرح طويل!
 
 قواعد الموقع والايميل
@@ -566,13 +677,12 @@ ${userContext}
 
 قواعد حماية المستخدم - مهم جداً
 - اذا المستخدم قال المنتج منزوع / تالف / فاسد / خربان / مكسور/ تاريخ خالص /تاريخ منتهي / ناقص / مش متل الصورة / تاريخه منتهي:
-  جاوب: "سلامتك 🙏 منعتذر كتير! فيك تقدم شكوى دغري عبر https://www.md-marketplace.store/protection-cases -  وفريقنا بيحل الموضوع خلال 24 ساعة ❤️"
+  جاوب: "سلامتك 🙏 منعتذر كتير! فيك تقدم شكوى دغري عبر https://www.md-marketplace.store/protection-cases - وفريقنا بيحل الموضوع خلال 24 ساعة ❤"
 - اذا سأل "شو هي حماية المستخدم": جاوب "حماية المستخدم بتضمن حقك 100% 😊 اذا وصلك منتج تالف او منزوع، فيك تقدم شكوى على https://www.md-marketplace.store/protection-cases ونحنا منرجعلك حقك او منبدلك المنتج فوراً"
 
-
 قواعد التعريف
-- اذا قال "مين معي / مين انت / شو اسمك": جاوب "أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"
-- لا تقل "أنا موظف خدمة العملاء" بعد اليوم، قول "أنا مساعدك الذكي من MD-Marketplace"
+${persona? `- اذا قال "مين معي / مين انت / شو اسمك": جاوب "أنا ${persona.Name} من MD-Marketplace 😊" - لا تقل مساعد ذكي` : `- اذا قال "مين معي / مين انت / شو اسمك": جاوب "أنا مساعدك الذكي من MD-Marketplace 😊 كيف بقدر ساعدك اليوم؟"`}
+- لا تقل "أنا موظف خدمة العملاء" بعد اليوم، قول "${persona? `أنا ${persona.Name} من MD-Marketplace` : "أنا مساعدك الذكي من MD-Marketplace"}"
 
 === قواعد المنتجات - نسخة نهائية بدون تكرار ===
 - قاعدة ذهبية: ممنوع منعاً باتاً تستعمل جدول Markdown مثل | | |. الواتساب لا يفهم الجداول!
@@ -607,7 +717,7 @@ ${userContext}
 - لا تقل "أنا ذكاء اصطناعي" إلا إذا سأل المستخدم.
 - لا تقل "حسب البيانات التي لدي..." في كل رد. أجب مباشرة.
 - إذا السؤال يحتاج توضيح: اسأل سؤالاً واحداً فقط.
-- إذا المستخدم قال مرحبا: رحب به بشكل طبيعي مرة وحدة: "أهلا وسهلا! أنا مساعدك الذكي من MD-Marketplace، كيف بقدر ساعدك؟"
+- إذا المستخدم قال مرحبا: رحب به بشكل طبيعي مرة وحدة: ${persona? `"أهلا ${"${user?.name || 'وسهلا'}"}! أنا ${persona.Name} من MD-Marketplace"` : `"أهلا وسهلا! أنا مساعدك الذكي من MD-Marketplace، كيف بقدر ساعدك؟"`}
 - لا تكرر معلومات قديمة بدون داع.
 
 المحادثة السابقة
@@ -635,7 +745,7 @@ ${driverContext}
       body: JSON.stringify({
         model: "openai/gpt-oss-20b",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-        temperature: 0.4
+        temperature: 0.5
       })
     });
 
@@ -663,7 +773,6 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const body = await req.json();
-
     const msgId = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.id || "";
     if (msgId && globalThis._processed.has(msgId)) {
       console.log("⏭ مكرر:", msgId);
@@ -693,38 +802,29 @@ export async function POST(req) {
     if (!from) return Response.json({ status: "ok" }, { status: 200 });
     const whatsappNumber = normalizeWhatsAppNumber(from);
 
-    // ====== زر الطوارئ - بلا توكن بلا API ======
-        // ====== زر الطوارئ ======
+    // ====== زر الطوارئ ======
     try {
       const { getGlobalConfig } = await import('@/lib/getGlobalConfig');
       const config = await getGlobalConfig();
-
-      // 1. واتساب كلو مسكر (انت بتحدد المسج بالشيت)
       if (!config.isWhatsappEnabled) {
         await sendMessage(from, config.whatsapp_disabled_message);
         return Response.json({ status: "ok", blocked: "whatsapp_disabled" }, { status: 200 });
       }
-
       const lower = (message?.text?.body || body.text || "").toLowerCase();
       const wantsOrder = lower.includes("طلب") || lower.includes("اطلب") || lower.includes("order") || lower.includes("سلة");
-
       if (wantsOrder) {
-        // 2. مسكرة يدوي FALSE (انت بتحدد المسج بالشيت)
         if (config.isWhatsappCartClosed) {
           await sendMessage(from, config.whatsapp_cart_closed_message);
           return Response.json({ status: "ok", blocked: "whatsapp_cart_closed" }, { status: 200 });
         }
-        // 3. برا الدوام (مسج ثابتة)
         if (!config.isWhatsappCartInHours) {
           const open = config.whatsapp_open_time || '08:00';
-          const fixedMsg = `نعتذر، سلة الواتساب مغلقة حالياً.\n\nتفتح الساعة ${open} بتوقيت لبنان 🇱🇧\n\nنأسف للإزعاج\nمع تحيات MD-Marketplace ❤️`;
+          const fixedMsg = `نعتذر، سلة الواتساب مغلقة حالياً.\n\nتفتح الساعة ${open} بتوقيت لبنان 🇱🇧\n\nنأسف للإزعاج\nمع تحيات MD-Marketplace ❤`;
           await sendMessage(from, fixedMsg);
           return Response.json({ status: "ok", blocked: "whatsapp_out_of_hours" }, { status: 200 });
         }
       }
     } catch(e) { console.log("Global check error", e.message) }
-    // ====== خلص ======
-    // ====== خلص زر الطوارئ ======
 
     if (message?.type === "image" && message?.image?.id) {
       console.log(`📸 صورة باركود: ${message.image.id}`);
@@ -761,6 +861,23 @@ export async function POST(req) {
     if (!userText) return Response.json({ status: "ok" }, { status: 200 });
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
     const rawText = String(userText || "").trim();
+
+    // ===== منطق الصورة - طلب صورة الشخصية =====
+    const userEarly = await getUserByWhatsAppNumber(whatsappNumber);
+    if (userEarly && userEarly.assignedPersona && isPhotoRequest(rawText)) {
+      const allPersonas = await getPersonasFromSheet();
+      const persona = findPersonaByFolder(allPersonas, userEarly.assignedPersona);
+      if (persona) {
+        const photos = PERSONAS_PHOTOS[persona.PhotoFolder] || [];
+        if (photos.length) {
+          const randomPhoto = photos[Math.floor(Math.random() * photos.length)];
+          const caption = persona.Gender === "female"? `هاي أنا ${persona.Name} 😊` : `هلا، هاي أنا ${persona.Name} 😊`;
+          await sendImageMessage(from, randomPhoto, caption);
+          await saveToAppSheet(from, userText, `[صورة ${persona.Name}] ${caption}`, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "PERSONA_PHOTO" });
+          return Response.json({ status: "ok", persona_photo: true }, { status: 200 });
+        }
+      }
+    }
 
     const normalizedMsg = normalizeText(rawText);
     if (/^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) {
@@ -799,20 +916,16 @@ export async function POST(req) {
       }
       globalThis._barcodeLock.set(lockKey, Date.now());
       setTimeout(() => globalThis._barcodeLock.delete(lockKey), 30000);
-
       console.log(`🔎 OFF Barcode Search: ${barcode} via ${OFF_PROXY}`);
       const product = await getProductFromOFF(barcode);
       console.log(`📦 OFF Result:`, product? product.name : "null - not found");
-
       if (!product) {
         await sendMessage(from, `عذراً 🙏\n\nما لقينا منتج بالباركود:\n${barcode}\n\nتأكد من الرقم وجرب مرة تانية.`);
         await saveToAppSheet(from, rawText, "Not found OFF", { botSession: BOT1_SESSION, bot: "BOT1", messageType: "MARKETPLACE_BARCODE" });
         return Response.json({ status: "ok" }, { status: 200 });
       }
-
       globalThis._lastProduct.set(whatsappNumber, product);
       setTimeout(() => globalThis._lastProduct.delete(whatsappNumber), 600000);
-
       const reply = buildMarketplaceProductText(product);
       if (product.image && product.image.startsWith("http")) {
         try {
@@ -858,14 +971,47 @@ export async function POST(req) {
         return Response.json({ status: "ok", transferred: true, target: "BOT2", command: BOT2_START_COMMAND }, { status: 200 });
       }
     }
+
+    // ===== PERSONA ASSIGNMENT LOGIC =====
+    let persona = null;
+    let smartMemory = { lastProducts: [], lastOrderText: "" };
+    if (user && user.gender) {
+      const allPersonas = await getPersonasFromSheet();
+      if (!user.assignedPersona) {
+        // اول مرة - نقي عكس الجنس
+        const picked = pickOppositeGenderPersona(allPersonas, user.gender);
+        if (picked) {
+          console.log(`🎭 تعيين شخصية جديدة: ${picked.PhotoFolder} للزبون ${user.name} (${user.gender})`);
+          // حفظ بجدول Users عن طريق AppSheet
+          try {
+            await appSheetAction("Users", "Edit", [{
+              "User ID": user.userId,
+              "Assigned Persona": picked.PhotoFolder
+            }]);
+            // حدث الكاش
+            SHEETS_CACHE.delete("Users");
+          } catch (e) { console.log("فشل حفظ Assigned Persona", e.message); }
+          persona = picked;
+          user.assignedPersona = picked.PhotoFolder;
+        }
+      } else {
+        persona = findPersonaByFolder(allPersonas, user.assignedPersona);
+      }
+      // جيب الذاكرة الذكية
+      if (persona) {
+        smartMemory = await getSmartMemory(user);
+      }
+    }
+    // اذا مش مسجل -> persona = null -> بيضل بوت ديفولت عادي متل ما طلبت
+
     let productResults = [];
     let orderContext = { orders: [], selectedOrder: null, details: [], driver: null };
     productResults = await searchProducts(userText);
     if (user) orderContext = await buildOrderContext(user, userText);
     const history = await getConversationHistory(whatsappNumber);
-    const aiReply = await getAIReply(userText, user, productResults, orderContext, history);
+    const aiReply = await getAIReply(userText, user, productResults, orderContext, history, persona, smartMemory);
     await sendMessage(whatsappNumber, aiReply);
-    await saveToAppSheet(whatsappNumber, userText, aiReply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "WHATSAPP" });
+    await saveToAppSheet(whatsappNumber, userText, aiReply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: persona? `PERSONA_${persona.PhotoFolder}` : "WHATSAPP" });
     return Response.json({ status: "ok" }, { status: 200 });
   } catch (error) {
     console.error("❌ خطأ POST:", error);
