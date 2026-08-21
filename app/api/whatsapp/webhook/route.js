@@ -543,7 +543,7 @@ if (!productNameForSearch) continue;
       else if (productNameForSearch.startsWith(word)) score += 7;
       else if (productNameForSearch.includes(word)) score += 3;
     }
-    if (message.includes(productName)) score += 5;
+    if (message.includes(productNameForSearch)) score += 5;
     if (score <= 0) continue;
     const store = stores.find(s => String(s["Store ID"]) === String(product["Store ID"]));
     results.push({
