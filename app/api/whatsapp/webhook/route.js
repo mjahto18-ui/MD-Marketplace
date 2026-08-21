@@ -525,6 +525,7 @@ async function searchProducts(userMessage) {
   const products = await getSheetRows("Products");
   const stores = await getSheetRows("Stores");
   const areas = await getSheetRows("Areas");
+  const message = normalizeText(userMessage);
   // ===== حط هاد قبل كلشي =====
   console.log(`📦 عدد المنتجات الكلي: ${products.length}`);
   if (products[0]) {
@@ -533,7 +534,6 @@ async function searchProducts(userMessage) {
   }
   console.log("كلمة الزبون بعد الفلترة:", words);
   // ===== نهاية اللوغ =====
-  const message = normalizeText(userMessage);
   let mentionedStoreId = null;
   for (const store of stores) {
     const storeNameNorm = normalizeText(store["Store Name"]);
