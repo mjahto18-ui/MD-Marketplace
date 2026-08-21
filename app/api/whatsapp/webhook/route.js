@@ -288,12 +288,13 @@ async function getSheetRows(sheetName) {
 }
 
 function normalizeText(text) {
-  return String(text || "").toLowerCase().trim()
-    .replace(/[؟?!.,،]/g, " ")
-    .replace(/ة/g, "ه") // هاد السطر بس زيده
-    .replace(/\s+/g, " ");
+  if (!text) return "";
+  return String(text).toLowerCase()
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .trim();
 }
-
 function isNewOrderIntent(userMessage) {
   const message = normalizeText(userMessage);
   const existingOrderPatterns = [
