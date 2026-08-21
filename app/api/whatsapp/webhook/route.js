@@ -528,11 +528,12 @@ async function searchProducts(userMessage) {
   const message = normalizeText(userMessage);
   // ===== حط هاد قبل كلشي =====
   console.log(`📦 عدد المنتجات الكلي: ${products.length}`);
+  console.log("كلمة الزبون بعد الفلترة:", words);
   if (products[0]) {
     console.log(`🔑 اسماء الاعمدة: ${Object.keys(products[0]).join(" | ")}`);
     console.log(`📝 اول منتج كامل: ${JSON.stringify(products[0])}`);
   }
-  console.log("كلمة الزبون بعد الفلترة:", words);
+  
   // ===== نهاية اللوغ =====
   let mentionedStoreId = null;
   for (const store of stores) {
