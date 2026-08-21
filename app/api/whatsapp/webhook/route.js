@@ -101,7 +101,7 @@ async function transcribeVoice(mediaId) {
 
     const form = new FormData();
     form.append("file", new Blob([buffer], { type: "audio/ogg" }), "voice.ogg");
-    form.append("model", "openai/whisper-large-v3");
+    form.append("model", "whisper-large-v3");
 
     const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
       method: "POST",
