@@ -82,7 +82,7 @@ async function sendImageMessage(to, imageUrl, caption) {
     const data = await res.json();
     console.log("📤 WhatsApp Image:", JSON.stringify(data));
     return res.ok;
-  } catch (e) { console.error("❌ خطأ ارسال صورة:", e); return false; }
+  } catch (e) { console.error("❌ خطأ إرسال صورة:", e); return false; }
 }
 // ===== فويس - OpenRouter Whisper - بنفس المفتاح GROQ_KEY =====
 async function transcribeVoice(mediaId) {
