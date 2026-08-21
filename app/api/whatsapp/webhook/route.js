@@ -608,6 +608,7 @@ async function searchProducts(userMessage) {
       areaName: areas.find(a => String(a["Area ID"]) === String(store?.["Area"] || product["Area"]))?.["Area Name"] || "",
       isOpen: openStatus.isOpen
     });
+    }
   results.sort((a, b) => {
     if (mentionedStoreId) {
       const aMatch = String(a.storeId) === String(mentionedStoreId);
