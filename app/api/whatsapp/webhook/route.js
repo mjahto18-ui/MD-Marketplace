@@ -84,6 +84,42 @@ async function sendImageMessage(to, imageUrl, caption) {
     return res.ok;
   } catch (e) { console.error("❌ خطأ ارسال صورة:", e); return false; }
 }
+// ===== فويس - OpenRouter Whisper - بنفس المفتاح GROQ_KEY =====
+async function transcribeVoice(mediaId) {
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v26.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
+    });
+    const { url } = await metaRes.json();
+    if (!url) return null;
+
+    const audioFile = await fetch(url, {
+      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
+    });
+    const buffer = await audioFile.arrayBuffer();
+
+    const form = new FormData();
+    form.append("file", new Blob([buffer], { type: "audio/ogg" }), "voice.ogg");
+    form.append("model", "openai/whisper-large-v3");
+
+    const res = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GROQ_KEY}`, // نفس المتغير تبعك!
+        "HTTP-Referer": "https://www.md-marketplace.store",
+        "X-Title": "MD Orders Bot"
+      },
+      body: form
+    });
+    const data = await res.json();
+console.log("🎤 Whisper full response:", JSON.stringify(data));
+console.log("🎤 Whisper result:", data.text);
+    return data.text || null;
+  } catch (e) {
+    console.log("❌ فويس فشل:", e.message);
+    return null;
+  }
+}
 function getGoogleSheetsClientReadOnly() {
   if (!GOOGLE_SHEETS_ID ||!GOOGLE_CLIENT_EMAIL ||!GOOGLE_PRIVATE_KEY) return null;
   try {
@@ -862,8 +898,27 @@ export async function POST(req) {
       return Response.json({ status: "ok" }, { status: 200 });
     }
 
-    const userText = message?.text?.body || body.text;
-    if (!userText) return Response.json({ status: "ok" }, { status: 200 });
+    let userText = "";
+
+if (message?.type === "text") {
+  userText = message.text.body || body.text || "";
+}
+else if (message?.type === "audio" && message?.audio?.id) {
+  console.log(`🎤 فويس اجا: ${message.audio.id}`);
+  const txt = await transcribeVoice(message.audio.id);
+  if (txt) {
+    userText = txt;
+    console.log("✅ فكينا الفويس:", userText);
+  } else {
+    await sendMessage(from, "ما سمعت منيح حبيبي 🙏 فيك ترجع تحكي أو تكتبلي؟");
+    return Response.json({ status: "ok" }, { status: 200 });
+  }
+}
+else {
+  userText = body.text || "";
+}
+
+if (!userText) return Response.json({ status: "ok" }, { status: 200 });
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
     const rawText = String(userText || "").trim();
 
