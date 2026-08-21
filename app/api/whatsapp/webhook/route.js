@@ -535,13 +535,13 @@ async function searchProducts(userMessage) {
     const available = normalizeText(product["Available"]);
     if (available!== "yes") continue;
     if (String(product["Active"]).toUpperCase()!== "TRUE") continue;
-    const productName = normalizeText(product["Product Name"]);
-    if (!productName) continue;
+    const productNameForSearch = normalizeText((product["Product Name"] || "") + " " + (product["Description"] || ""));
+if (!productNameForSearch) continue;
     let score = 0;
     for (const word of words) {
-      if (productName === word) score += 10;
-      else if (productName.startsWith(word)) score += 7;
-      else if (productName.includes(word)) score += 2;
+      if (productNameForSearch === word) score += 10;
+      else if (productNameForSearch.startsWith(word)) score += 7;
+      else if (productNameForSearch.includes(word)) score += 3;
     }
     if (message.includes(productName)) score += 5;
     if (score <= 0) continue;
