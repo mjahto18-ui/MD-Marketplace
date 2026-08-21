@@ -6,6 +6,7 @@ const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
 const GROQ_KEY = process.env.OPENROUTER_API_KEY;
+const VOICE_KEY = process.env.GROQ_API_KEY;
 const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
 const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
 const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
@@ -102,10 +103,10 @@ async function transcribeVoice(mediaId) {
     form.append("file", new Blob([buffer], { type: "audio/ogg" }), "voice.ogg");
     form.append("model", "openai/whisper-large-v3");
 
-    const res = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
+    const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GROQ_KEY}`, // نفس المتغير تبعك!
+        Authorization: `Bearer ${VOICE_KEY}`, // نفس المتغير تبعك!
         "HTTP-Referer": "https://www.md-marketplace.store",
         "X-Title": "MD Orders Bot"
       },
