@@ -288,7 +288,10 @@ async function getSheetRows(sheetName) {
 }
 
 function normalizeText(text) {
-  return String(text || "").toLowerCase().trim().replace(/[؟?!.,،]/g, " ").replace(/\s+/g, " ");
+  return String(text || "").toLowerCase().trim()
+    .replace(/[؟?!.,،]/g, " ")
+    .replace(/ة/g, "ه") // هاد السطر بس زيده
+    .replace(/\s+/g, " ");
 }
 
 function isNewOrderIntent(userMessage) {
