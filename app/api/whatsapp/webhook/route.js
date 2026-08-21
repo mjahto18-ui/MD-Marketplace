@@ -548,15 +548,17 @@ async function searchProducts(userMessage) {
     const available = normalizeText(product["Available"]);
     if (available!== "yes") continue;
     if (String(product["Active"]).toUpperCase()!== "TRUE") continue;
-    const productNameForSearch = normalizeText((product["Product Name"] || "") + " " + (product["Description"] || ""));
-if (!productNameForSearch) continue;
-    let score = 0;
-    for (const word of words) {
-      if (productNameForSearch === word) score += 10;
-      else if (productNameForSearch.startsWith(word)) score += 7;
-      else if (productNameForSearch.includes(word)) score += 3;
-    }
-    if (message.includes(productNameForSearch)) score += 5;
+    // ===== حط هي هون =====
+  const name = normalizeText(product["Product Name"]); // بيدور هون
+  const brand = normalizeText(product["Description"]); // وبيدور هون كمان
+  const q = message; // أو normalizeText(userMessage) اذا عندك message جاهزة
+
+  let score = 0;
+  if (name.includes(q) || brand.includes(q)) {
+    score = 10;
+  }
+  // ===== لحد هون =====
+ 
     if (score <= 0) continue;
     const store = stores.find(s => String(s["Store ID"]) === String(product["Store ID"]));
     results.push({
