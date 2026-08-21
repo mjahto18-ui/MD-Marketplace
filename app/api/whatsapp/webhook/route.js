@@ -102,16 +102,16 @@ async function transcribeVoice(mediaId) {
     const form = new FormData();
     form.append("file", new Blob([buffer], { type: "audio/ogg" }), "voice.ogg");
     form.append("model", "whisper-large-v3");
+    form.append("language", "ar"); // زيد هاد!
+    form.append("prompt", "لبناني، كانديا، سوبرماركت، بدي، وين بلاقي"); // و هاد!
 
     const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${VOICE_KEY}`, // نفس المتغير تبعك!
-        "HTTP-Referer": "https://www.md-marketplace.store",
-        "X-Title": "MD Orders Bot"
-      },
-      body: form
-    });
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${VOICE_KEY}`,
+  },
+  body: form
+});
     const data = await res.json();
 console.log("🎤 Whisper full response:", JSON.stringify(data));
 console.log("🎤 Whisper result:", data.text);
