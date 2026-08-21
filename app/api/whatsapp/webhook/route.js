@@ -531,8 +531,7 @@ async function searchProducts(userMessage) {
     console.log(`🔑 اسماء الاعمدة: ${Object.keys(products[0]).join(" | ")}`);
     console.log(`📝 اول منتج كامل: ${JSON.stringify(products[0])}`);
   }
-  const testDesc = products.find(p => String(p["Description"]||"").includes("لبنة") || String(p["Description"]||"").toLowerCase().includes("ocado"));
-  console.log(`🔍 عمود Description فيه لبنة/Ocado؟ ${testDesc ? `ايه! ${JSON.stringify(testDesc)}` : "لا! فاضي!"}`);
+  console.log("كلمة الزبون بعد الفلترة:", words);
   // ===== نهاية اللوغ =====
   const message = normalizeText(userMessage);
   let mentionedStoreId = null;
@@ -586,6 +585,7 @@ async function searchProducts(userMessage) {
     }
     return b.score - a.score;
   });
+  console.log("عدد النتائج للبن:", results.length);
   let finalResults = results;
   if (mentionedStoreId) finalResults = results.filter(r => String(r.storeId) === String(mentionedStoreId));
   return finalResults.slice(0, 5);
