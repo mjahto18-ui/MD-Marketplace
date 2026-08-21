@@ -550,13 +550,21 @@ async function searchProducts(userMessage) {
     if (available!== "yes") continue;
     if (String(product["Active"]).toUpperCase()!== "TRUE") continue;
     // ===== حط هي هون =====
-  const name = normalizeText(product["Product Name"]); // بيدور هون
-  const brand = normalizeText(product["Description"]); // وبيدور هون كمان
-  const q = message; // أو normalizeText(userMessage) اذا عندك message جاهزة
+    const productName = normalizeText(product["Product Name"] || ""); // persil أو لبنة بلدي
+  const description = normalizeText(product["Description"] || ""); // برسيل أو لبنة
+  const searchText = productName + " " + description; // مندمجهم: "لبنة بلدي لبنة"
 
   let score = 0;
-  if (name.includes(q) || brand.includes(q)) {
-    score = 10;
+  for (const word of words) { // منستعمل words يلي نظفتها انت فوق!
+    if (searchText.includes(word)) {
+      score += 10;
+    }
+  }
+
+  // بونص صغير اذا كل كلمات الزبون موجودة
+  if (words.length > 1) {
+    const allWordsFound = words.every(w => searchText.includes(w));
+    if (allWordsFound) score += 5;
   }
   // ===== لحد هون =====
  
@@ -580,7 +588,7 @@ async function searchProducts(userMessage) {
   });
   let finalResults = results;
   if (mentionedStoreId) finalResults = results.filter(r => String(r.storeId) === String(mentionedStoreId));
-  return finalResults.slice(0, 3);
+  return finalResults.slice(0, 5);
 }
 
 async function getUserOrders(user) {
