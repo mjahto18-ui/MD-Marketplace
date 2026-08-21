@@ -296,6 +296,34 @@ function normalizeText(text) {
     .replace(/[؟?.,!،"']/g, " ")
     .trim();
 }
+// ===== وقت بيروت - فيكس مشكلة فاتح/مسكر =====
+function getBeirutNowMinutes() {
+  const beirutStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" });
+  const d = new Date(beirutStr);
+  return d.getHours() * 60 + d.getMinutes();
+}
+function timeToMinutes(t) {
+  if (!t) return null;
+  let s = String(t).trim();
+  let isPM = s.includes("مساء") || s.toLowerCase().includes("pm");
+  let isAM = s.includes("صباح") || s.toLowerCase().includes("am");
+  s = s.replace(/[^0-9:]/g, " ").trim().split(" ")[0];
+  if (!s ||!s.includes(":")) return null;
+  let [h, m] = s.split(":").map(Number);
+  if (isNaN(h)) return null;
+  if (isPM && h < 12) h += 12;
+  if (isAM && h == 12) h = 0;
+  return h * 60 + (m || 0);
+}
+function getStoreOpenStatus(openTime, closeTime) {
+  const open = timeToMinutes(openTime);
+  const close = timeToMinutes(closeTime);
+  if (open === null || close === null) return { isOpen: true };
+  const now = getBeirutNowMinutes();
+  if (close < open) return { isOpen: now >= open || now < close };
+  return { isOpen: now >= open && now < close };
+}
+// ===== نهاية فيكس الوقت =====
 function isNewOrderIntent(userMessage) {
   const message = normalizeText(userMessage);
   const existingOrderPatterns = [
@@ -567,17 +595,19 @@ async function searchProducts(userMessage) {
     const allWordsFound = words.every(w => searchText.includes(w));
     if (allWordsFound) score += 5;
   }
-  // ===== لحد هون =====
+  
  
     if (score <= 0) continue;
-    const store = stores.find(s => String(s["Store ID"]) === String(product["Store ID"]));
+    // ===== لحد هون =====
+        const store = stores.find(s => String(s["Store ID"]) === String(product["Store ID"]));
+    const openStatus = getStoreOpenStatus(store?.["Open Time"], store?.["Close Time"]);
     results.push({
       score, storeId: product["Store ID"], productName: product["Product Name"], unit: product["Unit"], price: product["Price"],
       storeName: store?.["Store Name"] || "غير معروف", address: store?.["Adress"] || "",
       openTime: store?.["Open Time"] || "", closeTime: store?.["Close Time"] || "",
-      areaName: areas.find(a => String(a["Area ID"]) === String(store?.["Area"] || product["Area"]))?.["Area Name"] || ""
+      areaName: areas.find(a => String(a["Area ID"]) === String(store?.["Area"] || product["Area"]))?.["Area Name"] || "",
+      isOpen: openStatus.isOpen
     });
-  }
   results.sort((a, b) => {
     if (mentionedStoreId) {
       const aMatch = String(a.storeId) === String(mentionedStoreId);
@@ -768,9 +798,9 @@ ${persona? `- اذا قال "مين معي / مين انت / شو اسمك": ج�
 💰 السعر: {Price}
 🏪 المتجر: {Store Name}
 📍 العنوان: {Address} - {Area}
-⏰ الدوام: {Open Time} - {Close Time} (حولها اجباري لنظام 12 ساعة عربي: 8:00 AM = 8:00 صباحاً، 11:00 PM = 11:00 مساءً، 9:00 PM = 9:00 مساءً)
-🕒 الحالة: اذا فاتح اكتب ✅ فاتح الآن حتى {Close Time بنظام 12 ساعة عربي مثل 11:00 مساءً}، واذا مغلق اكتب ❌ مغلق الآن - يفتح الساعة {Open Time بنظام 12 ساعة عربي مثل 8:00 صباحاً} (ممنوع تكتب AM او PM ابداً)
+🕒 الحالة: استعمل حقل isOpen الجاهز من productContext. اذا isOpen=true اكتب ✅ فاتح الآن حتى {Close Time بنظام 12 ساعة عربي}، اذا isOpen=false اكتب ❌ مغلق الآن - يفتح الساعة {Open Time بنظام 12 ساعة عربي}. اذا ما في وقت اكتب 🕒 الحالة: غير محدد
 
+- ممنوع منعاً باتاً تعرض سطر ⏰ الدوام: في نتائج المنتجات. اعرضه فقط اذا المستخدم سأل عن المتجر نفسه مش المنتج.
 - اذا {Open Time} او {Close Time} فاضي: اعرض ⏰ الدوام: غير محدد
 ولا تعرض سطر 🕒 الحالة أبداً
 - افصل بين كل منتج بسطر فاضي.
