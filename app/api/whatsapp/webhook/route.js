@@ -523,6 +523,15 @@ async function searchProducts(userMessage) {
   const products = await getSheetRows("Products");
   const stores = await getSheetRows("Stores");
   const areas = await getSheetRows("Areas");
+  // ===== حط هاد قبل كلشي =====
+  console.log(`📦 عدد المنتجات الكلي: ${products.length}`);
+  if (products[0]) {
+    console.log(`🔑 اسماء الاعمدة: ${Object.keys(products[0]).join(" | ")}`);
+    console.log(`📝 اول منتج كامل: ${JSON.stringify(products[0])}`);
+  }
+  const testDesc = products.find(p => String(p["Description"]||"").includes("لبنة") || String(p["Description"]||"").toLowerCase().includes("ocado"));
+  console.log(`🔍 عمود Description فيه لبنة/Ocado؟ ${testDesc ? `ايه! ${JSON.stringify(testDesc)}` : "لا! فاضي!"}`);
+  // ===== نهاية اللوغ =====
   const message = normalizeText(userMessage);
   let mentionedStoreId = null;
   for (const store of stores) {
