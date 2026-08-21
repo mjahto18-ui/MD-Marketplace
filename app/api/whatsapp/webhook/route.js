@@ -526,6 +526,8 @@ async function searchProducts(userMessage) {
   const stores = await getSheetRows("Stores");
   const areas = await getSheetRows("Areas");
   const message = normalizeText(userMessage);
+  const stopWords = ["بدي", "بدّي", "اريد", "أريد", "اعرف", "موجود", "وين", "باي", "متجر", "سوبرماركت","لاقي", "بلاقي","لاقيلي", "عندك", "عندكن", "عندكم", "دور", "ببرم", "ابحث","ابحثلي", "برملي", "دورلي", "فتشلي", "شفلي", "شوفلي", "جبلي", "بدور", "عم دور", "على", "بلاقيه", "بلاقيها", "الاقي", "ميني", "ماركت", "بقالة", "محل", "عند", "شو", "عن", "المنتج", "منتج", "في", "منو", "فيه"];
+  const words = message.split(" ").filter(w => w.length >= 2 &&!stopWords.includes(w));
   // ===== حط هاد قبل كلشي =====
   console.log(`📦 عدد المنتجات الكلي: ${products.length}`);
   console.log("كلمة الزبون بعد الفلترة:", words);
@@ -541,8 +543,7 @@ async function searchProducts(userMessage) {
     if (!storeNameNorm) continue;
     if (message.includes(storeNameNorm)) { mentionedStoreId = store["Store ID"]; break; }
   }
-  const stopWords = ["بدي", "بدّي", "اريد", "أريد", "اعرف", "موجود", "وين", "باي", "متجر", "سوبرماركت","لاقي", "بلاقي","لاقيلي", "عندك", "عندكن", "عندكم", "دور", "ببرم", "ابحث","ابحثلي", "برملي", "دورلي", "فتشلي", "شفلي", "شوفلي", "جبلي", "بدور", "عم دور", "على", "بلاقيه", "بلاقيها", "الاقي", "ميني", "ماركت", "بقالة", "محل", "عند", "شو", "عن", "المنتج", "منتج", "في", "منو", "فيه"];
-  const words = message.split(" ").filter(w => w.length >= 2 &&!stopWords.includes(w));
+  
   if (!words.length) return [];
   const results = [];
   for (const product of products) {
