@@ -1,49 +1,45 @@
 export const dynamic = 'force-dynamic';
-
-import { PERSONAS_FALLBACK } from "@/lib/personas";
-
-const PERSONAS_VOICES = {
-  melissa: "Aaliyah-PlayAI",
-  sara: "Mitch-PlayAI",
-  leen: "Adelaide-PlayAI",
-  chaza: "Ava-PlayAI",
-  jad: "Fritz-PlayAI",
-  karim: "Calum-PlayAI",
-  mohamed: "Mason-PlayAI",
-  mahmoud: "Briggs-PlayAI"
-};
-
-const VOICE_KEY = process.env.GROQ_API_KEY;
+import { EdgeTTS } from "node-edge-tts";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 export async function GET() {
-  const sampleText = "أهلا حبيبي! أنا من MD-Marketplace، كيف بقدر ساعدك اليوم؟";
+  const PERSONAS = {
+    melissa: { name: "ميليسا", voice: "ar-LB-LaylaNeural", gender: "بنت لبنانية" },
+    sara: { name: "سارة", voice: "ar-LB-LaylaNeural", gender: "بنت لبنانية" },
+    leen: { name: "لين", voice: "ar-SA-ZariyahNeural", gender: "بنت سعودية ناعمة" },
+    chaza: { name: "شذى", voice: "ar-SA-ZariyahNeural", gender: "بنت سعودية" },
+    jad: { name: "جاد", voice: "ar-SA-HamedNeural", gender: "شب سعودي" },
+    karim: { name: "كريم", voice: "ar-EG-ShakirNeural", gender: "شب مصري مهضوم" },
+    mohamed: { name: "محمد", voice: "ar-SA-HamedNeural", gender: "شب سعودي جاد" },
+    mahmoud: { name: "محمود", voice: "ar-EG-ShakirNeural", gender: "شب مصري حماسي" }
+  };
+
+  const sampleText = "أهلا حبيبي أنا من أم دي ماركت بليس كيف بقدر ساعدك اليوم";
   const results = [];
 
-  for (const [folder, voice] of Object.entries(PERSONAS_VOICES)) {
-    const persona = PERSONAS_FALLBACK[folder];
+  for (const [folder, p] of Object.entries(PERSONAS)) {
     try {
-      const res = await fetch("https://api.groq.com/openai/v1/audio/speech", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${VOICE_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "playai-tts", input: sampleText, voice: voice, response_format: "mp3" })
-      });
-      if (!res.ok) {
-        const err = await res.text();
-        results.push({ persona: persona?.Name || folder, folder, voice, ok: false, error: err });
-      } else {
-        const buffer = await res.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        results.push({ persona: persona?.Name || folder, folder, voice, ok: true, audio: `data:audio/mpeg;base64,${base64}`, gender: persona?.Gender });
-      }
+      const tmpFile = path.join(os.tmpdir(), `${folder}-${Date.now()}.mp3`);
+      const tts = new EdgeTTS({ voice: p.voice, lang: "ar-LB", rate: "-10%", pitch: "+0Hz" });
+      await tts.ttsPromise(sampleText, tmpFile);
+      
+      const buffer = fs.readFileSync(tmpFile);
+      const base64 = buffer.toString('base64');
+      fs.unlinkSync(tmpFile);
+      
+      results.push({ ...p, folder, ok: true, audio: `data:audio/mpeg;base64,${base64}` });
     } catch (e) {
-      results.push({ persona: folder, folder, voice, ok: false, error: e.message });
+      results.push({ ...p, folder, ok: false, error: e.message });
     }
   }
 
-  const html = `<html dir="rtl"><head><meta charset="utf-8"><title>Voice Test</title></head>
+  const html = `<html dir="rtl"><head><meta charset="utf-8"><title>Voice Test FREE LB</title></head>
   <body style="font-family:sans-serif;padding:20px;background:#111;color:#fff">
-  <h1>🎙 تيست 8 شخصيات</h1><p>النص: "${sampleText}"</p>
-  ${results.map(r => `<div style="border:1px solid #333;padding:15px;margin:15px 0;border-radius:10px;background:#222"><h3>${r.ok?'✅':'❌'} ${r.persona} (${r.folder}) - ${r.voice}</h3>${r.ok?`<audio controls src="${r.audio}"></audio>`:`<pre style="color:red;white-space:pre-wrap">${r.error}</pre>`}</div>`).join('')}
+  <h1>🎙 تيست مجاني - صوت لبناني ar-LB-LaylaNeural</h1>
+  <p>النص: "${sampleText}"</p>
+  ${results.map(r => `<div style="border:1px solid #333;padding:15px;margin:15px 0;border-radius:10px;background:#222"><h3>${r.ok?'✅':'❌'} ${r.name} (${r.folder}) - ${r.voice} - ${r.gender}</h3>${r.ok?`<audio controls src="${r.audio}"></audio>`:`<pre style="color:red;white-space:pre-wrap">${r.error}</pre>`}</div>`).join('')}
   </body></html>`;
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
