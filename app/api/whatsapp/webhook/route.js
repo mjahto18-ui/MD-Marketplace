@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
-const GROQ_KEY = process.env.GROQ_API_KEY;
+const GROQ_KEY = process.env.OPENROUTER_API_KEY;
 const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
 const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
 const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
@@ -204,9 +204,10 @@ async function getCaloriesFromNet(barcode, productName) {
   if (p) return buildCaloriesText(p);
   if (!GROQ_KEY) return null;
   try {
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+      headers: {"Authorization": `Bearer ${GROQ_KEY}`, 
+    "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "openai/gpt-oss-20b",
         messages: [{ role: "system", content: `انت خبير تغذية. اعطي سعرات حرارية تقديرية لـ ${productName} بشكل مختصر و مفيد بالعربي بلبناني.` }, { role: "user", content: `سعرات ${productName} لكل 100غ` }],
@@ -744,7 +745,7 @@ ${orderDetails}
 ${driverContext}
 `;
 
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
