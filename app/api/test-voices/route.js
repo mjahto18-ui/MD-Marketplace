@@ -16,7 +16,7 @@ export async function GET() {
     mahmoud: { name: "محمود", voice: "ar-EG-ShakirNeural", gender: "شب مصري حماسي" }
   };
 
-  const sampleText = "أهلا حبيبي أنا من أم دي ماركت بليس كيف بقدر ساعدك اليوم";
+  const sampleText = "أهلا حبيبي أنا من أم دي ماركت بليس كيف بقدر ساعدك  اليوم";
   const results = [];
 
   for (const [folder, p] of Object.entries(PERSONAS)) {
