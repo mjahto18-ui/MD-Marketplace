@@ -293,6 +293,7 @@ function normalizeText(text) {
     .replace(/[أإآ]/g, "ا")
     .replace(/ة/g, "ه")
     .replace(/ى/g, "ي")
+    .replace(/[؟?.,!،"']/g, " ")
     .trim();
 }
 function isNewOrderIntent(userMessage) {
