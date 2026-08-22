@@ -32,7 +32,8 @@ export async function GET(req) {
       "Personas", "Customers", "Users", "Drivers", "Areas", "Categories", "Stores",
       "Products", "Delivery Rates", "Rewards", "Reviews", "Wallet Transactions",
       "Driver Live tracking", "Cart", "Order Details", "Order Requuest",
-      "Orders History", "Dashboard", "Custom Delivery", "Bot Sessions"
+      "Orders History", "Dashboard", "Custom Delivery", "Bot Sessions",
+      "new_arrivals"
     ];
 
     let sheetsToSync = allSheets;
