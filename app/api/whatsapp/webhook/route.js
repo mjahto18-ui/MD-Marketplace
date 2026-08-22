@@ -842,27 +842,32 @@ ${orderDetails}
 ${driverContext}
 `;
 
-     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-        temperature: 0.5
-      })
-    });
+     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GROQ_KEY}`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\nرسالة الزبون: " + userMessage }] }],
+    generationConfig: { temperature: 0.5 }
+  })
+});
 
-    const data = await res.json();
-    if (data.error ||!data.choices?.[0]?.message?.content) {
-      console.error("❌ Groq Error:", JSON.stringify(data.error));
-      return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
-    }
-    return data.choices?.[0]?.message?.content || "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
-  } catch (error) {
-    console.error("❌ خطأ اتصال Groq:", error);
+const data = await res.json();
+const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+if (!aiText) {
+  console.error("❌ Gemini Error:", JSON.stringify(data));
+  return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
+}
+
+return aiText; // هون خلص
+
+  } catch (error) { // هيدا بيقفل الـ try يلي فوق
+    console.error("❌ خطأ اتصال Gemini:", error);
     return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
   }
-}
+} // هيدا بيقفل الـ function getAIReply
+
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("hub.mode");
