@@ -11,8 +11,7 @@ export async function GET() {
     const { data, error } = await supabase.from('areas').select('*');
     if (error) throw error;
 
-    const rows = (data || []).map(r => [r.id, r.name]);
-    // فوق حولت بيانات Supabase لنفس شكل Google Sheets (مصفوفة)
+    const rows = (data || []).map(r => [r["Area ID"], r["Area Name"]]);
 
     const areas = rows.map((row) => ({
       id: row[0],
