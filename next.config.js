@@ -20,7 +20,23 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'images.openfoodfacts.org',
+      },
+      {
+        protocol: 'https',
+        hostname: 'world.openfoodfacts.org',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.public.blob.vercel-storage.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.blob.vercel-storage.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.vercel-storage.com',
       },
     ],
   },
