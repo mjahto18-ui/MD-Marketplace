@@ -866,8 +866,11 @@ if (!aiText) {
   console.error("❌ Gemini Error:", JSON.stringify(data));
   return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
 }
-    }
+    
 return aiText;
+    }
+  }
+    
   
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
