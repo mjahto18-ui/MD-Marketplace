@@ -25,7 +25,7 @@ export async function GET() {
     return Response.json({ 
       ok: true, 
       sheets: sheetNames,
-      msg: "✅ الاتصال شغال! هيدا أسماء الشيتات عندك"
+      msg: "✅ الاتصال شغال! هيدا أسماء الشيتات عندك "
     });
 
   } catch (e) {
