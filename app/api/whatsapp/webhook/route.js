@@ -863,9 +863,6 @@ ${driverContext}
   }
 }
 export async function GET(req) {
-    
-  
-export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
