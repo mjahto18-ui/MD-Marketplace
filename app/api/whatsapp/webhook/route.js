@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
-const GROQ_KEY = process.env.OPENROUTER_API_KEY;
+const GROQ_KEY = process.env.GEMINI_API_KEY;
 const VOICE_KEY = process.env.GROQ_API_KEY;
 const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
 const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
@@ -842,11 +842,11 @@ ${orderDetails}
 ${driverContext}
 `;
 
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "nvidia/nemotron-3-nano-30b-a3b:free",
+        model: "gemini-2.5-flash",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
         temperature: 0.5
       })
