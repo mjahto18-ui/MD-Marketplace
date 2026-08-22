@@ -846,7 +846,7 @@ ${driverContext}
       method: "POST",
       headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "nvidia/nemotron-3-ultra-550b-a55b:free",
+        model: "nvidia/nemotron-3.5-lightning:free",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
         temperature: 0.5
       })
