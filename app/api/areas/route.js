@@ -1,24 +1,18 @@
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY
+    );
 
-    const sheets = google.sheets({ version: "v4", auth });
+    const { data, error } = await supabase.from('areas').select('*');
+    if (error) throw error;
 
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Areas!A2:B",
-    });
-
-    const rows = res.data.values || [];
+    const rows = (data || []).map(r => [r.id, r.name]);
+    // فوق حولت بيانات Supabase لنفس شكل Google Sheets (مصفوفة)
 
     const areas = rows.map((row) => ({
       id: row[0],
