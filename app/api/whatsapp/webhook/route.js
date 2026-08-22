@@ -868,17 +868,7 @@ if (!aiText) {
 }
 return aiText;
 
-    const data = await res.json();
-    if (data.error ||!data.choices?.[0]?.message?.content) {
-      console.error("❌ Groq Error:", JSON.stringify(data.error));
-      return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
-    }
-    return data.choices?.[0]?.message?.content || "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
-  } catch (error) {
-    console.error("❌ خطأ اتصال Groq:", error);
-    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
-  }
-}
+   
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
