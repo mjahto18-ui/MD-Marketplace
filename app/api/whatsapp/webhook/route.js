@@ -846,7 +846,7 @@ ${driverContext}
       method: "POST",
       headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemma-3-27b-it:free",
+        model: "thinkingmachines/incling:free",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
         temperature: 0.5
       })
