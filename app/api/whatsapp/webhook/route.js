@@ -246,7 +246,7 @@ async function getCaloriesFromNet(barcode, productName) {
       headers: {"Authorization": `Bearer ${GROQ_KEY}`, 
     "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-oss-20b",
+        model: "openai/gpt-oss-20b",
         messages: [{ role: "system", content: `انت خبير تغذية. اعطي سعرات حرارية تقديرية لـ ${productName} بشكل مختصر و مفيد بالعربي بلبناني.` }, { role: "user", content: `سعرات ${productName} لكل 100غ` }],
         temperature: 0.3
       })
@@ -842,17 +842,17 @@ ${orderDetails}
 ${driverContext}
 `;
 
-     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: Bearer ${GROQ_KEY}, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-oss-20b",
+        model: "openai/gpt-oss-20b",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
         temperature: 0.5
       })
     });
 
-const data = await res.json();
+    const data = await res.json();
     if (data.error ||!data.choices?.[0]?.message?.content) {
       console.error("❌ Groq Error:", JSON.stringify(data.error));
       return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
@@ -863,6 +863,7 @@ const data = await res.json();
     return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
   }
 }
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("hub.mode");
