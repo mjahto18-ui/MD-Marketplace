@@ -867,7 +867,7 @@ if (!aiText) {
   return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
 }
 return aiText;
-
+}
    
 
 export async function GET(req) {
