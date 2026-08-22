@@ -846,19 +846,11 @@ ${driverContext}
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: systemPrompt + "\n\nرسالة الزبون: " + userMessage }]
-      }
-    ],
-    generationConfig: {
-      temperature: 0.5
-    }
+    contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\nرسالة الزبون: " + userMessage }] }],
+    generationConfig: { temperature: 0.5 }
   })
 });
 
-// و تحت غيّر طريقة القراءة:
 const data = await res.json();
 const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
@@ -866,10 +858,16 @@ if (!aiText) {
   console.error("❌ Gemini Error:", JSON.stringify(data));
   return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
 }
-    
-return aiText;
-    }
+
+return aiText; // هون خلص
+
+  } catch (error) { // هيدا بيقفل الـ try يلي فوق
+    console.error("❌ خطأ اتصال Gemini:", error);
+    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
   }
+} // هيدا بيقفل الـ function getAIReply
+
+export async function GET(req) {
     
   
 export async function GET(req) {
