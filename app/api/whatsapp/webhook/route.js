@@ -842,16 +842,17 @@ ${orderDetails}
 ${driverContext}
 `;
 
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
-      headers: { Authorization: Bearer ${GROQ_KEY}, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "gemini-2.5-flash",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
         temperature: 0.5
       })
     });
- const data = await res.json();
+
+    const data = await res.json();
     if (data.error ||!data.choices?.[0]?.message?.content) {
       console.error("❌ Groq Error:", JSON.stringify(data.error));
       return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
