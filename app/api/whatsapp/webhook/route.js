@@ -846,7 +846,7 @@ ${driverContext}
       method: "POST",
       headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
+        model: "google/gemma-4-31b:free",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
         temperature: 0.5
       })
