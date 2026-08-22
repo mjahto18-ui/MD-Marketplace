@@ -241,12 +241,12 @@ async function getCaloriesFromNet(barcode, productName) {
   if (p) return buildCaloriesText(p);
   if (!GROQ_KEY) return null;
   try {
-    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {"Authorization": `Bearer ${GROQ_KEY}`, 
     "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
+        model: "gemini-2.5-flash-lite",
         messages: [{ role: "system", content: `انت خبير تغذية. اعطي سعرات حرارية تقديرية لـ ${productName} بشكل مختصر و مفيد بالعربي بلبناني.` }, { role: "user", content: `سعرات ${productName} لكل 100غ` }],
         temperature: 0.3
       })
