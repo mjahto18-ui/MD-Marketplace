@@ -141,8 +141,8 @@ export async function GET(req) {
 
       const diffHours = (nowBeirut - last.date) / (1000 * 60 * 60);
 
-      if (diffHours < 12) continue;
-      if (diffHours > 24) continue;
+     // if (diffHours < 12) continue;
+     // if (diffHours > 24) continue;
 
       if (String(last.row["Reassurance Sent"] || "") === "YES") continue;
 
@@ -159,7 +159,7 @@ export async function GET(req) {
       } else {
         if (nowHour >= 9 && nowHour <= 11) allowed = true;
       }
-      if (!allowed) continue;
+     // if (!allowed) continue;
 
       const lower = last.text.toLowerCase();
       let type = "general";
