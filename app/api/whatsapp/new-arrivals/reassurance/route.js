@@ -37,7 +37,7 @@ async function updateSheetRow(sheetName, keyCol, keyVal, updates) {
   const rowIdx = values.findIndex((r, i) => i > 0 && r[keyIdx] == keyVal);
   if (rowIdx === -1) throw new Error(`Row ${keyVal} not found`);
 
-  for (const [col][val] of Object.entries(updates)) {
+  for (const [col],[val] of Object.entries(updates)) {
     const colIdx = headers.indexOf(col);
     const letter = String.fromCharCode(65 + colIdx);
     await sheets.spreadsheets.values.update({
