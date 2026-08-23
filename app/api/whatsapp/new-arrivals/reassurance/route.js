@@ -47,7 +47,7 @@ async function getSheetRows(tableName) {
 }
 
 async function sendMessage(to, text) {
-  await fetch(`https://graph.facebook.com/v18.0/${PHONE_ID}/messages`, {
+  await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -63,7 +63,7 @@ async function sendMessage(to, text) {
 }
 
 async function sendImage(to, imageUrl, caption) {
-  await fetch(`https://graph.facebook.com/v18.0/${PHONE_ID}/messages`, {
+  await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${WHATSAPP_TOKEN}`,
