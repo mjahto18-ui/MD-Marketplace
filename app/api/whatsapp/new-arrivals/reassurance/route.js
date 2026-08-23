@@ -97,7 +97,10 @@ async function appSheetAction(table, action, rows) {
 // ----------------------------
 
 export async function GET(req) {
-  if (req.headers.get("authorization") !== `Bearer ${CRON_SECRET}`) {
+  const url = new URL(req.url);
+const authHeader = req.headers.get("authorization");
+const secretParam = url.searchParams.get("secret");
+if (authHeader !== `Bearer ${CRON_SECRET}` && secretParam !== CRON_SECRET) {
     return new Response("Unauthorized", { status: 401 });
   }
 
