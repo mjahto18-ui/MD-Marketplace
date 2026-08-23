@@ -144,7 +144,7 @@ export async function GET(req) {
      // if (diffHours < 12) continue;
      // if (diffHours > 24) continue;
 
-      if (String(last.row["Reassurance Sent"] || "") === "YES") continue;
+      if (String(last.row["Reassurance_Sent"] || "") === "YES") continue;
 
       const user = users.find(u => normalize(u["WhatsApp Number"]) === phone);
       if (!user) continue;
