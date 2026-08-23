@@ -216,8 +216,8 @@ export async function GET(req) {
       // ----------------------------
       await appSheetAction("Messages", "Edit", [{
         "Message ID": last.row["Message ID"],
-        "Reassurance Sent": "YES",
-        "Reassurance At": nowBeirut.toLocaleString("en-US", { timeZone: "Asia/Beirut" })
+        "Reassurance_Sent": "YES",
+        "Reassurance_At": nowBeirut.toLocaleString("en-US", { timeZone: "Asia/Beirut" })
       }]);
 
       processed++;
