@@ -158,9 +158,9 @@ if (authHeader !== `Bearer ${CRON_SECRET}` && secretParam !== CRON_SECRET) {
 
       let allowed = false;
       if (gender === "female") {
-        if (nowHour >= 10 && nowHour <= 12) allowed = true;
+       // if (nowHour >= 10 && nowHour <= 12) allowed = true;
       } else {
-        if (nowHour >= 9 && nowHour <= 11) allowed = true;
+       // if (nowHour >= 9 && nowHour <= 11) allowed = true;
       }
       if (!allowed) continue;
 
