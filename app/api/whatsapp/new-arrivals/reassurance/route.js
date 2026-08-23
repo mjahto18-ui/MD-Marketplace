@@ -239,4 +239,3 @@ if (authHeader !== `Bearer ${CRON_SECRET}` && secretParam !== CRON_SECRET) {
     });
   }
 }
-ما تحكي شي تاحكيك
