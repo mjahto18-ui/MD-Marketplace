@@ -103,9 +103,9 @@ export async function GET(req) {
 
   try {
     // قراءة الجداول
-    const messages = await getSheetRows("Messages");
-    const users = await getSheetRows("Users");
-    const newArrivals = await getSheetRows("New Arrivals");
+    const messages = await getSheetRows("messages");
+    const users = await getSheetRows("users");
+    const newArrivals = await getSheetRows("new_arrivals");
 
     const nowBeirut = getBeirutNow();
     const nowHour = nowBeirut.getHours();
