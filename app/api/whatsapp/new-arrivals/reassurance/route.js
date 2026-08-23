@@ -1,16 +1,21 @@
 import { google } from "googleapis";
 export const dynamic = "force-dynamic";
+
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
 const SHEET_ID = process.env.GOOGLE_SHEETS_ID;
 const CRON_SECRET = process.env.CRON_SECRET || "MDM_SECRET_123";
+
 function getAuth() {
-  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
   return new google.auth.GoogleAuth({
-    credentials: creds,
+    credentials: {
+      client_email: process.env.GOOGLE_CLIENT_EMAIL,
+      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    },
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 }
+
 function normalize(phone) {
   let c = String(phone || "").replace(/\D/g, "");
   if (c.startsWith("05")) c = "966" + c.substring(1);
@@ -19,9 +24,11 @@ function normalize(phone) {
   else if (c.length === 7 && c.startsWith("3")) c = "961" + c;
   return c;
 }
+
 function getBeirutNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
 }
+
 async function getSheetRows(sheetName) {
   const sheets = google.sheets({ version: "v4", auth: getAuth() });
   const res = await sheets.spreadsheets.values.get({
@@ -36,6 +43,7 @@ async function getSheetRows(sheetName) {
     return obj;
   });
 }
+
 async function updateSheetRow(sheetName, keyCol, keyVal, updates) {
   const sheets = google.sheets({ version: "v4", auth: getAuth() });
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: `${sheetName}!A:Z` });
@@ -55,6 +63,7 @@ async function updateSheetRow(sheetName, keyCol, keyVal, updates) {
     });
   }
 }
+
 async function sendMessage(to, text) {
   await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
@@ -62,6 +71,7 @@ async function sendMessage(to, text) {
     body: JSON.stringify({ messaging_product: "whatsapp", to, type: "text", text: { body: text } })
   });
 }
+
 export async function GET(req) {
   const url = new URL(req.url);
   const authHeader = req.headers.get("authorization");
@@ -70,9 +80,9 @@ export async function GET(req) {
     return new Response("Unauthorized", { status: 401 });
   }
   try {
-    const messages = await getSheetRows("messages");
-    const users = await getSheetRows("users");
-    const newArrivals = await getSheetRows("new_arrivals");
+    const messages = await getSheetRows("Messages");
+    const users = await getSheetRows("Users");
+
     const nowBeirut = getBeirutNow();
     const lastMsg = {};
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -84,6 +94,7 @@ export async function GET(req) {
       if (!cust) continue;
       lastMsg[phone] = { phone, text: cust, date: new Date(row["Date"]), row };
     }
+
     let processed = 0;
     for (const phone in lastMsg) {
       const last = lastMsg[phone];
@@ -93,7 +104,7 @@ export async function GET(req) {
       const name = user["Name"];
       const finalMsg = `صباح الخير ${name} 🌸 حبيت تكوني أول العارفين، نزل عنا شي جديد بيجنن 😍 بتحبي تشوفيه؟`;
       await sendMessage(phone, finalMsg);
-      await updateSheetRow("messages", "Message ID", last.row["Message ID"], {
+      await updateSheetRow("Messages", "Message ID", last.row["Message ID"], {
         "Reassurance_Sent": "YES",
         "Reassurance_At": nowBeirut.toLocaleString("en-US", { timeZone: "Asia/Beirut" })
       });
