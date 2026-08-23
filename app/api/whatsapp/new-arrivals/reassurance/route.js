@@ -1,7 +1,7 @@
 export async function GET(req) {
   try {
-    const messages = await getSheetRows("messages");
-    const users = await getSheetRows("users");
+    const messages = await getSheetRows("Messages");
+    const users = await getSheetRows("Users");
 
     const lastMsg = {};
     for (let i = messages.length - 1; i >= 0; i--) {
