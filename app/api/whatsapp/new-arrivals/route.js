@@ -97,7 +97,7 @@ export async function POST(req) {
   // ----------------------------
   // 2) جيب بيانات الزبون
   // ----------------------------
-  const { data: users } = await supabase.from("Users").select("*");
+  const { data: users } = await supabase.from("users").select("*");
   const user = users.find(u => normalize(u["WhatsApp Number"]) === from);
   if (!user) return Response.json({ ok: true });
 
@@ -107,7 +107,7 @@ export async function POST(req) {
   // 3) جيب المنتجات الجديدة
   // ----------------------------
   const now = new Date();
-  const { data: arrivals } = await supabase.from("New Arrivals").select("*");
+  const { data: arrivals } = await supabase.from("new_arrivals").select("*");
 
   const suitable = arrivals.filter(p => {
     const added = new Date(p["Date Added"]);
