@@ -16,12 +16,29 @@ const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
 // ----------------------------
 function normalize(phone) {
   let c = String(phone || "").replace(/\D/g, "");
-  if (c.startsWith("05")) c = "966" + c.substring(1);
-  else if (c.length === 9 && c.startsWith("5")) c = "966" + c;
-  else if (c.startsWith("03")) c = "9613" + c.substring(2);
-  else if (c.length === 7 && c.startsWith("3")) c = "961" + c;
+  if (!c) return null;
+
+  // اذا اصلا نورمالايزد
+  if (c.startsWith("961")) return c; // 9613177653 (10) او 96171177653 (11) - التنين صح
+
+  // اذا ببلش بـ 0 -> 03 177653 -> 9613177653
+  if (c.startsWith("0")) {
+    return "961" + c.substring(1); // بيشيل الصفر وبيحط 961
+  }
+
+  // اذا 8 ارقام بدون صفر -> 71177653 -> 96171177653
+  if (c.length === 8) {
+    return "961" + c;
+  }
+
+  // اذا 7 ارقام (نادر) -> 3177653 -> 9613177653
+  if (c.length === 7) {
+    return "9613" + c;
+  }
+
   return c;
 }
+
 
 async function getSheetRows(sheetName) {
   const sheets = await getgooglesheets();
