@@ -61,17 +61,24 @@ async function sendImage(to, imageUrl, caption) {
 }
 
 async function appSheetAction(table, action, rows) {
-  await fetch(
-    `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${table}/actions`,
+  const res = await fetch(
+    `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${table}/Action`,
     {
       method: "POST",
       headers: {
-        ApplicationAccessKey: APPSHEET_API_KEY,
+        "ApplicationAccessKey": APPSHEET_API_KEY,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ Rows: rows })
+      body: JSON.stringify({
+        Action: action,
+        Properties: { Locale: "en-US", Timezone: "Asia/Beirut" },
+        Rows: rows
+      })
     }
   );
+  const txt = await res.text();
+  console.log(`AppSheet ${table} ${action}:`, res.status, txt);
+  return txt;
 }
 
 // ----------------------------
@@ -92,6 +99,7 @@ export async function POST(req) {
   // ----------------------------
   const yesWords = ["ايه", "اي", "نعم", "اوكي", "يلا", "تمام", "شوف", "خليني شوف"];
   const isYes = yesWords.some(w => text.includes(w));
+  console.log("📩 from:", from, "text:", text, "isYes:", isYes);
   if (!isYes) return Response.json({ ok: true });
 
   // ----------------------------
