@@ -106,8 +106,8 @@ if (authHeader !== `Bearer ${CRON_SECRET}` && secretParam !== CRON_SECRET) {
 
   try {
     // قراءة الجداول
-    const messages = await getSheetRows("Messages");
-    const users = await getSheetRows("Users");
+    const messages = await getSheetRows("messages");
+    const users = await getSheetRows("users");
     const newArrivals = await getSheetRows("new_arrivals");
 
     const nowBeirut = getBeirutNow();
