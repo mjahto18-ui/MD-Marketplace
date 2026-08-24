@@ -60,8 +60,9 @@ async function getSheetRows(sheetName) {
   });
 }
 
+Script
 async function sendMessage(to, text) {
-  await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+  const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -74,6 +75,15 @@ async function sendMessage(to, text) {
       text: { body: text }
     })
   });
+  
+  const txt = await res.text();
+  console.log(`SEND to ${to}: ${res.status} - ${txt}`); // هيدا المهم!
+  
+  if (!res.ok) {
+    console.log(`❌ فشل الارسال لـ ${to}`);
+    return false;
+  }
+  return true;
 }
 
 async function sendImage(to, imageUrl, caption) {
