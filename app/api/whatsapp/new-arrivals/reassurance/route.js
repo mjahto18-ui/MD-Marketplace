@@ -166,7 +166,7 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
 
       const diffHours = (nowBeirut - last.date) / (1000 * 60 * 60);
 
-     if (diffHours < 12) continue;
+    // if (diffHours < 12) continue;
     // if (diffHours > 24) continue;
 
       if (String(last.row["Reassurance_Sent"] || "") === "YES") continue;
