@@ -42,12 +42,26 @@ function getCache(key) {
 function setCache(key, value) { SHEETS_CACHE.set(key, { v: value, t: Date.now() }); }
 
 function normalizeWhatsAppNumber(phone) {
-  let clean = String(phone || "").replace(/\D/g, "");
-  if (clean.startsWith("05")) clean = "966" + clean.substring(1);
-  else if (clean.length === 9 && clean.startsWith("5")) clean = "966" + clean;
-  else if (clean.startsWith("03")) clean = "9613" + clean.substring(2);
-  else if (clean.length === 7 && clean.startsWith("3")) clean = "961" + clean;
-  return clean;
+  let c = String(phone || "").replace(/\D/g, "");
+  if (!c) return null;
+
+  // اذا جاهز دولي
+  if (c.startsWith("961")) return c;
+  if (c.startsWith("966")) return c;
+
+  // شيل الصفر الأول اذا موجود
+  if (c.startsWith("0")) c = c.substring(1);
+
+  // السعودية: 551653968 (9) او 0551653968 (10 بعد ما شلنا الصفر بتصير 9) -> 966551653968
+  if (c.length === 9 && c.startsWith("5")) return "966" + c;
+  if (c.length === 10 && c.startsWith("5")) return "966" + c;
+
+  // لبنان: 3xxxxxx (7 ارقام) -> 9613xxxxxx
+  if (c.length === 7 && c.startsWith("3")) return "961" + c;
+  // لبنان: 03xxxxxx او 71xxxxxx (8 ارقام) -> 96103xxxxxx / 96171xxxxxx
+  if (c.length === 8) return "961" + c;
+
+  return c;
 }
 
 async function sendMessage(to, text) {
