@@ -18,26 +18,23 @@ function normalize(phone) {
   let c = String(phone || "").replace(/\D/g, "");
   if (!c) return null;
 
-  // 1- اذا الرقم اصلا دولي - رجعه متل ما هو
-  if (c.startsWith("961")) return c; // لبنان 9613xxxxxx (10) او 96171xxxxxx (11)
-  if (c.startsWith("966")) return c; // السعودية 9665xxxxxxxx (12)
+  // اذا جاهز دولي
+  if (c.startsWith("961")) return c;
+  if (c.startsWith("966")) return c;
 
-  // 2- اذا سعودي محلي: 0551653968 (10 ارقام) او 551653968 (9 ارقام)
-  if (c.startsWith("0") && c.length === 10 && c[1] === '5') {
-    return "966" + c.substring(1); // 0551653968 -> 966551653968
-  }
-  if (c.length === 9 && c.startsWith("5")) {
-    return "966" + c; // 551653968 -> 966551653968
-  }
+  // شيل الصفر الأول اذا موجود
+  if (c.startsWith("0")) c = c.substring(1);
 
-  // 3- اذا لبناني محلي: 03xxxxxx او 71xxxxxx
-  if (c.startsWith("0")) c = c.substring(1); // شيل الصفر
+  // السعودية: 551653968 (9) او 0551653968 (10 بعد ما شلنا الصفر بتصير 9) -> 966551653968
+  if (c.length === 9 && c.startsWith("5")) return "966" + c;
+  if (c.length === 10 && c.startsWith("5")) return "966" + c;
 
-  if (c.length === 8) {
-    return "961" + c; // 3177653(0) -> 9613177653 و 71777653 -> 96171777653
-  }
+  // لبنان: 3xxxxxx (7 ارقام) -> 9613xxxxxx
+  if (c.length === 7 && c.startsWith("3")) return "961" + c;
+  // لبنان: 03xxxxxx او 71xxxxxx (8 ارقام) -> 96103xxxxxx / 96171xxxxxx
+  if (c.length === 8) return "961" + c;
 
-  return null;
+  return c;
 }
 function getBeirutNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
