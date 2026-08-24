@@ -152,18 +152,32 @@ export async function POST(req) {
   });
 
   if (suitable.length === 0) {
-    await sendMessage(from, "ولا يهمّك! ما في شي جديد مناسب إلك هاليومين 🌸");
-  } else {
-    for (const p of suitable) {
-      const isSensitive = String(p["Is Sensitive"] || "").toUpperCase() === "TRUE";
-      if (isSensitive && gender === "male") continue;
-      if (isSensitive) {
-        await sendImage(from, p["Image URL"], `${p["Product Name"]}\nالسعر: ${p["Price"]}\nالحجم: ${p["Size"]}\n🔗 ${p["Product Link"]}`);
+  await sendMessage(from, "ولا يهمّك! ما في شي جديد مناسب إلك هاليومين 🌸");
+} else {
+  for (const p of suitable) {
+    const isSensitive = String(p["Is Sensitive"] || "").toUpperCase() === "TRUE";
+    if (isSensitive && gender === "male") continue;
+
+    if (isSensitive) {
+      // حساس -> صورة + معلومات قصيرة بلا Description
+      const shortText = `${p["Product Name"]}\nالسعر: ${p["Price"]}\nالحجم: ${p["Size"]}\n\nللطلب 👇\n${p["Product Link"]}`;
+      if (p["Image URL"]) {
+        await sendImage(from, p["Image URL"], shortText);
       } else {
-        await sendMessage(from, `*${p["Product Name"]}*\n🏷 ${p["Brand"]}\n💰 ${p["Price"]}\n📦 ${p["Size"]}\n${p["Description"]}\n🔗 ${p["Product Link"]}`);
+        await sendMessage(from, shortText);
+      }
+    } else {
+      // مش حساس -> صورة + وصف كامل
+      const fullText = `*${p["Product Name"]}*\n🏷 ${p["Brand"]}\n💰 ${p["Price"]}\n📦 ${p["Size"]}\n${p["Description"]}\n\nللطلب 👇\n${p["Product Link"]}`;
+      if (p["Image URL"]) {
+        await sendImage(from, p["Image URL"], fullText);
+      } else {
+        await sendMessage(from, fullText);
       }
     }
+    await new Promise(r => setTimeout(r, 1000));
   }
+}
 
   // 5) سكر البوابة - سجل انه انبعت
   const beirutStr = now.toLocaleString("en-US", { timeZone: "Asia/Beirut" });
