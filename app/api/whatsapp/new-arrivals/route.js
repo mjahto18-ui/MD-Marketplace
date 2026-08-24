@@ -39,7 +39,9 @@ function normalize(phone) {
 
   return null;
 }
-
+function getBeirutNow() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
+}
 async function getSheetRows(sheetName) {
   console.log(`📥 Reading ${sheetName}`); // LOG ADDED
   const sheets = await getgooglesheets();
