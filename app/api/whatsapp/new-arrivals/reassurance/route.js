@@ -60,7 +60,7 @@ async function getSheetRows(sheetName) {
   });
 }
 
-Script
+
 async function sendMessage(to, text) {
   const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
