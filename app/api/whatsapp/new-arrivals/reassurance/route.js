@@ -31,14 +31,14 @@ const CRON_SECRET = process.env.CRON_SECRET || "MDM_SECRET_123";
 // 🔧 Helpers
 // ----------------------------
 
-function normalize(phone) {
-  let c = String(phone || "").replace(/\D/g, "");
-  if (c.startsWith("05")) c = "966" + c.substring(1);
-  else if (c.length === 9 && c.startsWith("5")) c = "966" + c;
-  else if (c.startsWith("03")) c = "9613" + c.substring(2);
-  else if (c.length === 7 && c.startsWith("3")) c = "961" + c;
-  return c;
-}
+//function normalize(phone) {
+ // let c = String(phone || "").replace(/\D/g, "");
+ //if (c.startsWith("05")) c = "966" + c.substring(1);
+ // else if (c.length === 9 && c.startsWith("5")) c = "966" + c;
+ // else if (c.startsWith("03")) c = "9613" + c.substring(2);
+ // else if (c.length === 7 && c.startsWith("3")) c = "961" + c;
+ // return c;
+//}
 
 function getBeirutNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
@@ -61,47 +61,44 @@ async function getSheetRows(sheetName) {
 }
 
 
+function normalize(phone) {
+  let c = String(phone || "").replace(/\D/g, "");
+  if (!c) return null;
+  if (c.startsWith("05")) c = "966" + c.substring(1);
+  else if (c.length === 9 && c.startsWith("5")) c = "966" + c;
+  else if (c.startsWith("0")) c = "961" + c.substring(1); // هيدي بتلقط كل لبنان 03, 70, 71, 76, 81...
+  else if (c.length === 8 && !c.startsWith("961")) c = "961" + c;
+  // فلترة اخيرة
+  if (c.length < 11) return null;
+  return c;
+}
+
 async function sendMessage(to, text) {
+  const clean = normalize(to); // هون استخدمناها!!!
+  if (!clean) { console.log(`❌ رقم غلط ${to}`); return false; }
+  
   const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: { body: text }
-    })
+    headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", to: clean, type: "text", text: { body: String(text||"") } })
   });
-  
   const txt = await res.text();
-  console.log(`SEND to ${to}: ${res.status} - ${txt}`); // هيدا المهم!
-  
-  if (!res.ok) {
-    console.log(`❌ فشل الارسال لـ ${to}`);
-    return false;
-  }
-  return true;
+  console.log(`SEND to ${clean} (from ${to}): ${res.status} - ${txt}`);
+  return res.ok;
 }
 
 async function sendImage(to, imageUrl, caption) {
-  await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+  const clean = normalize(to); // هون كمان!!!
+  if (!clean) return false;
+  const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "image",
-      image: { link: imageUrl, caption }
-    })
+    headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", to: clean, type: "image", image: { link: imageUrl, caption: String(caption||"") } })
   });
+  const txt = await res.text();
+  console.log(`SEND IMAGE to ${clean}: ${res.status} - ${txt}`);
+  return res.ok;
 }
-
 async function appSheetAction(table, action, rows) {
   const res = await fetch(
     `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${table}/Action`,
