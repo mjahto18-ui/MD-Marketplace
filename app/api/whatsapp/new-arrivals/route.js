@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { getgooglesheets } from "@/lib/googlesheets";
 
 export const dynamic = "force-dynamic";
 
@@ -7,14 +7,9 @@ export const dynamic = "force-dynamic";
 // ----------------------------
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
-
 const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
 const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
 
 // ----------------------------
 // 🔧 Helpers
@@ -26,6 +21,22 @@ function normalize(phone) {
   else if (c.startsWith("03")) c = "9613" + c.substring(2);
   else if (c.length === 7 && c.startsWith("3")) c = "961" + c;
   return c;
+}
+
+async function getSheetRows(sheetName) {
+  const sheets = await getgooglesheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: GOOGLE_SHEETS_ID,
+    range: sheetName,
+  });
+  const rows = res.data.values || [];
+  if (rows.length < 2) return [];
+  const headers = rows[0];
+  return rows.slice(1).map((r) => {
+    const obj = {};
+    headers.forEach((h, i) => (obj[h] = r[i] || ""));
+    return obj;
+  });
 }
 
 async function sendMessage(to, text) {
@@ -103,19 +114,19 @@ export async function POST(req) {
   if (!isYes) return Response.json({ ok: true });
 
   // ----------------------------
-  // 2) جيب بيانات الزبون
+  // 2) جيب بيانات الزبون - من غوغل شيت
   // ----------------------------
-  const { data: users } = await supabase.from("users").select("*");
+  const users = await getSheetRows("Users");
   const user = users.find(u => normalize(u["WhatsApp Number"]) === from);
   if (!user) return Response.json({ ok: true });
 
   const gender = String(user["Gender"] || "male").toLowerCase();
 
   // ----------------------------
-  // 3) جيب المنتجات الجديدة
+  // 3) جيب المنتجات الجديدة - من غوغل شيت
   // ----------------------------
   const now = new Date();
-  const { data: arrivals } = await supabase.from("new_arrivals").select("*");
+  const arrivals = await getSheetRows("new_arrivals");
 
   const suitable = arrivals.filter(p => {
     const added = new Date(p["Date Added"]);
@@ -146,9 +157,6 @@ export async function POST(req) {
     }
 
     if (isSensitive) {
-      // ----------------------------
-      // 🔥 منتج حساس → صورة + رابط فقط
-      // ----------------------------
       const caption =
         `${p["Product Name"]}\n` +
         `السعر: ${p["Price"]}\n` +
@@ -157,24 +165,21 @@ export async function POST(req) {
 
       await sendImage(from, p["Image URL"], caption);
     } else {
-      // ----------------------------
-      // 🔥 منتج عادي → نص + فروع
-      // ----------------------------
-      const text =
+      const textMsg =
         `*${p["Product Name"]}*\n\n` +
-        `🏷️ البراند: ${p["Brand"]}\n` +
+        `🏷 البراند: ${p["Brand"]}\n` +
         `📦 الحجم: ${p["Size"]}\n` +
         `💰 السعر: ${p["Price"]}\n\n` +
         `${p["Description"]}\n\n` +
         `📍 موجود بفرع الحمرا وحارة حريك!\n` +
         `🔗 للطلب: ${p["Product Link"]}`;
 
-      await sendMessage(from, text);
+      await sendMessage(from, textMsg);
     }
   }
 
   // ----------------------------
-  // 5) سجّل داخل Messages إنو كبّينا المنتجات
+  // 5) سجّل داخل Messages إنو كبّينا المنتجات - AppSheet
   // ----------------------------
   await appSheetAction("Messages", "Add", [{
     Phone: from,
