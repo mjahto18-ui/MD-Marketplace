@@ -14,7 +14,31 @@ const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
 // ----------------------------
 // 🔧 Helpers
 // ----------------------------
+function normalize(phone) {
+  let c = String(phone || "").replace(/\D/g, "");
+  if (!c) return null;
 
+  // 1- اذا الرقم اصلا دولي - رجعه متل ما هو
+  if (c.startsWith("961")) return c; // لبنان 9613xxxxxx (10) او 96171xxxxxx (11)
+  if (c.startsWith("966")) return c; // السعودية 9665xxxxxxxx (12)
+
+  // 2- اذا سعودي محلي: 0551653968 (10 ارقام) او 551653968 (9 ارقام)
+  if (c.startsWith("0") && c.length === 10 && c[1] === '5') {
+    return "966" + c.substring(1); // 0551653968 -> 966551653968
+  }
+  if (c.length === 9 && c.startsWith("5")) {
+    return "966" + c; // 551653968 -> 966551653968
+  }
+
+  // 3- اذا لبناني محلي: 03xxxxxx او 71xxxxxx
+  if (c.startsWith("0")) c = c.substring(1); // شيل الصفر
+
+  if (c.length === 8) {
+    return "961" + c; // 3177653(0) -> 9613177653 و 71777653 -> 96171777653
+  }
+
+  return null;
+}
 
 async function getSheetRows(sheetName) {
   console.log(`📥 Reading ${sheetName}`); // LOG ADDED
