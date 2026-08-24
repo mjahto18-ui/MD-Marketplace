@@ -1,58 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
-import { getgooglesheets } from "@/lib/googlesheets"; // غيّر المسار اذا عندك غير
+import { getgooglesheets } from "@/lib/googlesheets";
 
 export const dynamic = "force-dynamic";
 
-// ----------------------------
-// 🔥 مفاتيح البيئة
-// ----------------------------
-
-// WhatsApp Cloud API
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
-
-// AppSheet
 const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
 const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
+const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
+const CRON_SECRET = process.env.CRON_SECRET || "MDM_SECRET_123";
 
-// Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Google Sheets
-const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
-
-// CRON Secret
-const CRON_SECRET = process.env.CRON_SECRET || "MDM_SECRET_123";
-
-// ----------------------------
-// 🔧 Helpers
-// ----------------------------
-
 function normalize(phone) {
   let c = String(phone || "").replace(/\D/g, "");
   if (!c) return null;
-
-  // اذا اصلا نورمالايزد
-  if (c.startsWith("961")) return c; // 9613177653 (10) او 96171177653 (11) - التنين صح
-
-  // اذا ببلش بـ 0 -> 03 177653 -> 9613177653
-  if (c.startsWith("0")) {
-    return "961" + c.substring(1); // بيشيل الصفر وبيحط 961
-  }
-
-  // اذا 8 ارقام بدون صفر -> 71177653 -> 96171177653
-  if (c.length === 8) {
-    return "961" + c;
-  }
-
-  // اذا 7 ارقام (نادر) -> 3177653 -> 9613177653
-  if (c.length === 7) {
-    return "9613" + c;
-  }
-
+  if (c.startsWith("961")) return c;
+  if (c.startsWith("0")) return "961" + c.substring(1);
+  if (c.length === 8) return "961" + c;
+  if (c.length === 7) return "9613" + c;
   return c;
 }
 
@@ -77,45 +46,25 @@ async function getSheetRows(sheetName) {
 }
 
 async function sendMessage(to, text) {
-  const clean = normalize(to); // هون استخدمناها!!!
-  if (!clean) { console.log(`❌ رقم غلط ${to}`); return false; }
-
+  const clean = normalize(to);
+  if (!clean) return false;
   const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ messaging_product: "whatsapp", to: clean, type: "text", text: { body: String(text||"") } })
   });
   const txt = await res.text();
-  console.log(`SEND to ${clean} (from ${to}): ${res.status} - ${txt}`);
+  console.log(`SEND to ${clean}: ${res.status} - ${txt}`);
   return res.ok;
 }
 
-async function sendImage(to, imageUrl, caption) {
-  const clean = normalize(to); // هون كمان!!!
-  if (!clean) return false;
-  const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to: clean, type: "image", image: { link: imageUrl, caption: String(caption||"") } })
-  });
-  const txt = await res.text();
-  console.log(`SEND IMAGE to ${clean}: ${res.status} - ${txt}`);
-  return res.ok;
-}
 async function appSheetAction(table, action, rows) {
   const res = await fetch(
     `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${table}/Action`,
     {
       method: "POST",
-      headers: {
-        "ApplicationAccessKey": APPSHEET_API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        Action: action,
-        Properties: { Locale: "en-US", Timezone: "Asia/Beirut" },
-        Rows: rows
-      })
+      headers: { "ApplicationAccessKey": APPSHEET_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ Action: action, Properties: { Locale: "en-US", Timezone: "Asia/Beirut" }, Rows: rows })
     }
   );
   const txt = await res.text();
@@ -123,175 +72,96 @@ async function appSheetAction(table, action, rows) {
   return txt;
 }
 
-// ----------------------------
-// 🔥 المنطق الأساسي للـ CRON
-// ----------------------------
-
 export async function GET(req) {
   const url = new URL(req.url);
-const authHeader = req.headers.get("authorization");
-const secretParam = url.searchParams.get("secret");
-if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
+  const authHeader = req.headers.get("authorization");
+  const secretParam = url.searchParams.get("secret");
+  if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
-    // قراءة الجداول
     const messages = await getSheetRows("Messages");
     const users = await getSheetRows("Users");
-    const newArrivals = await getSheetRows("new_arrivals");
-    console.log("Messages:", messages.length, "Users:", users.length, "NewArrivals:", newArrivals.length);
+    console.log("Messages:", messages.length, "Users:", users.length);
 
     const nowBeirut = getBeirutNow();
-    const nowHour = nowBeirut.getHours();
 
-    // ----------------------------
-    // 1) آخر رسالة لكل رقم
-    // ----------------------------
+    // آخر رسالة لكل رقم - بلا شرط وقت
     const lastMsg = {};
     for (let i = messages.length - 1; i >= 0; i--) {
       const row = messages[i];
       const phone = normalize(row["Phone"]);
       if (!phone) continue;
       if (lastMsg[phone]) continue;
-
       const cust = String(row["CustomerMessage"] || "").trim();
       if (!cust) continue;
-
-      lastMsg[phone] = {
-        phone,
-        text: cust,
-        date: new Date(row["Date"]),
-        row
-      };
+      lastMsg[phone] = { phone, text: cust, date: new Date(row["Date"]), row };
     }
 
-    // 🔥 LOG ADDED
     console.log(`lastMsg unique=${Object.keys(lastMsg).length}`);
-    console.log(`lastMsg phones:`, Object.keys(lastMsg));
 
     let processed = 0;
 
-    // ----------------------------
-    // 2) معالجة كل زبون
-    // ----------------------------
     for (const phone in lastMsg) {
       const last = lastMsg[phone];
 
-      const diffHours = (nowBeirut - last.date) / (1000 * 60 * 60);
-
-    // if (diffHours < 12) continue;
-    // if (diffHours > 24) continue;
-
-      // 🔥 LOG ADDED
-      console.log(`--- ${phone} Reassurance_Sent=[${last.row["Reassurance_Sent"]}] Date=${last.row["Date"]} diffHours=${diffHours.toFixed(2)} ---`);
+      // ❌ لغينا شرط 12 و 24 ساعة كلياً - بيشتغل عالاستدعاء
+      // const diffHours = (nowBeirut - last.date) / (1000 * 60 * 60);
+      // if (diffHours < 12) continue;
+      // if (diffHours > 24) continue;
 
       if (String(last.row["Reassurance_Sent"] || "") === "YES") {
-        console.log(`⏭️ SKIP ${phone} already YES`);
+        console.log(`⏭ SKIP ${phone} already YES`);
         continue;
       }
 
       const user = users.find(u => normalize(u["WhatsApp Number"]) === phone);
       if (!user) {
-        // 🔥 LOG ADDED
         console.log(`❌ SKIP ${phone} مش موجود بجدول Users!`);
-        console.log(`Users normalized:`, users.map(u => `${u["WhatsApp Number"]} -> ${normalize(u["WhatsApp Number"])}`));
         continue;
       }
-
-      // 🔥 LOG ADDED
-      console.log(`✅ USER FOUND ${phone} -> Name=${user["Name"]} Gender=${user["Gender"]}`);
 
       const name = user["Name"];
       const gender = String(user["Gender"] || "male").toLowerCase();
       const isFemale = gender === "female";
 
-      let allowed = true;
-      if (gender === "female") {
-        //if (nowHour >= 10 && nowHour <= 12) allowed = true;
-      } else {
-        //if (nowHour >= 9 && nowHour <= 11) allowed = true;
-      }
-      if (!allowed) {
-        // 🔥 LOG ADDED
-        console.log(`⏭️ SKIP ${phone} not allowed hour=${nowHour}`);
-        continue;
-      }
-
-      const lower = last.text.toLowerCase();
-      let type = "general";
-
-      if (lower.includes("طلب") || lower.includes("اطلب") || lower.includes("اوردر")) type = "order";
-      else if (lower.includes("وين") || lower.includes("موجود") || lower.includes("بدي")) type = "product";
-
-      // 🔥 LOG ADDED
-      console.log(`type=${type} text=${last.text.slice(0,50)}`);
-
-      // ----------------------------
-      // 3) فلترة المنتجات الجديدة المناسبة
-      // ----------------------------
-      const suitableProducts = newArrivals.filter(p => {
-        const added = new Date(p["Date Added"]);
-        const diffDays = (nowBeirut - added) / (1000 * 60 * 60 * 24);
-        if (diffDays > 3) return false;
-
-        const target = String(p["Gender Target"] || "both").toLowerCase();
-        if (target === "both") return true;
-        if (target === gender) return true;
-
-        return false;
-      });
-
-      const hasNew = suitableProducts.length > 0;
-
-      // 🔥 LOG ADDED
-      console.log(`hasNew=${hasNew} suitableCount=${suitableProducts.length} for ${phone}`);
-
-      // ----------------------------
-      // 4) بناء الرسالة الصباحية - الرسايل الجديدة
-      // ----------------------------
       let finalMsg = "";
       if (isFemale) {
-        const femalePool = [
+        const pool = [
           `صباح الخير ${name} 🌸 حبيت تكوني أول العارفين، نزل عنا شي جديد بيجنن 😍 بتحبي تشوفيه؟`,
           `مرحبا كيفك ${name} 🌸 عطول بتذكرك، في اشيا رخيصة عم تنعرض هاليومين و حبيت فيدك، بتحبي تشوفي؟`,
           `هلا ${name} 🫶 نزلنا شغلات جديدة و قلت انتي لازم تكوني أول وحدة بتعرف، بدك تشوفي؟`,
           `هلا ${name} كيفك؟ انتي عطول عالبال 🌸 في عروض حلوة و رخيصة نازلة و قلت فيدك دغري 😊`
         ];
-        finalMsg = femalePool[Math.floor(Math.random() * femalePool.length)];
+        finalMsg = pool[Math.floor(Math.random() * pool.length)];
       } else {
-        const malePool = [
+        const pool = [
           `صباح الخير ${name} 👋 حبيت تكون أول العارفين، نزل عنا شي جديد مرتب كتير، بتحب تشوفو؟`,
           `مرحبا كيفك ${name} 👋 عطول بتذكرك، في اشيا رخيصة عم تنعرض و حبيت فيدك، بتحب تشوف؟`,
           `هلا ${name}، نزلنا جديد و قلت انت أول واحد لازم يعرف، بتحب أبعتلك؟`,
           `هلا ${name} كيفك؟ انت عطول عالبال، في شغلات رخيصة و مرتبة نازلة و حبيت خبرك`
         ];
-        finalMsg = malePool[Math.floor(Math.random() * malePool.length)];
+        finalMsg = pool[Math.floor(Math.random() * pool.length)];
       }
 
-      // 🔥 LOG ADDED
       console.log(`💬 FINAL MSG to ${phone}: ${finalMsg}`);
-
-      // ----------------------------
-      // 5) إرسال الرسالة الصباحية
-      // ----------------------------
-      // 🔥 LOG ADDED
       console.log(`📤 SEND TRY to ${phone}`);
       await sendMessage(phone, finalMsg);
 
-      // ----------------------------
-      // 6) تسجيل YES داخل Messages
-      // ----------------------------
-      await appSheetAction("Messages", "Edit", [{
-        "Message ID": last.row["Message ID"],
-        "Reassurance_Sent": "YES",
-        "Reassurance_At": nowBeirut.toLocaleString("en-US", { timeZone: "Asia/Beirut" })
-      }]);
+      // سجل YES
+      if (last.row["Message ID"]) {
+        await appSheetAction("Messages", "Edit", [{
+          "Message ID": last.row["Message ID"],
+          "Reassurance_Sent": "YES",
+          "Reassurance_At": nowBeirut.toLocaleString("en-US", { timeZone: "Asia/Beirut" })
+        }]);
+      }
 
       processed++;
     }
 
-    return new Response(JSON.stringify({ ok: true, processed }), {
+    return new Response(JSON.stringify({ ok: true, processed, mode: "ON_CALL_NO_TIME_CHECK" }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
