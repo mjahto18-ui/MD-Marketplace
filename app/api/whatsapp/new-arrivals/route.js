@@ -62,7 +62,7 @@ async function sendImage(to, imageUrl, caption) {
 
 async function appSheetAction(table, action, rows) {
   await fetch(
-    `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${table}/actions/${action}`,
+    `https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${table}/actions`,
     {
       method: "POST",
       headers: {
