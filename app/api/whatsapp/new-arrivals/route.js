@@ -125,8 +125,8 @@ export async function POST(req) {
   const diffMin = (now - yesTime) / (1000 * 60);
   console.log(`⏰ YES time: ${reassuranceAtStr} -> diff ${diffMin.toFixed(1)}min`);
 
-  if (diffMin < 0 || diffMin > 60) { // ساعة الـ YES
-    console.log(`⏭ SKIP ${from} diffMin ${diffMin} > 60`);
+  if (diffMin < 0 || diffMin > 30) { // ساعة الـ YES
+    console.log(`⏭ SKIP ${from} diffMin ${diffMin} > 30`);
     return Response.json({ ok: true });
   }
 
