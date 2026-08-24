@@ -144,8 +144,8 @@ if (authHeader !== `Bearer ${CRON_SECRET}` && secretParam !== CRON_SECRET) {
 
       const diffHours = (nowBeirut - last.date) / (1000 * 60 * 60);
 
-      if (diffHours < 12) continue;
-      if (diffHours > 24) continue;
+     //if (diffHours < 12) continue;
+     //if (diffHours > 24) continue;
 
       if (String(last.row["Reassurance_Sent"] || "") === "YES") continue;
 
@@ -156,7 +156,7 @@ if (authHeader !== `Bearer ${CRON_SECRET}` && secretParam !== CRON_SECRET) {
       const gender = String(user["Gender"] || "male").toLowerCase();
       const isFemale = gender === "female";
 
-      let allowed = false;
+      let allowed = true;
       if (gender === "female") {
         if (nowHour >= 10 && nowHour <= 12) allowed = true;
       } else {
