@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getgooglesheets } from "@/lib/googlesheets"; // غيّر المسار اذا عندك غير
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// Google Sheets
+const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
+
 // CRON Secret
 const CRON_SECRET = process.env.CRON_SECRET || "MDM_SECRET_123";
 
@@ -40,10 +44,20 @@ function getBeirutNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
 }
 
-async function getSheetRows(tableName) {
-  const { data, error } = await supabase.from(tableName).select("*");
-  if (error) throw new Error(error.message);
-  return data || [];
+async function getSheetRows(sheetName) {
+  const sheets = await getgooglesheets();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: GOOGLE_SHEETS_ID,
+    range: sheetName,
+  });
+  const rows = res.data.values || [];
+  if (rows.length < 2) return [];
+  const headers = rows[0];
+  return rows.slice(1).map((r) => {
+    const obj = {};
+    headers.forEach((h, i) => (obj[h] = r[i] || ""));
+    return obj;
+  });
 }
 
 async function sendMessage(to, text) {
@@ -107,13 +121,13 @@ export async function GET(req) {
   const url = new URL(req.url);
 const authHeader = req.headers.get("authorization");
 const secretParam = url.searchParams.get("secret");
-if (authHeader !== `Bearer ${CRON_SECRET}` && secretParam !== CRON_SECRET) {
+if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
     // قراءة الجداول
-    const messages = await getSheetRows("messages");
+    const messages = await getSheetRows("Messages");
     const users = await getSheetRows("users");
     const newArrivals = await getSheetRows("new_arrivals");
 
