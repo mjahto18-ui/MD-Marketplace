@@ -39,14 +39,15 @@ function normalize(phone) {
   return c;
 }
 
-
 async function getSheetRows(sheetName) {
+  console.log(`📥 Reading ${sheetName}`); // LOG ADDED
   const sheets = await getgooglesheets();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: GOOGLE_SHEETS_ID,
     range: sheetName,
   });
   const rows = res.data.values || [];
+  console.log(`📄 ${sheetName} -> ${rows.length} rows`); // LOG ADDED
   if (rows.length < 2) return [];
   const headers = rows[0];
   return rows.slice(1).map((r) => {
@@ -57,7 +58,8 @@ async function getSheetRows(sheetName) {
 }
 
 async function sendMessage(to, text) {
-  await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+  console.log(`📤 SEND MSG TRY to ${to}: ${String(text||"").slice(0,100)}`); // LOG ADDED
+  const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -70,10 +72,14 @@ async function sendMessage(to, text) {
       text: { body: text }
     })
   });
+  const txt = await res.text();
+  console.log(`📬 SEND MSG to ${to}: ${res.status} - ${txt}`); // LOG ADDED
+  return res.ok;
 }
 
 async function sendImage(to, imageUrl, caption) {
-  await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
+  console.log(`📤 SEND IMG TRY to ${to}: ${imageUrl}`); // LOG ADDED
+  const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${WHATSAPP_TOKEN}`,
@@ -86,6 +92,9 @@ async function sendImage(to, imageUrl, caption) {
       image: { link: imageUrl, caption }
     })
   });
+  const txt = await res.text();
+  console.log(`📬 SEND IMG to ${to}: ${res.status} - ${txt}`); // LOG ADDED
+  return res.ok;
 }
 
 async function appSheetAction(table, action, rows) {
@@ -114,10 +123,14 @@ async function appSheetAction(table, action, rows) {
 // ----------------------------
 export async function POST(req) {
   const body = await req.json();
+  console.log(`📥 WEBHOOK HIT: ${JSON.stringify(body).slice(0,800)}`); // LOG ADDED
   const entry = body.entry?.[0]?.changes?.[0]?.value;
   const msg = entry?.messages?.[0];
 
-  if (!msg) return Response.json({ ok: true });
+  if (!msg) {
+    console.log(`❌ WEBHOOK No msg found`); // LOG ADDED
+    return Response.json({ ok: true });
+  }
 
   const from = normalize(msg.from);
   const text = msg.text?.body?.trim().toLowerCase() || "";
@@ -128,14 +141,24 @@ export async function POST(req) {
   const yesWords = ["ايه", "اي", "نعم", "اوكي", "يلا", "تمام", "شوف", "خليني شوف"];
   const isYes = yesWords.some(w => text.includes(w));
   console.log("📩 from:", from, "text:", text, "isYes:", isYes);
-  if (!isYes) return Response.json({ ok: true });
+  if (!isYes) {
+    console.log(`⏭️ SKIP ${from} not yes word`); // LOG ADDED
+    return Response.json({ ok: true });
+  }
 
   // ----------------------------
   // 2) جيب بيانات الزبون - من غوغل شيت
   // ----------------------------
   const users = await getSheetRows("Users");
+  console.log(`Users loaded: ${users.length}`); // LOG ADDED
+  console.log(`Users nums:`, users.map(u => `${u["WhatsApp Number"]} -> ${normalize(u["WhatsApp Number"])}`)); // LOG ADDED
   const user = users.find(u => normalize(u["WhatsApp Number"]) === from);
-  if (!user) return Response.json({ ok: true });
+  if (!user) {
+    console.log(`❌ SKIP ${from} مش موجود بجدول Users!`); // LOG ADDED
+    return Response.json({ ok: true });
+  }
+
+  console.log(`✅ USER FOUND ${from} -> ${user["Name"]} Gender=${user["Gender"]}`); // LOG ADDED
 
   const gender = String(user["Gender"] || "male").toLowerCase();
 
@@ -144,20 +167,28 @@ export async function POST(req) {
   // ----------------------------
   const now = new Date();
   const arrivals = await getSheetRows("new_arrivals");
+  console.log(`new_arrivals loaded: ${arrivals.length}`); // LOG ADDED
 
   const suitable = arrivals.filter(p => {
     const added = new Date(p["Date Added"]);
     const diffDays = (now - added) / (1000 * 60 * 60 * 24);
-    if (diffDays > 3) return false;
+    if (diffDays > 3) {
+      console.log(`⏭️ SKIP product ${p["Product Name"]} diffDays=${diffDays.toFixed(1)} >3`); // LOG ADDED
+      return false;
+    }
 
     const target = String(p["Gender Target"] || "both").toLowerCase();
     if (target === "both") return true;
     if (target === gender) return true;
 
+    console.log(`⏭️ SKIP product ${p["Product Name"]} target=${target}!= gender=${gender}`); // LOG ADDED
     return false;
   });
 
+  console.log(`✅ Suitable products: ${suitable.length}`); // LOG ADDED
+
   if (suitable.length === 0) {
+    console.log(`📤 No suitable, sending fallback msg`); // LOG ADDED
     await sendMessage(from, "ولا يهمّك! ما في شي جديد مناسب إلك هاليومين 🌸");
     return Response.json({ ok: true });
   }
@@ -167,6 +198,7 @@ export async function POST(req) {
   // ----------------------------
   for (const p of suitable) {
     const isSensitive = String(p["Is Sensitive"] || "").toUpperCase() === "TRUE";
+    console.log(`📦 Product: ${p["Product Name"]} sensitive=${isSensitive} gender=${gender} -> ${isSensitive && gender==="male"? "SKIP" : "SEND"}`); // LOG ADDED
 
     // حماية البنات
     if (isSensitive && gender === "male") {
@@ -198,6 +230,7 @@ export async function POST(req) {
   // ----------------------------
   // 5) سجّل داخل Messages إنو كبّينا المنتجات - AppSheet
   // ----------------------------
+  console.log(`📝 Logging to AppSheet Messages Add`); // LOG ADDED
   await appSheetAction("Messages", "Add", [{
     Phone: from,
     CustomerMessage: "BOT1_NEW_ARRIVALS_SENT",
@@ -207,5 +240,6 @@ export async function POST(req) {
     "Message Type": "NEW_ARRIVALS",
   }]);
 
+  console.log(`✅ DONE for ${from}`); // LOG ADDED
   return Response.json({ ok: true });
 }
