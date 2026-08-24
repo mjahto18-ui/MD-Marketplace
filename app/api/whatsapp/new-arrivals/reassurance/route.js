@@ -31,6 +31,30 @@ const CRON_SECRET = process.env.CRON_SECRET || "MDM_SECRET_123";
 // 🔧 Helpers
 // ----------------------------
 
+function normalize(phone) {
+  let c = String(phone || "").replace(/\D/g, "");
+  if (!c) return null;
+
+  // اذا اصلا نورمالايزد
+  if (c.startsWith("961")) return c; // 9613177653 (10) او 96171177653 (11) - التنين صح
+
+  // اذا ببلش بـ 0 -> 03 177653 -> 9613177653
+  if (c.startsWith("0")) {
+    return "961" + c.substring(1); // بيشيل الصفر وبيحط 961
+  }
+
+  // اذا 8 ارقام بدون صفر -> 71177653 -> 96171177653
+  if (c.length === 8) {
+    return "961" + c;
+  }
+
+  // اذا 7 ارقام (نادر) -> 3177653 -> 9613177653
+  if (c.length === 7) {
+    return "9613" + c;
+  }
+
+  return c;
+}
 
 function getBeirutNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
@@ -53,7 +77,7 @@ async function getSheetRows(sheetName) {
 }
 
 async function sendMessage(to, text) {
-  
+  const clean = normalize(to); // هون استخدمناها!!!
   if (!clean) { console.log(`❌ رقم غلط ${to}`); return false; }
 
   const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
@@ -67,7 +91,7 @@ async function sendMessage(to, text) {
 }
 
 async function sendImage(to, imageUrl, caption) {
-  
+  const clean = normalize(to); // هون كمان!!!
   if (!clean) return false;
   const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
