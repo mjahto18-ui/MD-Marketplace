@@ -31,7 +31,6 @@ const CRON_SECRET = process.env.CRON_SECRET || "MDM_SECRET_123";
 // 🔧 Helpers
 // ----------------------------
 
-function normalize(phone) {
   function normalize(phone) {
   let c = String(phone || "").replace(/\D/g, "");
   if (!c) return null;
