@@ -76,13 +76,10 @@ async function getSheetRows(sheetName) {
   });
 }
 
-
-
-
 async function sendMessage(to, text) {
   const clean = normalize(to); // هون استخدمناها!!!
   if (!clean) { console.log(`❌ رقم غلط ${to}`); return false; }
-  
+
   const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
@@ -169,6 +166,10 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
       };
     }
 
+    // 🔥 LOG ADDED
+    console.log(`lastMsg unique=${Object.keys(lastMsg).length}`);
+    console.log(`lastMsg phones:`, Object.keys(lastMsg));
+
     let processed = 0;
 
     // ----------------------------
@@ -182,10 +183,24 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
     // if (diffHours < 12) continue;
     // if (diffHours > 24) continue;
 
-      if (String(last.row["Reassurance_Sent"] || "") === "YES") continue;
+      // 🔥 LOG ADDED
+      console.log(`--- ${phone} Reassurance_Sent=[${last.row["Reassurance_Sent"]}] Date=${last.row["Date"]} diffHours=${diffHours.toFixed(2)} ---`);
+
+      if (String(last.row["Reassurance_Sent"] || "") === "YES") {
+        console.log(`⏭️ SKIP ${phone} already YES`);
+        continue;
+      }
 
       const user = users.find(u => normalize(u["WhatsApp Number"]) === phone);
-      if (!user) continue;
+      if (!user) {
+        // 🔥 LOG ADDED
+        console.log(`❌ SKIP ${phone} مش موجود بجدول Users!`);
+        console.log(`Users normalized:`, users.map(u => `${u["WhatsApp Number"]} -> ${normalize(u["WhatsApp Number"])}`));
+        continue;
+      }
+
+      // 🔥 LOG ADDED
+      console.log(`✅ USER FOUND ${phone} -> Name=${user["Name"]} Gender=${user["Gender"]}`);
 
       const name = user["Name"];
       const gender = String(user["Gender"] || "male").toLowerCase();
@@ -197,13 +212,20 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
       } else {
         //if (nowHour >= 9 && nowHour <= 11) allowed = true;
       }
-      if (!allowed) continue;
+      if (!allowed) {
+        // 🔥 LOG ADDED
+        console.log(`⏭️ SKIP ${phone} not allowed hour=${nowHour}`);
+        continue;
+      }
 
       const lower = last.text.toLowerCase();
       let type = "general";
 
       if (lower.includes("طلب") || lower.includes("اطلب") || lower.includes("اوردر")) type = "order";
       else if (lower.includes("وين") || lower.includes("موجود") || lower.includes("بدي")) type = "product";
+
+      // 🔥 LOG ADDED
+      console.log(`type=${type} text=${last.text.slice(0,50)}`);
 
       // ----------------------------
       // 3) فلترة المنتجات الجديدة المناسبة
@@ -221,6 +243,9 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
       });
 
       const hasNew = suitableProducts.length > 0;
+
+      // 🔥 LOG ADDED
+      console.log(`hasNew=${hasNew} suitableCount=${suitableProducts.length} for ${phone}`);
 
       // ----------------------------
       // 4) بناء الرسالة الصباحية - الرسايل الجديدة
@@ -244,9 +269,14 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
         finalMsg = malePool[Math.floor(Math.random() * malePool.length)];
       }
 
+      // 🔥 LOG ADDED
+      console.log(`💬 FINAL MSG to ${phone}: ${finalMsg}`);
+
       // ----------------------------
       // 5) إرسال الرسالة الصباحية
       // ----------------------------
+      // 🔥 LOG ADDED
+      console.log(`📤 SEND TRY to ${phone}`);
       await sendMessage(phone, finalMsg);
 
       // ----------------------------
