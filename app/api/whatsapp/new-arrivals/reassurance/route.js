@@ -137,6 +137,7 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
     const messages = await getSheetRows("Messages");
     const users = await getSheetRows("Users");
     const newArrivals = await getSheetRows("new_arrivals");
+    console.log("Messages:", messages.length, "Users:", users.length, "NewArrivals:", newArrivals.length);
 
     const nowBeirut = getBeirutNow();
     const nowHour = nowBeirut.getHours();
