@@ -186,9 +186,9 @@ export async function POST(req) {
     CustomerMessage: rawText,
     AIReply: "PRODUCTS_SENT_VIA_BRIDGE",
     Date: beirutStr,
-    "Reassurance_Sent": "OFFERS_DONE", // مش YES عشان ما ترجع تفتح
+    "Reassurance_Sent": "YES", // مش YES عشان ما ترجع تفتح
     "Reassurance_At": beirutStr,
-    Bot: "BOT1",
+    Bot: "New Offre",
     "Message Type": "NEW_ARRIVALS",
   }]);
 
