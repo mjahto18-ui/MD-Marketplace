@@ -188,6 +188,7 @@ export async function POST(req) {
     Date: beirutStr,
     "Reassurance_Sent": "YES", // مش YES عشان ما ترجع تفتح
     "Reassurance_At": beirutStr,
+    "Bot Session": "BOT_OFFER"
     Bot: "New Offre",
     "Message Type": "NEW_ARRIVALS",
   }]);
