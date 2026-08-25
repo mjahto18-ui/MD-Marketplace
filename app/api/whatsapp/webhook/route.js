@@ -1013,9 +1013,42 @@ if (!userText) return Response.json({ status: "ok" }, { status: 200 });
         }
       }
     }
-
+    let hasYesForOffers = false; 
+    // ===== اتصال لملف العروض - رقم 961 + مفتاح YES =====
+try {
+  const simpleYes = ["ايه", "اي", "نعم", "اوكي", "يلا", "تمام", "شوف", "خليني شوف"];
+  const low = String(rawText || "").toLowerCase().trim();
+  const first = low.split(/\s+/)[0];
+  if (simpleYes.includes(first) || simpleYes.includes(low)) {
+    const allMsgs = await getAllUserMessages(whatsappNumber); // بيجيب كل رسائل نفس الرقم 961
+    const lastRow = allMsgs[allMsgs.length - 1]; // آخر سطر من تحت لفوق
+    const hasYes = lastRow && String(lastRow["Reassurance_Sent"] || "").toUpperCase().includes("YES");
+    if (hasYes) {
+      hasYesForOffers = true; // <-- هاد ناقص عندك
+      console.log(`🔑 YES found for ${whatsappNumber} -> calling new-arrivals with 961 + YES`);
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.md-marketplace.store";
+      fetch(`${siteUrl}/api/whatsapp/new-arrivals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entry: [{
+            changes: [{
+              value: {
+                messages: [{
+                  from: whatsappNumber, // هون الرقم 961xxxx + المفتاح YES جوا rawText
+                  text: { body: rawText }
+                }]
+              }
+            }]
+          }]
+        })
+      }).catch(e => console.log("new-arrivals call failed", e.message));
+    }
+  }
+} catch(e) {}
+    
     const normalizedMsg = normalizeText(rawText);
-    if (/^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) {
+    if (!hasYesForOffers && /^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) { // <-- 3. زيدت!hasYesForOffers هون
       const lastProduct = globalThis._lastProduct.get(whatsappNumber);
       if (lastProduct) {
         console.log(`🔥 طلب سعرات لـ ${lastProduct.code}`);
