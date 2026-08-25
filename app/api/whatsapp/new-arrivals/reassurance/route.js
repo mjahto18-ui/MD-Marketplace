@@ -177,8 +177,8 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
 
       const diffHours = (nowBeirut - last.date) / (1000 * 60 * 60);
 
-    // if (diffHours < 12) continue;
-    // if (diffHours > 24) continue;
+     if (diffHours < 12) continue;
+     if (diffHours > 24) continue;
 
       // 🔥 LOG ADDED
       console.log(`--- ${phone} Reassurance_Sent=[${last.row["Reassurance_Sent"]}] Date=${last.row["Date"]} diffHours=${diffHours.toFixed(2)} ---`);
@@ -205,9 +205,9 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
 
       let allowed = true;
       if (gender === "female") {
-        //if (nowHour >= 10 && nowHour <= 12) allowed = true;
+        if (nowHour >= 10 && nowHour <= 12) allowed = true;
       } else {
-        //if (nowHour >= 9 && nowHour <= 11) allowed = true;
+        if (nowHour >= 9 && nowHour <= 11) allowed = true;
       }
       if (!allowed) {
         // 🔥 LOG ADDED
@@ -250,19 +250,19 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
       let finalMsg = "";
       if (isFemale) {
         const femalePool = [
-          `صباح الخير ${name} 🌸 حبيت تكوني أول العارفين، نزل عنا شي جديد بيجنن 😍 بتحبي تشوفيه؟`,
-          `مرحبا كيفك ${name} 🌸 عطول بتذكرك، في اشيا رخيصة عم تنعرض هاليومين و حبيت فيدك، بتحبي تشوفي؟`,
-          `هلا ${name} 🫶 نزلنا شغلات جديدة و قلت انتي لازم تكوني أول وحدة بتعرف، بدك تشوفي؟`,
-          `هلا ${name} كيفك؟ انتي عطول عالبال 🌸 في عروض حلوة و رخيصة نازلة و قلت فيدك دغري 😊`
-        ];
+       `صباحو ${name} 🌸 نزل عنا شي جديد ع ذوقك، قلت خبرك قبل الكل 😍 ببعتلك؟`,
+       `هاي ${name} كيفك؟ لقيت شغلة اتذكرتك دغري، سعرها لقطة اليوم 🫶 بتحبي تشوفي صورتها؟`,
+       `يسعد صباحك ${name} ✨ في كم منتج جديد وصل، فكرت فيكي أول وحدة، بدك ابعتلك ياهن؟`,
+       `صباح الخير ${name} 🌸 عنا شي جديد مرتب، وقلت انتي لازم تشوفيه قبل ما يخلص`
+     ];
         finalMsg = femalePool[Math.floor(Math.random() * femalePool.length)];
       } else {
         const malePool = [
-          `صباح الخير ${name} 👋 حبيت تكون أول العارفين، نزل عنا شي جديد مرتب كتير، بتحب تشوفو؟`,
-          `مرحبا كيفك ${name} 👋 عطول بتذكرك، في اشيا رخيصة عم تنعرض و حبيت فيدك، بتحب تشوف؟`,
-          `هلا ${name}، نزلنا جديد و قلت انت أول واحد لازم يعرف، بتحب أبعتلك؟`,
-          `هلا ${name} كيفك؟ انت عطول عالبال، في شغلات رخيصة و مرتبة نازلة و حبيت خبرك`
-        ];
+       `صباحو ${name} 👋 نزل شي جديد مرتب، قلت انت أول واحد لازم تعرف، ابعتلك؟`,
+       `هاي ${name}، كيف الوضع؟ في شغلة حلوة نزلت وسعرها لقطة اليوم، بتحب تشوفها؟`,
+       `يسعد صباحك ${name} 👌 وصلنا جديد وقلت خبرك دغري قبل ما يخلص`,
+       `صباح الخير ${name}، عنا كم شغلة جديدة نزلوا، فكرت فيك، ببعتلك الصور؟`
+     ];
         finalMsg = malePool[Math.floor(Math.random() * malePool.length)];
       }
 
