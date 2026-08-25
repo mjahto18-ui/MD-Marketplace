@@ -53,8 +53,21 @@ const CRON_SECRET = process.env.CRON_SECRET || "MDM_SECRET_123";
 
   return c;
 }
+
 function getBeirutNow() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
+  return new Date(); // UTC نضيف للمقارنة
+}
+function getBeirutHour(d = new Date()) {
+  return parseInt(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Beirut', hour: '2-digit', hour12: false }).format(d));
+}
+function formatForAppSheet(d = new Date()) {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Beirut',
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false
+  }).formatToParts(d).reduce((a,x)=>{a[x.type]=x.value;return a;},{});
+  return `${parseInt(p.month)}/${parseInt(p.day)}/${p.year} ${p.hour}:${p.minute}:${p.second}`;
 }
 
 async function getSheetRows(sheetName) {
@@ -140,7 +153,7 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
     console.log("Messages:", messages.length, "Users:", users.length, "NewArrivals:", newArrivals.length);
 
     const nowBeirut = getBeirutNow();
-    const nowHour = nowBeirut.getHours();
+    const nowHour = getBeirutHour(nowBeirut); // صح
 
     // ----------------------------
     // 1) آخر رسالة لكل رقم
@@ -282,7 +295,7 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
       await appSheetAction("Messages", "Edit", [{
         "Message ID": last.row["Message ID"],
         "Reassurance_Sent": "YES",
-        "Reassurance_At": nowBeirut.toLocaleString("en-US", { timeZone: "Asia/Beirut" })
+        "Reassurance_At": formatForAppSheet(nowBeirut) // <--- صح بلا فاصلة
       }]);
 
       processed++;
