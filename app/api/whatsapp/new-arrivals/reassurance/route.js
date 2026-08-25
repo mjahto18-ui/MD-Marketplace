@@ -203,7 +203,7 @@ if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) {
       const gender = String(user["Gender"] || "male").toLowerCase();
       const isFemale = gender === "female";
 
-      let allowed = true;
+      let allowed = false;
       if (gender === "female") {
         if (nowHour >= 10 && nowHour <= 12) allowed = true;
       } else {
