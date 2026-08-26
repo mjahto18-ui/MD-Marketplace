@@ -14,7 +14,6 @@ export default function StoreDashboard(){
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showBarcode, setShowBarcode] = useState({})
-
   const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:''}])
   const [priceReq, setPriceReq] = useState({code:'', newPrice:''})
 
@@ -69,8 +68,6 @@ export default function StoreDashboard(){
   const preparing = reqOrders.filter(r=> ['Pending','Approved'].includes(String(r['Approval Status'])))
   const lat = store?.['Current Latitude'], lng = store?.['Current Longtitude']
   const commissionText = store?.['Commission Rate']? String(store['Commission Rate']).replace('%%','%') : ''
-
-  // فلترة بحث
   const filteredProducts = products.filter(p=>
     (p['Product Name']||'').toLowerCase().includes(search.toLowerCase()) ||
     (p['Product ID']||'').toLowerCase().includes(search.toLowerCase())
@@ -96,7 +93,6 @@ export default function StoreDashboard(){
 
         <div style={{padding:12}}>
           {loading? <div style={{textAlign:'center', marginTop:40}}>تحميل...</div> :
-
           tab==='store' && store && (
             <div style={{background:'#f3f1ec', color:'#1a1a1a', padding:16, borderRadius:14}}>
               <div style={{fontWeight:900, fontSize:18}}>{store['Store Name']}</div>
@@ -117,8 +113,7 @@ export default function StoreDashboard(){
 
           {tab==='products' && (
             <>
-              <input placeholder="بحث باسم المنتج أو الباركود..." value={search} onChange={e=>setSearch(e.target.value)}
-                style={{width:'100%', padding:'12px 14px', borderRadius:12, border:'none', background:'#f3f1ec', color:'#1a1a1a', marginBottom:12, fontSize:14}} />
+              <input placeholder="بحث باسم المنتج أو الباركود..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:'100%', padding:'12px 14px', borderRadius:12, border:'none', background:'#f3f1ec', color:'#1a1a1a', marginBottom:12, fontSize:14}} />
               <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(165px, 1fr))', gap:12}}>
                 {filteredProducts.map(p=>(
                   <div key={p['Product ID']} style={{background:'#f3f1ec', color:'#1a1a1a', borderRadius:14, padding:10, display:'flex', flexDirection:'column'}}>
@@ -129,7 +124,7 @@ export default function StoreDashboard(){
                     <div style={{fontSize:10, opacity:0.6}}>{p.Unit}</div>
                     <div style={{marginTop:6, display:'flex', alignItems:'center', justifyContent:'space-between'}}>
                       <div style={{fontWeight:900, fontSize:13}}>{Number(p.Price||0).toLocaleString('ar-LB')} ل.ل</div>
-                      <button onClick={()=>setShowBarcode(s=>({...s, [p['Product ID']]:!s[p['Product ID']]}))} style={{background:'none', border:'none', cursor:'pointer', fontSize:16}}>👁️</button>
+                      <button onClick={()=>setShowBarcode(s=>({...s, [p['Product ID']]:!s[p['Product ID']]}))} style={{background:'none', border:'none', cursor:'pointer', fontSize:16}}>👁</button>
                     </div>
                     {showBarcode[p['Product ID']] && (
                       <div style={{marginTop:6, background:'#fff', border:'1px dashed #ccc', padding:6, borderRadius:8, fontSize:10, wordBreak:'break-all'}}>
@@ -163,37 +158,40 @@ export default function StoreDashboard(){
           )}
 
           {tab==='add' && (
-  <div style={{background:'#f3f1ec', color:'#1a1a1a', padding:14, borderRadius:12}}>
-    <div style={{fontWeight:900, marginBottom:10}}>إضافة منتجات - Active FALSE للمراجعة</div>
-    {newProds.map((np,i)=>(
-      <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 70px 100px 1fr', gap:6, marginBottom:8}}>
-        <input placeholder="اسم" value={np.name} onChange={e=>{const c=[...newProds]; c[i].name=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
-        <input placeholder="وحدة" value={np.unit} onChange={e=>{const c=[...newProds]; c[i].unit=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
-        <input placeholder="سعر ل.ل" value={np.price} onChange={e=>{const c=[...newProds]; c[i].price=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
-        <input placeholder="رابط الصورة" value={np.image} onChange={e=>{const c=[...newProds]; c[i].image=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
-      </div>
-    ))}
-    <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:''}])} style={{padding:'6px 12px', borderRadius:8, border:'1px solid #ccc'}}> + منتج</button>
-    <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, border:'none', background:'#2563eb', color:'white', marginLeft:8}}>إرسال للمراجعة</button>
+            <div style={{background:'#f3f1ec', color:'#1a1a1a', padding:14, borderRadius:12}}>
+              <div style={{fontWeight:900, marginBottom:10}}>إضافة منتجات - Active FALSE للمراجعة</div>
+              {newProds.map((np,i)=>(
+                <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 70px 100px 1fr', gap:6, marginBottom:8}}>
+                  <input placeholder="اسم" value={np.name} onChange={e=>{const c=[...newProds]; c[i].name=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
+                  <input placeholder="وحدة" value={np.unit} onChange={e=>{const c=[...newProds]; c[i].unit=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
+                  <input placeholder="سعر ل.ل" value={np.price} onChange={e=>{const c=[...newProds]; c[i].price=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
+                  <input placeholder="رابط الصورة" value={np.image} onChange={e=>{const c=[...newProds]; c[i].image=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
+                </div>
+              ))}
+              <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:''}])} style={{padding:'6px 12px', borderRadius:8, border:'1px solid #ccc'}}> + منتج</button>
+              <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, border:'none', background:'#2563eb', color:'white', marginLeft:8}}>إرسال للمراجعة</button>
 
-    <div style={{marginTop:20, borderTop:'1px solid #ddd', paddingTop:14}}>
-      <div style={{fontWeight:900, fontSize:14, marginBottom:8}}>طلب تغيير سعر - بيتغير دغري</div>
-      <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-        <input placeholder="كود المنتج / باركود" value={priceReq.code} onChange={e=>setPriceReq({...priceReq, code:e.target.value})} style={{padding:10, borderRadius:8, border:'1px solid #ccc', flex:1, minWidth:140}} />
-        <div style={{padding:'10px 12px', background:'#e5e7eb', borderRadius:8, fontSize:13, minWidth:130}}>
-          قديم: {products.find(p=>p['Product ID']===priceReq.code)?.Price? Number(products.find(p=>p['Product ID']===priceReq.code).Price).toLocaleString() + ' ل.ل' : '-'}
+              <div style={{marginTop:20, borderTop:'1px solid #ddd', paddingTop:14}}>
+                <div style={{fontWeight:900, fontSize:14, marginBottom:8}}>طلب تغيير سعر - بيتغير دغري</div>
+                <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                  <input placeholder="كود المنتج / باركود" value={priceReq.code} onChange={e=>setPriceReq({...priceReq, code:e.target.value})} style={{padding:10, borderRadius:8, border:'1px solid #ccc', flex:1, minWidth:140}} />
+                  <div style={{padding:'10px 12px', background:'#e5e7eb', borderRadius:8, fontSize:13, minWidth:130}}>قديم: {products.find(p=>p['Product ID']===priceReq.code)?.Price? Number(products.find(p=>p['Product ID']===priceReq.code).Price).toLocaleString() + ' ل.ل' : '-'}</div>
+                  <input placeholder="سعر جديد ل.ل" value={priceReq.newPrice} onChange={e=>setPriceReq({...priceReq, newPrice:e.target.value})} style={{padding:10, borderRadius:8, border:'1px solid #ccc', width:130}} />
+                  <button onClick={async()=>{
+                    const prod = products.find(p=>p['Product ID']===priceReq.code)
+                    if(!prod) return alert('كود غلط - مش موجود بمتجرك')
+                    if(!priceReq.newPrice) return alert('حط السعر الجديد')
+                    const { error } = await supabase.from('products').update({Price: priceReq.newPrice}).eq('Product ID', priceReq.code)
+                    if(error) return alert(error.message)
+                    setProducts(prev=>prev.map(x=> x['Product ID']===priceReq.code? {...x, Price: priceReq.newPrice}:x))
+                    setPriceReq({code:'', newPrice:''})
+                  }} style={{padding:'10px 16px', borderRadius:8, background:'#16a34a', color:'white', border:'none', fontWeight:700}}>موافق</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-        <input placeholder="سعر جديد ل.ل" value={priceReq.newPrice} onChange={e=>setPriceReq({...priceReq, newPrice:e.target.value})} style={{padding:10, borderRadius:8, border:'1px solid #ccc', width:130}} />
-        <button onClick={async()=>{
-          const prod = products.find(p=>p['Product ID']===priceReq.code)
-          if(!prod) return alert('كود غلط - مش موجود بمتجرك')
-          if(!priceReq.newPrice) return alert('حط السعر الجديد')
-          const { error } = await supabase.from('products').update({Price: priceReq.newPrice}).eq('Product ID', priceReq.code)
-          if(error) return alert(error.message)
-          setProducts(prev=>prev.map(x=> x['Product ID']===priceReq.code? {...x, Price: priceReq.newPrice}:x))
-          setPriceReq({code:'', newPrice:''})
-        }} style={{padding:'10px 16px', borderRadius:8, background:'#16a34a', color:'white', border:'none', fontWeight:700}}>موافق</button>
       </div>
     </div>
-  </div>
-)}
+  )
+}
