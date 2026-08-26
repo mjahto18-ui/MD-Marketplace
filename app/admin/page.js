@@ -9,7 +9,7 @@ export default function AdminTest() {
 
   useEffect(() => {
     async function load() {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+      const url = process.env.SUPABASE_URL 
       const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY
 
       setEnvOk(`url: ${!!url} | key: ${!!key} | url value: ${url?.substring(0,20)}...`)
