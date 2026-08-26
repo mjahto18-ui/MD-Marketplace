@@ -126,7 +126,7 @@ export default function StoreDashboard(){
                       {p.Image? <img src={p.Image} style={{maxWidth:'100%', maxHeight:'100%', objectFit:'contain'}} /> : <span style={{opacity:0.3}}>لا صورة</span>}
                     </div>
                     <div style={{fontWeight:700, fontSize:12, marginTop:8, lineHeight:1.3, minHeight:32}}>{p['Product Name']}</div>
-                    <div style={{fontSize:10, opacity:0.6}}>{p.Unit} {p['Products_Base_ID']? `| قاعدة: ${p['Products_Base_ID']}`:''}</div>
+                    <div style={{fontSize:10, opacity:0.6}}>{p.Unit}</div>
                     <div style={{marginTop:6, display:'flex', alignItems:'center', justifyContent:'space-between'}}>
                       <div style={{fontWeight:900, fontSize:13}}>{Number(p.Price||0).toLocaleString('ar-LB')} ل.ل</div>
                       <button onClick={()=>setShowBarcode(s=>({...s, [p['Product ID']]:!s[p['Product ID']]}))} style={{background:'none', border:'none', cursor:'pointer', fontSize:16}}>👁️</button>
