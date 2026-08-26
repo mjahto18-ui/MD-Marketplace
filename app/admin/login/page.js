@@ -10,20 +10,22 @@ export default function AdminLogin(){
   const router = useRouter()
 
   const login = async ()=>{
-    setErr(""); setLoading(true)
-    try{
-      const res = await fetch('/api/admin/login',{
-        method:'POST', 
-        headers:{'Content-Type':'application/json'}, 
-        body:JSON.stringify({phone,pin})
-      })
-      const j = await res.json()
-      if(j.success){ 
-        router.push('/admin') 
-      } else setErr(j.message || "فشل الدخول")
-    }catch(e){ setErr("خطأ اتصال") }
-    setLoading(false)
-  }
+  setErr(""); setLoading(true)
+  try{
+    const res = await fetch('/api/admin/login',{
+      method:'POST', 
+      headers:{'Content-Type':'application/json'}, 
+      body:JSON.stringify({phone,pin})
+    })
+    const j = await res.json()
+    if(j.success){ 
+      if(j.role === 'Store Owner') router.push('/store')
+      else if(j.role === 'Driver') router.push('/driver')
+      else router.push('/admin')
+    } else setErr(j.message || "فشل الدخول")
+  }catch(e){ setErr("خطأ اتصال") }
+  setLoading(false)
+}
 
   return (
     <div style={{minHeight:'100vh', background:'#0a1930', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'sans-serif'}}>
