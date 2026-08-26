@@ -15,13 +15,26 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  // ===== حماية الأدمن - جديد =====
+  if (pathname.startsWith('/admin')) {
+    if (pathname.startsWith('/admin/login')) {
+      return NextResponse.next();
+    }
+    const adminSession = request.cookies.get('admin_session');
+    if (!adminSession) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+    // هون لاحقا بنفلتر حسب الرول محاسبة الخ
+    return NextResponse.next();
+  }
+  // ===== نهاية حماية الأدمن =====
+
   // صفحة الحداد - نفس المنطق تبعك بس مع cache 10 ثواني
-  // قبل كنت no-store يعني 0 ثواني، هلا 10 ثواني متل ما بدك
   if (pathname !== '/closed') {
     try {
       const baseUrl = request.nextUrl.origin;
       const res = await fetch(`${baseUrl}/api/global-config`, { 
-        next: { revalidate: 10 }, // <--- هون التصحيح: 10 ثواني مش 0
+        next: { revalidate: 10 },
         headers: { 'x-middleware': '1' }
       });
       if (res.ok) {
@@ -31,7 +44,6 @@ export async function middleware(request) {
         }
       }
     } catch {
-      // اذا فشل الشيت لا تقفل الموقع على العالم
     }
   }
 
@@ -44,7 +56,6 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // ضفنا /products و /shop للحماية - صار صمام الأمان الحقيقي
   const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout', '/products'];
   if (protectedRoutes.some(r => pathname.startsWith(r))) {
     const session = request.cookies.get('session');
