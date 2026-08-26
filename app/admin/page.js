@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 
 const TABLES_CONFIG = [
   { name: "MD_Global_Control", key: "key", label: "key" },
-  { name: "Messages", key: "Message ID", label: "Phone" },
+  { name: "messages", key: "Message ID", label: "Phone" },
   { name: "Protection Cases", key: "Case ID", label: "Case ID" },
   { name: "Broadcast", key: "Broadcast ID", label: "Broadcast ID" },
   { name: "Webhook", key: "Webhook ID", label: "Title", label2: "Image" },
@@ -12,7 +12,7 @@ const TABLES_CONFIG = [
   { name: "Notification Templates", key: "Notification ID", label: "Code" },
   { name: "GuestLogs", key: "Log Date", label: "Device Type" },
   { name: "Asceses", key: "_RowNumber", label: "Role", isDefaultKey: true },
-  { name: "Menu", key: "_RowNumber", label: "View", label2: "Photo", isDefaultKey: true },
+  { name: "menu", key: "_RowNumber", label: "View", label2: "Photo", isDefaultKey: true },
   { name: "Product_Base_Data", key: "Product ID", label: "Product Name" },
   { name: "Personas", key: "Name", label: "Name" },
   { name: "Customers", key: "Customer ID", label: "Name" },
