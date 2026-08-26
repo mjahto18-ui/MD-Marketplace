@@ -56,9 +56,7 @@ export default function AdminDashboard() {
   const loadTable = async (conf) => {
     if (!supabase) return
     setLoading(true); setSelected(conf); setEditRow(null)
-    // بدون order مشان ما يفشل
-    const { data, error } = await supabase.from(conf.name).select("*").limit(100)
-    if(error) console.log(error)
+    const { data } = await supabase.from(conf.name).select("*").limit(100)
     setData(data||[]); setLoading(false)
   }
   useEffect(()=>{ if(supabase) loadTable(selected) }, [supabase])
@@ -83,21 +81,9 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#08152b] text-white">
-      {/* شمال - الجداول - قياس ثابت */}
-      <div className="w- min-w- bg-[#0e2242] border-r border-white/10 flex flex-col">
-        <div className="p-4 font-black text-lg border-b border-white/10">MD Marketplace</div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {TABLES_CONFIG.map(t => (
-            <button key={t.name} onClick={()=>loadTable(t)} className={`w-full text-left px-3 py-2.5 rounded-md text- truncate ${selected.name===t.name?'bg-blue-600 text-white':'text-white/60 hover:bg-white/10'}`}>
-              {t.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* يمين - المحتوى - بياخد باقي العرض */}
+      {/* شمال - المحتوى 85% */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="p-4 border-b border-white/10 flex items-center gap-3 bg-[#0a1c38]">
+        <div className="p-4 border-b border-white/10 flex items-center gap-3 bg-[#0a1c38] sticky top-0 z-10">
           <h2 className="text-xl font-bold">{selected.name} <span className="text-white/40">({filtered.length})</span></h2>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث..." className="ml-6 bg-white/10 border border-white/10 rounded-lg px-4 py-2 text-sm w- outline-none"/>
           <div className="ml-auto flex gap-2">
@@ -106,22 +92,34 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 bg-[#08152b]">
-          {loading? <div className="text-white/50">جاري التحميل...</div> : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading? <div className="text-white/50 p-10">جاري التحميل...</div> : (
+            <div className="grid grid-cols-3 gap-4">
               {filtered.map((row,i)=>{
                 const img = row[selected.label2] || row['Image'] || row['Logo'] || row['Photo']
                 return (
                   <div key={i} onClick={()=>openEdit(row)} className="bg-white text-black rounded-xl p-4 shadow cursor-pointer hover:ring-2 hover:ring-blue-500">
-                    <div className="text- bg-black text-white px-2 py-1 rounded inline-block mb-2">{String(row[selected.key]||'').slice(0,20)}</div>
-                    <div className="font-bold truncate">{String(row[selected.label]||'(بدون)').slice(0,60)}</div>
+                    <div className="text- bg-black text-white px-2 py-1 rounded inline-block mb-2">{String(row[selected.key]||'').slice(0,18)}</div>
+                    <div className="font-bold truncate">{String(row[selected.label]||'(بدون)').slice(0,50)}</div>
                     {img?.startsWith('http') && <img src={img} className="w-full h-24 object-cover rounded mt-2"/>}
-                    <div className="text- text-gray-400 mt-2">اضغط للتعديل</div>
+                    <div className="text- text-gray-400 mt-2">تعديل / حذف</div>
                   </div>
                 )
               })}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* يمين - الجداول 15% بس */}
+      <div className="w- min-w- max-w- bg-[#0e2242] border-l border-white/10 flex flex-col h-screen sticky top-0">
+        <div className="p-4 font-black border-b border-white/10">MD Marketplace</div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {TABLES_CONFIG.map(t => (
+            <button key={t.name} onClick={()=>loadTable(t)} className={`w-full text-left px-3 py-2 rounded-md text- truncate ${selected.name===t.name?'bg-blue-600 text-white':'text-white/60 hover:bg-white/10'}`}>
+              {t.name}
+            </button>
+          ))}
         </div>
       </div>
 
