@@ -39,7 +39,7 @@ const TABLES_CONFIG = [
 
 export default function AdminDashboard() {
   const [supabase, setSupabase] = useState(null)
-  const [selected, setSelected] = useState(TABLES_CONFIG[12])
+  const [selected, setSelected] = useState(TABLES_CONFIG[13])
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
@@ -80,9 +80,9 @@ export default function AdminDashboard() {
   const filtered = data.filter(r =>!search || JSON.stringify(r).toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div className="min-h-screen bg-[#08152b] text-white flex flex-row">
-      {/* الجداول شمال */}
-      <div className="w- bg-[#0e2242] border-r border-white/10 p-3 overflow-y-auto h-screen sticky top-0">
+    <div className="min-h-screen bg-[#08152b] text-white flex">
+      {/* شمال = الجداول */}
+      <aside className="w- bg-[#0e2242] border-r border-white/10 p-3 overflow-y-auto h-screen sticky top-0 shrink-0">
         <h1 className="font-black text-xl mb-4">MD Marketplace</h1>
         <div className="space-y-1">
           {TABLES_CONFIG.map(t => (
@@ -91,44 +91,42 @@ export default function AdminDashboard() {
             </button>
           ))}
         </div>
-      </div>
+      </aside>
 
-      {/* المحتوى يمين */}
-      <div className="flex-1 p-6">
+      {/* يمين = المحتوى */}
+      <main className="flex-1 p-6 overflow-y-auto h-screen">
         <div className="flex items-center gap-3 mb-5">
           <h2 className="text-2xl font-bold">{selected.name} ({filtered.length})</h2>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`بحث بـ ${selected.label}...`} className="ml-6 bg-white/10 border border-white/10 rounded-lg px-4 py-2 text-sm w-80 outline-none"/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث..." className="ml-6 bg-white/10 border border-white/10 rounded-lg px-4 py-2 text-sm w-80 outline-none"/>
           <button onClick={openAdd} className="ml-auto bg-green-500 text-white px-5 py-2 rounded-lg text-sm font-bold">+ إضافة</button>
           <button onClick={()=>loadTable(selected)} className="bg-white text-black px-4 py-2 rounded-lg text-sm font-bold">Reload</button>
         </div>
 
         {loading? <p>جاري التحميل...</p> : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {filtered.map((row,i)=>{
-              const img = row[selected.label2] || row['Image'] || row['Logo'] || row['Photo'] || row['Image URL']
+              const img = row[selected.label2] || row['Image'] || row['Logo'] || row['Photo']
               return (
-                <div key={i} onClick={()=>openEdit(row)} className="bg-white text-gray-900 rounded-xl p-4 shadow cursor-pointer hover:ring-2 hover:ring-blue-500">
-                  <div className="text- bg-gray-900 text-white px-2 py-1 rounded inline-block">{String(row[selected.key]||'').slice(0,20)}</div>
-                  <div className="font-bold mt-2 truncate">{String(row[selected.label]||'(بدون عنوان)').slice(0,60)}</div>
-                  {img?.startsWith('http') && <img src={img} alt="" className="w-full h-28 object-cover rounded mt-2 bg-gray-100"/>}
+                <div key={i} onClick={()=>openEdit(row)} className="bg-white text-black rounded-xl p-4 cursor-pointer hover:ring-2 hover:ring-blue-500">
+                  <div className="text- bg-black text-white px-2 py-1 rounded inline-block">{String(row[selected.key]||'').slice(0,20)}</div>
+                  <div className="font-bold mt-2 truncate">{String(row[selected.label]||'').slice(0,60)}</div>
+                  {img?.startsWith('http') && <img src={img} className="w-full h-24 object-cover rounded mt-2"/>}
                   <div className="text- text-gray-500 mt-2">اضغط للتعديل / حذف</div>
                 </div>
               )
             })}
           </div>
         )}
-      </div>
+      </main>
 
       {editRow && (
         <div className="fixed inset-0 bg-black/60 flex justify-end z-50">
           <div className="w- bg-white text-black h-screen overflow-y-auto p-6">
-            <div className="flex justify-between mb-4"><h3 className="font-bold text-lg">{isAdding?'إضافة':'تعديل'} - {selected.name}</h3><button onClick={()=>setEditRow(null)} className="bg-gray-100 px-3 py-1 rounded">X</button></div>
-            <div className="space-y-3">
-              {Object.keys(formData).map(k=>(
-                <div key={k}><label className="text- font-bold text-gray-500">{k}</label>
-                <textarea value={formData[k]||''} onChange={e=>setFormData({...formData,[k]:e.target.value})} className="w-full border rounded-lg p-2 text-sm" rows={2}/></div>
-              ))}
-            </div>
+            <div className="flex justify-between mb-4"><h3 className="font-bold">{isAdding?'إضافة':'تعديل'} - {selected.name}</h3><button onClick={()=>setEditRow(null)} className="bg-gray-100 px-3 py-1 rounded">X</button></div>
+            {Object.keys(formData).map(k=>(
+              <div key={k} className="mb-3"><label className="text- font-bold text-gray-500">{k}</label>
+              <textarea value={formData[k]||''} onChange={e=>setFormData({...formData,[k]:e.target.value})} className="w-full border rounded-lg p-2 text-sm" rows={2}/></div>
+            ))}
             <div className="flex gap-2 mt-6">
               <button onClick={handleSave} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">{isAdding?'إضافة':'حفظ'}</button>
               {!isAdding && <button onClick={handleDelete} className="bg-red-600 text-white px-6 py-3 rounded-xl">حذف</button>}
