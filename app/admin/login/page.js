@@ -19,8 +19,8 @@ export default function AdminLogin(){
     })
     const j = await res.json()
     if(j.success){ 
-      if(j.role === 'Store Owner') router.push('/store')
-      else if(j.role === 'Driver') router.push('/driver')
+      if(j.role === 'Store Owner') router.push('/store-owner')
+      else if(j.role === 'Driver') router.push('/driver-owner')
       else router.push('/admin')
     } else setErr(j.message || "فشل الدخول")
   }catch(e){ setErr("خطأ اتصال") }
