@@ -26,7 +26,6 @@ export default function StoreDashboard(){
       setStore(storeData)
       const { data: prodData } = await supabase.from('products').select('*').eq('Store ID', me.storeId).limit(100)
       setProducts(prodData||[])
-      
       if(prodData?.length){
         const pIds = prodData.map(p=>p['Product ID'])
         const { data: orderDet } = await supabase.from('order_details').select('*').in('Product ID', pIds).limit(100)
@@ -38,42 +37,52 @@ export default function StoreDashboard(){
   },[supabase, me])
 
   const logout = async ()=>{ await fetch('/api/admin/logout',{method:'POST'}); window.location.href='/admin/login' }
-
   if(!me) return <div style={{padding:20, background:'#0a1930', color:'white', minHeight:'100vh'}}>تحميل...</div>
-  if(me.role!=='Store Owner' && me.role!=='Admin') { window.location.href='/admin/login'; return null }
 
   return (
     <div style={{minHeight:'100vh', background:'#0a1930', color:'white', fontFamily:'sans-serif'}}>
-      <div style={{padding:'14px 20px', display:'flex', justifyContent:'space-between', background:'#0e2242', borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
-        <div><b>{store?.['Store Name'] || 'متجري'}</b> <span style={{opacity:0.5, fontSize:12, marginLeft:8}}>{me.storeId}</span></div>
-        <button onClick={logout} style={{background:'rgba(239,68,68,0.15)', color:'#fca5a5', border:'1px solid rgba(239,68,68,0.3)', padding:'6px 12px', borderRadius:'8px'}}>Logout</button>
-      </div>
-
-      <div style={{display:'flex', gap:8, padding:12}}>
-        <button onClick={()=>setTab('products')} style={{padding:'8px 16px', borderRadius:8, background: tab==='products'?'#2563eb':'rgba(255,255,255,0.08)'}}>منتجاتي ({products.length})</button>
-        <button onClick={()=>setTab('orders')} style={{padding:'8px 16px', borderRadius:8, background: tab==='orders'?'#2563eb':'rgba(255,255,255,0.08)'}}>طلبات متجري ({orders.length})</button>
-        <button onClick={()=>setTab('store')} style={{padding:'8px 16px', borderRadius:8, background: tab==='store'?'#2563eb':'rgba(255,255,255,0.08)'}}>معلومات المتجر</button>
-      </div>
-
-      <div style={{padding:12}}>
-        {loading? 'تحميل...' : tab==='products' && (
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:12}}>
-            {products.map(p=>(
-              <div key={p.supa_id} style={{background:'#f3f1ec', color:'#1a1a1a', borderRadius:12, padding:12}}>
-                <div style={{fontWeight:'bold'}}>{p['Product Name']}</div>
-                <div style={{fontSize:12, opacity:0.6}}>{p['Product ID']}</div>
-                <div style={{marginTop:8, fontWeight:'bold'}}>{p.Price || p.price}</div>
-              </div>
-            ))}
+      {/* هيدر responsive */}
+      <div style={{background:'#0e2242', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'10px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, position:'sticky', top:0, zIndex:10}}>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          <img src="/logo.png" alt="logo" style={{height:32, width:'auto'}} />
+          <div>
+            <div style={{fontWeight:'900', fontSize:15}}>أهلاً {me.name}</div>
+            <div style={{fontSize:11, opacity:0.7}}>اختصاص: {me.role} {store?.['Store Name'] ? ` - ${store['Store Name']}` : ''}</div>
           </div>
-        )}
-        {tab==='orders' && (
-          <table style={{width:'100%', background:'#f3f1ec', color:'#1a1a1a', borderRadius:10, fontSize:13}}>
-            <thead style={{background:'#0e2242', color:'white'}}><tr><th style={{padding:10}}>Product ID</th><th>Detail ID</th><th>Qty</th></tr></thead>
-            <tbody>{orders.map(o=><tr key={o.supa_id} style={{borderBottom:'1px solid #e5ddd1'}}><td style={{padding:10}}>{o['Product ID']}</td><td>{o['Detail ID']}</td><td>{o.Quantity || o.Qty}</td></tr>)}</tbody>
-          </table>
-        )}
-        {tab==='store' && <pre style={{background:'#f3f1ec', color:'#1a1a1a', padding:16, borderRadius:10}}>{JSON.stringify(store,null,2)}</pre>}
+        </div>
+        <button onClick={logout} style={{background:'rgba(239,68,68,0.15)', color:'#fca5a5', border:'1px solid rgba(239,68,68,0.3)', padding:'7px 14px', borderRadius:10, fontSize:13}}>خروج</button>
+      </div>
+
+      <div style={{maxWidth:1100, margin:'0 auto', width:'100%'}}>
+        <div style={{display:'flex', gap:8, padding:12, overflowX:'auto'}}>
+          <button onClick={()=>setTab('products')} style={{whiteSpace:'nowrap', padding:'9px 16px', borderRadius:10, border:'none', background: tab==='products'?'#2563eb':'rgba(255,255,255,0.08)', color:'white', fontSize:13}}>منتجاتي ({products.length})</button>
+          <button onClick={()=>setTab('orders')} style={{whiteSpace:'nowrap', padding:'9px 16px', borderRadius:10, border:'none', background: tab==='orders'?'#2563eb':'rgba(255,255,255,0.08)', color:'white', fontSize:13}}>طلبات متجري ({orders.length})</button>
+          <button onClick={()=>setTab('store')} style={{whiteSpace:'nowrap', padding:'9px 16px', borderRadius:10, border:'none', background: tab==='store'?'#2563eb':'rgba(255,255,255,0.08)', color:'white', fontSize:13}}>المتجر</button>
+        </div>
+
+        <div style={{padding:12}}>
+          {loading? <div style={{textAlign:'center', marginTop:40, opacity:0.6}}>تحميل...</div> : tab==='products' && (
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:12}}>
+              {products.map(p=>(
+                <div key={p.supa_id} style={{background:'#f3f1ec', color:'#1a1a1a', borderRadius:14, padding:12}}>
+                  <div style={{fontWeight:'bold', fontSize:13}}>{p['Product Name']}</div>
+                  <div style={{marginTop:8, fontWeight:'900'}}>{p.Price || p.price}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {tab==='orders' && (
+            <div style={{background:'#f3f1ec', borderRadius:12, overflow:'hidden'}}>
+              <div style={{overflowX:'auto'}}>
+                <table style={{width:'100%', color:'#1a1a1a', fontSize:13, minWidth:400}}>
+                  <thead style={{background:'#0e2242', color:'white'}}><tr><th style={{padding:10, textAlign:'right'}}>Product</th><th>Qty</th></tr></thead>
+                  <tbody>{orders.map(o=><tr key={o.supa_id} style={{borderBottom:'1px solid #e5ddd1'}}><td style={{padding:10}}>{o['Product ID']}</td><td>{o.Quantity || o.Qty}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {tab==='store' && <div style={{background:'#f3f1ec', color:'#1a1a1a', padding:16, borderRadius:12, fontSize:13}}>{store?.['Store Name']}<br/>{store?.Area}</div>}
+        </div>
       </div>
     </div>
   )
