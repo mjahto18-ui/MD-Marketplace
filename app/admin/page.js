@@ -77,19 +77,26 @@ export default function AdminDashboard() {
     if(!error){ setEditRow(null); loadTable(selected) }
   }
 
+  const handleLogout = async () => {
+    await fetch('/api/admin/logout', { method: 'POST' })
+    window.location.href = '/admin/login'
+  }
+
   const filtered = data.filter(r =>!search || JSON.stringify(r).toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div style={{display:'flex', minHeight:'100vh', background:'#0a1930', color:'white'}}>
       {/* المحتوى شمال - 85% */}
       <div style={{flex:1, display:'flex', flexDirection:'column', minWidth:0, background:'#0a1930'}}>
-        <div style={{padding:'10px 16px', display:'flex', gap:'12px', alignItems:'center', background:'#0a1930'}}>
+        <div style={{padding:'10px 16px', display:'flex', gap:'12px', alignItems:'center', background:'#0a1930', borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
           <div style={{fontWeight:'bold'}}>MD Marketplace (32)</div>
           <div style={{marginLeft:'auto', display:'flex', gap:'8px', alignItems:'center'}}>
             <button onClick={()=>loadTable(selected)} style={{background:'white', color:'black', padding:'6px 14px', borderRadius:'8px', fontSize:'12px'}}>Reload</button>
             <button onClick={openAdd} style={{background:'#22c55e', color:'white', padding:'6px 14px', borderRadius:'8px', fontSize:'12px', fontWeight:'bold'}}>+ إضافة</button>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث..." style={{background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'8px', padding:'6px 12px', width:'160px', color:'white', fontSize:'12px'}}/>
             <div style={{fontSize:'12px', opacity:0.7}}>{selected.name} ({filtered.length})</div>
+            <div style={{width:'1px', height:'20px', background:'rgba(255,255,255,0.15)', margin:'0 4px'}}></div>
+            <button onClick={handleLogout} style={{background:'rgba(239,68,68,0.15)', color:'#fca5a5', border:'1px solid rgba(239,68,68,0.3)', padding:'6px 12px', borderRadius:'8px', fontSize:'12px', fontWeight:'bold', cursor:'pointer'}}>Logout</button>
           </div>
         </div>
 
