@@ -39,7 +39,7 @@ const TABLES_CONFIG = [
 
 export default function AdminDashboard() {
   const [supabase, setSupabase] = useState(null)
-  const [selected, setSelected] = useState(TABLES_CONFIG[13])
+  const [selected, setSelected] = useState(TABLES_CONFIG[8])
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
@@ -48,7 +48,7 @@ export default function AdminDashboard() {
   const [formData, setFormData] = useState({})
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1/','').replace(/\/$/,'')
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     if (url && key) setSupabase(createClient(url, key))
   }, [])
@@ -56,7 +56,8 @@ export default function AdminDashboard() {
   const loadTable = async (conf) => {
     if (!supabase) return
     setLoading(true); setSelected(conf); setEditRow(null)
-    const { data } = await supabase.from(conf.name).select("*").limit(100)
+    const { data, error } = await supabase.from(conf.name).select("*").limit(100)
+    if(error) alert(error.message)
     setData(data||[]); setLoading(false)
   }
   useEffect(()=>{ if(supabase) loadTable(selected) }, [supabase])
@@ -80,59 +81,60 @@ export default function AdminDashboard() {
   const filtered = data.filter(r =>!search || JSON.stringify(r).toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div className="flex min-h-screen bg-[#08152b] text-white">
-      {/* شمال - المحتوى 85% */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="p-4 border-b border-white/10 flex items-center gap-3 bg-[#0a1c38] sticky top-0 z-10">
-          <h2 className="text-xl font-bold">{selected.name} <span className="text-white/40">({filtered.length})</span></h2>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث..." className="ml-6 bg-white/10 border border-white/10 rounded-lg px-4 py-2 text-sm w- outline-none"/>
-          <div className="ml-auto flex gap-2">
-            <button onClick={openAdd} className="bg-green-500 px-4 py-2 rounded-lg text-sm font-bold">+ إضافة</button>
-            <button onClick={()=>loadTable(selected)} className="bg-white text-black px-4 py-2 rounded-lg text-sm font-bold">Reload</button>
+    <div style={{display:'flex', minHeight:'100vh', background:'#08152b', color:'white'}}>
+      {/* المحتوى - 85% شمال */}
+      <div style={{flex:1, display:'flex', flexDirection:'column', minWidth:0}}>
+        <div style={{padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.1)', background:'#0a1c38', display:'flex', gap:'12px', alignItems:'center'}}>
+          <h2 style={{fontWeight:'bold'}}>{selected.name} ({filtered.length})</h2>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث..." style={{marginLeft:'20px', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'6px 12px', width:'240px', color:'white'}}/>
+          <div style={{marginLeft:'auto', display:'flex', gap:'8px'}}>
+            <button onClick={openAdd} style={{background:'#22c55e', padding:'6px 12px', borderRadius:'8px', fontWeight:'bold'}}> + إضافة </button>
+            <button onClick={()=>loadTable(selected)} style={{background:'white', color:'black', padding:'6px 12px', borderRadius:'8px'}}>Reload</button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          {loading? <div className="text-white/50 p-10">جاري التحميل...</div> : (
-            <div className="grid grid-cols-3 gap-4">
-              {filtered.map((row,i)=>{
-                const img = row[selected.label2] || row['Image'] || row['Logo'] || row['Photo']
-                return (
-                  <div key={i} onClick={()=>openEdit(row)} className="bg-white text-black rounded-xl p-4 shadow cursor-pointer hover:ring-2 hover:ring-blue-500">
-                    <div className="text- bg-black text-white px-2 py-1 rounded inline-block mb-2">{String(row[selected.key]||'').slice(0,18)}</div>
-                    <div className="font-bold truncate">{String(row[selected.label]||'(بدون)').slice(0,50)}</div>
-                    {img?.startsWith('http') && <img src={img} className="w-full h-24 object-cover rounded mt-2"/>}
-                    <div className="text- text-gray-400 mt-2">تعديل / حذف</div>
-                  </div>
-                )
-              })}
-            </div>
+        <div style={{flex:1, overflow:'auto', padding:'12px'}}>
+          {loading? <div>تحميل...</div> : (
+            <table style={{width:'100%', background:'white', color:'black', borderRadius:'12px', overflow:'hidden', fontSize:'13px'}}>
+              <thead style={{background:'#0e2242', color:'white'}}><tr><th style={{padding:'10px', textAlign:'left'}}>{selected.key}</th><th style={{padding:'10px', textAlign:'left'}}>{selected.label}</th><th style={{padding:'10px'}}>صورة</th><th style={{padding:'10px'}}>اجراء</th></tr></thead>
+              <tbody>
+                {filtered.map((row,i)=>{
+                  const img = row[selected.label2] || row['Image'] || row['Logo'] || row['Photo']
+                  return (
+                    <tr key={i} style={{borderBottom:'1px solid #eee'}}>
+                      <td style={{padding:'8px'}}>{String(row[selected.key]||'').slice(0,25)}</td>
+                      <td style={{padding:'8px', fontWeight:'bold'}}>{String(row[selected.label]||'').slice(0,60)}</td>
+                      <td style={{padding:'8px'}}>{img?.startsWith('http')? <img src={img} style={{width:'40px', height:'40px', objectFit:'cover', borderRadius:'6px'}}/> : ''}</td>
+                      <td style={{padding:'8px'}}><button onClick={()=>openEdit(row)} style={{background:'#2563eb', color:'white', padding:'4px 10px', borderRadius:'6px'}}>تعديل</button></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
 
-      {/* يمين - الجداول 15% بس */}
-      <div className="w- min-w- max-w- bg-[#0e2242] border-l border-white/10 flex flex-col h-screen sticky top-0">
-        <div className="p-4 font-black border-b border-white/10">MD Marketplace</div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {TABLES_CONFIG.map(t => (
-            <button key={t.name} onClick={()=>loadTable(t)} className={`w-full text-left px-3 py-2 rounded-md text- truncate ${selected.name===t.name?'bg-blue-600 text-white':'text-white/60 hover:bg-white/10'}`}>
-              {t.name}
-            </button>
+      {/* الجداول - 15% يمين ثابت */}
+      <div style={{width:'220px', minWidth:'220px', background:'#0e2242', borderLeft:'1px solid rgba(255,255,255,0.1)', height:'100vh', position:'sticky', top:0, overflowY:'auto'}}>
+        <div style={{padding:'14px', fontWeight:'900', borderBottom:'1px solid rgba(255,255,255,0.1)'}}>MD Marketplace ({TABLES_CONFIG.length})</div>
+        <div style={{padding:'8px'}}>
+          {TABLES_CONFIG.map(t=>(
+            <button key={t.name} onClick={()=>loadTable(t)} style={{width:'100%', textAlign:'left', padding:'8px 10px', borderRadius:'6px', fontSize:'12px', background: selected.name===t.name?'#2563eb':'transparent', color: selected.name===t.name?'white':'rgba(255,255,255,0.6)', marginBottom:'2px', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{t.name}</button>
           ))}
         </div>
       </div>
 
       {editRow && (
-        <div className="fixed inset-0 bg-black/60 flex justify-end z-50">
-          <div className="w- bg-white text-black h-full overflow-y-auto p-6">
-            <div className="flex justify-between mb-4"><h3 className="font-bold">{isAdding?'إضافة':'تعديل'}</h3><button onClick={()=>setEditRow(null)} className="bg-gray-100 px-3 py-1 rounded">X</button></div>
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', justifyContent:'flex-end', zIndex:50}}>
+          <div style={{width:'460px', background:'white', color:'black', height:'100vh', overflowY:'auto', padding:'20px'}}>
+            <div style={{display:'flex', justifyContent:'space-between', marginBottom:'16px'}}><h3 style={{fontWeight:'bold'}}>{isAdding?'إضافة':'تعديل'} - {selected.name}</h3><button onClick={()=>setEditRow(null)} style={{background:'#f3f4f6', padding:'4px 10px', borderRadius:'6px'}}>X</button></div>
             {Object.keys(formData).map(k=>(
-              <div key={k} className="mb-3"><label className="text- font-bold text-gray-500">{k}</label><textarea value={formData[k]||''} onChange={e=>setFormData({...formData,[k]:e.target.value})} className="w-full border rounded p-2 text-sm" rows={2}/></div>
+              <div key={k} style={{marginBottom:'10px'}}><label style={{fontSize:'11px', fontWeight:'bold', color:'#6b7280'}}>{k}</label><textarea value={formData[k]||''} onChange={e=>setFormData({...formData,[k]:e.target.value})} style={{width:'100%', border:'1px solid #ddd', borderRadius:'6px', padding:'6px', fontSize:'13px'}} rows={2}/></div>
             ))}
-            <div className="flex gap-2 mt-6">
-              <button onClick={handleSave} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">حفظ</button>
-              {!isAdding && <button onClick={handleDelete} className="bg-red-600 text-white px-6 py-3 rounded-xl">حذف</button>}
+            <div style={{display:'flex', gap:'8px', marginTop:'20px'}}>
+              <button onClick={handleSave} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:'12px', fontWeight:'bold'}}>حفظ</button>
+              {!isAdding && <button onClick={handleDelete} style={{background:'#dc2626', color:'white', padding:'12px 20px', borderRadius:'12px'}}>حذف</button>}
             </div>
           </div>
         </div>
