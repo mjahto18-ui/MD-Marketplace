@@ -163,22 +163,37 @@ export default function StoreDashboard(){
           )}
 
           {tab==='add' && (
-            <div style={{background:'#f3f1ec', color:'#1a1a1a', padding:14, borderRadius:12}}>
-              <div style={{fontWeight:900, marginBottom:10}}>إضافة منتجات - Active FALSE للمراجعة</div>
-              {newProds.map((np,i)=>(
-                <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 70px 100px 1fr', gap:6, marginBottom:8}}>
-                  <input placeholder="اسم" value={np.name} onChange={e=>{const c=[...newProds]; c[i].name=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
-                  <input placeholder="وحدة" value={np.unit} onChange={e=>{const c=[...newProds]; c[i].unit=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
-                  <input placeholder="سعر ل.ل" value={np.price} onChange={e=>{const c=[...newProds]; c[i].price=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
-                  <input placeholder="رابط الصورة" value={np.image} onChange={e=>{const c=[...newProds]; c[i].image=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
-                </div>
-              ))}
-              <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:''}])} style={{padding:'6px 12px', borderRadius:8, border:'1px solid #ccc'}}> + منتج</button>
-              <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, border:'none', background:'#2563eb', color:'white', marginLeft:8}}>إرسال للمراجعة</button>
-            </div>
-          )}
+  <div style={{background:'#f3f1ec', color:'#1a1a1a', padding:14, borderRadius:12}}>
+    <div style={{fontWeight:900, marginBottom:10}}>إضافة منتجات - Active FALSE للمراجعة</div>
+    {newProds.map((np,i)=>(
+      <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 70px 100px 1fr', gap:6, marginBottom:8}}>
+        <input placeholder="اسم" value={np.name} onChange={e=>{const c=[...newProds]; c[i].name=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
+        <input placeholder="وحدة" value={np.unit} onChange={e=>{const c=[...newProds]; c[i].unit=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
+        <input placeholder="سعر ل.ل" value={np.price} onChange={e=>{const c=[...newProds]; c[i].price=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
+        <input placeholder="رابط الصورة" value={np.image} onChange={e=>{const c=[...newProds]; c[i].image=e.target.value; setNewProds(c)}} style={{padding:8, borderRadius:8, border:'1px solid #ccc'}} />
+      </div>
+    ))}
+    <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:''}])} style={{padding:'6px 12px', borderRadius:8, border:'1px solid #ccc'}}> + منتج</button>
+    <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, border:'none', background:'#2563eb', color:'white', marginLeft:8}}>إرسال للمراجعة</button>
+
+    <div style={{marginTop:20, borderTop:'1px solid #ddd', paddingTop:14}}>
+      <div style={{fontWeight:900, fontSize:14, marginBottom:8}}>طلب تغيير سعر - بيتغير دغري</div>
+      <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+        <input placeholder="كود المنتج / باركود" value={priceReq.code} onChange={e=>setPriceReq({...priceReq, code:e.target.value})} style={{padding:10, borderRadius:8, border:'1px solid #ccc', flex:1, minWidth:140}} />
+        <div style={{padding:'10px 12px', background:'#e5e7eb', borderRadius:8, fontSize:13, minWidth:130}}>
+          قديم: {products.find(p=>p['Product ID']===priceReq.code)?.Price? Number(products.find(p=>p['Product ID']===priceReq.code).Price).toLocaleString() + ' ل.ل' : '-'}
         </div>
+        <input placeholder="سعر جديد ل.ل" value={priceReq.newPrice} onChange={e=>setPriceReq({...priceReq, newPrice:e.target.value})} style={{padding:10, borderRadius:8, border:'1px solid #ccc', width:130}} />
+        <button onClick={async()=>{
+          const prod = products.find(p=>p['Product ID']===priceReq.code)
+          if(!prod) return alert('كود غلط - مش موجود بمتجرك')
+          if(!priceReq.newPrice) return alert('حط السعر الجديد')
+          const { error } = await supabase.from('products').update({Price: priceReq.newPrice}).eq('Product ID', priceReq.code)
+          if(error) return alert(error.message)
+          setProducts(prev=>prev.map(x=> x['Product ID']===priceReq.code? {...x, Price: priceReq.newPrice}:x))
+          setPriceReq({code:'', newPrice:''})
+        }} style={{padding:'10px 16px', borderRadius:8, background:'#16a34a', color:'white', border:'none', fontWeight:700}}>موافق</button>
       </div>
     </div>
-  )
-}
+  </div>
+)}
