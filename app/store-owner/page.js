@@ -151,8 +151,13 @@ export default function StoreDashboard(){
                           <span>طلب #{r['Request ID']}</span><span style={{background:'#fde68a', padding:'2px 8px', borderRadius:6}}>{r['Approval Status']}</span>
                         </div>
                         <div style={{fontSize:11, opacity:0.7, marginTop:4}}>{r['Cerated Date']} - {r['Delivery Adress']}</div>
-                        <div style={{marginTop:8, fontSize:12}}>{items.map(it=> <div key={it['Detail ID']}>• كمية {it.Qty} بسعر {Number(it['Unit Price']||0).toLocaleString()} ل.ل - {it['Product ID']}</div>)}</div>
-                      </div>
+                        <div style={{marginTop:8, fontSize:12}}>
+                        {items.map(it=> {
+                         const prod = products.find(p=> String(p['Product ID'])===String(it['Product ID']))
+                        return <div key={it['Detail ID']}>• {prod?.['Product Name'] || it['Product ID']} - كمية {it.Qty} بسعر {Number(it['Unit Price']||0).toLocaleString()} ل.ل</div>
+                      })}
+                     </div>
+                    </div>
                     )
                   })}
                 </div>
