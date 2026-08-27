@@ -314,22 +314,38 @@ export default function DriverDashboard(){
                 </div>
 
                 {(() => {
-                  const storeWithLoc = storeIds.map(sid => storesMap[sid] || storesMap[sid.toLowerCase()]).find(s => s && s['Current Latitude'] && s['Current Longitude'])
-                  const sLat = storeWithLoc? parseFloat(storeWithLoc['Current Latitude']) : null
-                  const sLng = storeWithLoc? parseFloat(storeWithLoc['Current Longitude']) : null
-                  const cLat = r['Customer Latitude']? parseFloat(r['Customer Latitude']) : null
-                  const cLng = r['Customer Longitude']? parseFloat(r['Customer Longitude']) : null
-                  if(!sLat &&!cLat) return null
-                  return (
-                    <>
-                      <div style={{height:280, marginTop:10, borderRadius:12, overflow:'hidden', border:'1px solid #ccc'}}>
-                        <DriverMap storeLat={sLat} storeLng={sLng} customerLat={cLat} customerLng={cLng} driverLat={myLocation?.lat} driverLng={myLocation?.lng} onSelectPoint={setSelectedPoint} />
-                      </div>
-                      <button onClick={openGoogleMaps} style={{marginTop:8, width:'100%', background: selectedPoint? '#111' : '#999', color:'white', padding:10, borderRadius:10, fontWeight:900}}>{selectedPoint? `🧭 تنقل إلى ${selectedPoint.label}` : 'اختار نقطة على الخريطة للتنقل'}</button>
-                    </>
-                  )
-                })()}
-              </>}
+  const stores = storeIds
+  .map(sid => storesMap[sid] || storesMap[sid.toLowerCase()])
+  .filter(s => s && s['Current Latitude'] && s['Current Longitude'])
+  .map(s => ({
+      lat: parseFloat(s['Current Latitude']),
+      lng: parseFloat(s['Current Longitude']),
+      name: s['Store Name'] || 'متجر'
+    }))
+
+  const cLat = r['Customer Latitude']? parseFloat(r['Customer Latitude']) : null
+  const cLng = r['Customer Longitude']? parseFloat(r['Customer Longitude']) : null
+
+  if(stores.length===0 &&!cLat) return <div style={{padding:10, textAlign:'center', background:'white', borderRadius:10, marginTop:10, color:'#999'}}>لا يوجد موقع متجر او زبون</div>
+
+  return (
+    <>
+      <div style={{height:320, marginTop:10, borderRadius:12, overflow:'hidden', border:'1px solid #ccc'}}>
+        <DriverMap
+          stores={stores}
+          customerLat={cLat}
+          customerLng={cLng}
+          driverLat={myLocation?.lat}
+          driverLng={myLocation?.lng}
+          onSelectPoint={setSelectedPoint}
+        />
+      </div>
+      <button onClick={openGoogleMaps} style={{marginTop:8, width:'100%', background: selectedPoint? '#111' : '#999', color:'white', padding:10, borderRadius:10, fontWeight:900}}>
+        {selectedPoint? `🧭 تنقل إلى ${selectedPoint.label}` : 'اختار نقطة على الخريطة للتنقل'}
+      </button>
+    </>
+  )
+})()}
 
               <div style={{display:'flex', gap:8, marginTop:10}}>
                 {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>استلام - Pickup</button>}
