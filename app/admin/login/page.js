@@ -31,7 +31,7 @@ export default function AdminLogin(){
     <div style={{minHeight:'100vh', background:'#0a1930', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'sans-serif'}}>
       <div style={{background:'#0e2242', padding:'32px', borderRadius:'16px', width:'380px', border:'1px solid rgba(255,255,255,0.1)', boxShadow:'0 20px 50px rgba(0,0,0,0.5)'}}>
         <h1 style={{fontWeight:'900', fontSize:'22px', color:'white', marginBottom:'6px'}}>MD Marketplace</h1>
-        <div style={{color:'rgba(255,255,255,0.5)', fontSize:'13px', marginBottom:'24px'}}>للأعمال الإدارية فقط - للصلاحيات فقط</div>
+        <div style={{color:'rgba(255,255,255,0.5)', fontSize:'13px', marginBottom:'24px'}}>للأعمال الإدارية فقط   </div>
         
         <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Mobile - مثال: 03123456" style={{width:'100%', padding:'12px 14px', borderRadius:'10px', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', color:'white', marginBottom:'12px', outline:'none'}}/>
         <input value={pin} onChange={e=>setPin(e.target.value)} type="password" placeholder="PIN - مثال: xxxx" style={{width:'100%', padding:'12px 14px', borderRadius:'10px', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', color:'white', marginBottom:'16px', outline:'none'}}/>
