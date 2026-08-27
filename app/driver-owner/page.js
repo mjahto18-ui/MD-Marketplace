@@ -328,13 +328,16 @@ export default function DriverDashboard(){
                     )
                   })()}
                 </>
-              }
+             )}
 
               <div style={{display:'flex', gap:8, marginTop:10}}>
-                {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>استلام - Pickup</button>}
-                {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>الانتقال الى الزبون {timers[r['Request ID']]!==undefined? `- ${formatTimer(timers[r['Request ID']])}` : ''}</button>}
-                {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setCollected(''); setDriverNote(''); setPaymentMethod(r['Final Payment Method']||'Cash'); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>تأكيد الدفع</button>}
-              </div>
+  {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>استلام - Pickup</button>}
+  {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>الانتقال الى الزبون {timers[r['Request ID']]!==undefined? `- ${formatTimer(timers[r['Request ID']])}` : ''}</button>}
+  {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setCollected(''); setDriverNote(''); setPaymentMethod(r['Final Payment Method']||'Cash'); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>تأكيد الدفع</button>}
+</div>
+</div> // هاد قفلة كرت الاوردر
+))} // هاد قفلة الـ map
+</div> // هاد قفلة الـ container
 
       {showConfirm && (
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
