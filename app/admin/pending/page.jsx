@@ -13,17 +13,21 @@ export default function PendingPage(){
   },[])
 
   // السائقين الاونلاين من Supabase - جدول Drivers
-  useEffect(()=>{
-    const load = async()=>{
-      const res = await fetch('/api/admin/online-drivers')
-      const data = await res.json()
-      setDrivers(data)
-    }
-    load()
-    const i = setInterval(load, 5000) // لايف كل 5 ثواني
-    return ()=>clearInterval(i)
-  },[])
-
+ useEffect(()=>{
+  const load = async()=>{
+    // جيبهن مباشر - ما بدنا API
+    const { createClient } = await import('@supabase/supabase-js')
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,''),
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    )
+    const { data } = await sb.from('drivers').select('*').not('"Current Latitude"', 'is', null)
+    setDrivers(data||[])
+  }
+  load()
+  const i = setInterval(load, 5000)
+  return ()=>clearInterval(i)
+},[])
   const handleAssign = async(driver)=>{
     await fetch('/api/admin/assign-driver', {
       method:'POST',
