@@ -8,7 +8,7 @@ const supabase = createClient(
 export async function GET(){
   try {
     const { data: orders, error } = await supabase
-      .from('Order Requuest')
+      .from('order_requuest')
       .select(`"Request ID", "Customer ID", "Mobile", "Customer Latitude", "Customer Longitude", "Approval Status", "Assigned Driver"`)
       .eq('"Approval Status"', 'Pending')
 
@@ -23,7 +23,7 @@ export async function GET(){
     let usersMap = {}
     if(customerIds.length > 0){
       const { data: users } = await supabase
-        .from('Users')
+        .from('users')
         .select(`"Customer ID", "Name"`)
         .in('"Customer ID"', customerIds)
       
