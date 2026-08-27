@@ -1,7 +1,8 @@
 "use client";
-import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { useEffect } from 'react';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -10,34 +11,50 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// ايقونة السائق - موتوسيكل
 const driverIcon = new L.Icon({
   iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
   iconSize: [35, 35],
   iconAnchor: [17, 35],
 });
 
-export default function Map({ lat, lng, customerLat, customerLng, driverLat, driverLng }) {
-  // اذا اجت customerLat يعني خريطة الطلب الحالي، اذا لا يعني الخريطة الثابتة
-  const cLat = parseFloat(customerLat || lat);
-  const cLng = parseFloat(customerLng || lng);
-  const dLat = parseFloat(driverLat);
-  const dLng = parseFloat(driverLng);
+// هون التفصيل - اذا اجا "33.89,35.50" بيفصلو لحالو
+function parsePos(lat, lng, fallbackLat, fallbackLng){
+  // اذا lat فيها فاصلة يعني مجموع
+  if(typeof lat === 'string' && lat.includes(',')){
+    const [a,b] = lat.split(',').map(s=>parseFloat(s.trim()))
+    return [a,b]
+  }
+  if(typeof lng === 'string' && lng.includes(',')){
+    const [a,b] = lng.split(',').map(s=>parseFloat(s.trim()))
+    return [a,b]
+  }
+  const cLat = parseFloat(lat || fallbackLat)
+  const cLng = parseFloat(lng || fallbackLng)
+  return [cLat, cLng]
+}
 
-  const hasDriver = driverLat && driverLng && !isNaN(dLat) && !isNaN(dLng);
-  
-  // اذا في سائق، خلي السنتر بالنص بين الاتنين
+function AutoFollow({ cLat, cLng, dLat, dLng, hasDriver }){
+  const map = useMap();
+  useEffect(()=>{
+    if(!hasDriver || isNaN(dLat) || isNaN(cLat)) return;
+    map.fitBounds([[cLat, cLng], [dLat, dLng]], { padding: [80,80] });
+  }, [dLat, dLng, cLat, cLng, hasDriver, map]);
+  return null;
+}
+
+export default function Map({ lat, lng, customerLat, customerLng, driverLat, driverLng }) {
+  const [cLat, cLng] = parsePos(customerLat, customerLng, lat, lng)
+  const [dLat, dLng] = parsePos(driverLat, driverLng, null, null)
+
+  const hasDriver = driverLat && !isNaN(dLat) && !isNaN(dLng);
   const center = hasDriver ? [(cLat + dLat) / 2, (cLng + dLng) / 2] : [cLat, cLng];
   const zoom = hasDriver ? 13 : 15;
 
   return (
     <MapContainer center={center} zoom={zoom} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      
-      {/* ماركر العميل */}
+      <AutoFollow cLat={cLat} cLng={cLng} dLat={dLat} dLng={dLng} hasDriver={hasDriver} />
       <Marker position={[cLat, cLng]} />
-
-      {/* ماركر السائق + خط */}
       {hasDriver && (
         <>
           <Marker position={[dLat, dLng]} icon={driverIcon} />
