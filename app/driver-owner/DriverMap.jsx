@@ -2,7 +2,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -31,15 +31,25 @@ const driverIcon = new L.Icon({
 
 function FitBounds({ stores, customerLat, customerLng, driverLat, driverLng, storeLat, storeLng }){
   const map = useMap();
+  const didFit = useRef(false);
+
   useEffect(()=>{
+    // اذا عمل fit مرة خلص ما بقا يعيد
+    if(didFit.current) return;
+
     const pts = [];
     stores.forEach(s=>{ if(s.lat && s.lng &&!isNaN(s.lat) &&!isNaN(s.lng)) pts.push([parseFloat(s.lat), parseFloat(s.lng)]) });
     if(!isNaN(parseFloat(storeLat)) &&!isNaN(parseFloat(storeLng))) pts.push([parseFloat(storeLat), parseFloat(storeLng)]);
     if(!isNaN(parseFloat(customerLat)) &&!isNaN(parseFloat(customerLng))) pts.push([parseFloat(customerLat), parseFloat(customerLng)]);
     if(!isNaN(parseFloat(driverLat)) &&!isNaN(parseFloat(driverLng))) pts.push([parseFloat(driverLat), parseFloat(driverLng)]);
-    if(pts.length>0) map.fitBounds(pts, { padding:[80,80] });
+
+    if(pts.length>0) {
+      map.fitBounds(pts, { padding:[80,80] });
+      didFit.current = true; // اهم سطر - بيمنع يرجعك
+    }
     setTimeout(()=> map.invalidateSize(), 200);
   },[stores, customerLat, customerLng, driverLat, driverLng, storeLat, storeLng, map]);
+
   return null;
 }
 
@@ -63,7 +73,6 @@ export default function DriverMap({
   const hasSingleStore =!isNaN(sLat) &&!isNaN(sLng) && sLat!==0
 
   const firstStore = stores && stores[0]
-
   const center = hasCustomer? [cLat, cLng] : firstStore? [parseFloat(firstStore.lat), parseFloat(firstStore.lng)] : hasSingleStore? [sLat, sLng] : hasDriver? [dLat, dLng] : [33.8938, 35.5018]
 
   const handleSelect = (lat, lng, label) => {
