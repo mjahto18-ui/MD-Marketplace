@@ -340,31 +340,34 @@ export default function DriverDashboard(){
               </>}
 
               <div style={{display:'flex', gap:8, marginTop:10}}>
-                {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'10px', borderRadius:10, fontWeight:900}}>استلام - بلش 25 دقيقة</button>}
-                {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'10px', borderRadius:10, fontWeight:900}}>انطلق للزبون {timers[r['Request ID']]!==undefined? `- ${formatTimer(timers[r['Request ID']])}` : ''}</button>}
-                {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setCollected(r['Total Amount']||''); setPaymentMethod(r['Final Payment Method']||'Cash'); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'10px', borderRadius:10, fontWeight:900}}>تأكيد التوصيل</button>}
-              </div>
-            </div>
-          )
-        })}
+  {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>استلام - Pickup</button>}
+  
+  {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>الانتقال الى الزبون - On The Way {timers[r['Request ID']]!==undefined? `- ${formatTimer(timers[r['Request ID']])}` : ''}</button>}
+  
+  {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setCollected(''); setDriverNote(''); setPaymentMethod(r['Final Payment Method']||'Cash'); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>تأكيد الدفع - Confirm Payment</button>}
+</div>
+
+     {showConfirm && (
+  <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
+    <div style={{background:'white', color:'black', padding:20, borderRadius:16, width:360}}>
+      <h3 style={{margin:0, fontWeight:900}}>تأكيد الدفع</h3>
+      <div style={{background:'#f3f4f6', padding:10, borderRadius:8, marginTop:12, fontSize:13}}>
+        <div><b>رقم الاوردر:</b> {selectedOrder?.['Request ID']}</div>
+        <div style={{marginTop:6}}><b>المبلغ المستحق:</b> <span style={{fontWeight:900, fontSize:16}}>{formatLBP(selectedOrder?.['Total Amount']||selectedOrder?.['Total'])}</span> <span style={{fontSize:10, opacity:0.6}}>(ممنوع التغيير)</span></div>
+        {timers[selectedOrder?.['Request ID']]>0 && <div style={{marginTop:8, background:'#dcfce7', padding:6, borderRadius:6, textAlign:'center', fontWeight:900}}>⏱ المتبقي: {formatTimer(timers[selectedOrder?.['Request ID']])}</div>}
       </div>
 
-      {showConfirm && (
-        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
-          <div style={{background:'white', color:'black', padding:20, borderRadius:16, width:340}}>
-            <h3>تأكيد التوصيل - {selectedOrder?.['Request ID']}</h3>
-            {timers[selectedOrder?.['Request ID']]>0 && <div style={{background:'#dcfce7', padding:8, borderRadius:8, textAlign:'center', fontWeight:900, marginTop:8}}>⏱ المتبقي: {formatTimer(timers[selectedOrder?.['Request ID']])}</div>}
-            <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={{width:'100%', padding:8, borderRadius:8, border:'1px solid #ccc', marginTop:10}}>
-              <option value="Cash">Cash</option>
-              <option value="Wish Money">Wish Money</option>
-            </select>
-            <input placeholder="Collected Amount" value={collected} onChange={e=>setCollected(e.target.value)} style={{width:'100%', marginTop:10, padding:8, borderRadius:8, border:'1px solid #ccc'}}/>
-            <input placeholder="Driver Note" value={driverNote} onChange={e=>setDriverNote(e.target.value)} style={{width:'100%', marginTop:8, padding:8, borderRadius:8, border:'1px solid #ccc'}}/>
-            <button onClick={confirmDelivery} style={{marginTop:12, width:'100%', background:'#111', color:'white', padding:10, borderRadius:10}}>تم التوصيل {selectedOrder?.['Pickup At']? `(${Math.ceil((new Date() - new Date(selectedOrder['Pickup At']))/60000)} دقيقة)` : ''}</button>
-            <button onClick={()=>setShowConfirm(false)} style={{marginTop:8, width:'100%', background:'#eee', padding:8, borderRadius:10}}>إلغاء</button>
-          </div>
-        </div>
-      )}
+      <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #ccc', marginTop:12}}>
+        <option value="Cash">Cash</option>
+        <option value="Wish Money">Wish Money</option>
+      </select>
+
+      <input placeholder="Collect Amount - كم استلمت" value={collected} onChange={e=>setCollected(e.target.value)} style={{width:'100%', marginTop:10, padding:10, borderRadius:8, border:'2px solid #111', fontWeight:900}}/>
+
+      <textarea placeholder="ملاحظات - الزبونة مش منيحة او اي ملاحظة" value={driverNote} onChange={e=>setDriverNote(e.target.value)} style={{width:'100%', marginTop:8, padding:10, borderRadius:8, border:'1px solid #ccc', minHeight:60}}/>
+
+      <button onClick={confirmDelivery} style={{marginTop:12, width:'100%', background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>موافق - {selectedOrder?.['Pickup At']? `${Math.ceil((new Date() - new Date(selectedOrder['Pickup At']))/60000)} دقيقة` : ''}</button>
+      <button onClick={()=>setShowConfirm(false)} style={{marginTop:8, width:'100%', background:'#eee', padding:10, borderRadius:10}}>إلغاء</button>
     </div>
-  )
-}
+  </div>
+)}
