@@ -34,9 +34,17 @@ export default function PendingPage(){
       const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
       const { data: det } = await sb.from('order_details').select('*').eq('"Request ID"', id)
       const pIds = [...new Set((det||[]).map(d=>String(d['Product ID']).trim()).filter(Boolean))]
+      const sIds = [...new Set((det||[]).map(d=>String(d['Store ID']).trim()).filter(Boolean))]
       const { data: prods } = pIds.length? await sb.from('products').select('*').in('"Product ID"', pIds) : {data:[]}
+      const { data: stores } = sIds.length? await sb.from('stores').select('"Store ID", "Store Name", "Adress"').in('"Store ID"', sIds) : {data:[]}
       const pMap = {}; (prods||[]).forEach(p=> pMap[String(p['Product ID']).trim()] = p['Product Name'] || p['Name'] || p['Product ID'])
-      const enriched = (det||[]).map(d=>({...d, productName: pMap[String(d['Product ID']).trim()] || d['Product ID']}))
+      const sMap = {}; (stores||[]).forEach(s=> sMap[String(s['Store ID']).trim()] = { name: s['Store Name'], adress: s['Adress'] })
+      const enriched = (det||[]).map(d=>({
+       ...d,
+        productName: pMap[String(d['Product ID']).trim()] || d['Product ID'],
+        storeName: sMap[String(d['Store ID']).trim()]?.name || d['Store ID'],
+        storeAdress: sMap[String(d['Store ID']).trim()]?.adress || ''
+      }))
       setDetailsMap(prev=>({...prev, [id]: enriched}))
     }
   }
@@ -79,9 +87,9 @@ export default function PendingPage(){
                   <div className="mt-3 bg-white/5 rounded-lg p-3">
                     <p className="font-bold text-xs mb-2 opacity-60">🛒 المنتجات ({prods.length})</p>
                     {prods.length===0? <p className="text-xs opacity-50">جاري تحميل المنتجات...</p> : prods.map((d,i)=>(
-                      <div key={i} className="flex justify-between py-1.5 border-b border-white/5 last:border-0 text-xs">
-                        <span>{d.productName} x{d['Qty']}</span>
-                        <span>{d['Line Total'] || d['Unit Price']}</span>
+                      <div key={i} className="py-1.5 border-b border-white/5 last:border-0 text-xs">
+                        <div className="flex justify-between"><span className="font-bold">{d.productName} x{d['Qty']}</span><span>{d['Line Total'] || d['Unit Price']}</span></div>
+                        <div className="opacity-70 text- mt-1">🏪 {d.storeName} {d.storeAdress? `- ${d.storeAdress}`:''}</div>
                       </div>
                     ))}
                   </div>
