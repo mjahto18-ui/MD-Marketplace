@@ -19,6 +19,7 @@ export default function DriverDashboard(){
   const [collected, setCollected] = useState("")
   const [driverNote, setDriverNote] = useState("")
   const [myLocation, setMyLocation] = useState(null) // ضفناها
+  const [debug, setDebug] = useState("")
   const timerRef = useRef(null)
   const trackRef = useRef(null)
 
@@ -29,7 +30,11 @@ export default function DriverDashboard(){
     fetch('/api/admin/me').then(r=>r.json()).then(setMe)
     // ضفنا تتبع موقع السائق للخريطة
     if(navigator.geolocation){
-      navigator.geolocation.watchPosition(p=>setMyLocation({lat:p.coords.latitude, lng:p.coords.longitude}), ()=>{}, {enableHighAccuracy:true})
+      navigator.geolocation.watchPosition(
+        p=>setMyLocation({lat:p.coords.latitude, lng:p.coords.longitude}),
+        ()=>{},
+        {enableHighAccuracy:true}
+      )
     }
   },[])
 
@@ -40,19 +45,25 @@ export default function DriverDashboard(){
       setLoading(true)
       const driverId = me.relatedId || me.userId
       // Related ID هو Assigned Driver الحقيقي
-      const { data } = await supabase.from('order_requuest')
+      const { data, error } = await supabase.from('order_requuest')
         .select('*')
         .eq('Related ID', driverId)
         .eq('Approval Status', 'Approved')
         .in('Delivery Status', ['Pending','Picked Up','On The Way'])
         .limit(100)
+
       setRequests(data||[])
+
       // جيب المنتجات من order_details بناء على Request ID
       if(data && data.length>0){
         const ids = data.map(o=>o['Request ID']).filter(Boolean)
-        const { data: det } = await supabase.from('order_details').select('*').in('Request ID', ids)
+        const { data: det, error: detErr } = await supabase.from('order_details').select('*').in('Request ID', ids)
         setAllDetails(det||[])
+        setDebug(`OK: ${data.length} طلبات - ${det?.length||0} منتج - driverId=${driverId}`)
+      } else {
+        setDebug(`فاضي: driverId=${driverId} | error=${error?.message||'no error'} | لازم يكون في صفوف بـ order_requuest فيها Related ID=${driverId} و Approval=Approved`)
       }
+
       setLoading(false)
     }
     load()
@@ -158,14 +169,61 @@ export default function DriverDashboard(){
 
   if(!me) return <div style={{padding:20, background:'#0a1930', color:'white', minHeight:'100vh'}}>تحميل...</div>
 
+  // عدادات
+  const pending = requests.filter(r=>r['Delivery Status']==='Pending').length
+  const picked = requests.filter(r=>r['Delivery Status']==='Picked Up').length
+  const onway = requests.filter(r=>r['Delivery Status']==='On The Way').length
+
   return (
     <div style={{minHeight:'100vh', background:'#0a1930', color:'white'}}>
       <div style={{background:'#0e2242', padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:20}}>
-        <div>أهلاً {me.name} {timer>0 && <span style={{marginLeft:10, background: timer<300 ? '#ef4444' : timer<600 ? '#facc15' : '#22c55e', padding:'4px 10px', borderRadius:20, fontWeight:900, color: timer<600 ? 'black' : 'white'}}>⏱️ {formatTimer(timer)}</span>}</div>
+        <div>أهلاً {me.name} {timer>0 && <span style={{marginLeft:10, background: timer<300 ? '#ef4444' : timer<600 ? '#facc15' : '#22c55e', padding:'4px 10px', borderRadius:20, fontWeight:900, color: timer<600 ? 'black' : 'white'}}>⏱ {formatTimer(timer)}</span>}</div>
         <button onClick={async()=>{await fetch('/api/admin/logout',{method:'POST'}); window.location.href='/admin/login'}} style={{background:'rgba(239,68,68,0.2)', color:'#fca5a5', border:'1px solid #ef4444', padding:'6px 12px', borderRadius:8}}>خروج</button>
       </div>
 
       <div style={{padding:12, maxWidth:900, margin:'0 auto'}}>
+
+        {/* عدادات - بتبين دايما حتى لو فاضي */}
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:8, marginBottom:12}}>
+          <div style={{background:'#f3f1ec', color:'#111', borderRadius:12, padding:12, textAlign:'center'}}>
+            <div style={{fontSize:22, fontWeight:900}}>{requests.length}</div>
+            <div style={{fontSize:10, opacity:0.6}}>الكل</div>
+          </div>
+          <div style={{background:'#fef3c7', color:'#111', borderRadius:12, padding:12, textAlign:'center'}}>
+            <div style={{fontSize:22, fontWeight:900}}>{pending}</div>
+            <div style={{fontSize:10, opacity:0.6}}>Pending</div>
+          </div>
+          <div style={{background:'#dbeafe', color:'#111', borderRadius:12, padding:12, textAlign:'center'}}>
+            <div style={{fontSize:22, fontWeight:900}}>{picked}</div>
+            <div style={{fontSize:10, opacity:0.6}}>Picked</div>
+          </div>
+          <div style={{background:'#ffedd5', color:'#111', borderRadius:12, padding:12, textAlign:'center'}}>
+            <div style={{fontSize:22, fontWeight:900}}>{onway}</div>
+            <div style={{fontSize:10, opacity:0.6}}>On Way</div>
+          </div>
+        </div>
+
+        {/* معلومات - بتبين دايما */}
+        <div style={{background:'rgba(255,255,255,0.08)', borderRadius:12, padding:12, fontSize:11, marginBottom:12, border:'1px solid rgba(255,255,255,0.1)'}}>
+          <div>📍 موقعك: {myLocation ? `${myLocation.lat.toFixed(5)}, ${myLocation.lng.toFixed(5)}` : 'بانتظار GPS...'}</div>
+          <div style={{marginTop:6, color:'#facc15'}}>🔍 {debug}</div>
+          <div style={{marginTop:4, opacity:0.6}}>ID: {me.relatedId} | {me.name} | loading={loading?'yes':'no'}</div>
+        </div>
+
+        {loading && (
+          <div style={{background:'#f3f1ec', color:'#111', borderRadius:14, padding:20, textAlign:'center'}}>
+            تحميل الطلبات...
+          </div>
+        )}
+
+        {!loading && requests.length===0 && (
+          <div style={{background:'#f3f1ec', color:'#111', borderRadius:14, padding:24, textAlign:'center'}}>
+            <div style={{fontSize:18, fontWeight:900}}>ما في طلبات مربوطة</div>
+            <div style={{fontSize:12, opacity:0.7, marginTop:8}}>Related ID تبعك = {me.relatedId}</div>
+            <div style={{fontSize:12, opacity:0.7, marginTop:4}}>روح على Supabase جدول order_requuest واعمل طلب جديد فيه Related ID = {me.relatedId} و Approval Status = Approved و Delivery Status = Pending</div>
+          </div>
+        )}
+
         {requests.map(r=>{
           const isActive = ['Picked Up','On The Way'].includes(r['Delivery Status'])
           const isPending = r['Delivery Status']==='Pending'
@@ -181,12 +239,10 @@ export default function DriverDashboard(){
                 <div style={{marginTop:8, fontSize:12, opacity:0.7}}>السعر: {r['Total']|| r['Amount'] || ''} - {prods.length} منتج - تفاصيل مخفية حتى القبول</div>
               ) : (
                 <>
-                  {/* قسم المتجر */}
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:10}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏪 قسم المتجر</div>
                     <div style={{fontSize:13, marginTop:4}}>المتجر: <b>{r['Store Name'] || r['Store ID'] || '-'}</b></div>
                   </div>
-                  {/* قسم المنتجات - من order_details */}
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🛒 المنتجات - {prods.length} من order_details</div>
                     {prods.map((p,i)=>(
@@ -196,18 +252,15 @@ export default function DriverDashboard(){
                       </div>
                     ))}
                   </div>
-                  {/* قسم الزبون */}
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏠 قسم الزبون</div>
                     <div style={{fontSize:13}}>{r['Delivery Adress']}</div>
                     <div style={{fontSize:12, opacity:0.7}}>📞 {r['Customer Phone'] || r['Phone'] || '-'}</div>
                   </div>
-                  {/* قسم الدفع */}
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>💳 قسم الدفع</div>
                     <div style={{fontSize:13}}>الطريقة: <b>{r['Final Payment Method']}</b> - المبلغ: <b>{r['Total']}</b></div>
                   </div>
-
                   <div style={{height:250, marginTop:10, borderRadius:12, overflow:'hidden', border:'1px solid #ccc'}}>
                     <DriverMap 
                       storeLat={r['Store Latitude']}
