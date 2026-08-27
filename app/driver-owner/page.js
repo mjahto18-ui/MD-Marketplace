@@ -130,7 +130,7 @@ export default function DriverDashboard(){
     const send = async () => {
       navigator.geolocation.getCurrentPosition(async (pos)=>{
         const loc = `${pos.coords.latitude},${pos.coords.longitude}`
-        await supabase.from('Driver Live tracking').upsert({ 'Driver ID': me.relatedId, 'Order Request ID': order['Request ID'], 'Current Location': loc, 'Last Update': new Date().toISOString(), 'Delivery Status': status }, { onConflict: 'Order Request ID' })
+        await supabase.from('driver_live_tracking').upsert({ 'Driver ID': me.relatedId, 'Order Request ID': order['Request ID'], 'Current Location': loc, 'Last Update': new Date().toISOString(), 'Delivery Status': status }, { onConflict: 'Order Request ID' })
       })
     }
     send(); trackRef.current = setInterval(send, 10000)
