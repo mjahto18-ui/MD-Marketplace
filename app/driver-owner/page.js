@@ -32,6 +32,26 @@ export default function DriverDashboard(){
     }
   },[])
 
+  const startTimerInterval = (order) => {
+    if(timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(()=>{
+      setTimer(prev=>{
+        if(prev <= 1){
+          clearInterval(timerRef.current)
+          supabase.from('order_requuest').update({ 'Admin Note': `تأخر - تجاوز 25 دقيقة - ${new Date().toLocaleTimeString()}` }).eq('supa_id', order.supa_id).then(()=>{})
+          return 0
+        }
+        return prev-1
+      })
+    }, 1000)
+  }
+
+  const startTimer = (order) => {
+    localStorage.setItem('timer_'+order['Request ID'], Date.now().toString())
+    setTimer(25*60)
+    startTimerInterval(order)
+  }
+
   useEffect(()=>{
     if(!supabase ||!me) return
     const load = async ()=>{
@@ -45,7 +65,6 @@ export default function DriverDashboard(){
         const { data: det } = await supabase.from('order_details').select('*').in('Request ID', ids)
         setAllDetails(det||[])
 
-        // جيب المتاجر
         const storeIds = [...new Set((det||[]).map(d=>d['Store ID']).filter(Boolean))]
         if(storeIds.length>0){
           const { data: stores } = await supabase.from('stores').select('*').in('Store ID', storeIds)
@@ -54,7 +73,6 @@ export default function DriverDashboard(){
           setStoresMap(map)
         }
 
-        // جيب اسماء المنتجات
         const prodIds = [...new Set((det||[]).map(d=>d['Product ID']).filter(Boolean))]
         if(prodIds.length>0){
           const { data: prods } = await supabase.from('product_base_data').select('*').in('Product ID', prodIds)
@@ -63,48 +81,28 @@ export default function DriverDashboard(){
           setProductsMap(pmap)
         }
 
-        // اذا في اوردر مفتوح رجع التايمر بعد الرفرش
-        const active = data.find(r=> r['Delivery Status']==='Picked Up' || r['Delivery Status']==='On The Way')
+        // رجع التايمر بعد الرفرش
+        const active = data.find(r=> r['Delivery Status']==='Picked Up')
         if(active){
           setSelectedOrder(active)
-          setPaymentMethod(active['Final Payment Method'] || 'Cash')
-          if(active['Delivery Status']==='Picked Up'){
-            const saved = localStorage.getItem('timer_'+active['Request ID'])
-            if(saved){
-              const elapsed = Math.floor((Date.now()-parseInt(saved))/1000)
-              const remaining = Math.max(0, 25*60 - elapsed)
-              setTimer(remaining)
-              if(remaining>0) startTimerInterval(active)
-            } else {
-              startTimerInterval(active)
-            }
+          const saved = localStorage.getItem('timer_'+active['Request ID'])
+          if(saved){
+            const elapsed = Math.floor((Date.now()-parseInt(saved))/1000)
+            const remaining = Math.max(0, 25*60 - elapsed)
+            setTimer(remaining)
+            if(remaining>0) startTimerInterval(active)
+          } else {
+            setTimer(25*60)
+            startTimerInterval(active)
           }
         }
 
-        setDebug(`OK: ${data.length} طلبات - ${det?.length||0} منتج - ${storeIds.length} متجر`)
-      } else {
-        setDebug(`فاضي: driverId=${driverId} | error=${error?.message||'no error'}`)
+        setDebug(`OK: ${data.length} طلبات - ${det?.length||0} منتج`)
       }
       setLoading(false)
     }
     load()
   },[supabase, me])
-
-  const startTimerInterval = (order) => {
-    if(timerRef.current) clearInterval(timerRef.current)
-    timerRef.current = setInterval(()=>{
-      setTimer(prev=>{
-        if(prev <= 1){ clearInterval(timerRef.current); supabase.from('order_requuest').update({ 'Admin Note': `تأخر - ${new Date().toLocaleTimeString()}` }).eq('supa_id', order.supa_id).then(()=>{}); return 0 }
-        return prev-1
-      })
-    }, 1000)
-  }
-
-  const startTimer = (order) => {
-    localStorage.setItem('timer_'+order['Request ID'], Date.now().toString())
-    setTimer(25*60)
-    startTimerInterval(order)
-  }
 
   const startLiveTracking = (order, status) => {
     if(trackRef.current) clearInterval(trackRef.current)
@@ -147,8 +145,16 @@ export default function DriverDashboard(){
 
   return (
     <div style={{minHeight:'100vh', background:'#0a1930', color:'white'}}>
-      <div style={{background:'#0e2242', padding:'10px 14px', display:'flex', justifyContent:'space-between', position:'sticky', top:0, zIndex:20}}>
-        <div>أهلاً {me.name} {timer>0 && <span style={{marginLeft:10, background: timer<300? '#ef4444' : '#22c55e', padding:'4px 10px', borderRadius:20, fontWeight:900}}>⏱ {formatTimer(timer)}</span>}</div>
+      {/* هيدر مع الساعة الكبيرة */}
+      <div style={{background:'#0e2242', padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:20}}>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          <span>أهلاً {me.name}</span>
+          {timer>0 && (
+            <span style={{background: timer<300? '#ef4444' : timer<600? '#facc15' : '#22c55e', color: timer<600? 'black' : 'white', padding:'6px 16px', borderRadius:20, fontWeight:900, fontSize:16, border:'2px solid white'}}>
+              ⏱ {formatTimer(timer)} باقي
+            </span>
+          )}
+        </div>
         <button onClick={async()=>{await fetch('/api/admin/logout',{method:'POST'}); location.href='/admin/login'}} style={{background:'#ef444444', border:'1px solid #ef4444', color:'#fca5a5', padding:'6px 12px', borderRadius:8}}>خروج</button>
       </div>
 
@@ -169,59 +175,56 @@ export default function DriverDashboard(){
           const prods = allDetails.filter(d=> String(d['Request ID']) === String(r['Request ID']))
           const storeIds = [...new Set(prods.map(p=>p['Store ID']).filter(Boolean))]
           const isPending = r['Delivery Status']==='Pending'
+          const isThisActive = selectedOrder?.['Request ID'] === r['Request ID'] && timer>0
           const firstStore = storesMap[storeIds[0]] || {}
           return (
-            <div key={r.supa_id} style={{background:'#f3f1ec', color:'#111', borderRadius:14, padding:14, marginBottom:12, border: r['Delivery Status']==='On The Way'? '2px solid #f59e0b' : 'none'}}>
-              <div style={{display:'flex', justifyContent:'space-between'}}><b>{r['Request ID']}</b><span style={{fontSize:12, padding:'3px 8px', borderRadius:20, background: isPending? '#ddd' : '#111', color: isPending? '#333' : 'white'}}>{r['Delivery Status']}</span></div>
+            <div key={r.supa_id} style={{background:'#f3f1ec', color:'#111', borderRadius:14, padding:14, marginBottom:12, border: isThisActive? '3px solid #22c55e' : r['Delivery Status']==='On The Way'? '2px solid #f59e0b' : 'none'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <b>{r['Request ID']}</b>
+                <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                  {isThisActive && <span style={{background: timer<300? '#ef4444' : timer<600? '#facc15' : '#22c55e', color: timer<600? 'black' : 'white', padding:'4px 12px', borderRadius:20, fontWeight:900, fontSize:14}}>⏱ {formatTimer(timer)}</span>}
+                  <span style={{fontSize:12, padding:'3px 8px', borderRadius:20, background: isPending? '#ddd' : '#111', color: isPending? '#333' : 'white'}}>{r['Delivery Status']}</span>
+                </div>
+              </div>
+
+              {/* ساعة كبيرة جوا الاوردر */}
+              {isThisActive && (
+                <div style={{background: timer<300? '#fee2e2' : timer<600? '#fef3c7' : '#dcfce7', borderRadius:10, padding:12, marginTop:10, textAlign:'center', border: `2px solid ${timer<300? '#ef4444' : timer<600? '#f59e0b' : '#22c55e'}`}}>
+                  <div style={{fontSize:12, opacity:0.6}}>الوقت المتبقي للتوصيل</div>
+                  <div style={{fontSize:32, fontWeight:900, color: timer<300? '#ef4444' : '#111'}}>{formatTimer(timer)}</div>
+                  <div style={{fontSize:11, opacity:0.7}}>{timer<300? '⚠️ تأخرت!' : timer<600? '⏰ قرب يخلص!' : '✅ معك وقت'}</div>
+                </div>
+              )}
 
               {isPending? <div style={{marginTop:8, fontSize:12}}>السعر: {r['Total Amount']||r['Total']||''} - {prods.length} منتج</div> : <>
-                {/* المتاجر - اكتر من متجر */}
                 <div style={{background:'white', borderRadius:10, padding:10, marginTop:10}}>
-                  <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏪 قسم المتجر - {storeIds.length} متجر</div>
+                  <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏪 المتجر - {storeIds.length} متجر</div>
                   {storeIds.map(sid=>{
                     const s = storesMap[sid]
-                    return <div key={sid} style={{fontSize:13, marginTop:6, padding:'6px', background:'#f9f9', borderRadius:8}}>
-                      <b>{s?.['Store Name'] || sid}</b> - {s?.['Area']||''} - {s?.['Phone']||''}
-                      <div style={{fontSize:11, opacity:0.6}}>Lat: {s?.['Latitude']||s?.['Store Latitude']||'-'} Lng: {s?.['Longitude']||s?.['Store Longitude']||'-'}</div>
-                    </div>
+                    return <div key={sid} style={{fontSize:13, marginTop:6, padding:'6px', background:'#f9f9f9', borderRadius:8}}><b>{s?.['Store Name'] || sid}</b></div>
                   })}
                 </div>
 
-                {/* المنتجات مع اسم المتجر والحجم والكمية الصح */}
                 <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
-                  <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🛒 المنتجات - {prods.length} من order_details</div>
+                  <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🛒 المنتجات - {prods.length}</div>
                   {prods.map((p,i)=>{
                     const prodInfo = productsMap[p['Product ID']] || {}
                     const storeName = storesMap[p['Store ID']]?.['Store Name'] || p['Store ID']
                     const qty = p['Qty'] || p['Quantity'] || 1
                     return (
                       <div key={i} style={{display:'flex', flexDirection:'column', fontSize:12, padding:'8px 0', borderBottom:'1px solid #eee'}}>
-                        <div style={{display:'flex', justifyContent:'space-between', fontWeight:700}}>
-                          <span>{prodInfo['Product Name'] || p['Product ID']}</span>
-                          <span>x{qty}</span>
-                        </div>
-                        <div style={{display:'flex', justifyContent:'space-between', opacity:0.7, fontSize:11, marginTop:2}}>
-                          <span>الحجم: {prodInfo['Size']||prodInfo['Variant']||'-'} | المتجر: {storeName}</span>
-                          <span>{p['Unit Price']} = {p['Line Total']}</span>
-                        </div>
+                        <div style={{display:'flex', justifyContent:'space-between', fontWeight:700}}><span>{prodInfo['Product Name'] || p['Product ID']}</span><span>x{qty}</span></div>
+                        <div style={{display:'flex', justifyContent:'space-between', opacity:0.7, fontSize:11}}><span>{storeName}</span><span>{p['Unit Price']} = {p['Line Total']}</span></div>
                       </div>
                     )
                   })}
                 </div>
 
-                <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}><div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏠 الزبون</div><div style={{fontSize:13}}>{r['Delivery Adress']} - {r['Area']}</div><div style={{fontSize:12, opacity:0.7}}>📞 {r['Customer Phone']||r['Phone']||'-'}</div></div>
-                <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}><div style={{fontWeight:900, fontSize:11, opacity:0.5}}>💳 الدفع</div><div style={{fontSize:13}}>الطريقة: <b>{r['Final Payment Method']||'Cash'}</b> - المبلغ: <b>{r['Total Amount']||r['Total']}</b></div></div>
+                <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}><div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏠 الزبون</div><div style={{fontSize:13}}>{r['Delivery Adress']}</div></div>
+                <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}><div style={{fontWeight:900, fontSize:11, opacity:0.5}}>💳 الدفع</div><div style={{fontSize:13}}>{r['Final Payment Method']||'Cash'} - {r['Total Amount']||r['Total']}</div></div>
 
                 <div style={{height:280, marginTop:10, borderRadius:12, overflow:'hidden', border:'1px solid #ccc'}}>
-                  <DriverMap
-                    storeLat={firstStore['Latitude']||firstStore['Store Latitude']||r['Store Latitude']}
-                    storeLng={firstStore['Longitude']||firstStore['Store Longitude']||r['Store Longitude']}
-                    customerLat={r['Customer Latitude']}
-                    customerLng={r['Customer Longitude']}
-                    driverLat={myLocation?.lat}
-                    driverLng={myLocation?.lng}
-                    onSelectPoint={setSelectedPoint}
-                  />
+                  <DriverMap storeLat={firstStore['Latitude']||r['Store Latitude']} storeLng={firstStore['Longitude']||r['Store Longitude']} customerLat={r['Customer Latitude']} customerLng={r['Customer Longitude']} driverLat={myLocation?.lat} driverLng={myLocation?.lng} onSelectPoint={setSelectedPoint} />
                 </div>
                 <button onClick={openGoogleMaps} style={{marginTop:8, width:'100%', background: selectedPoint? '#111' : '#999', color:'white', padding:10, borderRadius:10, fontWeight:900}}>{selectedPoint? `🧭 تنقل إلى ${selectedPoint.label}` : 'اختار نقطة'}</button>
               </>}
@@ -240,9 +243,8 @@ export default function DriverDashboard(){
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
           <div style={{background:'white', color:'black', padding:20, borderRadius:16, width:340}}>
             <h3>تأكيد التوصيل - {selectedOrder?.['Request ID']}</h3>
-            <div style={{marginTop:8}}>المبلغ: {selectedOrder?.['Total Amount']}</div>
-            <label style={{fontSize:12, marginTop:10, display:'block'}}>طريقة الدفع:</label>
-            <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={{width:'100%', padding:8, borderRadius:8, border:'1px solid #ccc', marginTop:4}}>
+            {timer>0 && <div style={{background:'#dcfce7', padding:8, borderRadius:8, textAlign:'center', fontWeight:900, marginTop:8}}>⏱ الوقت: {formatTimer(timer)}</div>}
+            <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={{width:'100%', padding:8, borderRadius:8, border:'1px solid #ccc', marginTop:10}}>
               <option value="Cash">Cash</option>
               <option value="Wish Money">Wish Money</option>
               <option value="Whish Money">Whish Money</option>
