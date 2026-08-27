@@ -77,12 +77,14 @@ export default function PendingPage(){
               {isOpen && (
                 <div className="p-4 bg-black/30 space-y-2 rounded-b-xl border-t border-white/10 text-sm">
                   <p><b>الاسم:</b> {o.customerName}</p>
-                  <p><b>العنوان:</b> {o.deliveryAddress || '-'}</p>
+                  <p><b>تلفون:</b> {o.mobile}</p>
                   <p><b>المنطقة:</b> {o.areaName || o.areaCode || '-'} </p>
-                  <p><b>قيمة الغراض:</b> {o.itemsCost || 0}</p>
+                  <p><b>العنوان:</b> {o.deliveryAddress || '-'}</p>
+                  <p><b>سعر المنتجات:</b> {o.itemsCost || 0}</p>
                   <p><b>دلفري:</b> {o.deliveryFee || 0}</p>
                   <p><b>المجموع:</b> {o.totalAmount || 0}</p>
-                  <p><b>تلفون:</b> {o.mobile}</p>
+                  
+                  
                   <p><b>ملاحظات:</b> {o.note || '-'}</p>
                   <div className="mt-3 bg-white/5 rounded-lg p-3">
                     <p className="font-bold text-xs mb-2 opacity-60">🛒 المنتجات ({prods.length})</p>
