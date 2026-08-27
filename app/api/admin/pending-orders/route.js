@@ -6,10 +6,9 @@ const supabase = createClient(
 )
 
 export async function GET(){
-  // order_requuest كلها صغيرة + customer ID بحرف صغير!
   const { data: orders, error } = await supabase
     .from('order_requuest')
-    .select(`"Request ID", "customer ID", "Mobile", "Customer Latitude", "Customer Longitude", "Approval Status", "Assigned Driver"`)
+    .select(`"Request ID", "customer ID", "Mobile", "Customer Latitude", "Customer Longitude", "Approval Status", "Assigned Driver", "Delivery Adress", "Items Cost", "Delivery Fee", "Total Amount", "Note", "Order Area", "Admin Note", "Area", "Cerated Date"`)
     .eq('"Approval Status"', 'Pending')
 
   if(error) return Response.json({error: error.message, details: error}, {status:500})
@@ -34,7 +33,17 @@ export async function GET(){
     customerLat: parseFloat(o['Customer Latitude']),
     customerLng: parseFloat(o['Customer Longitude']),
     approvalStatus: o['Approval Status'],
-    assignedDriver: o['Assigned Driver']
+    assignedDriver: o['Assigned Driver'],
+    deliveryAddress: o['Delivery Adress'],
+    itemsCost: o['Items Cost'],
+    deliveryFee: o['Delivery Fee'],
+    totalAmount: o['Total Amount'],
+    note: o['Note'],
+    orderArea: o['Order Area'],
+    adminNote: o['Admin Note'],
+    areaCode: o['Area'],
+    createdDate: o['Cerated Date'],
+    raw: o
   }))
 
   return Response.json(result)
