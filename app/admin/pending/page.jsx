@@ -63,7 +63,7 @@ export default function PendingPage(){
   return (
     <div className="p-6 grid grid-cols-4 gap-6 min-h-screen bg-slate-950 text-white" style={{direction:'rtl'}}>
       <div className="col-span-1 bg-white/5 rounded-2xl p-4 overflow-y-auto">
-        <h2 className="font-bold text-xl mb-4">بندينغ ({orders.length})</h2>
+        <h2 className="font-bold text-xl mb-4">Pending Orders ({orders.length})</h2>
         {orders.map(o=>{
           const isOpen = expandedId===o.requestID
           const prods = detailsMap[o.requestID] || []
