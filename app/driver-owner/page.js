@@ -55,18 +55,15 @@ export default function DriverDashboard(){
   const startTimerForOrder = (order) => {
     const reqId = order['Request ID']
     if(timersRef.current[reqId]) clearInterval(timersRef.current[reqId])
-    const initial = calcRemaining(order)
-    setTimers(prev => ({...prev, [reqId]: initial }))
+    setTimers(prev => ({...prev, [reqId]: calcRemaining(order) }))
     timersRef.current[reqId] = setInterval(()=>{
       setTimers(prev => {
         const curr = prev[reqId]?? 0
         if(curr <= 1){
           clearInterval(timersRef.current[reqId])
-          if(supabase){
-            supabase.from('order_requuest').update({
-              'Admin Note': `تأخر - تجاوز 25 دقيقة - الطلب ${reqId} - ${new Date().toLocaleString()}`
-            }).eq('supa_id', order.supa_id).then(()=>{})
-          }
+          supabase?.from('order_requuest').update({
+            'Admin Note': `تأخر - ${reqId} - ${new Date().toLocaleString()}`
+          }).eq('supa_id', order.supa_id).then(()=>{})
           return {...prev, [reqId]: 0}
         }
         return {...prev, [reqId]: curr - 1}
@@ -79,7 +76,7 @@ export default function DriverDashboard(){
     const load = async ()=>{
       setLoading(true)
       const driverId = me.relatedId || me.userId
-      const { data, error } = await supabase.from('order_requuest').select('*').eq('Assigned Driver', driverId).eq('Approval Status','Approved').in('Delivery Status',['Pending','Picked Up','On The Way']).limit(100)
+      const { data } = await supabase.from('order_requuest').select('*').eq('Assigned Driver', driverId).eq('Approval Status','Approved').in('Delivery Status',['Pending','Picked Up','On The Way']).limit(100)
       setRequests(data||[])
 
       if(data && data.length>0){
@@ -87,52 +84,51 @@ export default function DriverDashboard(){
         const { data: det } = await supabase.from('order_details').select('*').in('Request ID', ids)
         setAllDetails(det||[])
 
-        const storeIds = [...new Set((det||[]).map(d=>d['Store ID']).filter(Boolean))]
+        const storeIds = [...new Set((det||[]).map(d=>String(d['Store ID']).trim()).filter(Boolean))]
         if(storeIds.length>0){
           const { data: allStores } = await supabase.from('stores').select('*')
           const map = {}
           ;(allStores||[]).forEach(s=>{
-            const id = s['e ID']
-            map[id] = s
-            map[String(id)] = s
+            const raw = s['e ID'] || s['Store ID'] || s['ID']
+            if(!raw) return
+            map[String(raw).trim()] = s
+            map[String(raw).trim().toLowerCase()] = s
           })
           setStoresMap(map)
 
-          const areaCodes = [...new Set(Object.values(map).map(s=> s['Area']).filter(Boolean))]
-          if(areaCodes.length>0){
-            const { data: allAreas } = await supabase.from('areas').select('*')
-            const amap = {}
-            ;(allAreas||[]).forEach(a=>{
-              amap[a['Area ID']] = a['Area Name']
-              amap[String(a['Area ID'])] = a['Area Name']
-            })
-            setAreasMap(amap)
-          }
+          const { data: allAreas } = await supabase.from('areas').select('*')
+          const amap = {}
+          ;(allAreas||[]).forEach(a=>{
+            amap[String(a['Area ID']).trim()] = a['Area Name']
+            amap[String(a['Area ID']).trim().toLowerCase()] = a['Area Name']
+          })
+          setAreasMap(amap)
         }
 
-        const prodIds = [...new Set((det||[]).map(d=>d['Product ID']).filter(Boolean))]
+        const prodIds = [...new Set((det||[]).map(d=>String(d['Product ID']).trim()).filter(Boolean))]
         if(prodIds.length>0){
           const { data: allProds } = await supabase.from('products').select('*')
           const pmap = {}
           ;(allProds||[]).forEach(p=>{
-            const pid = p['Product ID']
-            pmap[pid] = p
-            pmap[String(pid)] = p
-            if(p['Products']) {
-              pmap[p['Products']] = p
-              pmap[String(p['Products'])] = p
+            const raw = p['Product ID']
+            if(!raw) return
+            const key = String(raw).trim()
+            pmap[key] = p
+            pmap[key.toLowerCase()] = p
+            // P0001
+            if(p['Products_Base_ID']){
+              pmap[String(p['Products_Base_ID']).trim()] = p
             }
           })
           setProductsMap(pmap)
         }
 
-        const customerIds = [...new Set((data||[]).map(r=> r['Costumer ID']).filter(Boolean))]
+        const customerIds = [...new Set((data||[]).map(r=> String(r['Costumer ID']||'').trim()).filter(Boolean))]
         if(customerIds.length>0){
           const { data: users } = await supabase.from('users').select('*').in('ID', customerIds)
           const umap = {}
           ;(users||[]).forEach(u=>{
-            umap[u['ID']] = u
-            umap[String(u['ID'])] = u
+            umap[String(u['ID']).trim()] = u
           })
           setUsersMap(umap)
         }
@@ -146,10 +142,7 @@ export default function DriverDashboard(){
           setSelectedOrder(active)
           setPaymentMethod(active['Final Payment Method']||'Cash')
         }
-
-        setDebug(`OK: ${data.length} طلبات - ${det?.length||0} منتج - ${storeIds.length} متجر`)
-      } else {
-        setDebug(`فاضي: driverId=${driverId} | error=${error?.message||'no error'}`)
+        setDebug(`OK: ${data.length} اوردر - ${det?.length||0} منتج`)
       }
       setLoading(false)
     }
@@ -162,45 +155,24 @@ export default function DriverDashboard(){
       navigator.geolocation.getCurrentPosition(async (pos)=>{
         const loc = `${pos.coords.latitude},${pos.coords.longitude}`
         await supabase.from('Driver Live tracking').upsert({ 'Driver ID': me.relatedId, 'Order Request ID': order['Request ID'], 'Current Location': loc, 'Last Update': new Date().toISOString(), 'Delivery Status': status }, { onConflict: 'Order Request ID' })
-        await supabase.from('order_requuest').update({ 'Current Location': loc }).eq('supa_id', order.supa_id)
       })
     }
-    send(); trackRef.current = setInterval(send, status==='Picked Up'?10000:5000)
+    send(); trackRef.current = setInterval(send, 10000)
   }
 
   const updateStatus = async (row, newStatus)=>{
     const nowIso = new Date().toISOString()
     const updatedRow = {...row, 'Delivery Status': newStatus}
-    if(newStatus==='Picked Up'){
-      updatedRow['Pickup At'] = nowIso
-    }
+    if(newStatus==='Picked Up') updatedRow['Pickup At'] = nowIso
     setRequests(prev=>prev.map(r=> r.supa_id===row.supa_id? updatedRow : r))
-    if(newStatus==='Picked Up' || newStatus==='On The Way') setSelectedOrder(updatedRow)
-
-    const loc = await new Promise(resolve => {
-      if(!navigator.geolocation) return resolve(null)
-      navigator.geolocation.getCurrentPosition(pos=>resolve(`${pos.coords.latitude},${pos.coords.longitude}`), ()=>resolve(null), {timeout:4000})
-    })
+    setSelectedOrder(updatedRow)
 
     let updateData = { 'Delivery Status': newStatus }
-    if(newStatus==='Picked Up'){
-      updateData['Pickup At'] = nowIso
-    }
-    if(loc) updateData['Current Location'] = loc
+    if(newStatus==='Picked Up') updateData['Pickup At'] = nowIso
 
-    const { error } = await supabase.from('order_requuest').update(updateData).eq('supa_id', row.supa_id)
-    if(error){
-      setDebug(`خطأ تحديث: ${error.message}`)
-      return
-    }
-
+    await supabase.from('order_requuest').update(updateData).eq('supa_id', row.supa_id)
     if(newStatus==='Picked Up'){ startTimerForOrder(updatedRow); startLiveTracking(row,'Picked Up') }
-    if(newStatus==='On The Way'){ if(trackRef.current) clearInterval(trackRef.current); startLiveTracking(row,'On The Way') }
-    if(newStatus==='Delivered'){
-      if(timersRef.current[row['Request ID']]) clearInterval(timersRef.current[row['Request ID']])
-      if(trackRef.current) clearInterval(trackRef.current)
-      setTimers(prev=>{ const c={...prev}; delete c[row['Request ID']]; return c })
-    }
+    if(newStatus==='On The Way'){ startLiveTracking(row,'On The Way') }
   }
 
   const confirmDelivery = async ()=>{
@@ -208,11 +180,9 @@ export default function DriverDashboard(){
     const nowIso = now.toISOString()
     const pickupStr = selectedOrder['Pickup At']
     let durationMin = null
-    if(pickupStr){
-      durationMin = Math.ceil((now - new Date(pickupStr))/60000)
-    }
+    if(pickupStr) durationMin = Math.ceil((now - new Date(pickupStr))/60000)
 
-    await supabase.from('order_requuest').update({
+    const { error } = await supabase.from('order_requuest').update({
       'Delivery Status':'Delivered',
       'Delivered At': nowIso,
       'Delivery Duration Min': durationMin,
@@ -221,8 +191,7 @@ export default function DriverDashboard(){
       'Final Payment Method': paymentMethod
     }).eq('supa_id', selectedOrder.supa_id)
 
-    if(timersRef.current[selectedOrder['Request ID']]) clearInterval(timersRef.current[selectedOrder['Request ID']])
-    setShowConfirm(false)
+    if(error) setDebug(`خطأ حفظ الوقت: ${error.message}`)
     location.reload()
   }
 
@@ -240,7 +209,7 @@ export default function DriverDashboard(){
         <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
           <span>أهلاً {me.name}</span>
           {Object.entries(timers).map(([reqId, sec])=>(
-            <span key={reqId} style={{background: sec===0? '#ef4444' : sec<300? '#ef4444' : sec<600? '#facc15' : '#22c55e', color: sec<600 || sec===0? 'white' : 'black', padding:'6px 16px', borderRadius:20, fontWeight:900, fontSize:12, border:'2px solid white'}}>
+            <span key={reqId} style={{background: sec===0? '#ef4444' : sec<300? '#ef4444' : sec<600? '#facc15' : '#22c55e', color:'white', padding:'6px 16px', borderRadius:20, fontWeight:900, fontSize:12, border:'2px solid white'}}>
               ⏱ {reqId}: {sec===0? 'تأخر!' : formatTimer(sec)}
             </span>
           ))}
@@ -263,20 +232,19 @@ export default function DriverDashboard(){
 
         {requests.map(r=>{
           const prods = allDetails.filter(d=> String(d['Request ID']) === String(r['Request ID']))
-          const storeIds = [...new Set(prods.map(p=>p['Store ID']).filter(Boolean))]
+          const storeIds = [...new Set(prods.map(p=>String(p['Store ID']).trim()).filter(Boolean))]
           const isPending = r['Delivery Status']==='Pending'
           const isPicked = r['Delivery Status']==='Picked Up' || r['Delivery Status']==='On The Way'
-          const firstStore = storesMap[storeIds[0]] || storesMap[String(storeIds[0])] || {}
-          const customerId = r['Costumer ID']
-          const customerPhone = r['Mobile'] || usersMap[customerId]?.['Mobile'] || usersMap[String(customerId)]?.['Mobile'] || '-'
-          const whatsappNumber = usersMap[customerId]?.['WhatsApp Number'] || usersMap[String(customerId)]?.['WhatsApp Number'] || ''
-          const waClean = String(whatsappNumber).replace(/[^0-9]/g,'')
-          const waLink = waClean? `https://wa.me/${waClean}` : null
-
-          const storeLat = firstStore['Current Latitude']
-          const storeLng = firstStore['Current Longitude']
-          const customerLat = r['Customer Latitude']
-          const customerLng = r['Customer Longitude']
+          const firstStore = storesMap[storeIds[0]] || storesMap[String(storeIds[0]).toLowerCase()] || {}
+          const customerId = String(r['Costumer ID']||'').trim()
+          const customerPhone = r['Mobile'] || usersMap[customerId]?.['Mobile'] || '-'
+          const whatsappRaw = usersMap[customerId]?.['WhatsApp Number'] || ''
+          let waClean = String(whatsappRaw).replace(/[^0-9]/g,'')
+          let waLink = waClean? `https://wa.me/${waClean}` : null
+          if(!waLink && customerPhone && customerPhone!== '-'){
+            const pClean = String(customerPhone).replace(/[^0-9]/g,'').replace(/^0+/, '')
+            waLink = `https://wa.me/961${pClean}`
+          }
 
           let orderTotal = 0
           prods.forEach(p=>{
@@ -284,26 +252,25 @@ export default function DriverDashboard(){
             const price = parseFloat(p['Unit Price'] || 0)
             orderTotal += qty * price
           })
-          if(orderTotal===0) orderTotal = parseFloat(r['Total Amount'] || r['Total'] || 0)
+          if(orderTotal===0) orderTotal = parseFloat(r['Total Amount'] || 0)
 
           return (
             <div key={r.supa_id} style={{background:'#f3f1ec', color:'#111', borderRadius:14, padding:14, marginBottom:12, border: isPicked? '3px solid #22c55e' : 'none'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <b>{r['Request ID']}</b>
                 <div style={{display:'flex', gap:6, alignItems:'center'}}>
-                  {timers[r['Request ID']]!==undefined && <span style={{background: timers[r['Request ID']]===0? '#ef4444' : timers[r['Request ID']]<300? '#ef4444' : timers[r['Request ID']]<600? '#facc15' : '#22c55e', color: timers[r['Request ID']]<600? 'white' : 'black', padding:'4px 12px', borderRadius:20, fontWeight:900, fontSize:12}}>⏱ {timers[r['Request ID']]===0? 'تأخر!' : formatTimer(timers[r['Request ID']])}</span>}
+                  {timers[r['Request ID']]!==undefined && <span style={{background: timers[r['Request ID']]===0? '#ef4444' : timers[r['Request ID']]<300? '#ef4444' : timers[r['Request ID']]<600? '#facc15' : '#22c55e', color:'white', padding:'4px 12px', borderRadius:20, fontWeight:900, fontSize:12}}>⏱ {timers[r['Request ID']]===0? 'تأخر!' : formatTimer(timers[r['Request ID']])}</span>}
                   <span style={{fontSize:12, padding:'3px 8px', borderRadius:20, background: isPending? '#ddd' : '#111', color: isPending? '#333' : 'white'}}>{r['Delivery Status']}</span>
                 </div>
               </div>
 
-              {isPending? <div style={{marginTop:8, fontSize:12}}>السعر: {formatLBP(r['Total Amount']||r['Total'])} - {prods.length} منتج - تفاصيل مخفية حتى القبول</div> : <>
+              {isPending? <div style={{marginTop:8, fontSize:12}}>السعر: {formatLBP(r['Total Amount'])} - {prods.length} منتج - مخفي حتى القبول</div> : <>
                 <div style={{background:'white', borderRadius:10, padding:10, marginTop:10}}>
                   <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏪 قسم المتجر - {storeIds.length} متجر</div>
                   {storeIds.map(sid=>{
-                    const s = storesMap[sid] || storesMap[String(sid)] || {}
-                    const areaCode = s['Area']
-                    const areaName = areasMap[areaCode] || areasMap[String(areaCode)] || areaCode || ''
-                    const storeName = s['Store Name'] || 'متجر'
+                    const s = storesMap[sid] || storesMap[sid.toLowerCase()] || {}
+                    const areaName = areasMap[s['Area']] || areasMap[String(s['Area']).toLowerCase()] || s['Area'] || ''
+                    const storeName = s['Store Name'] || `متجر ${sid.slice(0,8)}`
                     return <div key={sid} style={{fontSize:13, marginTop:6, padding:'6px', background:'#f3f3f3', borderRadius:8}}><b>{storeName}</b> / {areaName} / {s['Adress'] || ''}</div>
                   })}
                 </div>
@@ -311,21 +278,22 @@ export default function DriverDashboard(){
                 <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
                   <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🛒 المنتجات - {prods.length} منتج</div>
                   {prods.map((p,i)=>{
-                    const prodInfo = productsMap[p['Product ID']] || productsMap[String(p['Product ID'])] || {}
-                    const prodName = prodInfo['Product Name'] || p['Product ID'] || 'منتج'
+                    const key = String(p['Product ID']).trim()
+                    const prodInfo = productsMap[key] || productsMap[key.toLowerCase()] || {}
+                    const prodName = prodInfo['Product Name'] || `منتج ${key.slice(-6)}`
                     const unit = prodInfo['Unit'] || ''
                     const qty = parseFloat(p['Qty'] || 1)
-                    const unitPrice = parseFloat(p['Unit Price'] || 0)
+                    const unitPrice = parseFloat(p['Unit Price'] || prodInfo['Price'] || 0)
                     const lineTotal = qty * unitPrice
-                    const storeName = storesMap[p['Store ID']]?.['Store Name'] || storesMap[String(p['Store ID'])]?.['Store Name'] || ''
+                    const sName = storesMap[p['Store ID']]?.['Store Name'] || ''
                     return (
-                      <div key={i} style={{display:'flex', flexDirection:'column', fontSize:12, padding:'8px 0', borderBottom:'1px solid #eee'}}>
+                      <div key={i} style={{fontSize:12, padding:'8px 0', borderBottom:'1px solid #eee'}}>
                         <div style={{display:'flex', justifyContent:'space-between', fontWeight:700}}>
                           <span>{prodName} {unit? `(${unit})` : ''}</span>
                           <span>x{qty}</span>
                         </div>
                         <div style={{display:'flex', justifyContent:'space-between', opacity:0.7, fontSize:11, marginTop:2}}>
-                          <span>🏪 {storeName} - {formatLBP(unitPrice)} للوحدة</span>
+                          <span>🏪 {sName} - {formatLBP(unitPrice)}</span>
                           <span style={{fontWeight:900}}>{formatLBP(lineTotal)}</span>
                         </div>
                       </div>
@@ -338,33 +306,43 @@ export default function DriverDashboard(){
 
                 <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
                   <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏠 قسم الزبون</div>
-                  <div style={{fontSize:13, marginTop:4}}>{r['Delivery Adress'] || r['Address'] || '-'}</div>
+                  <div style={{fontSize:13, marginTop:4}}>{r['Delivery Adress'] || '-'}</div>
                   <div style={{display:'flex', gap:6, marginTop:8, alignItems:'center'}}>
                     <div style={{fontSize:12, background:'#f0f9ff', padding:'8px', borderRadius:6, flex:1}}>📞 {customerPhone}</div>
-                    {waLink && <a href={waLink} target="_blank" style={{background:'#25D366', color:'white', padding:'8px 12px', borderRadius:6, textDecoration:'none', fontWeight:900, fontSize:12}}>واتساب</a>}
+                    <a href={waLink} target="_blank" style={{background:'#25D366', color:'white', padding:'8px 12px', borderRadius:6, textDecoration:'none', fontWeight:900, fontSize:12}}>واتساب</a>
                     <a href={`tel:${customerPhone}`} style={{background:'#111', color:'white', padding:'8px 12px', borderRadius:6, textDecoration:'none', fontWeight:900, fontSize:12}}>اتصال</a>
                   </div>
                 </div>
 
                 <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
-                  <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>💳 قسم الدفع</div>
-                  <div style={{fontSize:13}}>الطريقة: <b>{r['Final Payment Method']||'Cash'}</b> - المبلغ: <b>{formatLBP(r['Total Amount']||r['Total']||'')}</b></div>
+                  <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>💳 الدفع</div>
+                  <div style={{fontSize:13}}>الطريقة: <b>{r['Final Payment Method']||'Cash'}</b> - المبلغ: <b>{formatLBP(r['Total Amount']||'')}</b></div>
                 </div>
 
-                <div style={{height:280, marginTop:10, borderRadius:12, overflow:'hidden', border:'1px solid #ccc'}}>
-                  {storeLat && storeLng? (
-                    <DriverMap storeLat={storeLat} storeLng={storeLng} customerLat={customerLat} customerLng={customerLng} driverLat={myLocation?.lat} driverLng={myLocation?.lng} onSelectPoint={setSelectedPoint} />
-                  ) : (
-                    <div style={{padding:20, textAlign:'center'}}>موقع المتجر غير موجود - {JSON.stringify(firstStore).slice(0,100)}</div>
-                  )}
-                </div>
-                <button onClick={openGoogleMaps} style={{marginTop:8, width:'100%', background: selectedPoint? '#111' : '#999', color:'white', padding:10, borderRadius:10, fontWeight:900}}>{selectedPoint? `🧭 تنقل إلى ${selectedPoint.label}` : 'اختار نقطة على الخريطة للتنقل'}</button>
+                {(() => {
+                  const storeWithLoc = storeIds.map(sid => storesMap[sid] || storesMap[sid.toLowerCase()]).find(s => s && s['Current Latitude'] && s['Current Longitude'])
+                  const sLat = storeWithLoc? parseFloat(storeWithLoc['Current Latitude']) : null
+                  const sLng = storeWithLoc? parseFloat(storeWithLoc['Current Longitude']) : null
+                  const cLat = r['Customer Latitude']? parseFloat(r['Customer Latitude']) : null
+                  const cLng = r['Customer Longitude']? parseFloat(r['Customer Longitude']) : null
+
+                  if(!sLat &&!cLat) return null
+
+                  return (
+                    <>
+                      <div style={{height:280, marginTop:10, borderRadius:12, overflow:'hidden', border:'1px solid #ccc'}}>
+                        <DriverMap storeLat={sLat} storeLng={sLng} customerLat={cLat} customerLng={cLng} driverLat={myLocation?.lat} driverLng={myLocation?.lng} onSelectPoint={setSelectedPoint} />
+                      </div>
+                      <button onClick={openGoogleMaps} style={{marginTop:8, width:'100%', background: selectedPoint? '#111' : '#999', color:'white', padding:10, borderRadius:10, fontWeight:900}}>{selectedPoint? `🧭 تنقل إلى ${selectedPoint.label}` : 'اختار نقطة على الخريطة للتنقل'}</button>
+                    </>
+                  )
+                })()}
               </>}
 
               <div style={{display:'flex', gap:8, marginTop:10}}>
                 {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'10px', borderRadius:10, fontWeight:900}}>استلام - بلش 25 دقيقة</button>}
                 {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'10px', borderRadius:10, fontWeight:900}}>انطلق للزبون {timers[r['Request ID']]!==undefined? `- ${formatTimer(timers[r['Request ID']])}` : ''}</button>}
-                {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setCollected(r['Total Amount']||r['Total']||''); setPaymentMethod(r['Final Payment Method']||'Cash'); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'10px', borderRadius:10, fontWeight:900}}>تأكيد التوصيل</button>}
+                {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setCollected(r['Total Amount']||''); setPaymentMethod(r['Final Payment Method']||'Cash'); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'10px', borderRadius:10, fontWeight:900}}>تأكيد التوصيل</button>}
               </div>
             </div>
           )
@@ -375,11 +353,10 @@ export default function DriverDashboard(){
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
           <div style={{background:'white', color:'black', padding:20, borderRadius:16, width:340}}>
             <h3>تأكيد التوصيل - {selectedOrder?.['Request ID']}</h3>
-            {timers[selectedOrder?.['Request ID']]>0 && <div style={{background:'#dcfce7', padding:8, borderRadius:8, textAlign:'center', fontWeight:900, marginTop:8}}>⏱ الوقت المتبقي: {formatTimer(timers[selectedOrder?.['Request ID']])}</div>}
+            {timers[selectedOrder?.['Request ID']]>0 && <div style={{background:'#dcfce7', padding:8, borderRadius:8, textAlign:'center', fontWeight:900, marginTop:8}}>⏱ المتبقي: {formatTimer(timers[selectedOrder?.['Request ID']])}</div>}
             <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={{width:'100%', padding:8, borderRadius:8, border:'1px solid #ccc', marginTop:10}}>
               <option value="Cash">Cash</option>
               <option value="Wish Money">Wish Money</option>
-              <option value="Whish Money">Whish Money</option>
             </select>
             <input placeholder="Collected Amount" value={collected} onChange={e=>setCollected(e.target.value)} style={{width:'100%', marginTop:10, padding:8, borderRadius:8, border:'1px solid #ccc'}}/>
             <input placeholder="Driver Note" value={driverNote} onChange={e=>setDriverNote(e.target.value)} style={{width:'100%', marginTop:8, padding:8, borderRadius:8, border:'1px solid #ccc'}}/>
