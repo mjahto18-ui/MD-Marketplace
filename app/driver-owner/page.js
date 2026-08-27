@@ -17,6 +17,7 @@ export default function DriverDashboard(){
   const [showConfirm, setShowConfirm] = useState(false)
   const [collected, setCollected] = useState("")
   const [driverNote, setDriverNote] = useState("")
+  const [myLocation, setMyLocation] = useState(null) // ضفناها
   const timerRef = useRef(null)
   const trackRef = useRef(null)
 
@@ -25,6 +26,10 @@ export default function DriverDashboard(){
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     setSupabase(createClient(url, key))
     fetch('/api/admin/me').then(r=>r.json()).then(setMe)
+    // ضفنا تتبع موقع السائق للخريطة
+    if(navigator.geolocation){
+      navigator.geolocation.watchPosition(p=>setMyLocation({lat:p.coords.latitude, lng:p.coords.longitude}), ()=>{}, {enableHighAccuracy:true})
+    }
   },[])
 
   // تحميل الطلبات - حسب القاموس اللي ثبتناه
@@ -47,7 +52,7 @@ export default function DriverDashboard(){
   },[supabase, me])
 
   // تايمر 25 دقيقة من اول Picked Up
-  const startTimer = () => {
+  const startTimer = (order) => {
     setTimer(25*60)
     if(timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(()=>{
@@ -55,10 +60,10 @@ export default function DriverDashboard(){
         if(prev <= 1){
           clearInterval(timerRef.current)
           // نزل رسالة تأخر بـ Admin Note
-          if(selectedOrder){
+          if(order){
             supabase.from('order_requuest').update({ 
               'Admin Note': `تأخر - تجاوز 25 دقيقة - ${new Date().toLocaleTimeString()}` 
-            }).eq('supa_id', selectedOrder.supa_id).then(()=>{})
+            }).eq('supa_id', order.supa_id).then(()=>{})
           }
           return 0
         }
@@ -105,7 +110,7 @@ export default function DriverDashboard(){
       
       if(newStatus === 'Picked Up'){
         setSelectedOrder(row)
-        startTimer()
+        startTimer(row)
         startLiveTracking(row, 'Picked Up')
       }
       if(newStatus === 'On The Way'){
@@ -134,7 +139,6 @@ export default function DriverDashboard(){
 
   const openGoogleMaps = ()=>{
     if(!selectedPoint) return
-    const origin = '' // بياخد موقع السائق الحالي تلقائي
     const dest = `${selectedPoint.lat},${selectedPoint.lng}`
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`, '_blank')
   }
@@ -149,9 +153,9 @@ export default function DriverDashboard(){
 
   return (
     <div style={{minHeight:'100vh', background:'#0a1930', color:'white'}}>
-      <div style={{background:'#0e2242', padding:'10px 14px', display:'flex', justifyContent:'space-between'}}>
-        <div>أهلاً {me.name} {timer>0 && <span style={{marginLeft:10, color: timer<300 ? '#ef4444' : timer<600 ? '#facc15' : '#22c55e', fontWeight:900}}>⏱️ {formatTimer(timer)}</span>}</div>
-        <button onClick={async()=>{await fetch('/api/admin/logout',{method:'POST'}); window.location.href='/admin/login'}}>خروج</button>
+      <div style={{background:'#0e2242', padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:20}}>
+        <div>أهلاً {me.name} {timer>0 && <span style={{marginLeft:10, background: timer<300 ? '#ef4444' : timer<600 ? '#facc15' : '#22c55e', padding:'4px 10px', borderRadius:20, fontWeight:900, color: timer<600 ? 'black' : 'white'}}>⏱️ {formatTimer(timer)}</span>}</div>
+        <button onClick={async()=>{await fetch('/api/admin/logout',{method:'POST'}); window.location.href='/admin/login'}} style={{background:'rgba(239,68,68,0.2)', color:'#fca5a5', border:'1px solid #ef4444', padding:'6px 12px', borderRadius:8}}>خروج</button>
       </div>
 
       <div style={{padding:12, maxWidth:900, margin:'0 auto'}}>
@@ -159,36 +163,54 @@ export default function DriverDashboard(){
           const isActive = ['Picked Up','On The Way'].includes(r['Delivery Status'])
           const isPending = r['Delivery Status']==='Pending'
           return (
-            <div key={r.supa_id} style={{background:'#f3f1ec', color:'#111', borderRadius:14, padding:14, marginBottom:12}}>
+            <div key={r.supa_id} style={{background:'#f3f1ec', color:'#111', borderRadius:14, padding:14, marginBottom:12, border: isActive ? '2px solid #f59e0b' : 'none'}}>
               <div style={{display:'flex', justifyContent:'space-between'}}>
                 <b>{r['Request ID']}</b>
-                <span style={{fontSize:12}}>{r['Delivery Status']} - {r['Area']}</span>
+                <span style={{fontSize:12, padding:'3px 8px', borderRadius:20, background: isPending ? '#ddd' : '#111', color: isPending ? '#333' : 'white'}}>{r['Delivery Status']} - {r['Area']}</span>
               </div>
               
               {isPending ? (
-                <div style={{marginTop:8, fontSize:12, opacity:0.7}}>السعر: {r['Total']||''} - تفاصيل مخفية حتى القبول</div>
+                <div style={{marginTop:8, fontSize:12, opacity:0.7}}>السعر: {r['Total']|| r['Amount'] || ''} - تفاصيل مخفية حتى القبول</div>
               ) : (
                 <>
-                  <div style={{fontSize:13, marginTop:6}}>{r['Delivery Adress']}</div>
-                  <div style={{height:250, marginTop:10, borderRadius:12, overflow:'hidden'}}>
+                  {/* قسم المتجر */}
+                  <div style={{background:'white', borderRadius:10, padding:10, marginTop:10}}>
+                    <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏪 قسم المتجر</div>
+                    <div style={{fontSize:13, marginTop:4}}>المتجر: <b>{r['Store Name'] || r['Store ID'] || '-'}</b></div>
+                  </div>
+                  {/* قسم الزبون */}
+                  <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
+                    <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏠 قسم الزبون</div>
+                    <div style={{fontSize:13}}>{r['Delivery Adress']}</div>
+                    <div style={{fontSize:12, opacity:0.7}}>📞 {r['Customer Phone'] || r['Phone'] || '-'}</div>
+                  </div>
+                  {/* قسم الدفع */}
+                  <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
+                    <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>💳 قسم الدفع</div>
+                    <div style={{fontSize:13}}>الطريقة: <b>{r['Final Payment Method']}</b> - المبلغ: <b>{r['Total']}</b></div>
+                  </div>
+
+                  <div style={{height:250, marginTop:10, borderRadius:12, overflow:'hidden', border:'1px solid #ccc'}}>
                     <DriverMap 
+                      storeLat={r['Store Latitude']}
+                      storeLng={r['Store Longitude']}
                       customerLat={r['Customer Latitude']} 
                       customerLng={r['Customer Longitude']}
+                      driverLat={myLocation?.lat}
+                      driverLng={myLocation?.lng}
                       onSelectPoint={setSelectedPoint}
                     />
                   </div>
-                  {selectedPoint && (
-                    <button onClick={openGoogleMaps} style={{marginTop:8, width:'100%', background:'#111', color:'white', padding:10, borderRadius:10}}>
-                      🧭 تنقل إلى {selectedPoint.label}
-                    </button>
-                  )}
+                  <button onClick={openGoogleMaps} disabled={!selectedPoint} style={{marginTop:8, width:'100%', background: selectedPoint ? '#111' : '#999', color:'white', padding:10, borderRadius:10, border:'none', fontWeight:900}}>
+                    {selectedPoint ? `🧭 تنقل إلى ${selectedPoint.label}` : 'اختار نقطة على الخريطة للتنقل'}
+                  </button>
                 </>
               )}
 
               <div style={{display:'flex', gap:8, marginTop:10}}>
-                {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{background:'#2563eb', color:'white', padding:'8px 14px', borderRadius:10}}>استلام</button>}
-                {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{background:'#f59e0b', color:'white', padding:'8px 14px', borderRadius:10}}>انطلق</button>}
-                {r['Delivery Status']==='On The Way' && <button onClick={()=>setShowConfirm(true)} style={{background:'#22c55e', color:'white', padding:'8px 14px', borderRadius:10}}>تأكيد التوصيل</button>}
+                {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'10px', borderRadius:10, border:'none', fontWeight:900}}>استلام - بلش 25 دقيقة</button>}
+                {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'10px', borderRadius:10, border:'none', fontWeight:900}}>انطلق للزبون</button>}
+                {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'10px', borderRadius:10, border:'none', fontWeight:900}}>تأكيد التوصيل</button>}
               </div>
             </div>
           )
@@ -196,7 +218,7 @@ export default function DriverDashboard(){
       </div>
 
       {showConfirm && (
-        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center'}}>
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
           <div style={{background:'white', color:'black', padding:20, borderRadius:16, width:320}}>
             <h3>تأكيد التوصيل - {selectedOrder?.['Request ID']}</h3>
             <div>المبلغ: {selectedOrder?.['Total']}</div>
@@ -204,6 +226,7 @@ export default function DriverDashboard(){
             <input placeholder="Collected Amount" value={collected} onChange={e=>setCollected(e.target.value)} style={{width:'100%', marginTop:10, padding:8}}/>
             <input placeholder="Driver Note" value={driverNote} onChange={e=>setDriverNote(e.target.value)} style={{width:'100%', marginTop:8, padding:8}}/>
             <button onClick={confirmDelivery} style={{marginTop:12, width:'100%', background:'#111', color:'white', padding:10, borderRadius:10}}>تم التوصيل</button>
+            <button onClick={()=>setShowConfirm(false)} style={{marginTop:8, width:'100%', background:'#eee', padding:8, borderRadius:10}}>إلغاء</button>
           </div>
         </div>
       )}
