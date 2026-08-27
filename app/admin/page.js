@@ -46,11 +46,26 @@ export default function AdminDashboard() {
   const [editRow, setEditRow] = useState(null)
   const [isAdding, setIsAdding] = useState(false)
   const [formData, setFormData] = useState({})
+  const [pendingCount, setPendingCount] = useState(0)
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     if (url && key) setSupabase(createClient(url, key))
+  }, [])
+
+  // جلب عدد البندينغ
+  useEffect(()=>{
+    const fetchPending = async()=>{
+      try{
+        const r = await fetch('/api/admin/pending-orders')
+        const d = await r.json()
+        if(Array.isArray(d)) setPendingCount(d.length)
+      }catch{}
+    }
+    fetchPending()
+    const interval = setInterval(fetchPending, 30000)
+    return ()=>clearInterval(interval)
   }, [])
 
   const loadTable = async (conf) => {
@@ -86,10 +101,16 @@ export default function AdminDashboard() {
 
   return (
     <div style={{display:'flex', minHeight:'100vh', background:'#0a1930', color:'white'}}>
-      {/* المحتوى شمال - 85% */}
       <div style={{flex:1, display:'flex', flexDirection:'column', minWidth:0, background:'#0a1930'}}>
         <div style={{padding:'10px 16px', display:'flex', gap:'12px', alignItems:'center', background:'#0a1930', borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
           <div style={{fontWeight:'bold'}}>MD Marketplace (32)</div>
+
+          {/* كبسة البندينغ مع الجرس */}
+          <a href="/admin/pending" style={{marginLeft:'20px', background: pendingCount>0?'#f59e0b':'rgba(255,255,255,0.1)', color: pendingCount>0?'black':'white', padding:'6px 14px', borderRadius:'8px', fontSize:'12px', fontWeight:'bold', textDecoration:'none', display:'flex', alignItems:'center', gap:'6px', position:'relative'}}>
+            <span>🔔 Pending Orders</span>
+            {pendingCount>0 && <span style={{background:'#ef4444', color:'white', borderRadius:'50%', width:'18px', height:'18px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'bold'}}>{pendingCount}</span>}
+          </a>
+
           <div style={{marginLeft:'auto', display:'flex', gap:'8px', alignItems:'center'}}>
             <button onClick={()=>loadTable(selected)} style={{background:'white', color:'black', padding:'6px 14px', borderRadius:'8px', fontSize:'12px'}}>Reload</button>
             <button onClick={openAdd} style={{background:'#22c55e', color:'white', padding:'6px 14px', borderRadius:'8px', fontSize:'12px', fontWeight:'bold'}}>+ إضافة</button>
@@ -127,7 +148,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* الجداول يمين - 15% */}
       <div style={{width:'190px', minWidth:'190px', background:'#0e2242', borderLeft:'1px solid rgba(255,255,255,0.08)', height:'100vh', position:'sticky', top:0, overflowY:'auto'}}>
         <div style={{padding:'12px 10px'}}>
           {TABLES_CONFIG.map(t=>(
