@@ -47,7 +47,7 @@ export default function DriverDashboard(){
       // Related ID هو Assigned Driver الحقيقي
       const { data, error } = await supabase.from('order_requuest')
         .select('*')
-        .eq('Related ID', driverId)
+        .eq('Assigned Driver', driverId)
         .eq('Approval Status', 'Approved')
         .in('Delivery Status', ['Pending','Picked Up','On The Way'])
         .limit(100)
