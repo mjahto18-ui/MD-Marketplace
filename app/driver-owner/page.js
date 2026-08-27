@@ -22,8 +22,10 @@ export default function DriverDashboard(){
   const [paymentMethod, setPaymentMethod] = useState("Cash")
   const [myLocation, setMyLocation] = useState(null)
   const [debug, setDebug] = useState("")
+  const [isOnline, setIsOnline] = useState(true)
   const timersRef = useRef({})
   const trackRef = useRef(null)
+  const driverLocationRef = useRef(null)
 
   useEffect(()=>{
     setSupabase(createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))
@@ -34,8 +36,40 @@ export default function DriverDashboard(){
     return ()=>{
       Object.values(timersRef.current).forEach(clearInterval)
       if(trackRef.current) clearInterval(trackRef.current)
+      if(driverLocationRef.current) navigator.geolocation.clearWatch(driverLocationRef.current)
     }
   },[])
+
+  // فقرة 1: تحديث جدول drivers مشان يبين بالادمن
+  useEffect(()=>{
+    if(!supabase ||!me ||!isOnline) return
+    const driverId = me.relatedId || me.userId
+    if(!driverId) return
+    if(!navigator.geolocation) return
+
+    driverLocationRef.current = navigator.geolocation.watchPosition(async (pos)=>{
+      const lat = pos.coords.latitude
+      const lng = pos.coords.longitude
+      setMyLocation({lat, lng})
+      await supabase.from('drivers').update({
+        "Current Latitude": lat,
+        "Current Longitude": lng,
+        "Last Location Update": new Date().toISOString(),
+        "Status": "Online"
+      }).eq('"Driver ID"', driverId)
+    }, ()=>{}, {enableHighAccuracy:true, maximumAge:0})
+
+    return ()=>{ if(driverLocationRef.current) navigator.geolocation.clearWatch(driverLocationRef.current) }
+  },[supabase, me, isOnline])
+
+  // فقرة 2: زر اون / اوف
+  const toggleOnline = async ()=>{
+    if(!supabase ||!me) return
+    const driverId = me.relatedId || me.userId
+    const newStatus = isOnline? "Offline" : "Online"
+    await supabase.from('drivers').update({"Status": newStatus, "Last Location Update": new Date().toISOString()}).eq('"Driver ID"', driverId)
+    setIsOnline(!isOnline)
+  }
 
   const formatTimer = (s)=>`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`
   const formatLBP = (n) => {
@@ -170,6 +204,7 @@ export default function DriverDashboard(){
       <div style={{background:'#0e2242', padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:20}}>
         <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
           <span>أهلاً {me.name}</span>
+          <button onClick={toggleOnline} style={{background: isOnline? '#22c55e' : '#ef4444', color:'white', padding:'6px 14px', borderRadius:20, fontWeight:900, fontSize:12, border:'none'}}>{isOnline? '🟢 Online' : '🔴 Offline'}</button>
           {Object.entries(timers).map(([reqId, sec])=>(
             <span key={reqId} style={{background: sec===0? '#ef4444' : sec<300? '#ef4444' : sec<600? '#facc15' : '#22c55e', color:'white', padding:'6px 16px', borderRadius:20, fontWeight:900, fontSize:12, border:'2px solid white'}}>⏱ {reqId}: {sec===0? 'تأخر!' : formatTimer(sec)}</span>
           ))}
@@ -186,7 +221,7 @@ export default function DriverDashboard(){
         </div>
 
         <div style={{background:'rgba(255,255,255,0.08)', borderRadius:12, padding:12, fontSize:11, marginBottom:12}}>
-          <div>📍 موقعك: {myLocation? `${myLocation.lat.toFixed(5)}, ${myLocation.lng.toFixed(5)}` : 'بانتظار GPS...'}</div>
+          <div>📍 موقعك: {myLocation? `${myLocation.lat.toFixed(5)}, ${myLocation.lng.toFixed(5)}` : 'بانتظار GPS...'} {isOnline? '(يتم الارسال للادمن)' : '(متوقف)'}</div>
           <div style={{marginTop:6, color:'#facc15'}}>🔍 {debug}</div>
         </div>
 
