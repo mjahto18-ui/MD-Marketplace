@@ -15,7 +15,7 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // ===== حماية الأدمن - جديد =====
+  // ===== حماية الأدمن =====
   if (pathname.startsWith('/admin')) {
     if (pathname.startsWith('/admin/login')) {
       return NextResponse.next();
@@ -24,12 +24,20 @@ export async function middleware(request) {
     if (!adminSession) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
-    // هون لاحقا بنفلتر حسب الرول محاسبة الخ
     return NextResponse.next();
   }
-  // ===== نهاية حماية الأدمن =====
 
-  // صفحة الحداد - نفس المنطق تبعك بس مع cache 10 ثواني
+  // ===== حماية السائق وصاحب المتجر - نفس مسارك القديم بدون نقل =====
+  if (pathname.startsWith('/driver-owner')) {
+    const adminSession = request.cookies.get('admin_session');
+    if (!adminSession) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+    return NextResponse.next();
+  }
+  // ===== نهاية الاضافة =====
+
+  // صفحة الحداد - نفس المنطق تبعك
   if (pathname !== '/closed') {
     try {
       const baseUrl = request.nextUrl.origin;
@@ -43,8 +51,7 @@ export async function middleware(request) {
           return NextResponse.redirect(new URL('/closed', request.url));
         }
       }
-    } catch {
-    }
+    } catch {}
   }
 
   if (pathname === '/') {
@@ -63,7 +70,6 @@ export async function middleware(request) {
     if (!session && !isGuest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
-
     if (session) {
       try {
         let data;
