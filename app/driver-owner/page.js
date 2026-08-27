@@ -112,15 +112,15 @@ export default function DriverDashboard(){
 
         const prodIds = [...new Set((det||[]).map(d=>d['Product ID']).filter(Boolean))]
         if(prodIds.length>0){
-          const { data: allProds } = await supabase.from('product_base_data').select('*')
+          const { data: allProds } = await supabase.from('products').select('*')
           const pmap = {}
           ;(allProds||[]).forEach(p=>{
             const pid = p['Product ID']
             pmap[pid] = p
             pmap[String(pid)] = p
-            if(p['Products_Base_ID']) {
-              pmap[p['Products_Base_ID']] = p
-              pmap[String(p['Products_Base_ID'])] = p
+            if(p['Products']) {
+              pmap[p['Products']] = p
+              pmap[String(p['Products'])] = p
             }
           })
           setProductsMap(pmap)
