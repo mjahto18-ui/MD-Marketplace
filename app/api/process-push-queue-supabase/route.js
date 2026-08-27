@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 export async function POST(req) {
   try {
+    // جوّا الـ POST منشان ما يعمل Error وقت الـ Build
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
     const body = await req.json();
     console.log("========== PUSH QUEUE SUPABASE ==========", body);
 
@@ -19,16 +20,8 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "Missing data" });
     }
 
-    // 1. Users من Supabase
-    const { data: user } = await supabase
-     .from("users")
-     .select("*")
-     .eq("User ID", userId)
-     .single();
-
-    if (!user) {
-      return NextResponse.json({ success: false, message: "User not found" });
-    }
+    const { data: user } = await supabase.from("users").select("*").eq("User ID", userId).single();
+    if (!user) return NextResponse.json({ success: false, message: "User not found" });
 
     const subscriptionId = user["Subscription ID"];
     console.log("Subscription =", subscriptionId);
@@ -37,27 +30,12 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "Subscription not found" });
     }
 
-    // 2. Notification Templates من Supabase - نفس منطق القديم
-    const { data: template } = await supabase
-     .from("notification_templates")
-     .select("*")
-     .eq("Code", code)
-     .single();
-
-    console.log("Template =", template);
-
-    if (!template) {
-      return NextResponse.json({ success: false, message: "Template not found" });
-    }
+    const { data: template } = await supabase.from("notification_templates").select("*").eq("Code", code).single();
+    if (!template) return NextResponse.json({ success: false, message: "Template not found" });
 
     const title = template["Title AR"];
     const message = template["Message AR"];
 
-    console.log("Title =", title);
-    console.log("Message =", message);
-
-    // 3. OneSignal
-    console.log("Sending OneSignal...");
     const response = await fetch("https://api.onesignal.com/notifications?c=push", {
       method: "POST",
       headers: {
@@ -72,9 +50,7 @@ export async function POST(req) {
       }),
     });
 
-    console.log("HTTP Status =", response.status);
     const result = await response.json();
-    console.log("OneSignal Result =", result);
 
     if (queueId) {
       await supabase.from("push_queue").update({ Status: "Sent" }).eq("Queue ID", queueId);
