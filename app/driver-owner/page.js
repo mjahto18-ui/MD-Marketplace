@@ -328,7 +328,7 @@ export default function DriverDashboard(){
                     )
                   })()}
                 </>
-              )}
+              }
 
               <div style={{display:'flex', gap:8, marginTop:10}}>
                 {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>استلام - Pickup</button>}
