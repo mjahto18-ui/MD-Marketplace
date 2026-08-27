@@ -10,6 +10,7 @@ export default function DriverDashboard(){
   const [supabase, setSupabase] = useState(null)
   const [me, setMe] = useState(null)
   const [requests, setRequests] = useState([])
+  const [allDetails, setAllDetails] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [selectedPoint, setSelectedPoint] = useState(null) // {lat,lng,label}
@@ -46,6 +47,12 @@ export default function DriverDashboard(){
         .in('Delivery Status', ['Pending','Picked Up','On The Way'])
         .limit(100)
       setRequests(data||[])
+      // جيب المنتجات من order_details بناء على Request ID
+      if(data && data.length>0){
+        const ids = data.map(o=>o['Request ID']).filter(Boolean)
+        const { data: det } = await supabase.from('order_details').select('*').in('Request ID', ids)
+        setAllDetails(det||[])
+      }
       setLoading(false)
     }
     load()
@@ -162,6 +169,7 @@ export default function DriverDashboard(){
         {requests.map(r=>{
           const isActive = ['Picked Up','On The Way'].includes(r['Delivery Status'])
           const isPending = r['Delivery Status']==='Pending'
+          const prods = allDetails.filter(d=> d['Request ID'] === r['Request ID'])
           return (
             <div key={r.supa_id} style={{background:'#f3f1ec', color:'#111', borderRadius:14, padding:14, marginBottom:12, border: isActive ? '2px solid #f59e0b' : 'none'}}>
               <div style={{display:'flex', justifyContent:'space-between'}}>
@@ -170,13 +178,23 @@ export default function DriverDashboard(){
               </div>
               
               {isPending ? (
-                <div style={{marginTop:8, fontSize:12, opacity:0.7}}>السعر: {r['Total']|| r['Amount'] || ''} - تفاصيل مخفية حتى القبول</div>
+                <div style={{marginTop:8, fontSize:12, opacity:0.7}}>السعر: {r['Total']|| r['Amount'] || ''} - {prods.length} منتج - تفاصيل مخفية حتى القبول</div>
               ) : (
                 <>
                   {/* قسم المتجر */}
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:10}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏪 قسم المتجر</div>
                     <div style={{fontSize:13, marginTop:4}}>المتجر: <b>{r['Store Name'] || r['Store ID'] || '-'}</b></div>
+                  </div>
+                  {/* قسم المنتجات - من order_details */}
+                  <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
+                    <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🛒 المنتجات - {prods.length} من order_details</div>
+                    {prods.map((p,i)=>(
+                      <div key={i} style={{display:'flex', justifyContent:'space-between', fontSize:12, padding:'5px 0', borderBottom:'1px solid #eee'}}>
+                        <span>{p['Product Name'] || p['Product ID']}</span>
+                        <span>x{p['Quantity'] || 1} - {p['Price'] || ''}</span>
+                      </div>
+                    ))}
                   </div>
                   {/* قسم الزبون */}
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
