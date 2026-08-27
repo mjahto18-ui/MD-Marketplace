@@ -31,9 +31,9 @@ export async function GET(){
   if(areaCodes.length>0){
     const { data: areas } = await supabase
       .from('areas')
-      .select(`"Area Code", "Area Name"`)
-      .in('"Area Code"', areaCodes)
-    areas?.forEach(a=>{ areaMap[a['Area Code']] = a['Area Name'] })
+      .select(`"Area ID", "Area Name"`)
+      .in('"Area ID"', areaCodes)
+    areas?.forEach(a=>{ areaMap[a['Area ID']] = a['Area Name'] })
   }
 
   const result = orders.map(o=>({
