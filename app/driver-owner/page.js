@@ -115,7 +115,6 @@ export default function DriverDashboard(){
             const key = String(raw).trim()
             pmap[key] = p
             pmap[key.toLowerCase()] = p
-            // P0001
             if(p['Products_Base_ID']){
               pmap[String(p['Products_Base_ID']).trim()] = p
             }
@@ -166,10 +165,8 @@ export default function DriverDashboard(){
     if(newStatus==='Picked Up') updatedRow['Pickup At'] = nowIso
     setRequests(prev=>prev.map(r=> r.supa_id===row.supa_id? updatedRow : r))
     setSelectedOrder(updatedRow)
-
     let updateData = { 'Delivery Status': newStatus }
     if(newStatus==='Picked Up') updateData['Pickup At'] = nowIso
-
     await supabase.from('order_requuest').update(updateData).eq('supa_id', row.supa_id)
     if(newStatus==='Picked Up'){ startTimerForOrder(updatedRow); startLiveTracking(row,'Picked Up') }
     if(newStatus==='On The Way'){ startLiveTracking(row,'On The Way') }
@@ -181,18 +178,16 @@ export default function DriverDashboard(){
     const pickupStr = selectedOrder['Pickup At']
     let durationMin = null
     if(pickupStr) durationMin = Math.ceil((now - new Date(pickupStr))/60000)
-
     const { error } = await supabase.from('order_requuest').update({
       'Delivery Status':'Delivered',
       'Delivered At': nowIso,
-      'Delivery Duration Min': durationMin,
+      'Delivery Duration': durationMin,
       'Collected Amount': collected,
       'Driver Note': driverNote,
       'Final Payment Method': paymentMethod
     }).eq('supa_id', selectedOrder.supa_id)
-
     if(error) setDebug(`خطأ حفظ الوقت: ${error.message}`)
-    location.reload()
+    else location.reload()
   }
 
   const openGoogleMaps = ()=>{ if(!selectedPoint) return; window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedPoint.lat},${selectedPoint.lng}&travelmode=driving`,'_blank') }
@@ -235,7 +230,6 @@ export default function DriverDashboard(){
           const storeIds = [...new Set(prods.map(p=>String(p['Store ID']).trim()).filter(Boolean))]
           const isPending = r['Delivery Status']==='Pending'
           const isPicked = r['Delivery Status']==='Picked Up' || r['Delivery Status']==='On The Way'
-          const firstStore = storesMap[storeIds[0]] || storesMap[String(storeIds[0]).toLowerCase()] || {}
           const customerId = String(r['Costumer ID']||'').trim()
           const customerPhone = r['Mobile'] || usersMap[customerId]?.['Mobile'] || '-'
           const whatsappRaw = usersMap[customerId]?.['WhatsApp Number'] || ''
@@ -325,9 +319,7 @@ export default function DriverDashboard(){
                   const sLng = storeWithLoc? parseFloat(storeWithLoc['Current Longitude']) : null
                   const cLat = r['Customer Latitude']? parseFloat(r['Customer Latitude']) : null
                   const cLng = r['Customer Longitude']? parseFloat(r['Customer Longitude']) : null
-
                   if(!sLat &&!cLat) return null
-
                   return (
                     <>
                       <div style={{height:280, marginTop:10, borderRadius:12, overflow:'hidden', border:'1px solid #ccc'}}>
@@ -340,35 +332,35 @@ export default function DriverDashboard(){
               </>}
 
               <div style={{display:'flex', gap:8, marginTop:10}}>
-  {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>استلام - Pickup</button>}
-  {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>الانتقال الى الزبون {timers[r['Request ID']]!==undefined? `- ${formatTimer(timers[r['Request ID']])}` : ''}</button>}
-  {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setCollected(''); setDriverNote(''); setPaymentMethod(r['Final Payment Method']||'Cash'); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>تأكيد الدفع</button>}
-</div>
-</div> // هاد قفلة كرت الاوردر
-))} // هاد قفلة الـ map
-</div> // هاد قفلة الـ container
-
-     {showConfirm && (
-  <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
-    <div style={{background:'white', color:'black', padding:20, borderRadius:16, width:360}}>
-      <h3 style={{margin:0, fontWeight:900}}>تأكيد الدفع</h3>
-      <div style={{background:'#f3f4f6', padding:10, borderRadius:8, marginTop:12, fontSize:13}}>
-        <div><b>رقم الاوردر:</b> {selectedOrder?.['Request ID']}</div>
-        <div style={{marginTop:6}}><b>المبلغ المستحق:</b> <span style={{fontWeight:900, fontSize:16}}>{formatLBP(selectedOrder?.['Total Amount']||selectedOrder?.['Total'])}</span> <span style={{fontSize:10, opacity:0.6}}>(ممنوع التغيير)</span></div>
-        {timers[selectedOrder?.['Request ID']]>0 && <div style={{marginTop:8, background:'#dcfce7', padding:6, borderRadius:6, textAlign:'center', fontWeight:900}}>⏱ المتبقي: {formatTimer(timers[selectedOrder?.['Request ID']])}</div>}
+                {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>استلام - Pickup</button>}
+                {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>الانتقال الى الزبون {timers[r['Request ID']]!==undefined? `- ${formatTimer(timers[r['Request ID']])}` : ''}</button>}
+                {r['Delivery Status']==='On The Way' && <button onClick={()=>{setSelectedOrder(r); setCollected(''); setDriverNote(''); setPaymentMethod(r['Final Payment Method']||'Cash'); setShowConfirm(true)}} style={{flex:1, background:'#22c55e', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>تأكيد الدفع</button>}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #ccc', marginTop:12}}>
-        <option value="Cash">Cash</option>
-        <option value="Wish Money">Wish Money</option>
-      </select>
-
-      <input placeholder="Collect Amount - كم استلمت" value={collected} onChange={e=>setCollected(e.target.value)} style={{width:'100%', marginTop:10, padding:10, borderRadius:8, border:'2px solid #111', fontWeight:900}}/>
-
-      <textarea placeholder="ملاحظات - الزبونة مش منيحة او اي ملاحظة" value={driverNote} onChange={e=>setDriverNote(e.target.value)} style={{width:'100%', marginTop:8, padding:10, borderRadius:8, border:'1px solid #ccc', minHeight:60}}/>
-
-      <button onClick={confirmDelivery} style={{marginTop:12, width:'100%', background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>موافق - {selectedOrder?.['Pickup At']? `${Math.ceil((new Date() - new Date(selectedOrder['Pickup At']))/60000)} دقيقة` : ''}</button>
-      <button onClick={()=>setShowConfirm(false)} style={{marginTop:8, width:'100%', background:'#eee', padding:10, borderRadius:10}}>إلغاء</button>
+      {showConfirm && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
+          <div style={{background:'white', color:'black', padding:20, borderRadius:16, width:360}}>
+            <h3 style={{margin:0, fontWeight:900}}>تأكيد الدفع</h3>
+            <div style={{background:'#f3f4f6', padding:10, borderRadius:8, marginTop:12, fontSize:13}}>
+              <div><b>رقم الاوردر:</b> {selectedOrder?.['Request ID']}</div>
+              <div style={{marginTop:6}}><b>المبلغ المستحق:</b> <span style={{fontWeight:900, fontSize:16}}>{formatLBP(selectedOrder?.['Total Amount']||'0')}</span> <span style={{fontSize:10, opacity:0.6}}>(ممنوع التغيير)</span></div>
+              {selectedOrder && timers[selectedOrder['Request ID']]>0 && <div style={{marginTop:8, background:'#dcfce7', padding:6, borderRadius:6, textAlign:'center', fontWeight:900}}>⏱ المتبقي: {formatTimer(timers[selectedOrder['Request ID']])}</div>}
+            </div>
+            <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #ccc', marginTop:12}}>
+              <option value="Cash">Cash</option>
+              <option value="Wish Money">Wish Money</option>
+            </select>
+            <input placeholder="Collect Amount - كم استلمت" value={collected} onChange={e=>setCollected(e.target.value)} style={{width:'100%', marginTop:10, padding:10, borderRadius:8, border:'2px solid #111', fontWeight:900}}/>
+            <textarea placeholder="ملاحظات - الزبونة مش منيحة او اي ملاحظة" value={driverNote} onChange={e=>setDriverNote(e.target.value)} style={{width:'100%', marginTop:8, padding:10, borderRadius:8, border:'1px solid #ccc', minHeight:60}}/>
+            <button onClick={confirmDelivery} style={{marginTop:12, width:'100%', background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>موافق - {selectedOrder?.['Pickup At']? `${Math.ceil((new Date() - new Date(selectedOrder['Pickup At']))/60000)} دقيقة` : ''}</button>
+            <button onClick={()=>setShowConfirm(false)} style={{marginTop:8, width:'100%', background:'#eee', padding:10, borderRadius:10}}>إلغاء</button>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-)}
+  )
+}
