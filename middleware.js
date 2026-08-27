@@ -28,7 +28,7 @@ export async function middleware(request) {
   }
 
   // ===== حماية السائق وصاحب المتجر - نفس مسارك القديم بدون نقل =====
-  if (pathname.startsWith('/driver-owner')) {
+  if (pathname.startsWith('/driver-owner') || pathname.startsWith('/store-owner')) {
     const adminSession = request.cookies.get('admin_session');
     if (!adminSession) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
