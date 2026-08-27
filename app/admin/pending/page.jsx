@@ -8,8 +8,7 @@ export default function PendingPage(){
   const [selected, setSelected] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [drivers, setDrivers] = useState([])
-  const [details, setDetails] = useState([])
-  const [showProducts, setShowProducts] = useState(false)
+  const [detailsMap, setDetailsMap] = useState({})
 
   useEffect(()=>{
     fetch('/api/admin/pending-orders').then(r=>r.json()).then(setOrders)
@@ -25,22 +24,21 @@ export default function PendingPage(){
     load()
   },[])
 
-  const openOrder = (o)=>{
+  const openOrder = async(o)=>{
     const id = o.requestID
     setSelected(o)
-    if(expandedId === id) setExpandedId(null)
-    else setExpandedId(id)
-  }
-
-  const loadProducts = async(requestID)=>{
-    const { createClient } = await import('@supabase/supabase-js')
-    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-    const { data: det } = await sb.from('order_details').select('*').eq('"Request ID"', requestID)
-    const pIds = [...new Set((det||[]).map(d=>String(d['Product ID']).trim()).filter(Boolean))]
-    const { data: prods } = pIds.length? await sb.from('products').select('*').in('"Product ID"', pIds) : {data:[]}
-    const pMap = {}; (prods||[]).forEach(p=> pMap[String(p['Product ID']).trim()] = p['Product Name'] || p['Name'] || p['Product ID'])
-    setDetails((det||[]).map(d=>({...d, productName: pMap[String(d['Product ID']).trim()] || d['Product ID']})))
-    setShowProducts(true)
+    const willOpen = expandedId!==id
+    setExpandedId(willOpen? id : null)
+    if(willOpen &&!detailsMap[id]){
+      const { createClient } = await import('@supabase/supabase-js')
+      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      const { data: det } = await sb.from('order_details').select('*').eq('"Request ID"', id)
+      const pIds = [...new Set((det||[]).map(d=>String(d['Product ID']).trim()).filter(Boolean))]
+      const { data: prods } = pIds.length? await sb.from('products').select('*').in('"Product ID"', pIds) : {data:[]}
+      const pMap = {}; (prods||[]).forEach(p=> pMap[String(p['Product ID']).trim()] = p['Product Name'] || p['Name'] || p['Product ID'])
+      const enriched = (det||[]).map(d=>({...d, productName: pMap[String(d['Product ID']).trim()] || d['Product ID']}))
+      setDetailsMap(prev=>({...prev, [id]: enriched}))
+    }
   }
 
   const handleAssign = async(driver)=>{
@@ -60,6 +58,7 @@ export default function PendingPage(){
         <h2 className="font-bold text-xl mb-4">بندينغ ({orders.length})</h2>
         {orders.map(o=>{
           const isOpen = expandedId===o.requestID
+          const prods = detailsMap[o.requestID] || []
           return (
             <div key={o.requestID} className={`rounded-xl mb-3 border ${selected?.requestID===o.requestID?'border-purple-600':'border-white/10'}`}>
               <div onClick={()=>openOrder(o)} className={`p-4 cursor-pointer ${isOpen?'bg-white/10':''} rounded-xl`}>
@@ -77,7 +76,15 @@ export default function PendingPage(){
                   <p><b>المجموع:</b> {o.totalAmount || 0}</p>
                   <p><b>تلفون:</b> {o.mobile}</p>
                   <p><b>ملاحظات:</b> {o.note || '-'}</p>
-                  <button onClick={()=>loadProducts(o.requestID)} className="w-full mt-3 bg-purple-600 hover:bg-purple-700 rounded-lg py-2 text-xs font-bold">🛒 شوف المنتجات</button>
+                  <div className="mt-3 bg-white/5 rounded-lg p-3">
+                    <p className="font-bold text-xs mb-2 opacity-60">🛒 المنتجات ({prods.length})</p>
+                    {prods.length===0? <p className="text-xs opacity-50">جاري تحميل المنتجات...</p> : prods.map((d,i)=>(
+                      <div key={i} className="flex justify-between py-1.5 border-b border-white/5 last:border-0 text-xs">
+                        <span>{d.productName} x{d['Qty']}</span>
+                        <span>{d['Line Total'] || d['Unit Price']}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -87,21 +94,6 @@ export default function PendingPage(){
 
       <div className="col-span-3 rounded-2xl overflow-hidden bg-white relative" style={{height:'calc(100vh - 48px)'}}>
         {selected? <AdminPendingMap order={selected} drivers={drivers} onAssign={handleAssign}/> : <div className="h-full flex items-center justify-center text-black">اختار طلب من اليسار</div>}
-
-        {showProducts && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-            <div className="bg-slate-900 rounded-2xl p-6 w- max-h- overflow-auto">
-              <div className="flex justify-between mb-4"><h3 className="font-bold">منتجات #{String(selected?.requestID).slice(-6)}</h3><button onClick={()=>setShowProducts(false)}>✕</button></div>
-              {details.map((d,i)=>(
-                <div key={i} className="flex justify-between py-2 border-b border-white/10 text-sm">
-                  <span>{d.productName} x{d['Qty']}</span>
-                  <span>{d['Line Total']}</span>
-                </div>
-              ))}
-              {details.length===0 && <p className="opacity-60 text-sm">ما في منتجات - تأكد ان Request ID متطابق</p>}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
