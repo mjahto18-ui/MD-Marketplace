@@ -15,20 +15,31 @@ export async function GET(){
   if(!orders || orders.length===0) return Response.json([])
 
   const customerIds = [...new Set(orders.map(o=>o['customer ID']).filter(Boolean))]
+  const areaCodes = [...new Set(orders.map(o=>o['Area']).filter(Boolean))]
   
-  let map = {}
+  let customerMap = {}
+  let areaMap = {}
+
   if(customerIds.length>0){
     const { data: customers } = await supabase
       .from('customers')
       .select(`"Customer ID", "Name"`)
       .in('"Customer ID"', customerIds)
-    customers?.forEach(c=>{ map[c['Customer ID']] = c['Name'] })
+    customers?.forEach(c=>{ customerMap[c['Customer ID']] = c['Name'] })
+  }
+
+  if(areaCodes.length>0){
+    const { data: areas } = await supabase
+      .from('areas')
+      .select(`"Area Code", "Area Name"`)
+      .in('"Area Code"', areaCodes)
+    areas?.forEach(a=>{ areaMap[a['Area Code']] = a['Area Name'] })
   }
 
   const result = orders.map(o=>({
     requestID: o['Request ID'],
     customerID: o['customer ID'],
-    customerName: map[o['customer ID']] || 'زبون',
+    customerName: customerMap[o['customer ID']] || 'زبون',
     mobile: o['Mobile'],
     customerLat: parseFloat(o['Customer Latitude']),
     customerLng: parseFloat(o['Customer Longitude']),
@@ -42,6 +53,7 @@ export async function GET(){
     orderArea: o['Order Area'],
     adminNote: o['Admin Note'],
     areaCode: o['Area'],
+    areaName: areaMap[o['Area']] || o['Area'] || '',
     createdDate: o['Cerated Date'],
     raw: o
   }))
