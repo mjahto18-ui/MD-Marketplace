@@ -43,10 +43,10 @@ export default function ActiveOrdersPage() {
     })
 
     const driversMap = {}
-    usersRes.data?.forEach(u => {
-      const id = u['ID'] || u['id'] || u['User ID']
-      if(id) driversMap['Related ID'] = u['Name'] || u['Full Name'] || u['name']
-    })
+usersRes.data?.forEach(u => {
+  const id = u['Related ID']
+  if(id) driversMap[id] = u['Name']
+})
 
     setAreas(areasMap)
     setCustomers(customersMap)
