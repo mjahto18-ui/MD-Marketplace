@@ -15,12 +15,13 @@ export default function ActiveOrdersPage() {
   }, [])
 
   const fetchOrders = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('order_requuest')
       .select('*')
       .neq('Delivery Status', 'Delivered')
-      .order('created_at', { ascending: false })
+      .order('Request Date', { ascending: false })
     
+    if(error) console.log("ERROR:", error)
     setOrders(data || [])
   }
 
@@ -30,17 +31,19 @@ export default function ActiveOrdersPage() {
       <div className="grid gap-4">
         {orders.map((order) => (
           <Link 
-            key={order.id} 
-            href={`/admin/active-orders/${order.id}`}
+            key={order['Request ID']} 
+            href={`/admin/active-orders/${order['Request ID']}`}
             className="bg-white p-4 rounded-lg shadow hover:shadow-md border"
           >
             <div className="flex justify-between">
-              <span>#{order.id} - {order['Customer Name']}</span>
+              <span>#{order['Request ID']} - {order['customer ID']}</span>
               <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm">
-                {order['Delivery Status']}
+                {order['Delivery Status'] || order['Approval Status']}
               </span>
             </div>
-            <p className="text-sm text-gray-500 mt-2">{order['Address']}</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {order['Delivery Adress']} - {order['Area']} - {order['Total Amount']}
+            </p>
           </Link>
         ))}
       </div>
