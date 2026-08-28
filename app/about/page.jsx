@@ -346,6 +346,8 @@ return (
           >
             الشروط والاحكام
           </Link>
+          <span className="text-[#6A11CB]/30">|</span>
+<Link href="/our-story" className="text-[#6A11CB] hover:text-[#FF4E9A] transition font-medium">قصة تأسيس MD-Marketplace</Link>
 
         </div>
 
