@@ -44,19 +44,30 @@ export default function CashPendingPage() {
   }
 
   const confirmCash = async (orderId) => {
-    if(!confirm('تأكيد استلام الكاش؟')) return
-    const { error } = await supabase.from('order_requuest').update({
-        'Cash Status': 'Received',
-        'Approval Status': 'Completed',
-        'Archived Date': new Date().toISOString()
-      }).eq('Request ID', orderId)
+  if(!confirm('تأكيد استلام الكاش؟ ' + orderId)) return
+  
+  console.log("بحاول حدث:", orderId, typeof orderId)
+  
+  const { data, error, count } = await supabase
+    .from('order_requuest')
+    .update({
+      'Cash Status': 'Received',
+      'Approval Status': 'Completed',
+      'Archived Date': new Date().toISOString()
+    })
+    .eq('Request ID', orderId)
+    .select()
 
-    if(error) alert(error.message)
-    else {
-      alert('تم ✅')
-      setOrders(prev => prev.filter(o => o['Request ID']!== orderId))
-    }
+  console.log("data راجع:", data)
+  console.log("error راجع:", error)
+  
+  if(error) alert("Error: " + error.message)
+  else if(!data || data.length === 0) alert("ما لقى الاوردر! الـ ID ما تطابق - جرب Number(orderId)")
+  else {
+    alert('تم ✅')
+    setOrders(prev => prev.filter(o => o['Request ID'] !== orderId))
   }
+}
 
   return (
     <div className="p-6">
