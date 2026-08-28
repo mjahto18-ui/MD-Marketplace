@@ -14,6 +14,6 @@ export const metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function OurStoryLayout({ children }: { children: React.ReactNode }) {
+export default function AboutLayout({ children }) {
   return children;
 }
