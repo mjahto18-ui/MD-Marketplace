@@ -17,7 +17,7 @@ export default function OurStoryPage() {
             <Image src="/icon.png" alt="MD-Marketplace" width={125} height={125} />
           </div>
           <h1 className="text-3xl md:text-5xl font-bold text-[#0D0D21] mb-3 text-center">قصة تأسيس MD-Marketplace</h1>
-          <p className="text-lg text-[#6A11CB] font-semibold">عندما تفهم التجارة الإنسان</p>
+          <p className="text-lg text-[#6A11CB] font-semibold">عندما تفهم التجارة الإنسان — وتغلق ثغرات الشارع</p>
         </div>
 
         <div className="max-w-4xl mx-auto">
@@ -26,83 +26,84 @@ export default function OurStoryPage() {
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
             <h3 className="text-2xl font-bold text-[#6A11CB] mb-4">لماذا بُنيت هذه المنظومة؟</h3>
             <p className="text-[#0D0D21] leading-relaxed">
-              العالم مليء بالتطبيقات، لكن معظمها صُمم ليرضي النظام البرمجي وليس الإنسان. أزرار كثيرة وقوائم معقدة. من هنا ولدت الفكرة: بناء بنية تحتية تجبر كل التعقيد أن يعمل خلف الكواليس، ويكفي أن تقول بلغتك البسيطة "شو بدك".
+              العالم مليء بالتطبيقات والمتاجر الإلكترونية الكبرى، لكن الحقيقة المؤلمة أن معظمها صُمم لإرضاء النظام البرمجي وليس الإنسان. يضيع العميل بين مئات الأزرار والقوائم المعقدة لمجرد طلب سلع بسيطة. 
+              في <strong>MD-Marketplace</strong>، لم نبنِ تطبيقاً تقليدياً آخر، بل أسسنا كياناً حياً ومستقلاً — <strong>"الشخص الثاني" في حياتك</strong> — بنيّة تحتية رقمية تزيح كل التعقيد خلف الكواليس لتلبي طلبك بلغتك وبأبسط طريقة ممكنة: <strong>"شو بدك، وكيف بدك ياه"</strong>.
             </p>
           </div>
 
-          {/* القسم الأول */}
-          <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
-            <h3 className="text-2xl font-bold text-[#0D0D21] mb-6">القسم الأول: رحلة الطلب</h3>
+          {/* القسم الأول: الأمان الميداني */}
+          <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right border-2 border-[#6A11CB]/20">
+            <h3 className="text-2xl font-bold text-[#0D0D21] mb-6">القسم الأول: الأمان الميداني وسد ثغرات الشارع</h3>
             
             <div className="space-y-6">
               <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">1. منتج بهوية ومكان وحالة</h4>
-                <p className="text-[#0D0D21]/80 text-sm leading-relaxed"><span className="text-red-500 font-bold">المشكلة:</span> تطلب منتجاً لتتفاجأ أن المتجر مغلق أو غير متوفر.</p>
-                <p className="text-[#0D0D21] text-sm leading-relaxed mt-1"><span className="text-green-600 font-bold">الحل عندنا:</span> على موقعنا كل منتج مرتبط بمتجره الحقيقي، منطقته، كميته، وحالته (فاتح/مسكر الآن). بتشوفو بعينك على الموقع، وبتسأل عنو على واتساب بنفس الدقة.</p>
+                <h4 className="font-bold text-[#6A11CB] mb-2">1. ضبط فوضى "الدليفري العشوائي"</h4>
+                <p className="text-[#0D0D21]/80 text-sm leading-relaxed"><span className="text-red-500 font-bold">المشكلة في الواقع:</span> في مناطق عديدة، يعاني السوق من الفوضى؛ أي شخص يمتلك دراجة نارية يضع رقمه في مجموعة أو تطبيق عشوائي ليصبح "سائق توصيل"، دون رقابة أو مرجعية تضمن حق العميل وأمان بيته.</p>
+                <p className="text-[#0D0D21] text-sm leading-relaxed mt-1"><span className="text-green-600 font-bold">الحل عندنا:</span> السائق ليس مجرد رقم عشوائي على الشارع. كل سائق مسجل ببياناته الحقيقية وهويته المرتبطة مباشرة بغرفة العمليات الحية بالمنصة. أنت لا تستقبل شخصاً مجهولاً، بل كادراً مسجلاً ضمن منظومة أمان تحمي طلبك، بيتك، ونقودك.</p>
               </div>
               <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">2. السلة الذكية التي لا تتكرر</h4>
-                <p className="text-[#0D0D21]/80 text-sm"><span className="text-red-500 font-bold">المشكلة:</span> تضيف نفس السلعة مرتين فتتكرر كعنصرين وتتفاجأ بالفاتورة.</p>
-                <p className="text-[#0D0D21] text-sm mt-1"><span className="text-green-600 font-bold">الحل:</span> سلتك مربوطة بحسابك على الموقع وواتساب بنفس الوقت. إذا أضفت نفس المنتج تزيد الكمية تلقائياً، ومحفوظة 30 دقيقة حتى لو انشغلت ورجعت.</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">3. التوصيل بالعدل والمجاني المنظم</h4>
-                <p className="text-[#0D0D21]/80 text-sm"><span className="text-red-500 font-bold">المشكلة:</span> "توصيل مجاني" بشروط خفية.</p>
-                <p className="text-[#0D0D21] text-sm mt-1"><span className="text-green-600 font-bold">الحل:</span> رسم التوصيل محسوب بوزن سلتك الحقيقي، وإلك 5 توصيلات مجانية منظمة بقواعد عادلة تمنع الفوضى.</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">4. عنوانك نقطة على الخريطة</h4>
-                <p className="text-[#0D0D21]/80 text-sm"><span className="text-red-500 font-bold">المشكلة:</span> السائق يضيع ويسألك "يمين أو شمال؟"</p>
-                <p className="text-[#0D0D21] text-sm mt-1"><span className="text-green-600 font-bold">الحل:</span> عنوانك محفوظ بكبسة، أو نقطة دقيقة على الخريطة يراها السائق فوراً. بتحطها مرة وحدة وخلص.</p>
+                <h4 className="font-bold text-[#6A11CB] mb-2">2. هندسة الأمان وحماية السلال والحسابات</h4>
+                <p className="text-[#0D0D21]/80 text-sm"><span className="text-red-500 font-bold">المشكلة:</span> اختراق الحسابات والتلاعب بسلال المشتريات.</p>
+                <p className="text-[#0D0D21] text-sm mt-1"><span className="text-green-600 font-bold">الحل:</span> لقد أغلقنا كل ثغرة يدوياً؛ حسابك يقفل تلقائياً بعد أي محاولة دخول مشبوهة، وسلتك معزولة تماماً بحيث يستحيل على أي شخص العبث بها غيرك.</p>
               </div>
             </div>
           </div>
 
-          {/* القسم الثاني */}
+          {/* القسم الثاني: رحلة الطلب والتجربة */}
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
-            <h3 className="text-2xl font-bold text-[#0D0D21] mb-6">القسم الثاني: الثقة والأمان</h3>
+            <h3 className="text-2xl font-bold text-[#0D0D21] mb-6">القسم الثاني: رحلة الطلب الذكية</h3>
+            
             <div className="space-y-6">
               <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">1. حسابك وسلتك محمية</h4>
-                <p className="text-[#0D0D21] text-sm">حسابك ينقفل تلقائياً بعد 3 محاولات خاطئة، وسلتك معزولة تماماً - مستحيل أي شخص يعدلها غيرك.</p>
+                <h4 className="font-bold text-[#6A11CB] mb-2">1. منتج بهوية ومكان وحالة تشغيلية حقيقية</h4>
+                <p className="text-[#0D0D21]/80 text-sm leading-relaxed"><span className="text-red-500 font-bold">المشكلة التقليدية:</span> تطلب منتجاً من منصة عادية لتكتشف لاحقاً أن المتجر مغلق أو نفدت الكمية.</p>
+                <p className="text-[#0D0D21] text-sm leading-relaxed mt-1"><span className="text-green-600 font-bold">الحل عندنا:</span> على موقعنا كل منتج مرتبط فوراً بالحالة التشغيلية الحقيقية للمتجر (فتح/إغلاق) والكمية المتاحة، لتعرف تماماً أن طلبك جاهز قبل أن تطلبه.</p>
               </div>
               <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">2. رصيدك بدفتر واضح</h4>
-                <p className="text-[#0D0D21] text-sm">رصيدك ونقاطك مش رقم مبهم. هو سجل كامل لكل حركة إضافة وخصم واسترجاع، بتشوفو بشفافية بصفحة حسابك.</p>
+                <h4 className="font-bold text-[#6A11CB] mb-2">2. السلة الذكية والتوصيل المنظم</h4>
+                <p className="text-[#0D0D21]/80 text-sm"><span className="text-red-500 font-bold">المشكلة:</span> تضيف نفس السلعة مرتين فتتكرر كعنصرين منفصلين، وتفاجأ برسوم توصيل مبهمة.</p>
+                <p className="text-[#0D0D21] text-sm mt-1"><span className="text-green-600 font-bold">الحل:</span> سلتك ذكية ومتزامنة؛ إذا أضفت نفس المنتج تزداد كميته تلقائياً بدل تكراره، ومحفوظة حتى لو انشغلت ورجعت، ورسوم التوصيل محسوبة بعدالة بناءً على الوزن الحقيقي.</p>
               </div>
               <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">3. نضمن حقك</h4>
-                <p className="text-[#0D0D21] text-sm">عندك صفحة "نضمن حقك". تختار المشكلة، ترفع 3 صور كدليل، وتأخذ رقم متابعة نتابعو حتى الحل. موجودة على الموقع وبتقدر تبلشها من واتساب.</p>
+                <h4 className="font-bold text-[#6A11CB] mb-2">3. عنوانك نقطة دقيقة على الخريطة</h4>
+                <p className="text-[#0D0D21]/80 text-sm"><span className="text-red-500 font-bold">المشكلة:</span> بقاء السائق ضائعاً يسألك على الهاتف "يمين أو شمال؟".</p>
+                <p className="text-[#0D0D21] text-sm mt-1"><span className="text-green-600 font-bold">الحل:</span> عنوانك نقطة جغرافية دقيقة على الخريطة يحفظها النظام بكبسة زر واحدة لكي يراها السائق فوراً دون أي ضياع.</p>
+              </div>
+              <div>
+                <h4 className="font-bold text-[#6A11CB] mb-2">4. نضمن حقك</h4>
+                <p className="text-[#0D0D21]/80 text-sm"><span className="text-red-500 font-bold">المشكلة:</span> ضياع حقوق العميل عند حدوث أي خطأ دون مرجعية تتابعه.</p>
+                <p className="text-[#0D0D21] text-sm mt-1"><span className="text-green-600 font-bold">الحل:</span> نوفر واجهة مخصصة تمنحك رقماً مرجعياً (`Case ID`) لمتابعة أي مشكلة وحلها جذرياً حتى النهاية.</p>
               </div>
             </div>
           </div>
 
-          {/* القسم الثالث */}
+          {/* القسم الثالث: الذكاء الاصطناعي وواتساب */}
           <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 text-right">
             <h3 className="text-2xl font-bold text-[#0D0D21] mb-6">القسم الثالث: الذكاء الذي يفهمك</h3>
             <div className="space-y-6">
               <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">1. بتحكي بدل ما تكبس</h4>
-                <p className="text-[#0D0D21] text-sm">بدل 10 ضغطات لطلب بيبسي، تكتب على واتساب "بدي بيبسي 2 لتر عدد 2" والمساعد يضيفها لنفس سلة الموقع فوراً. وحتى فيك تبعت فويس أو تصور باركود.</p>
+                <h4 className="font-bold text-[#6A11CB] mb-2">1. تحدث بلغتك، أرسل صوتاً أو  باركود</h4>
+                <p className="text-[#0D0D21] text-sm">بدل 10 ضغطات لطلب منتج، قل ببساطة على واتساب "بدي كذا وكذا"، أرسل رسالة صوتية، أو  باركود المنتج، والمساعد يضيفه لسلتك فوراً.</p>
               </div>
               <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">2. ممنوع يألف من عندو</h4>
-                <p className="text-[#0D0D21] text-sm">أهم قاعدة: المساعد ممنوع يخترع منتج أو سعر. كل شي بيقولو من مخزون متاجرنا الحقيقي على الموقع. إذا مش موجود، بيقلك مش موجود.</p>
+                <h4 className="font-bold text-[#6A11CB] mb-2">2. قاعدة عدم التأليف والسيطرة المالية</h4>
+                <p className="text-[#0D0D21] text-sm">أهم قاعدة: المساعد ممنوع منعاً باتاً من اختراع منتج أو سعر، وكل البيانات تصله حصرياً من متاجرنا الحقيقية. كما أن كلمات مثل "تمام" لا تعني شراءً؛ يجب قول "تأكيد الطلب" صراحة، فالذكاء يتكلم والكود وحده يملك السلطة المالية.</p>
               </div>
               <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">3. بيتذكرك وبيحكي لهجتك</h4>
-                <p className="text-[#0D0D21] text-sm">عندو ذاكرة لآخر طلباتك وبيحكي لهجة لبنانية طبيعية، بيسألك "نفس طلب المرة الماضية؟" بدل الترحيب الممل.</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-[#6A11CB] mb-2">4. تأكيد الطلب بأمان مطلق</h4>
-                <p className="text-[#0D0D21] text-sm">كلمات مثل "تمام" ما بتنحسب تأكيد. لازم تقول "تأكيد الطلب" صراحة، وما بينبعت طلبك إلا بعد تنفيذ فعلي بالنظام. الذكاء بيحكي، بس النظام هو صاحب السلطة المالية.</p>
+                <h4 className="font-bold text-[#6A11CB] mb-2">3. ذاكرة شخصية ولهجة طبيعية</h4>
+                <p className="text-[#0D0D21] text-sm">البوت يتذكر آخر طلباتك ويتحدث بلهجة محلية طبيعية ودافئة، ويسألك بلطف "نفس طلب المرة الماضية؟" بدل الترحيب الآلي الممل.</p>
               </div>
             </div>
           </div>
 
+          {/* الخاتمة والتوسع المستقبلي */}
           <div className="bg-gradient-to-l from-[#6A11CB] to-[#FF4E9A] rounded-3xl shadow-lg p-8 text-center text-white">
-            <h3 className="text-2xl font-bold mb-3">الخلاصة</h3>
-            <p className="leading-relaxed">MD-Marketplace مش مجرد موقع. هي منظومة تزيح عنك تعقيد التجارة. افتح الموقع لترى كل شيء بعينك، أو ابدأ محادثة على واتساب وقل ما تريد بلغتك... والباقي تتولاه المنظومة بسرعة وثقة.</p>
+            <h3 className="text-2xl font-bold mb-3">رؤية أبعد من التسوق: "الشخص الثاني" في حياتك</h3>
+            <p className="leading-relaxed">
+              MD-Marketplace ليست مجرد منصة لبيع السلع، وليست كبسة زر عادية، بل هي بنية تحتية متكاملة قابلة للتوسع اللامتناهي — امتدت لتشمل المتاجر، وقريباً تتوسع نحو قطاعات النقل واللوجستيات والتاكسي لتكون معك في كل تفصيلة من يومك بكل ثقة وأمان.
+              <br /><br />
+              <strong>افتح الموقع، ابدأ المحادثة على واتساب، واترك الباقي للمنظومة... لأن الحياة أصبحت أسهل بكثير.</strong>
+            </p>
           </div>
 
         </div>
