@@ -351,7 +351,7 @@ return (
 
         </div>
 
-        <p className="text-xs text-[#0D0D21]/60 mt-4">
+        <p className="text-xs text-[#0D0D21]/60 mt-4 text-center">
           ©️ 2020-2026 MD Marketplace . جميع الحقوق محفوظة
         </p>
 
