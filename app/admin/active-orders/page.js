@@ -18,34 +18,34 @@ export default function ActiveOrdersPage() {
 
   const fetchOrders = async () => {
     const { data: ordersData, error } = await supabase
-    .from('order_requuest')
-    .select('*')
-    .neq('Delivery Status', 'Delivered')
-    .order('Request Date', { ascending: false })
+     .from('order_requuest')
+     .select('*')
+     .neq('Delivery Status', 'Delivered')
+     .order('Request Date', { ascending: false })
 
     if(error) console.log("ERROR:", error)
     if(!ordersData) return
 
-    const [areasData, customersData, usersData] = await Promise.all([
+    const [areasRes, customersRes, usersRes] = await Promise.all([
       supabase.from('areas').select('*'),
       supabase.from('customers').select('*'),
       supabase.from('users').select('*')
     ])
 
     const areasMap = {}
-    areasData?.data?.forEach(a => {
-      areasMap[a['Area ID'] || a['id'] || a['ID']] = a['Area Name'] || a['Name']
+    areasRes.data?.forEach(a => {
+      areasMap[a['Area ID'] || a['id']] = a['Area Name'] || a['Name']
     })
 
     const customersMap = {}
-    customersData?.data?.forEach(c => {
+    customersRes.data?.forEach(c => {
       customersMap[c['Customer ID'] || c['id']] = c['Name'] || c['Customer Name']
     })
 
     const driversMap = {}
-    usersData?.data?.forEach(u => {
+    usersRes.data?.forEach(u => {
       const id = u['ID'] || u['id'] || u['User ID']
-      driversMap[id] = u['Name'] || u['Full Name'] || u['name']
+      if(id) driversMap[id] = u['Name'] || u['Full Name'] || u['name']
     })
 
     setAreas(areasMap)
@@ -59,9 +59,10 @@ export default function ActiveOrdersPage() {
       <h1 className="text-2xl font-bold mb-6">Active Orders - {orders.length}</h1>
       <div className="grid gap-4">
         {orders.map((order) => {
-          const areaName = areas[order['Area']] || order['Area'] || '-'
-          const customerName = customers[order['customer ID']] || order['customer ID']
-          const driverName = drivers[order['Assigned Driver']] || order['Assigned Driver'] || 'مش محدد'
+          const areaName = areas[order['Area']] || '-'
+          const customerName = customers[order['customer ID']] || 'زبون غير معروف'
+          // هون المهم: اذا ما لقا السائق ما بيعرض الكود ابدا
+          const driverName = drivers[order['Assigned Driver']] || 'مش محدد'
 
           return (
             <Link
