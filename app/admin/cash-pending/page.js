@@ -14,11 +14,11 @@ export default function CashPendingPage() {
 
   const fetchOrders = async () => {
     const { data } = await supabase
-     .from('order_requuest')
-     .select('*')
-     .eq('Final Payment Method', 'Cash')
-     .eq('Cash Status', 'Pending')
-     .order('Request Date', { ascending: false })
+    .from('order_requuest')
+    .select('*')
+    .eq('Final Payment Method', 'Cash')
+    .eq('Cash Status', 'Pending')
+    .order('Request Date', { ascending: false })
 
     setOrders(data || [])
 
@@ -36,8 +36,8 @@ export default function CashPendingPage() {
 
     const dMap = {}
     uRes.data?.forEach(u => {
-      const id = u['ID'] || u['id'] || u['User ID']
-      dMap[id] = u['Name'] || u['Full Name'] || u['name']
+      const id = u['Related ID']
+      if(id) dMap[id] = u['Name']
     })
 
     setNames({ customers: cMap, areas: aMap, drivers: dMap })
@@ -63,13 +63,15 @@ export default function CashPendingPage() {
       <h1 className="text-2xl font-bold mb-6">Cash Pending - {orders.length}</h1>
       <div className="grid gap-4">
         {orders.map(order => {
-          const driverName = names.drivers[order['Assigned Driver']] || order['Assigned Driver'] || 'مش محدد'
+          const driverName = names.drivers[order['Assigned Driver']] || 'مش محدد'
+          const customerName = names.customers[order['customer ID']] || 'زبون غير معروف'
+          const areaName = names.areas[order['Area']] || '-'
           return (
             <div key={order['Request ID']} className="bg-white p-4 rounded-lg shadow border flex justify-between items-center">
               <div>
-                <div className="font-bold">#{order['Request ID']} - {names.customers[order['customer ID']] || order['customer ID']}</div>
+                <div className="font-bold">#{order['Request ID']} - {customerName}</div>
                 <div className="text-sm text-gray-500">
-                  {names.areas[order['Area']] || order['Area']} - {order['Total Amount']}
+                  {areaName} - {order['Total Amount']}
                 </div>
                 <div className="text-xs mt-1">
                   {order['Delivery Adress']} | {order['Mobile']} |
