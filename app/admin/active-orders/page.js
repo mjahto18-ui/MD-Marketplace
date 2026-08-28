@@ -7,76 +7,79 @@ export default function ActiveOrdersPage() {
   const [orders, setOrders] = useState([])
   const [areas, setAreas] = useState({})
   const [customers, setCustomers] = useState({})
-  
+  const [drivers, setDrivers] = useState({})
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
 
-  useEffect(() => {
-    fetchOrders()
-  }, [])
+  useEffect(() => { fetchOrders() }, [])
 
   const fetchOrders = async () => {
-    // 1. جيب الاوردرات
     const { data: ordersData, error } = await supabase
-      .from('order_requuest')
-      .select('*')
-      .neq('Delivery Status', 'Delivered')
-      .order('Request Date', { ascending: false })
-    
+    .from('order_requuest')
+    .select('*')
+    .neq('Delivery Status', 'Delivered')
+    .order('Request Date', { ascending: false })
+
     if(error) console.log("ERROR:", error)
-    
     if(!ordersData) return
 
-    // 2. جيب كل المناطق
-    const { data: areasData } = await supabase
-      .from('areas')
-      .select('*')
-    
-    // 3. جيب كل الزباين
-    const { data: customersData } = await supabase
-      .from('customers')
-      .select('*')
+    const [areasData, customersData, usersData] = await Promise.all([
+      supabase.from('areas').select('*'),
+      supabase.from('customers').select('*'),
+      supabase.from('users').select('*')
+    ])
 
-    // 4. حولهن لـ map عشان السرعة
     const areasMap = {}
-    areasData?.forEach(a => {
+    areasData?.data?.forEach(a => {
       areasMap[a['Area ID'] || a['id'] || a['ID']] = a['Area Name'] || a['Name']
     })
-    
+
     const customersMap = {}
-    customersData?.forEach(c => {
+    customersData?.data?.forEach(c => {
       customersMap[c['Customer ID'] || c['id']] = c['Name'] || c['Customer Name']
+    })
+
+    const driversMap = {}
+    usersData?.data?.forEach(u => {
+      const id = u['ID'] || u['id'] || u['User ID']
+      driversMap[id] = u['Name'] || u['Full Name'] || u['name']
     })
 
     setAreas(areasMap)
     setCustomers(customersMap)
+    setDrivers(driversMap)
     setOrders(ordersData || [])
   }
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Active Orders</h1>
+      <h1 className="text-2xl font-bold mb-6">Active Orders - {orders.length}</h1>
       <div className="grid gap-4">
         {orders.map((order) => {
           const areaName = areas[order['Area']] || order['Area'] || '-'
           const customerName = customers[order['customer ID']] || order['customer ID']
-          
+          const driverName = drivers[order['Assigned Driver']] || order['Assigned Driver'] || 'مش محدد'
+
           return (
-            <Link 
-              key={order['Request ID']} 
+            <Link
+              key={order['Request ID']}
               href={`/admin/active-orders/${order['Request ID']}`}
               className="bg-white p-4 rounded-lg shadow hover:shadow-md border"
             >
-              <div className="flex justify-between">
-                <span>#{order['Request ID']} - {customerName}</span>
+              <div className="flex justify-between items-center">
+                <span className="font-bold">#{order['Request ID']} - {customerName}</span>
                 <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm">
                   {order['Delivery Status'] || order['Approval Status']}
                 </span>
               </div>
               <p className="text-sm text-gray-500 mt-2">
                 {order['Delivery Adress']} - {areaName} - {order['Total Amount']}
+              </p>
+              <p className="text-xs mt-2">
+                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">🚚 {driverName}</span>
               </p>
             </Link>
           )
