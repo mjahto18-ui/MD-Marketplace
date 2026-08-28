@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 export default function ActiveOrdersPage() {
-  const [orders, setOrders] = useState<any[]>([])
+  const [orders, setOrders] = useState([]) // <-- هون كان الغلط
 
   useEffect(() => {
     fetchOrders()
@@ -23,7 +23,6 @@ export default function ActiveOrdersPage() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Active Orders</h1>
-      
       <div className="grid gap-4">
         {orders.map((order) => (
           <Link 
@@ -37,7 +36,7 @@ export default function ActiveOrdersPage() {
                 {order['Delivery Status']}
               </span>
             </div>
-            <p className="text-sm text-gray-500 mt-2">{order.Address}</p>
+            <p className="text-sm text-gray-500 mt-2">{order['Address']}</p>
           </Link>
         ))}
       </div>
