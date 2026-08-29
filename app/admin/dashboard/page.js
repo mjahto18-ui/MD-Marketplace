@@ -7,24 +7,23 @@ import Link from "next/link"
 export default function Dashboard(){
   const [counts, setCounts] = useState({})
   const [menuTables, setMenuTables] = useState([])
+  const [myRole, setMyRole] = useState('')
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
   useEffect(()=>{ load() },[])
 
   const load = async () => {
-    // مين انا؟
-    const { data: {user} } = await supabase.auth.getUser()
-    let role = 'Admin'
-    if(user?.email){
-      const { data: me } = await supabase.from('users').select('Role').eq('Email', user.email).single()
-      if(me?.Role) role = me.Role
-    }
+    // هون التصحيح - من admin_session مو من auth
+    const sessRes = await fetch('/api/admin/session')
+    const sess = await sessRes.json()
+    const role = sess.role || 'Admin'
+    setMyRole(role)
 
     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
-      supabase.from('asceses').select('*').eq('Role', role),
+      supabase.from('asceses').select('*').eq('role', role).eq('can_view', true),
     ])
 
     const today = new Date().toISOString().split('T')[0]
@@ -40,18 +39,17 @@ export default function Dashboard(){
       approvedOrders: orders?.filter(o=>o['Approval Status']==='Approved').length||0,
     })
 
-    // الفلترة حسب الرول
     const specialViews = ["Customers Pending","Pending Orders","Today Orders","Active Orders","Approved Orders","Complete Orders","Cash Pending","Cash Received","Rejected Orders","Mapping Customers"]
     let allowed = menus||[]
-    if(role!== 'Admin' && acs?.length){
-      const allowedMenus = acs.map(a=>a.Menu)
-      allowed = menus?.filter(m=> allowedMenus.includes(m.Menu)) || []
+    if(role!== 'Admin'){
+      const allowedMenus = acs?.map(a=>a.menu) || []
+      allowed = menus?.filter(m=> allowedMenus.includes(m.Menu) || allowedMenus.includes(m.menu)) || []
     }
     const generic = allowed.filter(m=>!specialViews.includes(m.View))
-    // ضيف الـ Access مع كل جدول
     const withAccess = generic.map(m=>{
-      const rule = acs?.find(a=>a.Menu===m.Menu)
-      return {...m, _access: rule?.Access || (role==='Admin'?'Read & Write':'Read')}
+      const rule = acs?.find(a=>a.menu===m.Menu || a.menu===m.menu)
+      const canEdit = rule?.can_edit || role==='Admin'
+      return {...m, _access: canEdit? 'Read & Write' : 'Read', _can_edit: canEdit}
     })
     setMenuTables(withAccess)
   }
@@ -66,7 +64,7 @@ export default function Dashboard(){
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-black">Dashboard</h1>
+        <h1 className="text-3xl font-black">Dashboard <span className="text- opacity-50">({myRole})</span></h1>
         <button onClick={load} className="bg-black text-white px-4 py-2 rounded-full">↻ تحديث</button>
       </div>
 
@@ -84,10 +82,10 @@ export default function Dashboard(){
       </div>
 
       <div className="mt-10">
-        <h2 className="text- font-black mb-3 opacity-60">عرض خاص - كل الجداول من menu حسب الرول ({menuTables.length})</h2>
+        <h2 className="text- font-black mb-3 opacity-60">عرض خاص - كل الجداول من menu حسب الرول ({myRole}) - ({menuTables.length})</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {menuTables.map(m=>(
-            <Link key={m.supa_id} href={`/admin/${m.Menu}?access=${m._access}`} className="bg-[#080811] text-white p-4 rounded-xl hover:scale-[1.02] transition relative">
+            <Link key={m.supa_id} href={`/admin/${m.Menu}`} className="bg-[#080811] text-white p-4 rounded-xl hover:scale-[1.02] transition relative">
               <div className="text- opacity-50">{m.Menu}</div>
               <div className="font-bold text-">{m.View}</div>
               <div className="text- mt-2 px-2 py-0.5 rounded-full bg-white/20 inline-block">{m._access}</div>
