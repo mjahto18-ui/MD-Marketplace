@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 import Link from "next/link"
+import BackToDashboard from "@/components/BackToDashboard"
+
 
 export default function ActiveOrdersPage() {
   const [orders, setOrders] = useState([])
@@ -54,6 +56,10 @@ usersRes.data?.forEach(u => {
     setDrivers(driversMap)
     setOrders(ordersData || [])
   }
+  
+  return (
+  <div className="p-6">
+    <BackToDashboard />
 
   return (
     <div className="p-6">
@@ -84,6 +90,7 @@ usersRes.data?.forEach(u => {
                 <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">🚚 {driverName}</span>
               </p>
             </Link>
+           )
           )
         })}
       </div>
