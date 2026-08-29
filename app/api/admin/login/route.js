@@ -8,18 +8,16 @@ export async function POST(req) {
     const { phone, pin } = await req.json();
     const phoneStr = String(phone).trim();
     const pinStr = String(pin).trim();
-    const phoneNoZero = phoneStr.replace(/^0+/, ''); // زيادة
+    const phoneNoZero = phoneStr.replace(/^0+/, '');
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     const supabase = createClient(url, key)
 
-    // كان:.or(`Mobile.eq.${phoneStr},User_x0020_ID.eq...`) -> هاد يلي بيخرب
-    // صار: نجيب حسب Mobile بس مع صفر وبلا صفر
     const { data: users } = await supabase.from('users')
-    .select('*')
-    .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
-    .limit(5)
+   .select('*')
+   .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero},WhatsApp_x0020_Number.eq.${phoneStr}`)
+   .limit(5)
 
     let finalUser = users?.[0]
 
@@ -34,12 +32,24 @@ export async function POST(req) {
     const status = String(finalUser.Status || '').trim()
     const pinDb = String(finalUser.PIN || '').trim()
 
+    // هون التصحيح الأساسي للـ Active
+    const activeRaw = finalUser.Active
+    const activeStr = String(activeRaw).toLowerCase()
+    const isActive = activeRaw === true || activeStr === 'true' || activeStr === 'TRUE' || activeStr === '1'
+
+    if(!isActive){
+      return NextResponse.json({ success: false, message: `حسابك موقوف - Active = ${finalUser.Active}` }, { status: 403 });
+    }
+
+    if (status!== 'Active'){
+      return NextResponse.json({ success: false, message: `الحساب غير مفعل - Status = ${status}` }, { status: 403 });
+    }
+
     const allowedRoles = ['Admin','Store Owner','Driver','Assistant Admin','Accounting']
     if(!allowedRoles.includes(role)){
       return NextResponse.json({ success: false, message: `دورك ${role} غير مسموح حاليا` }, { status: 403 });
     }
 
-    if (status!== 'Active') return NextResponse.json({ success: false, message: "الحساب غير مفعل" }, { status: 403 });
     if (pinDb!== pinStr) return NextResponse.json({ success: false, message: "PIN غلط" }, { status: 401 });
 
     const cookieStore = await cookies();
@@ -48,11 +58,12 @@ export async function POST(req) {
       name: finalUser.Name,
       phone: phoneStr,
       role: role,
-      storeId: finalUser['Store ID'] || finalUser.Store_ID || null, // d195a89f
+      storeId: finalUser['Store ID'] || finalUser.Store_ID || null,
       area: finalUser.Area || null,
-      relatedId: finalUser['Related ID'] || null // b82a4cf2
+      relatedId: finalUser['Related ID'] || null
     }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
 
+    // هون صار ياخدك عالداشبورد
     return NextResponse.json({ success: true, role });
 
   } catch (e) {
