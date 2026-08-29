@@ -15,36 +15,46 @@ export default function MappingCustomerPage() {
   const [filtered, setFiltered] = useState([])
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState(null)
-  const [ready, setReady] = useState(false)
+  const [log, setLog] = useState("")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
 
-  useEffect(() => {
-    setReady(true)
-    fetchCustomers()
-  }, [])
+  useEffect(() => { fetchCustomers() }, [])
 
   const fetchCustomers = async () => {
-    const { data } = await supabase
+    // جرب بلا select محدد - جيب كلشي
+    const { data, error, count } = await supabase
     .from('customers')
-    .select('Customer ID, Name, Mobile, Adress, Registration Latitude, Registration Longitude, Current Latitude, Current Longtitude')
-    .limit(1000)
+    .select('*', { count: 'exact' })
+    .limit(5)
 
-    const valid = (data || [])
-    .map(c => ({
-      ...c,
-        lat: parseFloat(c['Current Latitude'] || c['Registration Latitude']),
-        lng: parseFloat(c['Current Longtitude'] || c['Registration Longitude']),
-      }))
-    .filter(c =>!isNaN(c.lat) && c.lat!== 0)
+    let txt = `ERROR: ${JSON.stringify(error)}\n COUNT: ${count}\n DATA 5: ${JSON.stringify(data?.[0], null, 2)}`
+    console.log(txt)
+    setLog(txt)
 
-    setCustomers(valid)
-    setFiltered(valid)
-    if (valid.length > 0) {
-      const first = valid.find(v => v['Mobile']?.toString().includes('03222222')) || valid[0]
+    if(!data || data.length===0){
+      setLog(prev => prev + "\n\n ما في داتا - RLS مسكر! روح Supabase > Table Editor > customers > شوف اذا RLS مفتوح")
+      return
+    }
+
+    const valid = data.map(c => ({
+        ...c,
+        lat: parseFloat(c['Current Latitude'] || c['Registration Latitude'] || c['Current Latitude'] || 0),
+        lng: parseFloat(c['Current Longtitude'] || c['Registration Longitude'] || 0),
+      })).filter(c =>!isNaN(c.lat) && c.lat!==0)
+
+    // جيب 1000 بعد ما تأكدنا
+    const { data: all } = await supabase.from('customers').select('*').limit(1000)
+    const validAll = (all||[]).map(c=>({...c, lat: parseFloat(c['Current Latitude']||c['Registration Latitude']), lng: parseFloat(c['Current Longtitude']||c['Registration Longitude'])})).filter(c=>!isNaN(c.lat)&&c.lat!==0)
+
+    setCustomers(validAll)
+    setFiltered(validAll)
+    
+    const first = validAll.find(v => v['Mobile']?.toString().includes('03222222')) || validAll[0]
+    if(first){
       setSelected({
         customerLat: first.lat,
         customerLng: first.lng,
@@ -52,6 +62,8 @@ export default function MappingCustomerPage() {
         mobile: first.Mobile,
         requestID: first['Customer ID']
       })
+    } else {
+      setLog(prev => prev + "\n\n ما في ولا واحد عندو lat - كلون فاضيين!")
     }
   }
 
@@ -60,7 +72,7 @@ export default function MappingCustomerPage() {
     if (!val) { setFiltered(customers); return }
     const f = customers.filter(c => c['Mobile']?.toString().includes(val))
     setFiltered(f)
-    if (f.length === 1) {
+    if (f.length>0){
       setSelected({
         customerLat: f[0].lat,
         customerLng: f[0].lng,
@@ -71,7 +83,12 @@ export default function MappingCustomerPage() {
     }
   }
 
-  if (!ready ||!selected) return <div className="p-6">عم حمل الزباين...</div>
+  if (!selected) return (
+    <div className="p-6">
+      <div className="bg-black text-green-400 p-4 rounded text-xs whitespace-pre-wrap mb-4">{log || "عم حمل..."}</div>
+      <input placeholder="03222222" value={search} onChange={e=>handleSearch(e.target.value)} className="border p-2 rounded" />
+    </div>
+  )
 
   const driversFormat = filtered.map(c => ({
     'Driver ID': c['Customer ID'],
@@ -83,10 +100,10 @@ export default function MappingCustomerPage() {
   return (
     <div className="h-screen flex flex-col">
       <div className="p-3 bg-white shadow flex gap-3 items-center">
-        <h1 className="font-bold">Mapping - {filtered.length}</h1>
+        <h1 className="font-bold">Mapping - {filtered.length} / {customers.length}</h1>
         <input
           type="text"
-          placeholder="فلتر برقم التلفون 03222222"
+          placeholder="03222222"
           value={search}
           onChange={e => handleSearch(e.target.value)}
           className="border-2 border-red-500 rounded-full px-4 py-2 w-80 ml-auto"
