@@ -47,7 +47,7 @@ export default function Dashboard(){
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Item label="Customers Pending" count={counts.customersPending} href="/admin/customers-pending" color="border-red-500" />
-        <Item label="Pending Orders" count={counts.pendingOrders} href="/admin/pending-orders" color="border-orange-500" />
+        <Item label="Pending Orders" count={counts.pendingOrders} href="/admin/pending" color="border-orange-500" />
         <Item label="Today Orders" count={counts.todayOrders} href="/admin/today-orders" color="border-blue-500" />
         <Item label="Active Orders" count={counts.activeOrders} href="/admin/active-orders" color="border-green-500" />
         <Item label="Approved Orders" count={counts.approvedOrders} href="/admin/approved-orders" color="border-emerald-500" />
