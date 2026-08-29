@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/close-bots-cart/route.js
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
