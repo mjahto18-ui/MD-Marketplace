@@ -146,7 +146,7 @@ export default function AdminDashboard() {
             <span style={{background:'rgba(255,255,255,0.08)', padding:'2px 8px', borderRadius:'20px', fontSize:'11px', marginLeft:'6px'}}>{filtered.length}</span>
           </div>
 
-          <a href="/admin/pending" style={{marginLeft:'8px', background: pendingCount>0?'linear-gradient(135deg, #f59e0b, #ef4444)':'rgba(255,255,255,0.08)', color: pendingCount>0?'white':'rgba(255,255,255,0.7)', padding:'8px 14px', borderRadius:'10px', fontSize:'12px', fontWeight:'700', textDecoration:'none', display:'flex', alignItems:'center', gap:'8px', border:'1px solid rgba(255,255,255,0.08)'}}>
+          <a href="/admin/pending-orders" style={{marginLeft:'8px', background: pendingCount>0?'linear-gradient(135deg, #f59e0b, #ef4444)':'rgba(255,255,255,0.08)', color: pendingCount>0?'white':'rgba(255,255,255,0.7)', padding:'8px 14px', borderRadius:'10px', fontSize:'12px', fontWeight:'700', textDecoration:'none', display:'flex', alignItems:'center', gap:'8px', border:'1px solid rgba(255,255,255,0.08)'}}>
             🔔 Pending
             {pendingCount>0 && <span style={{background:'white', color:'#ef4444', borderRadius:'20px', minWidth:'20px', height:'20px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'11px', padding:'0 6px'}}>{pendingCount}</span>}
           </a>
