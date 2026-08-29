@@ -48,8 +48,7 @@ export default function ApprovedOrdersPage() {
   <div className="p-6">
     <BackToDashboard />
 
- // return (
-    <div className="p-6">
+ 
       <h1 className="text-2xl font-bold mb-6">Approved Orders - {orders.length}</h1>
       <div className="grid gap-4">
         {orders.map(order => {
