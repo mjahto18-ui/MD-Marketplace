@@ -16,7 +16,7 @@ export async function POST(req) {
 
     const { data: users } = await supabase.from('users')
    .select('*')
-   .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero},WhatsApp_x0020_Number.eq.${phoneStr}`)
+   .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
    .limit(5)
 
     let finalUser = users?.[0]
