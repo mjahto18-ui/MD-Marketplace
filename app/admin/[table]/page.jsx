@@ -13,6 +13,8 @@ export default function GenericTable(){
   const [perm, setPerm] = useState({can_view:true, can_edit:false, can_add:false, can_delete:false})
   const [editId, setEditId] = useState(null)
   const [editRow, setEditRow] = useState({})
+  const [showAdd, setShowAdd] = useState(false)
+  const [newRow, setNewRow] = useState({})
 
   const normalize = (v) => String(v).toUpperCase() === 'TRUE' || v === true
 
@@ -24,7 +26,6 @@ export default function GenericTable(){
     setMyRole(role)
     const t = String(table).trim()
 
-    // 1- سيزن -> 2- مينو: هل مسموحلي شوف هاد التابل؟
     const { data: menuRow } = await supabase.from('menu').select('Role').eq('Menu', t).maybeSingle()
     if(menuRow){
       const allowed = String(menuRow.Role).split(',').map(r=>r.trim())
@@ -34,20 +35,18 @@ export default function GenericTable(){
       }
     }
 
-    // 3- اكسس: شو مسموحلي اعمل جوا؟
     const { data: rule } = await supabase.from('asceses').select('*').eq('role', role).eq('menu', t).maybeSingle()
 
     if(role==='Admin'){
       setPerm({can_view:true, can_edit:true, can_add:true, can_delete:true})
     }else if(rule){
       setPerm({
-        can_view:true, // مهم! مينو سمحلك معناتا view=true
+        can_view:true,
         can_edit: normalize(rule.can_edit),
         can_add: normalize(rule.can_add),
         can_delete: normalize(rule.can_delete)
       })
     }else{
-      // ما في سطر بـ asceses -> قراءة فقط - مو بلوك
       setPerm({can_view:true, can_edit:false, can_add:false, can_delete:false})
     }
 
@@ -67,6 +66,12 @@ export default function GenericTable(){
     await supabase.from(table).delete().eq('supa_id', id)
     load()
   }
+  const add = async()=>{
+    const { supa_id,...clean } = newRow
+    const { error } = await supabase.from(table).insert(clean)
+    if(error) alert(error.message)
+    else { setShowAdd(false); setNewRow({}); load() }
+  }
 
   const canEdit = perm.can_edit
 
@@ -74,8 +79,25 @@ export default function GenericTable(){
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="flex justify-between mb-4 items-center">
         <h1 className="font-black text-xl">{table} ({data.length}) <span className="text- font-normal bg-black text-white px-2 py-1 rounded-full ml-2">{myRole} - {canEdit?'يعدل':'قراءة فقط'}</span></h1>
-        <a href="/admin/dashboard" className="bg-black text-white px-4 py-1 rounded-full text-">داشبورد</a>
+        <div className="flex gap-2">
+          {perm.can_add && <button onClick={()=>setShowAdd(true)} className="bg-green-600 text-white px-4 py-1 rounded-full">+ اضافة</button>}
+          <a href="/admin/dashboard" className="bg-black text-white px-4 py-1 rounded-full text-">داشبورد</a>
+        </div>
       </div>
+
+      {showAdd && (
+        <div className="bg-white p-4 rounded-xl mb-4 border shadow">
+          <div className="grid grid-cols-3 gap-2">
+            {cols.filter(c=>c!=='supa_id').map(k=>(
+              <input key={k} placeholder={k} className="border p-2 rounded" value={newRow[k]||''} onChange={e=>setNewRow({...newRow,[k]:e.target.value})} />
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button onClick={add} className="bg-green-600 text-white px-4 py-2 rounded">حفظ</button>
+            <button onClick={()=>setShowAdd(false)} className="bg-gray-300 px-4 py-2 rounded">الغاء</button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow overflow-auto max-w- border">
         <table className="w-full text- whitespace-nowrap">
