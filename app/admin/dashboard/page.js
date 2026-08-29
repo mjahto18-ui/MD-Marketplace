@@ -44,7 +44,7 @@ export default function Dashboard(){
     ])
 
     if(!menuData || menuData.length===0){
-      setDebug(prev=> prev + ` | menu فاضي!`)
+      setDebug(prev=> prev + ` | View فاضي!`)
     }
 
     const today = new Date().toISOString().split('T')[0]
