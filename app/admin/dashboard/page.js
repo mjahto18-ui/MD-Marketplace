@@ -14,8 +14,17 @@ export default function Dashboard(){
   useEffect(()=>{ init() },[])
 
   const init = async()=>{
-    // جيب الرول
+    // جيب الرول من localStorage أول شي
     let currentRole = "Admin"
+    try{
+      const lsRole = localStorage.getItem('role') || localStorage.getItem('admin_role')
+      if(lsRole) currentRole = lsRole
+      const lsSession = localStorage.getItem('admin_session')
+      if(lsSession){
+        const parsed = JSON.parse(lsSession)
+        if(parsed.role) currentRole = parsed.role
+      }
+    }catch{}
     try{
       const raw = document.cookie.split('admin_session=')[1]?.split(';')[0]
       if(raw){
@@ -23,18 +32,14 @@ export default function Dashboard(){
         if(parsed.role) currentRole = parsed.role
       }
     }catch{}
-    if(!currentRole || currentRole==="Admin"){
-      const r = document.cookie.split('role=')[1]?.split(';')[0]
-      if(r) currentRole = r
-    }
     setRole(currentRole)
-    setDebug(`Role: ${currentRole} | Cookies: ${document.cookie.slice(0,100)}`)
+    setDebug(`Role: ${currentRole}`)
 
-    // جيب كلشي
+    // === هون التصليح ===
     const [{data: customers},{data: orders},{data: menuData},{data: accessData}] = await Promise.all([
-      supabase.from('customers').select('Status').limit(1000),
-      supabase.from('order_requuest').select('Approval Status, Cash Status, Final Payment Method, Request Date').limit(2000),
-      supabase.from('menu').select('*').order('id'),
+      supabase.from('customers').select('*').limit(1000),
+      supabase.from('order_requuest').select('*').limit(2000),
+      supabase.from('menu').select('*').order('supa_id', {ascending:true}),
       supabase.from('asceses').select('*'),
     ])
 
@@ -44,7 +49,7 @@ export default function Dashboard(){
 
     const today = new Date().toISOString().split('T')[0]
     const c = {
-      "Customers Pending": customers?.filter(x=>x.Status==='Pending').length||0,
+      "Customers Pending": customers?.filter(x=>x.Status==='Pending' || x['Status']==='Pending').length||0,
       "Pending Orders": orders?.filter(o=>o['Approval Status']==='Pending').length||0,
       "Today Orders": orders?.filter(o=>String(o['Request Date']||'').startsWith(today)).length||0,
       "Active Orders": orders?.filter(o=>['Active','Approved'].includes(o['Approval Status'])).length||0,
@@ -57,7 +62,6 @@ export default function Dashboard(){
     setCounts(c)
 
     let filtered = menuData||[]
-    // اذا مش ادمن فلتر حسب asceses
     if(currentRole!=='Admin' && accessData?.length){
       const allowed = accessData.filter(a=>a.Role===currentRole && (a.Can_View===true || String(a.Can_View).toLowerCase()==='true')).map(a=>a.View)
       if(allowed.length) filtered = menuData.filter(m=> allowed.includes(m.View))
@@ -88,12 +92,11 @@ export default function Dashboard(){
           <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
             <div className="font-bold">ما في كروت - شوف جدول menu فاضي ولا لا</div>
             <div className="text- opacity-70 mt-2">{debug}</div>
-            <div className="mt-4 text-">روح على /admin وافتح جدول menu وضيف View = Customers Pending, Menu = orders</div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {menus.map((m)=>(
-              <Link key={m.id || m.View} href={`/admin/${(m.Menu||'').toLowerCase()}-${m.View.toLowerCase().replace(/\s+/g,'-')}`} className="rounded- bg-white text-black p-5 h- flex flex-col justify-between hover:scale-[1.02] transition-all">
+              <Link key={m.supa_id || m.View} href={`/admin/${m.Menu}`} className="rounded- bg-white text-black p-5 h- flex flex-col justify-between hover:scale-[1.02] transition-all">
                 <div className="flex justify-between"><span className="text- text-[#8B8681]">{ar[m.View]||m.View} • {m.Menu}</span><span className="w-2 h-2 rounded-full bg-black/15 mt-1"></span></div>
                 <div><div className="text- font-semibold">{m.View}</div><div className="flex items-end justify-between mt-2"><div className="text- font-black leading-none">{counts[m.View]??'-'}</div><span className="text- bg-black text-white px-3 py-1 rounded-full">عرض ←</span></div></div>
               </Link>
