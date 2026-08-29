@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
+import BackToDashboard from "@/components/BackToDashboard"
 
 export default function TodayOrdersPage() {
   const [orders, setOrders] = useState([])
@@ -44,6 +45,7 @@ export default function TodayOrdersPage() {
 
   return (
     <div className="p-6">
+    <BackToDashboard />
       <h1 className="text-2xl font-bold mb-2">اوردرات اليوم - TODAY() - {orders.length}</h1>
       <p className="text-sm text-gray-500 mb-6">DATE([Request Date])=TODAY() - مجموع: {total.toFixed(2)} $</p>
       
