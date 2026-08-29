@@ -33,7 +33,7 @@ export default function MappingPage() {
   const fetchCustomers = async () => {
     const { data } = await supabase
      .from('customers')
-     .select('Customer ID, Name, Mobile, Area, Adress, Registration Latitude, Registration Longitude, Current Latitude, Current Longtitude, Status')
+     .select('Customer ID, Name, Mobile, Area, Adress, Registration Latitude, Registration Longitude, Current Latitude, Current Longitude, Status')
      .not('Registration Latitude', 'is', null)
      .not('Registration Longitude', 'is', null)
      .eq('Status', 'Active')
@@ -61,7 +61,7 @@ export default function MappingPage() {
   if (loading) return <div className="p-6">عم حمل الزباين...</div>
 
   const center = filtered.length > 0
-   ? [parseFloat(filtered[0]['Current Latitude'] || filtered[0]['Registration Latitude']), parseFloat(filtered[0]['Current Longtitude'] || filtered[0]['Registration Longitude'])]
+   ? [parseFloat(filtered[0]['Current Latitude'] || filtered[0]['Registration Latitude']), parseFloat(filtered[0]['Current Longitude'] || filtered[0]['Registration Longitude'])]
     : [33.8938, 35.5018] // بيروت
 
   return (
