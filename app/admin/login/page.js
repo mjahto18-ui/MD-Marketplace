@@ -23,7 +23,7 @@ export default function AdminLogin(){
       if(j.success){ 
         if(j.role === 'Store Owner') router.push('/store-owner')
         else if(j.role === 'Driver') router.push('/driver-owner')
-        else router.push('/admin')
+        else router.push('/admin/dashboard')
       } else setErr(j.message || "فشل الدخول")
     }catch(e){ setErr("خطأ اتصال") }
     setLoading(false)
