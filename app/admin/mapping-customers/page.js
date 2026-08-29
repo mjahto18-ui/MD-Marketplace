@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 import dynamicImport from "next/dynamic"
+import BackToDashboard from "@/components/BackToDashboard"
 
 const CustomerMapAll = dynamicImport(() => import("@/components/CustomerMapAll"), {
   ssr: false,
@@ -69,6 +70,7 @@ export default function MappingCustomerPage() {
   return (
     <div className="h-screen flex flex-col">
       <div className="p-3 bg-white shadow flex gap-2 items-center flex-wrap">
+       <BackToDashboard />
         <button onClick={()=>{setTab('all'); apply('all', search)}} className={`px-4 py-2 rounded-full text-sm font-bold ${tab==='all'?'bg-black text-white':'bg-gray-100'}`}>All {all.customers.length+all.stores.length+all.drivers.length}</button>
         <button onClick={()=>{setTab('customers'); apply('customers', search)}} className={`px-4 py-2 rounded-full text-sm font-bold ${tab==='customers'?'bg-red-500 text-white':'bg-gray-100'}`}>Customers {all.customers.length}</button>
         <button onClick={()=>{setTab('stores'); apply('stores', search)}} className={`px-4 py-2 rounded-full text-sm font-bold ${tab==='stores'?'bg-blue-600 text-white':'bg-gray-100'}`}>Stores {all.stores.length}</button>
