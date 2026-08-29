@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
+import BackToDashboard from "@/components/BackToDashboard"
 
 export default function ApprovedOrdersPage() {
   const [orders, setOrders] = useState([])
@@ -44,6 +45,10 @@ export default function ApprovedOrdersPage() {
   }
 
   return (
+  <div className="p-6">
+    <BackToDashboard />
+
+  return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Approved Orders - {orders.length}</h1>
       <div className="grid gap-4">
@@ -68,6 +73,7 @@ export default function ApprovedOrdersPage() {
                 Approved
               </div>
             </div>
+           )
           )
         })}
         {orders.length === 0 && <p className="text-gray-500">ما في طلبات Approved</p>}
