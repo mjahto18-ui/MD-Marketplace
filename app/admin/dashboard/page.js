@@ -13,12 +13,21 @@ export default function Dashboard(){
   useEffect(()=>{ init() },[])
 
   const init = async()=>{
-    // 1. جيب الرول
-    const { data:{user} } = await supabase.auth.getUser()
-    if(user){
-      const { data:u } = await supabase.from('users').select('Role').eq('id', user.id).single()
-      if(u?.Role) setRole(u.Role)
+    // 1. جيب الرول من رقم التلفون + Active
+    const mobile = localStorage.getItem('mobile') || localStorage.getItem('Mobile') || "03177653"
+    const { data: u } = await supabase.from('users')
+     .select('Role, Active, Status')
+     .eq('Mobile', mobile)
+     .eq('Active', true)
+     .eq('Status', 'Active')
+     .single()
+
+    if(!u){
+      alert("حسابك موقوف - Active = FALSE");
+      return;
     }
+    setRole(u.Role)
+
     // 2. جيب كلشي
     const [{data: customers},{data: orders},{data: menuData},{data: accessData}] = await Promise.all([
       supabase.from('customers').select('Status').limit(1000),
@@ -43,30 +52,17 @@ export default function Dashboard(){
     }
     setCounts(c)
 
-    // 3. فلتر حسب asceses
+    // 3. فلتر حسب asceses + الرول
     let filtered = menuData||[]
-    if(role!== 'Admin' && accessData?.length){
-      const allowed = accessData.filter(a=>a.Role===role && a.Can_View).map(a=>a.View)
+    if(u.Role!== 'Admin' && accessData?.length){
+      const allowed = accessData.filter(a=>a.Role===u.Role && a.Can_View).map(a=>a.View)
       filtered = menuData.filter(m=> allowed.includes(m.View))
     }
-    // بس الداشبورد
     filtered = filtered.filter(m=> Object.keys(c).includes(m.View))
     setMenus(filtered)
   }
 
-  const ar = {
-    "Customers Pending":"بانتظار الموافقة",
-    "Pending Orders":"طلبات معلقة",
-    "Today Orders":"طلبات اليوم",
-    "Active Orders":"قيد التوصيل",
-    "Approved Orders":"موافق عليها",
-    "Complete Orders":"مكتملة",
-    "Cash Pending":"كاش لم يستلم",
-    "Cash Received":"كاش مستلم",
-    "Rejected Orders":"مرفوضة",
-    "Mapping Customers":"ربط العملاء",
-    "Custom Delivery":"توصيل خاص"
-  }
+  const ar = { "Customers Pending":"بانتظار الموافقة","Pending Orders":"طلبات معلقة","Today Orders":"طلبات اليوم","Active Orders":"قيد التوصيل","Approved Orders":"موافق عليها","Complete Orders":"مكتملة","Cash Pending":"كاش لم يستلم","Cash Received":"كاش مستلم","Rejected Orders":"مرفوضة","Mapping Customers":"ربط العملاء","Custom Delivery":"توصيل خاص" }
 
   return (
     <div className="min-h-screen bg-[#FCFBF9]">
@@ -74,25 +70,20 @@ export default function Dashboard(){
         <div className="max-w- mx-auto px-6 h- flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded- bg-white border border-[#EDE9E3] flex items-center justify-center p-1.5"><img src="/logo.png" alt="" className="w-full h-full object-contain"/></div>
-            <div><div className="font-bold text-">MD-Marketplace • {role}</div><div className="text- text-[#9A9590]">{menus.length} عنصر مسموح من menu</div></div>
+            <div><div className="font-bold text-">MD-Marketplace • {role}</div><div className="text- text-[#9A9590]">{menus.length} عنصر مسموح</div></div>
           </div>
           <button onClick={init} className="h-8 px-4 rounded-full bg-[#1A1A1A] text-white text-">تحديث</button>
         </div>
       </div>
-
       <div className="max-w- mx-auto px-6 py-7">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {menus.map((m)=>(
-            <Link key={m.id} href={`/admin/${m.Menu.toLowerCase()}-${m.View.toLowerCase().replace(/\s+/g,'-')}`}
-              className="rounded- border bg-white border-[#EDE9E3] p-5 h- flex flex-col justify-between hover:shadow-[0_6px_20px_rgba(0,0,0,0.05)] hover:-translate-y- transition-all">
+            <Link key={m.id} href={`/admin/${m.Menu.toLowerCase()}-${m.View.toLowerCase().replace(/\s+/g,'-')}`} className="rounded- border bg-white border-[#EDE9E3] p-5 h- flex flex-col justify-between hover:shadow-[0_6px_20px_rgba(0,0,0,0.05)] hover:-translate-y- transition-all">
               <div className="flex justify-between"><span className="text- text-[#8B8681]">{ar[m.View]||m.View}</span><span className="w-2 h-2 rounded-full bg-[#1A1A1A]/15 mt-1"></span></div>
-              <div><div className="text- font-semibold text-[#2A2A2A]">{m.View}</div>
-                <div className="flex items-end justify-between mt-2"><div className="text- font-black leading-none">{counts[m.View]?? 0}</div><span className="text- text-[#A8A29C]">عرض ←</span></div>
-              </div>
+              <div><div className="text- font-semibold">{m.View}</div><div className="flex items-end justify-between mt-2"><div className="text- font-black leading-none">{counts[m.View]??0}</div><span className="text- text-[#A8A29C]">عرض ←</span></div></div>
             </Link>
           ))}
         </div>
-        {menus.length===0 && <div className="mt-20 text-center text-[#9A9590] text-sm">ما في شي مسموح لهالرول - روح على جدول asceses وضيفلو</div>}
       </div>
     </div>
   )
