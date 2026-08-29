@@ -11,34 +11,30 @@ export default function Dashboard(){
   useEffect(()=>{ load() },[])
 
   const load = async () => {
-    const today = new Date().toISOString().split('T')[0]
-    const [c1,c2,c3,c4,c5,c6,c7,c8,c9] = await Promise.all([
-      supabase.from('customers').select('supa_id',{count:'exact',head:true}).eq('Status','Pending'),
-      supabase.from('order_requuest').select('Request ID',{count:'exact',head:true}).eq('Approval Status','Pending'),
-      supabase.from('order_requuest').select('Request ID',{count:'exact',head:true}).eq('Approval Status','Approved'),
-      supabase.from('order_requuest').select('Request ID',{count:'exact',head:true}).gte('Request Date', today),
-      supabase.from('order_requuest').select('Request ID',{count:'exact',head:true}).eq('Cash Status','Pending'),
-      supabase.from('order_requuest').select('Request ID',{count:'exact',head:true}).eq('Cash Status','Received'),
-      supabase.from('order_requuest').select('Request ID',{count:'exact',head:true}).eq('Approval Status','Completed'),
-      supabase.from('order_requuest').select('Request ID',{count:'exact',head:true}).eq('Approval Status','Rejected'),
-      supabase.from('order_requuest').select('Request ID',{count:'exact',head:true}).eq('Approval Status','Approved'),
+    // نجيب كل شي مرة وحدة بلا فلتر - مشان ما يضرب 400
+    const [{data: customers}, {data: orders}] = await Promise.all([
+      supabase.from('customers').select('*').limit(1000),
+      supabase.from('order_requuest').select('*').limit(2000),
     ])
+
+    const today = new Date().toISOString().split('T')[0]
+
     setCounts({
-      customersPending: c1.count||0,
-      pendingOrders: c2.count||0,
-      activeOrders: c3.count||0,
-      todayOrders: c4.count||0,
-      cashPending: c5.count||0,
-      cashReceived: c6.count||0,
-      completeOrders: c7.count||0,
-      rejectedOrders: c8.count||0,
-      approvedOrders: c9.count||0,
+      customersPending: customers?.filter(c=>c['Status']==='Pending').length||0,
+      pendingOrders: orders?.filter(o=>o['Approval Status']==='Pending').length||0,
+      activeOrders: orders?.filter(o=>o['Approval Status']==='Active' || o['Approval Status']==='Approved').length||0,
+      todayOrders: orders?.filter(o=>String(o['Request Date']||'').startsWith(today)).length||0,
+      cashPending: orders?.filter(o=>o['Cash Status']==='Pending' && o['Final Payment Method']==='Cash').length||0,
+      cashReceived: orders?.filter(o=>o['Cash Status']==='Received').length||0,
+      completeOrders: orders?.filter(o=>o['Approval Status']==='Completed').length||0,
+      rejectedOrders: orders?.filter(o=>o['Approval Status']==='Rejected').length||0,
+      approvedOrders: orders?.filter(o=>o['Approval Status']==='Approved').length||0,
     })
   }
 
   const Item = ({label, count, href, color}) => (
     <Link href={href} className={`p-5 rounded-2xl bg-white shadow border-l- ${color} flex justify-between items-center hover:scale-[1.02] transition`}>
-      <div><div className="text- text-gray-400 font-bold">{label}</div><div className="text-3xl font-black">{count}</div></div>
+      <div><div className="text- text-gray-400 font-bold tracking-widest">{label}</div><div className="text-3xl font-black mt-1">{count}</div></div>
       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${count>0?'bg-red-500':'bg-green-500'}`}>{count}</div>
     </Link>
   )
