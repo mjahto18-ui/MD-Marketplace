@@ -48,7 +48,7 @@ export default function ApprovedOrdersPage() {
   <div className="p-6">
     <BackToDashboard />
 
-  return (
+ // return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Approved Orders - {orders.length}</h1>
       <div className="grid gap-4">
@@ -56,7 +56,7 @@ export default function ApprovedOrdersPage() {
           const driverName = names.drivers[order['Assigned Driver']] || 'مش محدد'
           const customerName = names.customers[order['customer ID']] || 'زبون غير معروف'
           const areaName = names.areas[order['Area']] || '-'
-         // return (
+          return (
             <div key={order['Request ID']} className="bg-white p-4 rounded-lg shadow border flex justify-between items-center border-l-4 border-l-blue-500">
               <div>
                 <div className="font-bold">#{order['Request ID']} - {customerName}</div>
