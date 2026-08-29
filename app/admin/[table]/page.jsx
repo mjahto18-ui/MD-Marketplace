@@ -14,24 +14,43 @@ export default function GenericTable(){
   const [editId, setEditId] = useState(null)
   const [editRow, setEditRow] = useState({})
 
+  const normalize = (v) => String(v).toUpperCase() === 'TRUE' || v === true
+
   const load = async () => {
     const sessRes = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' })
-    if(!sessRes.ok){ console.log('ME FAIL', sessRes.status); return }
+    if(!sessRes.ok) return
     const sess = await sessRes.json()
-    const role = sess.role || 'Admin'
+    const role = (sess.role || 'Admin').trim()
     setMyRole(role)
+    const t = String(table).trim()
 
-    const { data: rule } = await supabase.from('asceses').select('*').eq('role', sess.role).eq('menu', table).maybeSingle()
+    // 1- فحص menu اول - بي تايبل
+    const { data: menuRow } = await supabase.from('menu').select('Role').eq('Menu', t).maybeSingle()
+    if(menuRow){
+      const allowed = String(menuRow.Role).split(',').map(r=>r.trim())
+      if(!allowed.includes(role)){
+        setPerm({can_view:false, can_edit:false, can_add:false, can_delete:false})
+        return
+      }
+    }
 
-    if(sess.role==='Admin'){
+    // 2- فحص asceses
+    const { data: rule } = await supabase.from('asceses').select('*').eq('role', role).eq('menu', t).maybeSingle()
+
+    if(role==='Admin'){
       setPerm({can_view:true, can_edit:true, can_add:true, can_delete:true})
     }else if(rule){
-      setPerm({can_view:rule.can_view, can_edit:rule.can_edit, can_add:rule.can_add, can_delete:rule.can_delete || false})
+      setPerm({
+        can_view: normalize(rule.can_view),
+        can_edit: normalize(rule.can_edit),
+        can_add: normalize(rule.can_add),
+        can_delete: normalize(rule.can_delete)
+      })
     }else{
       setPerm({can_view:false, can_edit:false, can_add:false, can_delete:false})
     }
 
-    const { data: rows } = await supabase.from(table).select('*').order('supa_id',{ascending:true}).limit(200)
+    const { data: rows } = await supabase.from(t).select('*').order('supa_id',{ascending:true}).limit(200)
     setData(rows||[])
     if(rows?.[0]) setCols(Object.keys(rows[0]))
   }
