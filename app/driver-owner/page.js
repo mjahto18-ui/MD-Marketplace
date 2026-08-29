@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react"
 import { createClient } from "@supabase/supabase-js"
 import dynamic from "next/dynamic"
+import CashPending from "./CashPending"
 const DriverMap = dynamic(() => import("./DriverMap"), { ssr: false })
 
 export default function DriverDashboard(){
@@ -23,6 +24,9 @@ export default function DriverDashboard(){
   const [myLocation, setMyLocation] = useState(null)
   const [debug, setDebug] = useState("")
   const [isOnline, setIsOnline] = useState(true)
+  const [activeTab, setActiveTab] = useState('orders')
+  const [cashPendingCount, setCashPendingCount] = useState(0)
+  const [cashPendingTotal, setCashPendingTotal] = useState(0)
   const timersRef = useRef({})
   const trackRef = useRef(null)
   const driverLocationRef = useRef(null)
@@ -40,7 +44,6 @@ export default function DriverDashboard(){
     }
   },[])
 
-  // فقرة 1: تحديث جدول drivers مشان يبين بالادمن
   useEffect(()=>{
     if(!supabase ||!me ||!isOnline) return
     const driverId = me.relatedId || me.userId
@@ -62,7 +65,6 @@ export default function DriverDashboard(){
     return ()=>{ if(driverLocationRef.current) navigator.geolocation.clearWatch(driverLocationRef.current) }
   },[supabase, me, isOnline])
 
-  // فقرة 2: زر اون / اوف
   const toggleOnline = async ()=>{
     if(!supabase ||!me) return
     const driverId = me.relatedId || me.userId
@@ -155,6 +157,12 @@ export default function DriverDashboard(){
         if(active){ setSelectedOrder(active); setPaymentMethod(active['Final Payment Method']||'Cash') }
         setDebug(`OK: ${data.length} اوردر - ${det?.length||0} منتج`)
       }
+      // كاش بندينغ كاونت
+      const { data: cashData } = await supabase.from('order_requuest').select('Total Amount').eq('Assigned Driver', driverId).eq('Final Payment Method','Cash').eq('Cash Status','Pending')
+      if(cashData){
+        setCashPendingCount(cashData.length)
+        setCashPendingTotal(cashData.reduce((s,o)=>s+parseFloat(o['Total Amount']||0),0))
+      }
     }
     load()
   },[supabase, me])
@@ -220,12 +228,20 @@ export default function DriverDashboard(){
           <div style={{background:'#ffedd5', color:'#111', borderRadius:12, padding:12, textAlign:'center'}}><div style={{fontSize:22, fontWeight:900}}>{onway}</div><div style={{fontSize:10}}>On Way</div></div>
         </div>
 
+        <div style={{display:'flex', gap:8, marginBottom:12}}>
+          <button onClick={()=>setActiveTab('orders')} style={{flex:1, background: activeTab==='orders'?'#fff':'rgba(255,255,255,0.1)', color: activeTab==='orders'?'#111':'white', padding:12, borderRadius:10, fontWeight:900, border:'none'}}>📦 اوردراتي ({requests.length})</button>
+          <button onClick={()=>setActiveTab('cash')} style={{flex:1, background: activeTab==='cash'?'#ef4444':'rgba(255,255,255,0.1)', color:'white', padding:12, borderRadius:10, fontWeight:900, border: activeTab==='cash'?'2px solid white':'none'}}>💰 عليك دفع ({cashPendingCount}) {cashPendingTotal>0? `- ${formatLBP(cashPendingTotal)}`:''}</button>
+        </div>
+
         <div style={{background:'rgba(255,255,255,0.08)', borderRadius:12, padding:12, fontSize:11, marginBottom:12}}>
           <div>📍 موقعك: {myLocation? `${myLocation.lat.toFixed(5)}, ${myLocation.lng.toFixed(5)}` : 'بانتظار GPS...'} {isOnline? '(يتم الارسال للادمن)' : '(متوقف)'}</div>
           <div style={{marginTop:6, color:'#facc15'}}>🔍 {debug}</div>
         </div>
 
-        {requests.map(r=>{
+        {activeTab==='cash'? (
+          <CashPending driverId={me.relatedId || me.userId} supabase={supabase} formatLBP={formatLBP} />
+        ) : (
+          requests.map(r=>{
           const prods = allDetails.filter(d=> String(d['Request ID']) === String(r['Request ID']))
           const storeIds = [...new Set(prods.map(p=>String(p['Store ID']).trim()).filter(Boolean))]
           const isPending = r['Delivery Status']==='Pending'
@@ -331,7 +347,8 @@ export default function DriverDashboard(){
               </div>
             </div>
           )
-        })}
+        })
+        )}
       </div>
 
       {showConfirm && (
