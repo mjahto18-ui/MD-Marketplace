@@ -12,14 +12,22 @@ export default function Dashboard(){
   useEffect(()=>{ load() },[])
 
   const load = async () => {
-    const [{data: customers}, {data: orders}, {data: menus}] = await Promise.all([
+    // مين انا؟
+    const { data: {user} } = await supabase.auth.getUser()
+    let role = 'Admin'
+    if(user?.email){
+      const { data: me } = await supabase.from('users').select('Role').eq('Email', user.email).single()
+      if(me?.Role) role = me.Role
+    }
+
+    const [{data: customers}, {data: orders}, {data: menus}, {data: acs}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
+      supabase.from('asceses').select('*').eq('Role', role),
     ])
 
     const today = new Date().toISOString().split('T')[0]
-
     setCounts({
       customersPending: customers?.filter(c=>c['Status']==='Pending').length||0,
       pendingOrders: orders?.filter(o=>o['Approval Status']==='Pending').length||0,
@@ -32,10 +40,20 @@ export default function Dashboard(){
       approvedOrders: orders?.filter(o=>o['Approval Status']==='Approved').length||0,
     })
 
-    // العرض الخاص - بس الجداول العامة الـ 30 - ما منجيب الـ 10 اللي فوق
+    // الفلترة حسب الرول
     const specialViews = ["Customers Pending","Pending Orders","Today Orders","Active Orders","Approved Orders","Complete Orders","Cash Pending","Cash Received","Rejected Orders","Mapping Customers"]
-    const generic = (menus||[]).filter(m=>!specialViews.includes(m.View))
-    setMenuTables(generic)
+    let allowed = menus||[]
+    if(role!== 'Admin' && acs?.length){
+      const allowedMenus = acs.map(a=>a.Menu)
+      allowed = menus?.filter(m=> allowedMenus.includes(m.Menu)) || []
+    }
+    const generic = allowed.filter(m=>!specialViews.includes(m.View))
+    // ضيف الـ Access مع كل جدول
+    const withAccess = generic.map(m=>{
+      const rule = acs?.find(a=>a.Menu===m.Menu)
+      return {...m, _access: rule?.Access || (role==='Admin'?'Read & Write':'Read')}
+    })
+    setMenuTables(withAccess)
   }
 
   const Item = ({label, count, href, color}) => (
@@ -52,7 +70,6 @@ export default function Dashboard(){
         <button onClick={load} className="bg-black text-white px-4 py-2 rounded-full">↻ تحديث</button>
       </div>
 
-      {/* فوق - الـ 10 تبعك نفسهن ما لمستهن */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Item label="Customers Pending" count={counts.customersPending} href="/admin/customers-pending" color="border-red-500" />
         <Item label="Pending Orders" count={counts.pendingOrders} href="/admin/pending" color="border-orange-500" />
@@ -66,14 +83,14 @@ export default function Dashboard(){
         <Item label="Mapping Customers" count={0} href="/admin/mapping-customers" color="border-black" />
       </div>
 
-      {/* تحت - العرض الخاص تبع menu - الـ 30 جدول */}
       <div className="mt-10">
-        <h2 className="text- font-black mb-3 opacity-60">عرض خاص - كل الجداول من menu ({menuTables.length})</h2>
+        <h2 className="text- font-black mb-3 opacity-60">عرض خاص - كل الجداول من menu حسب الرول ({menuTables.length})</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {menuTables.map(m=>(
-            <Link key={m.supa_id} href={`/admin/${m.Menu}`} className="bg-[#080811] text-white p-4 rounded-xl hover:scale-[1.02] transition">
+            <Link key={m.supa_id} href={`/admin/${m.Menu}?access=${m._access}`} className="bg-[#080811] text-white p-4 rounded-xl hover:scale-[1.02] transition relative">
               <div className="text- opacity-50">{m.Menu}</div>
               <div className="font-bold text-">{m.View}</div>
+              <div className="text- mt-2 px-2 py-0.5 rounded-full bg-white/20 inline-block">{m._access}</div>
             </Link>
           ))}
         </div>
