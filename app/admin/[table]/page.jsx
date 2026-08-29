@@ -14,9 +14,12 @@ export default function GenericTable(){
   const [editId, setEditId] = useState(null)
   const [editRow, setEditRow] = useState({})
 
-  const load = async()=>{
-    const sess = await fetch('/api/admin/session').then(r=>r.json())
-    setMyRole(sess.role||'')
+  const load = async () => {
+    const sessRes = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' })
+    if(!sessRes.ok){ console.log('ME FAIL', sessRes.status); return }
+    const sess = await sessRes.json()
+    const role = sess.role || 'Admin'
+    setMyRole(role)
 
     const { data: rule } = await supabase.from('asceses').select('*').eq('role', sess.role).eq('menu', table).maybeSingle()
 
