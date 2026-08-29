@@ -67,67 +67,78 @@ export default function Dashboard(){
     router.push('/admin/login')
   }
 
-  const Card = ({label, count, href}) => (
-    <Link href={href} className="group bg-[#fffef7] rounded- p-6 border border-[#ece9de] shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 flex justify-between items-center">
+  // كرت مربع بلا زوايا - خط جديد
+  const Box = ({label, count, href}) => (
+    <Link href={href} className="bg-white border-l- border-[#111] px-6 py-7 flex justify-between items-end hover:bg-[#111] hover:text-white group transition-all duration-200">
       <div>
-        <div className="text- font-bold tracking-[0.18em] text-[#9a9a9a] uppercase">{label}</div>
-        <div className="mt-3 text- font-black tracking-[-0.02em] text-[#1e1e1e] leading-none">{count}</div>
-        <div className="mt-3 w-8 h-1 rounded-full bg-[#0a84ff] group-hover:w-12 transition-all"></div>
+        <div className="font-mono text- tracking-[0.22em] opacity-50 font-bold">{label}</div>
+        <div className="mt-4 font-black text- leading-[0.85] tracking-[-0.04em]">{count}</div>
       </div>
-      <div className={`w-14 h-14 rounded-full flex items-center justify-center text- font-black ${count>0?'bg-[#1e1e1e] text-white':'bg-[#f1eee2] text-[#a8a59a]'}`}>
-        {count}
+      <div className={`font-mono text- font-bold px-2 py-1 ${count>0? 'bg-[#ff2e1f] text-white group-hover:bg-white group-hover:text-black' : 'bg-black text-white group-hover:bg-white group-hover:text-black'}`}>
+        {count>0? 'NEW' : '0'}
       </div>
     </Link>
   )
 
   return (
-    <div className="min-h-screen bg-[#e9e7e1] p-6 md:p-8 font-[Inter,system-ui]">
-      {/* Header متل الصورة */}
-      <div className="max-w- mx-auto">
-        <div className="bg-[#fffef7] rounded- border border-[#ece9de] shadow-[0_4px_24px_rgba(0,0,0,0.04)] px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" className="w-9 h-9 rounded-full bg-[#f1eee2]" onError={e=>e.target.style.display='none'} />
+    <div className="min-h-screen bg-[#d6d3cc] p-4 md:p-10">
+      <div className="max-w- mx-auto bg-[#fdfcf6] rounded- shadow-[0_20px_80px_rgba(0,0,0,0.08)] overflow-hidden border border-white">
+
+        {/* Header */}
+        <div className="px-8 py-6 flex justify-between items-center border-b border-[#ece9de]">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-black text-white flex items-center justify-center font-black text-">MD</div>
             <div>
-              <div className="font-black text- tracking-tight">MD MARKETPLACE</div>
-              <div className="text- text-[#6b6b6b] flex items-center gap-2 mt-0.5">
-                <span className="bg-[#1e1e1e] text-white px-3 py-0.5 rounded-full text- font-bold">{myRole}</span>
-                <span className="font-bold text-[#1e1e1e]">{myName}</span>
+              <div className="font-black text- tracking-[-0.02em] leading-none">MD MARKETPLACE</div>
+              <div className="font-mono text- mt-1 flex gap-2 items-center">
+                <span className="bg-black text-white px-2 py-0.5">{myRole}</span>
+                <span className="font-bold">{myName}</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={load} className="bg-[#f1eee2] px-4 py-2 rounded-full text- font-bold hover:bg-[#e9e6d7]">تحديث</button>
-            <button onClick={logout} className="bg-[#1e1e1e] text-white px-5 py-2 rounded-full text- font-bold">خروج</button>
+          <div className="flex gap-2 font-mono">
+            <button onClick={load} className="border border-black px-4 py-2 text- font-bold hover:bg-black hover:text-white">REFRESH</button>
+            <button onClick={logout} className="bg-black text-white px-5 py-2 text- font-bold">LOGOUT</button>
           </div>
         </div>
 
-        {/* Grid متل الصورة - كروت فاتحة rounded كبير */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card label="Customers Pending" count={counts.customersPending} href="/admin/customers-pending" />
-          <Card label="Pending Orders" count={counts.pendingOrders} href="/admin/pending" />
-          <Card label="Today Orders" count={counts.todayOrders} href="/admin/today-orders" />
-          <Card label="Active Orders" count={counts.activeOrders} href="/admin/active-orders" />
-          <Card label="Approved Orders" count={counts.approvedOrders} href="/admin/approved-orders" />
-          <Card label="Complete Orders" count={counts.completeOrders} href="/admin/complete-orders" />
-          <Card label="Cash Pending" count={counts.cashPending} href="/admin/cash-pending" />
-          <Card label="Cash Received" count={counts.cashReceived} href="/admin/cash-received" />
-          <Card label="Rejected Orders" count={counts.rejectedOrders} href="/admin/rejected-orders" />
-          <Card label="Mapping Customers" count={0} href="/admin/mapping-customers" />
+        {/* Title */}
+        <div className="px-8 pt-10 pb-6">
+          <h2 className="text- font-black leading-[0.85] tracking-[-0.04em]"><span className="text-[#0a5cff]">DASHBOARD</span> OVERVIEW</h2>
+          <p className="font-mono text- mt-3 opacity-60">live counts to manage your marketplace operations</p>
+          <div className="mt-4 w-14 h- bg-[#0a5cff]"></div>
         </div>
 
-        {/* الجداول - نفس الموديل */}
-        <div className="mt-12">
-          <div className="text- tracking-[0.2em] text-[#9a9a9a] font-bold mb-4 uppercase">Tables — {myRole} — ({menuTables.length})</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Grid مربع بلا زوايا */}
+        <div className="px-3 pb-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 bg-[#ece9de] gap- border border-[#ece9de]">
+            <Box label="CUSTOMERS PENDING" count={counts.customersPending} href="/admin/customers-pending" />
+            <Box label="PENDING ORDERS" count={counts.pendingOrders} href="/admin/pending" />
+            <Box label="TODAY ORDERS" count={counts.todayOrders} href="/admin/today-orders" />
+            <Box label="ACTIVE ORDERS" count={counts.activeOrders} href="/admin/active-orders" />
+            <Box label="APPROVED ORDERS" count={counts.approvedOrders} href="/admin/approved-orders" />
+            <Box label="COMPLETE ORDERS" count={counts.completeOrders} href="/admin/complete-orders" />
+            <Box label="CASH PENDING" count={counts.cashPending} href="/admin/cash-pending" />
+            <Box label="CASH RECEIVED" count={counts.cashReceived} href="/admin/cash-received" />
+            <Box label="REJECTED ORDERS" count={counts.rejectedOrders} href="/admin/rejected-orders" />
+            <Box label="MAPPING CUSTOMERS" count={0} href="/admin/mapping-customers" />
+          </div>
+        </div>
+
+        {/* Tables */}
+        <div className="px-8 py-8 bg-[#f5f3ed]">
+          <div className="font-mono text- tracking-[0.2em] opacity-50 font-bold mb-4">TABLES — {myRole} ({menuTables.length})</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap- bg-black border border-black">
             {menuTables.map(m=>(
-              <Link key={m.supa_id} href={`/admin/${m.Menu}`} className="bg-[#fffef7] rounded- p-5 border border-[#ece9de] shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all">
-                <div className="text- tracking-[0.18em] text-[#9a9a9a] font-bold uppercase">{m.Menu}</div>
-                <div className="font-black text- mt-2 text-[#1e1e1e]">{m.View}</div>
-                <div className="mt-4 inline-flex bg-[#1e1e1e] text-white text- px-3 py-1 rounded-full font-bold">{m._access}</div>
+              <Link key={m.supa_id} href={`/admin/${m.Menu}`} className="bg-[#1a1a1a] text-white p-6 hover:bg-white hover:text-black transition-colors">
+                <div className="font-mono text- opacity-40">{m.Menu}</div>
+                <div className="font-black text- mt-2 leading-tight">{m.View}</div>
+                <div className="mt-4 font-mono text- border border-white/20 inline-block px-2 py-1">{m._access}</div>
               </Link>
             ))}
           </div>
         </div>
+
       </div>
     </div>
   )
