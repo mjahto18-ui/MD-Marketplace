@@ -90,10 +90,10 @@ usersRes.data?.forEach(u => {
                 <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">🚚 {driverName}</span>
               </p>
             </Link>
-           )
           )
         })}
       </div>
     </div>
   )
-}
+ )
+ }
