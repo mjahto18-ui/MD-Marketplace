@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
+import BackToDashboard from "@/components/BackToDashboard"
+
 const AdminPendingMap = dynamic(()=>import('@/components/AdminPendingMap'), {ssr:false})
 
 export default function PendingPage(){
@@ -64,6 +66,7 @@ export default function PendingPage(){
   return (
     <div className="p-6 grid grid-cols-4 gap-6 min-h-screen bg-slate-950 text-white" style={{direction:'rtl'}}>
       <div className="col-span-1 bg-white/5 rounded-2xl p-4 overflow-y-auto">
+        <BackToDashboard />
         <h2 className="font-bold text-xl mb-4">Pending Orders ({orders.length})</h2>
         {orders.map(o=>{
           const isOpen = expandedId===o.requestID
