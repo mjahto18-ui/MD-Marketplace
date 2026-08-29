@@ -56,7 +56,7 @@ export default function ApprovedOrdersPage() {
           const driverName = names.drivers[order['Assigned Driver']] || 'مش محدد'
           const customerName = names.customers[order['customer ID']] || 'زبون غير معروف'
           const areaName = names.areas[order['Area']] || '-'
-          return (
+         // return (
             <div key={order['Request ID']} className="bg-white p-4 rounded-lg shadow border flex justify-between items-center border-l-4 border-l-blue-500">
               <div>
                 <div className="font-bold">#{order['Request ID']} - {customerName}</div>
@@ -73,7 +73,6 @@ export default function ApprovedOrdersPage() {
                 Approved
               </div>
             </div>
-           )
           )
         })}
         {orders.length === 0 && <p className="text-gray-500">ما في طلبات Approved</p>}
