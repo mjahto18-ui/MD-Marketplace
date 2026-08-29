@@ -24,7 +24,7 @@ export default function GenericTable(){
     setMyRole(role)
     const t = String(table).trim()
 
-    // 1- فحص menu اول - بي تايبل
+    // 1- سيزن -> 2- مينو: هل مسموحلي شوف هاد التابل؟
     const { data: menuRow } = await supabase.from('menu').select('Role').eq('Menu', t).maybeSingle()
     if(menuRow){
       const allowed = String(menuRow.Role).split(',').map(r=>r.trim())
@@ -34,20 +34,21 @@ export default function GenericTable(){
       }
     }
 
-    // 2- فحص asceses
+    // 3- اكسس: شو مسموحلي اعمل جوا؟
     const { data: rule } = await supabase.from('asceses').select('*').eq('role', role).eq('menu', t).maybeSingle()
 
     if(role==='Admin'){
       setPerm({can_view:true, can_edit:true, can_add:true, can_delete:true})
     }else if(rule){
       setPerm({
-        can_view: normalize(rule.can_view),
+        can_view:true, // مهم! مينو سمحلك معناتا view=true
         can_edit: normalize(rule.can_edit),
         can_add: normalize(rule.can_add),
         can_delete: normalize(rule.can_delete)
       })
     }else{
-      setPerm({can_view:false, can_edit:false, can_add:false, can_delete:false})
+      // ما في سطر بـ asceses -> قراءة فقط - مو بلوك
+      setPerm({can_view:true, can_edit:false, can_add:false, can_delete:false})
     }
 
     const { data: rows } = await supabase.from(t).select('*').order('supa_id',{ascending:true}).limit(200)
