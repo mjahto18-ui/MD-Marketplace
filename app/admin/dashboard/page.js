@@ -17,12 +17,26 @@ export default function Dashboard(){
 
   const load = async () => {
     const sessRes = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' })
-    if(!sessRes.ok){ console.log('ME FAIL', sessRes.status); return }
+    if(!sessRes.ok) return
     const sess = await sessRes.json()
+
     const role = String(sess.role || sess.Role || 'Admin').trim()
-    const name = String(sess.name || sess.username || sess.email || sess.user || 'Admin').trim()
     setMyRole(role)
-    setMyName(name)
+
+    // جيب الاسم الحقيقي من جدول users
+    let realName = sess.name || sess.username || sess.user || ''
+    if(!realName || realName === role){
+      const email = sess.email || sess.user_email || ''
+      if(email){
+        const { data: u } = await supabase.from('users').select('Name, Email, User').eq('Email', email).maybeSingle()
+        if(u) realName = u.Name || u.User || email
+      }
+      if(!realName || realName === role){
+        const { data: u2 } = await supabase.from('users').select('Name').eq('Role', role).maybeSingle()
+        if(u2) realName = u2.Name
+      }
+    }
+    setMyName(realName || sess.email || role)
 
     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
@@ -56,7 +70,7 @@ export default function Dashboard(){
     const withAccess = generic.map(m=>{
       const rule = acs?.find(a=> String(a.menu).trim() === String(m.Menu).trim())
       const canEdit = role==='Admin' || String(rule?.can_edit).toUpperCase()==='TRUE' || rule?.can_edit===true
-      return {...m, _access: canEdit? 'Read & Write' : 'Read', _can_edit: canEdit}
+      return {...m, _access: canEdit? 'Read & Write' : 'Read'}
     })
     setMenuTables(withAccess)
   }
@@ -66,56 +80,65 @@ export default function Dashboard(){
     router.push('/admin/login')
   }
 
-  const Item = ({label, count, href, color}) => (
-    <Link href={href} className={`p-5 rounded- bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)] border-l- ${color} flex justify-between items-center hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y- transition-all duration-300`}>
-      <div><div className="text- text-gray-400 font-black tracking-[0.18em] uppercase">{label}</div><div className="text- font-black mt-1 tracking-tight text-[#1a1c16]">{count??'-'}</div></div>
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-black text- shadow-inner ${count>0?'bg-[#ff3b30]':'bg-[#2d3a2e]'}`}>{count??'-'}</div>
+  const Item = ({label, count, href}) => (
+    <Link href={href} className="group bg-white border border-[#e8e5db] p-5 flex justify-between items-center hover:bg-[#fdfcf8] hover:border-[#2d2a1a] transition-all duration-200">
+      <div className="text-right flex-1">
+        <div className="text- tracking-[0.2em] text-[#9a968a] font-bold">{label}</div>
+        <div className="text- font-black text-[#1c1a14] mt-1 leading-none">{count}</div>
+      </div>
+      <div className={`w- h- flex items-center justify-center text- font-black ${count>0?'bg-[#e6392e] text-white':'bg-[#2d3325] text-[#e8e6d9]'}`}>
+        {count}
+      </div>
     </Link>
   )
 
   return (
-    <div className="p-6 bg-[#f6f5f1] min-h-screen font-sans">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8 bg-white p-4 rounded- shadow-sm border border-[#ece9e1]">
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="logo" className="w-9 h-9 rounded-full object-contain bg-[#f6f5f1] p-1 border" onError={(e)=>e.target.style.display='none'} />
-          <div>
-            <h1 className="text- font-black tracking-tight text-[#1a1c16] leading-none">MD Marketplace</h1>
-            <div className="text- text-[#7a7a6a] mt-1 flex items-center gap-2">
-              <span className="bg-[#2d2a1a] text-[#e8e6c5] px-2.5 py-0.5 rounded-full font-bold">{myRole}</span>
-              <span className="font-bold text-[#1a1c16]">👤 {myName}</span>
+    <div className="min-h-screen bg-[#f4f2eb] p-0">
+      {/* HEADER - مربع بلا حروف */}
+      <div className="bg-white border-b border-[#e8e5db] px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <img src="/logo.png" alt="logo" className="w-8 h-8 object-contain" onError={(e)=>e.target.style.display='none'} />
+          <div className="text-right">
+            <div className="font-black text- text-[#1c1a14] tracking-tight">MD MARKETPLACE</div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="bg-[#2d2a1a] text-white text- px-2.5 py-1 font-bold tracking-widest">{myRole}</span>
+              <span className="text- font-bold text-[#1c1a14]">{myName} 👤</span>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={load} className="bg-white border border-[#e0ddd3] text-[#2d2a1a] px-4 py-2 rounded-full text- font-bold hover:bg-[#f6f5f1]">↻ تحديث</button>
-          <button onClick={logout} className="bg-[#2d2a1a] text-[#f6f5f1] px-5 py-2 rounded-full text- font-black hover:bg-black transition">خروج</button>
+          <button onClick={load} className="border border-[#2d2a1a] px-4 py-2 text- font-bold hover:bg-[#2d2a1a] hover:text-white transition">تحديث</button>
+          <button onClick={logout} className="bg-[#2d2a1a] text-white px-5 py-2 text- font-black hover:bg-black transition">خروج</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Item label="Customers Pending" count={counts.customersPending} href="/admin/customers-pending" color="border-[#c9a86a]" />
-        <Item label="Pending Orders" count={counts.pendingOrders} href="/admin/pending" color="border-[#d97706]" />
-        <Item label="Today Orders" count={counts.todayOrders} href="/admin/today-orders" color="border-[#2a6b8a]" />
-        <Item label="Active Orders" count={counts.activeOrders} href="/admin/active-orders" color="border-[#4a6741]" />
-        <Item label="Approved Orders" count={counts.approvedOrders} href="/admin/approved-orders" color="border-[#6b8f5e]" />
-        <Item label="Complete Orders" count={counts.completeOrders} href="/admin/complete-orders" color="border-[#8b7a9e]" />
-        <Item label="Cash Pending" count={counts.cashPending} href="/admin/cash-pending" color="border-[#b89a2d]" />
-        <Item label="Cash Received" count={counts.cashReceived} href="/admin/cash-received" color="border-[#7a9a3a]" />
-        <Item label="Rejected Orders" count={counts.rejectedOrders} href="/admin/rejected-orders" color="border-[#9a9a96]" />
-        <Item label="Mapping Customers" count={0} href="/admin/mapping-customers" color="border-[#2d2a1a]" />
-      </div>
+      <div className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap- bg-[#e8e5db] border border-[#e8e5db]">
+          <Item label="CUSTOMERS PENDING" count={counts.customersPending} href="/admin/customers-pending" />
+          <Item label="PENDING ORDERS" count={counts.pendingOrders} href="/admin/pending" />
+          <Item label="TODAY ORDERS" count={counts.todayOrders} href="/admin/today-orders" />
+          <Item label="ACTIVE ORDERS" count={counts.activeOrders} href="/admin/active-orders" />
+          <Item label="APPROVED ORDERS" count={counts.approvedOrders} href="/admin/approved-orders" />
+          <Item label="COMPLETE ORDERS" count={counts.completeOrders} href="/admin/complete-orders" />
+          <Item label="CASH PENDING" count={counts.cashPending} href="/admin/cash-pending" />
+          <Item label="CASH RECEIVED" count={counts.cashReceived} href="/admin/cash-received" />
+          <Item label="REJECTED ORDERS" count={counts.rejectedOrders} href="/admin/rejected-orders" />
+          <Item label="MAPPING CUSTOMERS" count={0} href="/admin/mapping-customers" />
+        </div>
 
-      <div className="mt-10">
-        <h2 className="text- font-black mb-3 tracking-[0.15em] uppercase text-[#7a7a6a]">عرض خاص — {myRole} — ({menuTables.length}) جدول</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {menuTables.map(m=>(
-            <Link key={m.supa_id} href={`/admin/${m.Menu}`} className="bg-[#2d2a1a] text-[#f5f3e8] p- rounded- hover:bg-[#3d3a2e] hover:-translate-y- hover:shadow-xl transition-all duration-300 relative border border-[#423f2e]">
-              <div className="text- tracking-[0.15em] uppercase opacity-60 font-bold">{m.Menu}</div>
-              <div className="font-black text- mt-1 tracking-tight">{m.View}</div>
-              <div className="text- mt-3 px-2.5 py-1 rounded-full bg-[#f5f3e8] text-[#2d2a1a] inline-block font-black">{m._access}</div>
-            </Link>
-          ))}
+        <div className="mt-10">
+          <div className="text- tracking-[0.2em] text-[#9a968a] font-bold mb-3">عرض خاص — {myRole} — ({menuTables.length})</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap- bg-[#d8d2be] border border-[#d8d2be]">
+            {menuTables.map(m=>(
+              <Link key={m.supa_id} href={`/admin/${m.Menu}`} className="bg-[#3e3b2f] text-[#f6f3e8] p-5 hover:bg-[#4a4739] transition-colors group">
+                <div className="text- tracking-[0.18em] opacity-50 font-bold">{m.Menu}</div>
+                <div className="font-bold text- mt-1">{m.View}</div>
+                <div className="mt-3">
+                  <span className="bg-[#f6f3e8] text-[#3e3b2f] text- px-3 py-1 font-black">{m._access}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </div>
