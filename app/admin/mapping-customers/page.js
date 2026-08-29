@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 import dynamicImport from "next/dynamic"
 
-const AdminPendingMap = dynamicImport(() => import("@/components/AdminPendingMap"), {
+const CustomerMapAll = dynamicImport(() => import("@/components/CustomerMapAll"), {
   ssr: false,
   loading: () => <div className="p-6">عم حمل الخريطة...</div>
 })
