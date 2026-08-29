@@ -14,7 +14,7 @@ export default function Dashboard(){
 
   const load = async () => {
     // هون التصحيح - من admin_session مو من auth
-    const sessRes = await fetch('/api/admin/session')
+    const sessRes = await fetch('/api/admin/me')
     const sess = await sessRes.json()
     const role = sess.role || 'Admin'
     setMyRole(role)
