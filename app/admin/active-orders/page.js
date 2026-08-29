@@ -5,7 +5,6 @@ import { createClient } from "@supabase/supabase-js"
 import Link from "next/link"
 import BackToDashboard from "@/components/BackToDashboard"
 
-
 export default function ActiveOrdersPage() {
   const [orders, setOrders] = useState([])
   const [areas, setAreas] = useState({})
@@ -21,10 +20,10 @@ export default function ActiveOrdersPage() {
 
   const fetchOrders = async () => {
     const { data: ordersData, error } = await supabase
-     .from('order_requuest')
-     .select('*')
-     .neq('Delivery Status', 'Delivered')
-     .order('Request Date', { ascending: false })
+    .from('order_requuest')
+    .select('*')
+    .neq('Delivery Status', 'Delivered')
+    .order('Request Date', { ascending: false })
 
     if(error) console.log("ERROR:", error)
     if(!ordersData) return
@@ -46,29 +45,26 @@ export default function ActiveOrdersPage() {
     })
 
     const driversMap = {}
-usersRes.data?.forEach(u => {
-  const id = u['Related ID']
-  if(id) driversMap[id] = u['Name']
-})
+    usersRes.data?.forEach(u => {
+      const id = u['Related ID']
+      if(id) driversMap[id] = u['Name']
+    })
 
     setAreas(areasMap)
     setCustomers(customersMap)
     setDrivers(driversMap)
     setOrders(ordersData || [])
   }
-  
-  return (
-  <div className="p-6">
-    <BackToDashboard />
 
   return (
     <div className="p-6">
+      <BackToDashboard />
+
       <h1 className="text-2xl font-bold mb-6">Active Orders - {orders.length}</h1>
       <div className="grid gap-4">
         {orders.map((order) => {
           const areaName = areas[order['Area']] || '-'
           const customerName = customers[order['customer ID']] || 'زبون غير معروف'
-          // هون المهم: اذا ما لقا السائق ما بيعرض الكود ابدا
           const driverName = drivers[order['Assigned Driver']] || 'مش محدد'
 
           return (
@@ -94,6 +90,5 @@ usersRes.data?.forEach(u => {
         })}
       </div>
     </div>
-  )
- )
- }
+  ) // 👈 هيدا تسكيرة الـ return
+} // 👈 هيدا تسكيرة الـ function
