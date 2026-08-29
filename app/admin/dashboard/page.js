@@ -13,8 +13,8 @@ export default function Dashboard(){
   useEffect(()=>{ load() },[])
 
   const load = async () => {
-    // هون التصحيح - من admin_session مو من auth
-    const sessRes = await fetch('/api/admin/me')
+    const sessRes = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' })
+    if(!sessRes.ok){ console.log('ME FAIL', sessRes.status); return }
     const sess = await sessRes.json()
     const role = sess.role || 'Admin'
     setMyRole(role)
