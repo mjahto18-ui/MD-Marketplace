@@ -16,14 +16,14 @@ export default function Dashboard(){
     const sessRes = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' })
     if(!sessRes.ok){ console.log('ME FAIL', sessRes.status); return }
     const sess = await sessRes.json()
-    const role = sess.role || 'Admin'
+    const role = String(sess.role || 'Admin').trim()
     setMyRole(role)
 
     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
-      supabase.from('asceses').select('*').eq('role', role).eq('can_view', true),
+      supabase.from('asceses').select('*').eq('role', role),
     ])
 
     const today = new Date().toISOString().split('T')[0]
@@ -40,15 +40,20 @@ export default function Dashboard(){
     })
 
     const specialViews = ["Customers Pending","Pending Orders","Today Orders","Active Orders","Approved Orders","Complete Orders","Cash Pending","Cash Received","Rejected Orders","Mapping Customers"]
+
+    // هون التصحيح - بس من menu.Role
     let allowed = menus||[]
     if(role!== 'Admin'){
-      const allowedMenus = acs?.map(a=>a.menu) || []
-      allowed = menus?.filter(m=> allowedMenus.includes(m.Menu) || allowedMenus.includes(m.menu)) || []
+      allowed = menus?.filter(m=> {
+        const roles = String(m.Role||'').split(',').map(r=>r.trim())
+        return roles.includes(role)
+      }) || []
     }
+
     const generic = allowed.filter(m=>!specialViews.includes(m.View))
     const withAccess = generic.map(m=>{
-      const rule = acs?.find(a=>a.menu===m.Menu || a.menu===m.menu)
-      const canEdit = rule?.can_edit || role==='Admin'
+      const rule = acs?.find(a=> String(a.menu).trim() === String(m.Menu).trim())
+      const canEdit = role==='Admin' || String(rule?.can_edit).toUpperCase()==='TRUE' || rule?.can_edit===true
       return {...m, _access: canEdit? 'Read & Write' : 'Read', _can_edit: canEdit}
     })
     setMenuTables(withAccess)
