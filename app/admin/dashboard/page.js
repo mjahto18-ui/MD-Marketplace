@@ -13,20 +13,9 @@ export default function Dashboard(){
   useEffect(()=>{ init() },[])
 
   const init = async()=>{
-    // 1. جيب الرول من رقم التلفون + Active
-    const mobile = localStorage.getItem('mobile') || localStorage.getItem('Mobile') || "03177653"
-    const { data: u } = await supabase.from('users')
-     .select('Role, Active, Status')
-     .eq('Mobile', mobile)
-     .eq('Active', true)
-     .eq('Status', 'Active')
-     .single()
-
-    if(!u){
-      alert("حسابك موقوف - Active = FALSE");
-      return;
-    }
-    setRole(u.Role)
+    // 1. جيب الرول من الكوكيز - لغينا فحص Active من هون
+    const roleFromCookie = document.cookie.split('role=')[1]?.split(';')[0] || "Admin"
+    setRole(roleFromCookie)
 
     // 2. جيب كلشي
     const [{data: customers},{data: orders},{data: menuData},{data: accessData}] = await Promise.all([
@@ -54,8 +43,8 @@ export default function Dashboard(){
 
     // 3. فلتر حسب asceses + الرول
     let filtered = menuData||[]
-    if(u.Role!== 'Admin' && accessData?.length){
-      const allowed = accessData.filter(a=>a.Role===u.Role && a.Can_View).map(a=>a.View)
+    if(roleFromCookie!== 'Admin' && accessData?.length){
+      const allowed = accessData.filter(a=>a.Role===roleFromCookie && a.Can_View).map(a=>a.View)
       filtered = menuData.filter(m=> allowed.includes(m.View))
     }
     filtered = filtered.filter(m=> Object.keys(c).includes(m.View))
