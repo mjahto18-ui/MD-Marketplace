@@ -12,30 +12,26 @@ export async function GET() {
   try {
     const supabase = getSupabase();
 
-    // ============================
-    // 1) جلب جدول Stores - صغيرة
-    // ============================
     const { data: dataRows } = await supabase.from('stores').select('*');
 
-    // ============================
-    // 2) تجهيز البيانات حسب ترتيب الأعمدة الصحيح - نفس mapping
-    // ============================
     const stores = (dataRows||[]).map((row) => ({
-      storeID: row['store_id'] || row['Store ID'] || row[0],
-      storeName: row['store_name'] || row['Store Name'] || row[1],
-      category: row['category'] || row['Category'] || row[2],
-      ownerName: row['owner_name'] || row['Owner Name'] || row[3],
-      phone: row['phone'] || row['Phone'] || row[4],
-      area: row['area'] || row['Area'] || row[5],
-      address: row['adress'] || row['address'] || row['Address'] || row[6],
-      description: row['description'] || row['Description'] || row[7],
-      image: row['logo'] || row['Logo'] || row['image'] || row[8],
-      status: row['status'] || row['Status'] || row[9],
-      joinDate: row['join_date'] || row['Join Date'] || row[10],
-      commissionRate: row['commission_rate'] || row['Commission Rate'] || row[11],
-      deliveryAvailable: row['delivery_available'] || row['Delivery Available'] || row[12],
-      closeTime: row['close_time'] || row['Close Time'] || row[13],
-      openTime: row['open_time'] || row['Open Time'] || row[14],
+      storeID: row['Store ID'],
+      storeName: row['Store Name'],
+      category: row['Category'],
+      ownerName: row['Owner Name'],
+      phone: row['Mobile'],
+      area: row['Area'],
+      address: row['Adress'],
+      description: row['Description'],
+      image: row['Logo'],
+      status: row['Status'],
+      joinDate: row['Join Date'],
+      commissionRate: row['Commission Rate'],
+      deliveryAvailable: row['Delivery Available'],
+      closeTime: row['Close Time'],
+      openTime: row['Open Time'],
+      currentLatitude: row['Current Latitude'],
+      currentLongitude: row['Current Longitude'],
     }));
 
     return NextResponse.json({
