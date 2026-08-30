@@ -1,11 +1,14 @@
-import { getgooglesheets } from "@/lib/googlesheets";
+import { createClient } from '@supabase/supabase-js'
 export const dynamic = "force-dynamic";
 
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
-const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
-const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
-const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 function normalize(phone) {
   let c = String(phone || "").replace(/\D/g, "");
@@ -21,23 +24,6 @@ function normalize(phone) {
 }
 function getBeirutNow() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
-}
-async function getSheetRows(sheetName) {
-  console.log(`📥 Reading ${sheetName}`);
-  const sheets = await getgooglesheets();
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: GOOGLE_SHEETS_ID,
-    range: sheetName,
-  });
-  const rows = res.data.values || [];
-  console.log(`📄 ${sheetName} -> ${rows.length} rows`);
-  if (rows.length < 2) return [];
-  const headers = rows[0];
-  return rows.slice(1).map((r) => {
-    const obj = {};
-    headers.forEach((h, i) => (obj[h] = r[i] || ""));
-    return obj;
-  });
 }
 
 async function sendMessage(to, text) {
@@ -64,18 +50,8 @@ async function sendImage(to, imageUrl, caption) {
   return res.ok;
 }
 
-async function appSheetAction(table, action, rows) {
-  const res = await fetch(`https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${table}/Action`, {
-    method: "POST",
-    headers: { "ApplicationAccessKey": APPSHEET_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ Action: action, Properties: { Locale: "en-US", Timezone: "Asia/Beirut" }, Rows: rows })
-  });
-  const txt = await res.text();
-  console.log(`AppSheet ${table} ${action}:`, res.status, txt);
-  return txt;
-}
-
 export async function POST(req) {
+  const supabase = getSupabase();
   const body = await req.json();
   console.log(`📥 WEBHOOK HIT: ${JSON.stringify(body).slice(0,800)}`);
   const entry = body.entry?.[0]?.changes?.[0]?.value;
@@ -93,17 +69,21 @@ export async function POST(req) {
   console.log("📩 from:", from, "text:", text, "isYes:", isYes);
   if (!isYes) return Response.json({ ok: true });
 
-  // 2) FIXED: شوف ساعة الـ YES مش ساعة المحادثة + آخر صف بس
-  const allMessages = await getSheetRows("Messages");
-  const userMessages = allMessages.filter(m => normalize(m["Phone"]) === from);
+  // 2) FIXED: شوف ساعة الـ YES مش ساعة المحادثة + آخر صف بس - من Supabase
+  const { data: allMessages } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('Phone', from)
+    .order('Date', { ascending: true });
+
+  const userMessages = allMessages || [];
   if (userMessages.length === 0) {
     console.log(`❌ No messages for ${from}`);
     return Response.json({ ok: true });
   }
-  const lastRow = userMessages[userMessages.length - 1]; // آخر صف فقط
+  const lastRow = userMessages[userMessages.length - 1];
   console.log(`🔍 Last row for ${from}:`, JSON.stringify(lastRow));
 
-  // اذا آخر صف هو تبع عروض انبعتت قبل، لا ترجع تبعت
   if (String(lastRow["Message Type"]||"").includes("NEW_ARRIVALS")) {
     console.log(`⏭ SKIP ${from} last msg was already NEW_ARRIVALS`);
     return Response.json({ ok: true });
@@ -125,71 +105,75 @@ export async function POST(req) {
   const diffMin = (now - yesTime) / (1000 * 60);
   console.log(`⏰ YES time: ${reassuranceAtStr} -> diff ${diffMin.toFixed(1)}min`);
 
-  if (diffMin < 0 || diffMin > 30) { // ساعة الـ YES
+  if (diffMin < 0 || diffMin > 30) {
     console.log(`⏭ SKIP ${from} diffMin ${diffMin} > 30`);
     return Response.json({ ok: true });
   }
 
   console.log(`✅ بوابة العروض مفتوحة لـ ${from}`);
 
-  // 3) جيب الزبون
-  const users = await getSheetRows("Users");
-  const user = users.find(u => normalize(u["WhatsApp Number"]) === from);
+  // 3) جيب الزبون - من Supabase
+  const { data: users } = await supabase
+    .from('users')
+    .select('*');
+  
+  const user = users?.find(u => normalize(u["WhatsApp Number"] || u["Whatsapp Number"] || u["Phone"]) === from);
   if (!user) {
     console.log(`❌ SKIP ${from} مش موجود بجدول Users!`);
     return Response.json({ ok: true });
   }
   const gender = String(user["Gender"] || "male").toLowerCase();
 
-  // 4) جيب العروض
-  const arrivals = await getSheetRows("new_arrivals");
-  const suitable = arrivals.filter(p => {
-    const added = new Date(p["Date Added"]);
+  // 4) جيب العروض - من Supabase
+  const { data: arrivals } = await supabase
+    .from('new_arrivals')
+    .select('*');
+
+  const suitable = (arrivals || []).filter(p => {
+    const added = new Date(p["Date Added"] || p["Created At"] || p["created_at"]);
     const diffDays = (now - added) / (1000 * 60 * 60 * 24);
     if (diffDays > 3) return false;
-    const target = String(p["Gender Target"] || "both").toLowerCase();
+    const target = String(p["Gender Target"] || p["Gender"] || "both").toLowerCase();
     return target === "both" || target === gender;
   });
 
   if (suitable.length === 0) {
-  await sendMessage(from, "ولا يهمّك! ما في شي جديد مناسب إلك هاليومين 🌸");
-} else {
-  for (const p of suitable) {
-    const isSensitive = String(p["Is Sensitive"] || "").toUpperCase() === "TRUE";
-    if (isSensitive && gender === "male") continue;
+    await sendMessage(from, "ولا يهمّك! ما في شي جديد مناسب إلك هاليومين 🌸");
+  } else {
+    for (const p of suitable) {
+      const isSensitive = String(p["Is Sensitive"] || p["is_sensitive"] || "").toUpperCase() === "TRUE";
+      if (isSensitive && gender === "male") continue;
 
-    if (isSensitive) {
-      // حساس -> صورة + معلومات قصيرة بلا Description
-      const shortText = `${p["Product Name"]}\nالسعر: ${p["Price"]}\nالحجم: ${p["Size"]}\n\nللطلب 👇\n${p["Product Link"]}`;
-      if (p["Image URL"]) {
-        await sendImage(from, p["Image URL"], shortText);
+      if (isSensitive) {
+        const shortText = `${p["Product Name"] || p["Name"]}\nالسعر: ${p["Price"]}\nالحجم: ${p["Size"]}\n\nللطلب 👇\n${p["Product Link"] || p["Link"]}`;
+        if (p["Image URL"] || p["Image"]) {
+          await sendImage(from, p["Image URL"] || p["Image"], shortText);
+        } else {
+          await sendMessage(from, shortText);
+        }
       } else {
-        await sendMessage(from, shortText);
+        const fullText = `*${p["Product Name"] || p["Name"]}*\n🏷 ${p["Brand"]}\n💰 ${p["Price"]}\n📦 ${p["Size"]}\n${p["Description"]}\n\nللطلب 👇\n${p["Product Link"] || p["Link"]}`;
+        if (p["Image URL"] || p["Image"]) {
+          await sendImage(from, p["Image URL"] || p["Image"], fullText);
+        } else {
+          await sendMessage(from, fullText);
+        }
       }
-    } else {
-      // مش حساس -> صورة + وصف كامل
-      const fullText = `*${p["Product Name"]}*\n🏷 ${p["Brand"]}\n💰 ${p["Price"]}\n📦 ${p["Size"]}\n${p["Description"]}\n\nللطلب 👇\n${p["Product Link"]}`;
-      if (p["Image URL"]) {
-        await sendImage(from, p["Image URL"], fullText);
-      } else {
-        await sendMessage(from, fullText);
-      }
+      await new Promise(r => setTimeout(r, 1000));
     }
-    await new Promise(r => setTimeout(r, 1000));
   }
-}
 
-  // 5) سكر البوابة - سجل انه انبعت
+  // 5) سكر البوابة - سجل انه انبعت - من Supabase
   const beirutStr = now.toLocaleString("en-US", { timeZone: "Asia/Beirut" });
-  await appSheetAction("Messages", "Add", [{
+  await supabase.from('messages').insert([{
     Phone: from,
     CustomerMessage: rawText,
     AIReply: "PRODUCTS_SENT_VIA_BRIDGE",
     Date: beirutStr,
-    "Reassurance_Sent": "YES", // مش YES عشان ما ترجع تفتح
+    "Reassurance_Sent": "YES",
     "Reassurance_At": beirutStr,
     "Bot Session": "BOT_OFFER",
-     Bot: "New Offre",
+    Bot: "New Offre",
     "Message Type": "NEW_ARRIVALS",
   }]);
 
