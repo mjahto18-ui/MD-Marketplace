@@ -51,9 +51,9 @@ export async function GET(req) {
   const authHeader = req.headers.get("authorization");
   if (authHeader!== `Bearer ${CRON_SECRET}` && secretParam!== CRON_SECRET) return new Response("Unauthorized", { status: 401 });
   try {
-    const { data: messages } = await supabase.from('messages').select('*').order('id', { ascending: false }).limit(5000);
+    const { data: messages } = await supabase.from('messages').select('*').order('Date', { ascending: false }).limit(5000);
     const { data: users } = await supabase.from('users').select('*');
-    const { data: newArrivals } = await supabase.from('new_arrivals').select('*').order('id', { ascending: false });
+    const { data: newArrivals } = await supabase.from('new_arrivals').select('*').order('supa_id', { ascending: false });
     const msgs = messages || []; const usrs = users || []; const arrv = newArrivals || [];
     console.log("Messages:", msgs.length, "Users:", usrs.length, "NewArrivals:", arrv.length);
     const nowBeirut = getBeirutNow(); const nowHour = getBeirutHour(nowBeirut);
@@ -95,7 +95,6 @@ export async function GET(req) {
       }
       console.log(`💬 FINAL MSG to ${phone}: ${finalMsg}`); console.log(`📤 SEND TRY to ${phone}`);
       await sendMessage(phone, finalMsg);
-      // كتابة Supabase مباشرة من تحت
       await supabase.from('messages').update({ "Reassurance_Sent": "YES", "Reassurance_At": formatForAppSheet(nowBeirut) }).eq('Message ID', last.row["Message ID"]);
       processed++;
     }
