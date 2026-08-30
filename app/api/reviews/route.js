@@ -1,36 +1,28 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
-import { google } from 'googleapis';
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET() {
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    });
+    const supabase = getSupabase();
 
-    const sheets = google.sheets({ version: 'v4', auth });
+    const { data: rows } = await supabase.from('reviews').select('*');
 
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: 'Reviews!A2:H', // عدّل حسب ترتيب الأعمدة عندك
-    });
-
-    const rows = response.data.values || [];
-
-    const reviews = rows.map(row => ({
-      reviewId: row[0],
-      customerId: row[1],
-      storeId: row[2],
-      requestId: row[3],
-      rating: Number(row[4]),
-      comment: row[5],
-      status: row[6],
-      createdAt: row[7],
+    const reviews = (rows||[]).map(row => ({
+      reviewId: row['Review ID'] || row['review_id'] || row[0],
+      customerId: row['Customer ID'] || row['customer_id'] || row[1],
+      storeId: row['Store ID'] || row['store_id'] || row[2],
+      requestId: row['Request ID'] || row['request_id'] || row[3],
+      rating: Number(row['Rating'] || row['rating'] || row[4]),
+      comment: row['Comment'] || row['comment'] || row[5],
+      status: row['Status'] || row['status'] || row[6],
+      createdAt: row['Created At'] || row['created_at'] || row[7],
     }));
 
     return NextResponse.json({ success: true, reviews });
