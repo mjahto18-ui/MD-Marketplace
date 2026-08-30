@@ -30,8 +30,8 @@ async function getCustomerIDFromSession(supabase) {
     }
   }
   const { data: users } = await supabase.from('users').select('*');
-  const user = (users||[]).find(row => Object.values(row).map(v=>String(v)).includes(String(phone)));
-  if (user) return user["User ID"] || user["Customer ID"];
+  const user = (users||[]).find(row => String(row["Mobile"] || "").trim() === String(phone).trim());
+  if (user) return user["Customer ID"] || user["User ID"];
   return null;
 }
 
