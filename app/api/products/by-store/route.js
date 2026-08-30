@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
-
-
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET(req) {
   try {
@@ -13,71 +17,39 @@ export async function GET(req) {
       return NextResponse.json({ success: false, message: "Missing store ID" });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-    });
+    const supabase = getSupabase();
 
-    const sheets = google.sheets({ version: "v4", auth });
-
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Products!A:Z",
-    });
-
-    const rows = response.data.values;
-    if (!rows || rows.length <= 1) {
-      return NextResponse.json({ success: true, products: [] });
+    const { data: rows } = await supabase.from('products').select('*').eq('Store ID', String(storeID).trim()).limit(1000);
+    let data = rows;
+    if (!data?.length) {
+      const { data: rows2 } = await supabase.from('products').select('*').eq('store_id', String(storeID).trim()).limit(1000);
+      data = rows2;
     }
 
-    const headers = rows[0].map(h => h.trim());
-    const data = rows.slice(1);
-
-    // دور على عمود Store ID بأي شكل
-    const storeIdIndex = headers.findIndex(h =>
-      h.toLowerCase().replace(/\s+/g, '').replace(/_/g, '') === "storeid"
-    );
-
-    if (storeIdIndex === -1) {
-      return NextResponse.json({
-        success: false,
-        message: "Store ID column not found in Products sheet",
+    if (!data?.length) {
+      const { data: allRows } = await supabase.from('products').select('*');
+      data = (allRows||[]).filter(row => {
+        const raw = String(row['Store ID'] || row['store_id'] || row[1] || "");
+        const cleaned = raw.trim().replace(/"/g, "").replace(/\u00A0/g, "").replace('.0', '');
+        return cleaned === String(storeID).trim();
       });
     }
 
-    // فلترة المنتجات حسب storeID
-    const products = data
-     .filter(row => {
-        const raw = String(row[storeIdIndex]?? "");
-        const cleaned = raw
-         .trim()
-         .replace(/"/g, "")
-         .replace(/\u00A0/g, "")
-         .replace('.0', ''); // عشان d195a89f ما يصير فيه مشكلة
-        return cleaned === String(storeID).trim();
-      })
-     .map(row => {
-        const obj = {};
-        headers.forEach((h, i) => {
-          obj[h] = row[i] || "";
-        });
-
+    // نفس mapping - فلترة المنتجات حسب storeID
+    const products = (data||[]).map(row => {
         return {
-          id: obj["Product ID"],
-          productID: obj["Product ID"],
-          name: obj["Product Name"],
-          image: obj["Image"] || "",
-          price: Number(obj["Price"] || 0),
-          unit: obj["Unit"] || "",
-          category: obj["Category"] || "",
-          weightPoint: Number(obj["Weight Points"] || obj["WeightPoints"] || 0),
-          storeName: obj["Store Name"] || "",
-          available: obj["Available"] || "Yes",
-          stockQty: Number(obj["Stock Qty"] || obj["StockQty"] || 0),
-          description: obj["Description"] || "",
+          id: row['Product ID'] || row['product_id'] || row[0],
+          productID: row['Product ID'] || row['product_id'] || row[0],
+          name: row['Product Name'] || row['Name'] || row['product_name'] || row['name'] || "",
+          image: row['Image'] || row['image'] || "",
+          price: Number(row['Price'] || row['price'] || 0),
+          unit: row['Unit'] || row['unit'] || "",
+          category: row['Category'] || row['category'] || "",
+          weightPoint: Number(row['Weight Points'] || row['WeightPoints'] || row['weight_points'] || 0),
+          storeName: row['Store Name'] || row['store_name'] || "",
+          available: row['Available'] || row['available'] || "Yes",
+          stockQty: Number(row['Stock Qty'] || row['StockQty'] || row['stock_qty'] || 0),
+          description: row['Description'] || row['description'] || "",
         };
       });
 
