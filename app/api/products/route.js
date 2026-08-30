@@ -1,9 +1,12 @@
-// الملف المصلح: app/api/products/route.js
-// انسخ هاد مكان ملفك الحالي
-
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { getCachedProductsAndStores } from "@/lib/googlesheets"; // استخدم ملفك الحالي
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET(req) {
   try {
@@ -12,45 +15,46 @@ export async function GET(req) {
     const limit = parseInt(req.nextUrl.searchParams.get("limit") || "20", 10);
     const page = parseInt(req.nextUrl.searchParams.get("page") || "1", 10);
 
-    // هون بيجيب من الكاش - 50 زبون = ضربة وحدة لـ Google
-    const { productsValues, storesValues } = await getCachedProductsAndStores();
-    
-    const productsRows = productsValues.slice(1);
-    const storesData = storesValues.slice(1);
+    const supabase = getSupabase();
 
-    let filteredProducts = productsRows;
+    const { data: productsValues } = await supabase.from('products').select('*');
+    const { data: storesValues } = await supabase.from('stores').select('*');
+
+    let productsRows = productsValues || [];
+
     if (storeID) {
-      filteredProducts = productsRows.filter((row) => row[1] === storeID);
+      productsRows = productsRows.filter((row) => String(row['Store ID'] || row['store_id'] || row[1] || "").trim() === String(storeID).trim());
     }
 
     if (search) {
-      filteredProducts = filteredProducts.filter((row) => {
-        const name = (row[2] || "").toLowerCase();
+      productsRows = productsRows.filter((row) => {
+        const name = String(row['Name'] || row['name'] || row['Product Name'] || row[2] || "").toLowerCase();
         return name.includes(search);
       });
     }
 
-    const total = filteredProducts.length;
+    const total = productsRows.length;
     const start = (page - 1) * limit;
     const end = start + limit;
-    const paginatedRows = filteredProducts.slice(start, end);
+    const paginatedRows = productsRows.slice(start, end);
 
     const products = paginatedRows.map((row) => {
-      const store = storesData.find((s) => s[0] === row[1]);
+      const storeIdForRow = row['Store ID'] || row['store_id'] || row[1];
+      const store = (storesValues||[]).find((s) => String(s['Store ID'] || s['store_id'] || s[0] || "").trim() === String(storeIdForRow).trim());
       return {
-        productID: row[0],
-        storeID: row[1],
-        name: row[2],
-        category: row[3],
-        unit: row[4],
-        price: Number(row[5]),
-        image: row[6],
-        description: row[7],
-        available: row[8],
-        stock: Number(row[9]),
-        active: row[10],
-        weightPoint: Number(row[11]),
-        storeName: store ? store[1] : "متجر محذوف",
+        productID: row['Product ID'] || row['product_id'] || row[0],
+        storeID: row['Store ID'] || row['store_id'] || row[1],
+        name: row['Name'] || row['name'] || row[2],
+        category: row['Category'] || row['category'] || row[3],
+        unit: row['Unit'] || row['unit'] || row[4],
+        price: Number(row['Price'] || row['price'] || row[5]),
+        image: row['Image'] || row['image'] || row[6],
+        description: row['Description'] || row['description'] || row[7],
+        available: row['Available'] || row['available'] || row[8],
+        stock: Number(row['Stock'] || row['stock'] || row[9]),
+        active: row['Active'] || row['active'] || row[10],
+        weightPoint: Number(row['Weight Point'] || row['weight_point'] || row[11]),
+        storeName: store? (store['Store Name'] || store['store_name'] || store[1] || "متجر محذوف") : "متجر محذوف",
       };
     });
 
