@@ -3,6 +3,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from 'next/headers';
 
+function getSupabase() {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const url = rawUrl?.replace('/rest/v1','').replace(/\/$/,'');
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
+  if (!url) throw new Error("Missing Supabase URL");
+  return createClient(url, key);
+}
+
 export async function POST(req) {
   try {
     const { phone, pin } = await req.json();
@@ -10,9 +18,7 @@ export async function POST(req) {
     const pinStr = String(pin).trim();
     const phoneNoZero = phoneStr.replace(/^0+/, '');
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    const supabase = createClient(url, key)
+    const supabase = getSupabase();
 
     const { data: users } = await supabase.from('users')
    .select('*')
@@ -32,7 +38,6 @@ export async function POST(req) {
     const status = String(finalUser.Status || '').trim()
     const pinDb = String(finalUser.PIN || '').trim()
 
-    // هون التصحيح الأساسي للـ Active
     const activeRaw = finalUser.Active
     const activeStr = String(activeRaw).toLowerCase()
     const isActive = activeRaw === true || activeStr === 'true' || activeStr === 'TRUE' || activeStr === '1'
@@ -63,7 +68,6 @@ export async function POST(req) {
       relatedId: finalUser['Related ID'] || null
     }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
 
-    // هون صار ياخدك عالداشبورد
     return NextResponse.json({ success: true, role });
 
   } catch (e) {
