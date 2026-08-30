@@ -16,20 +16,12 @@ export async function GET(req) {
     const supabase = getSupabase();
     const custIdLower = customerID.toString().trim().toLowerCase();
 
-    const { data: rows } = await supabase.from('order_requuest').select('*').order('Created Date', { ascending: false });
+    const { data: rows } = await supabase.from('order_requuest').select('*').order('Cerated Date', { ascending: false });
 
-    let allRows = rows;
-    if (!allRows?.length) {
-      const { data } = await supabase.from('order_requuest').select('*').order('created_date', { ascending: false });
-      allRows = data;
-    }
-
-    const orders = (allRows||[])
-    .filter(r => String(r['Customer ID'] || r['customer_id'] || r[1] || "").trim().toLowerCase() === custIdLower)
-    .reverse()
-    .map(r => {
-        // ⭐ فصل إحداثيات السائق - نفس المنطق
-        const currentLocation = String(r['Current Location'] || r['current_location'] || r[26] || "").trim();
+    const orders = (rows||[])
+   .filter(r => String(r['customer ID'] || "").trim().toLowerCase() === custIdLower)
+   .map(r => {
+        const currentLocation = String(r['Current Location'] || "").trim();
         let driverLat = null;
         let driverLng = null;
 
@@ -37,24 +29,19 @@ export async function GET(req) {
           const parts = currentLocation.split(",");
           driverLat = parts[0]?.trim() || null;
           driverLng = parts[1]?.trim() || null;
-        } else {
-          driverLat = r['Driver Latitude'] || r['driver_latitude'] || null;
-          driverLng = r['Driver Longitude'] || r['driver_longitude'] || null;
         }
 
         return {
-          requestID: r['Request ID'] || r['request_id'] || r[0],
-          date: r['Created Date'] || r['created_date'] || r[3],
-          itemsCost: r['Items Cost'] || r['items_cost'] || r[15],
-          deliveryFee: r['Delivery Fee'] || r['delivery_fee'] || r[6],
-          total: r['Total'] || r['total'] || r[16],
-          approvalStatus: r['Approval Status'] || r['approval_status'] || r[9],
-          status: r['Delivery Status'] || r['delivery_status'] || r[14],
-          freeUsed: String(r['Is Free Delivery'] || r['is_free_delivery'] || r[24] || "").toUpperCase() === "TRUE",
-          // العميل
-          customerLat: String(r['Customer Latitude'] || r['customer_latitude'] || r[29] || "").trim(),
-          customerLng: String(r['Customer Longitude'] || r['customer_longitude'] || r[30] || "").trim(),
-          // السائق مفصول
+          requestID: r['Request ID'],
+          date: r['Cerated Date'],
+          itemsCost: r['Items Cost'],
+          deliveryFee: r['Delivery Fee'],
+          total: r['Total Amount'],
+          approvalStatus: r['Approval Status'],
+          status: r['Delivery Status'],
+          freeUsed: String(r['Free Delivery Used'] || "").toUpperCase() === "TRUE",
+          customerLat: String(r['Customer Latitude'] || "").trim(),
+          customerLng: String(r['Customer Longitude'] || "").trim(),
           driverLat: driverLat,
           driverLng: driverLng,
         };
