@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = "force-dynamic";
 
@@ -7,30 +7,34 @@ const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
 const GROQ_KEY = process.env.GROQ_API_KEY_2;
-const APPSHEET_APP_ID = process.env.APPSHEET_APP_ID;
-const APPSHEET_API_KEY = process.env.APPSHEET_API_KEY;
-const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
-const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
-const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.md-marketplace.store";
 
-let googleSheetsClient = null;
-function getGoogleSheetsClient() {
-  if (googleSheetsClient) return googleSheetsClient;
-  if (!GOOGLE_SHEETS_ID ||!GOOGLE_CLIENT_EMAIL ||!GOOGLE_PRIVATE_KEY) { console.error("❌ Google Sheets credentials ناقصة"); return null; }
-  try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: { client_email: GOOGLE_CLIENT_EMAIL, private_key: GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n") },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
-    });
-    googleSheetsClient = google.sheets({ version: "v4", auth });
-    return googleSheetsClient;
-  } catch (error) { console.error("❌ Google Sheets Client Error:", error); return null; }
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
+
+function mapTable(sheetName) {
+  const n = String(sheetName || "").toLowerCase().trim();
+  if (n === "products") return "products";
+  if (n === "stores") return "stores";
+  if (n === "categories") return "categories";
+  if (n === "areas") return "areas";
+  if (n === "users") return "users";
+  if (n === "customers") return "customers";
+  if (n === "messages") return "messages";
+  if (n === "bot sessions" || n === "bot_sessions") return "bot_sessions";
+  if (n === "cart") return "cart";
+  if (n === "order requuest" || n === "order_requuest") return "order_requuest";
+  if (n === "order details" || n === "order_details") return "order_details";
+  if (n === "drivers") return "drivers";
+  return n;
 }
 
 const SHEETS_CACHE = new Map();
 const CACHE_TTL = 1000 * 60 * 3;
-const CACHEABLE_SHEETS = new Set(["Products", "Stores", "Categories", "Areas"]);
+const CACHEABLE_SHEETS = new Set(["products", "stores", "categories", "areas"]);
 function getCache(key) {
   const item = SHEETS_CACHE.get(key);
   if (!item) return null;
@@ -38,62 +42,47 @@ function getCache(key) {
   return item.value;
 }
 function setCache(key, value) { SHEETS_CACHE.set(key, { value, time: Date.now() }); }
-function clearCache(sheetName) { SHEETS_CACHE.delete(sheetName); }
+function clearCache(sheetName) { SHEETS_CACHE.delete(mapTable(sheetName)); }
 
 const SHEETS_LOADING = new Map();
 async function getSheetRows(sheetName) {
-  const useCache = CACHEABLE_SHEETS.has(sheetName);
-  if (useCache) { const cached = getCache(sheetName); if (cached) return cached; }
-  if (useCache) { const loading = SHEETS_LOADING.get(sheetName); if (loading) return await loading; }
-  const sheets = getGoogleSheetsClient();
-  if (!sheets) return [];
+  const table = mapTable(sheetName);
+  const useCache = CACHEABLE_SHEETS.has(table);
+  if (useCache) { const cached = getCache(table); if (cached) return cached; }
+  if (useCache) { const loading = SHEETS_LOADING.get(table); if (loading) return await loading; }
+  const supabase = getSupabase();
   const promise = (async () => {
     try {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEETS_ID, range: `${sheetName}!A:AZ` });
-      const rows = response.data.values || [];
-      if (!rows.length) return [];
-      const headers = rows[0].map(h => String(h || "").trim());
-      const result = rows.slice(1).map(row => { const obj = {}; headers.forEach((header, index) => { obj[header] = row[index] || ""; }); return obj; });
-      if (useCache) setCache(sheetName, result);
+      const { data, error } = await supabase.from(table).select('*');
+      if (error) { console.error(`❌ قراءة ${table}:`, error.message); return []; }
+      const result = data || [];
+      if (useCache) setCache(table, result);
       return result;
-    } catch (error) { console.error(`❌ قراءة ${sheetName}:`, error.message); return []; }
+    } catch (error) { console.error(`❌ قراءة ${table}:`, error.message); return []; }
   })();
-  if (useCache) SHEETS_LOADING.set(sheetName, promise);
-  try { return await promise; } finally { if (useCache) SHEETS_LOADING.delete(sheetName); }
+  if (useCache) SHEETS_LOADING.set(table, promise);
+  try { return await promise; } finally { if (useCache) SHEETS_LOADING.delete(table); }
 }
 
 function normalizeWhatsAppNumber(phone) {
   let c = String(phone || "").replace(/\D/g, "");
   if (!c) return null;
-
-  // اذا جاهز دولي
   if (c.startsWith("961")) return c;
   if (c.startsWith("966")) return c;
-
-  // شيل الصفر الأول اذا موجود
   if (c.startsWith("0")) c = c.substring(1);
-
-  // السعودية: 551653968 (9) او 0551653968 (10 بعد ما شلنا الصفر بتصير 9) -> 966551653968
   if (c.length === 9 && c.startsWith("5")) return "966" + c;
   if (c.length === 10 && c.startsWith("5")) return "966" + c;
-
-  // لبنان: 3xxxxxx (7 ارقام) -> 9613xxxxxx
   if (c.length === 7 && c.startsWith("3")) return "961" + c;
-  // لبنان: 03xxxxxx او 71xxxxxx (8 ارقام) -> 96103xxxxxx / 96171xxxxxx
   if (c.length === 8) return "961" + c;
-
   return c;
 }
-
 function normalizeText(text) {
   return String(text || "").toLowerCase().trim().replace(/[إأآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[؟?!.,،:؛]/g, " ").replace(/\s+/g, " ");
 }
-
 function convertArabicNumbers(text) {
   const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
   return String(text||"").replace(/[٠-٩]/g, d => map[d]);
 }
-
 async function sendMessage(to, text) {
   if (!WHATSAPP_TOKEN) { console.error("❌ WHATSAPP_TOKEN غير موجود"); return; }
   const cleanPhone = normalizeWhatsAppNumber(to);
@@ -107,12 +96,11 @@ async function sendMessage(to, text) {
     console.log("📤 WhatsApp BOT2:", JSON.stringify(data));
   } catch (error) { console.error("❌ WhatsApp Send Error:", error); }
 }
-
 async function getUserByWhatsAppNumber(phone) {
   const normalized = normalizeWhatsAppNumber(phone);
   const users = await getSheetRows("Users");
   for (const row of users) {
-    const rowPhone = normalizeWhatsAppNumber(row["WhatsApp Number"] || row["Mobile"] || "");
+    const rowPhone = normalizeWhatsAppNumber(row["WhatsApp Number"] || row["Mobile"] || row["Phone"] || "");
     if (rowPhone === normalized) {
       return {
         userId: row["User ID"] || "", customerId: row["Customer ID"] || "", name: row["Name"] || "",
@@ -123,7 +111,6 @@ async function getUserByWhatsAppNumber(phone) {
   }
   return null;
 }
-
 async function getCustomer(customerID) {
   if (!customerID) return null;
   const customers = await getSheetRows("Customers");
@@ -134,7 +121,6 @@ async function getCustomer(customerID) {
   }
   return null;
 }
-
 async function findArea(input) {
   const areas = await getSheetRows("Areas");
   const value = normalizeText(input);
@@ -148,54 +134,41 @@ async function findArea(input) {
   }
   return null;
 }
-
 async function getCustomerDeliveryData(customerID) {
   const customer = await getCustomer(customerID);
   if (!customer) return { exists: false, area: null, address: "", lat: "", lng: "" };
   const areaValue = String(customer["Area"] || customer["Area ID"] || "").trim();
   const area = await findArea(areaValue);
   const address = String(customer["Adress"] || customer["Delivery Address"] || customer["Old Address"] || "").trim();
-  // FIX L & M
   const lat = String(customer["Current Latitude"] || customer["Registration Latitude"] || customer["Latitude"] || customer["Lat"] || customer["Customer Latitude"] || "").trim();
   const lng = String(customer["Current Longitude"] || customer["Registration Longitude"] || customer["Longitude"] || customer["Lng"] || customer["Customer Longitude"] || "").trim();
   console.log(`📍 L=${customer["Current Latitude"]} M=${customer["Current Longitude"]} => lat=${lat} lng=${lng}`);
   return { exists: true, area, address, lat, lng };
 }
-
 function cartRowToObject(row) {
   return {
-    cartId: row["Cart ID"] || "", customerId: row["Customer ID"] || "", productId: row["Product ID"] || "",
-    qty: Number(row["Qty"] || 0), storeId: row["Store ID"] || "", lineTotal: Number(row["Line Total"] || 0),
-    checkedOut: String(row["Checked Out"] || "FALSE").toUpperCase(),
+    cartId: row["Cart ID"] || row["cart_id"] || "", customerId: row["Customer ID"] || row["customer_id"] || "", productId: row["Product ID"] || row["product_id"] || "",
+    qty: Number(row["Qty"] || row["qty"] || 0), storeId: row["Store ID"] || row["store_id"] || "", lineTotal: Number(row["Line Total"] || row["line_total"] || 0),
+    checkedOut: String(row["Checked Out"] || row["checked_out"] || "FALSE").toUpperCase(),
     checkOutFlag: String(row["Check Out Flag"] || "FALSE").toUpperCase(),
-    requestId: row["Request ID"] || "", linePoints: Number(row["Line Points"] || 0)
+    requestId: row["Request ID"] || "", linePoints: Number(row["Line Points"] || row["line_points"] || 0)
   };
 }
 async function getCustomerCart(customerID) {
-  const rows = await getSheetRows("Cart");
-  const result = [];
-  for (const row of rows) {
-    const cart = cartRowToObject(row);
-    if (String(cart.customerId).trim()!== String(customerID).trim()) continue;
-    if (cart.checkedOut === "TRUE") continue;
-    result.push(cart);
+  const supabase = getSupabase();
+  const { data } = await supabase.from('cart').select('*').eq('Customer ID', customerID).or('"Checked Out".is.null,"Checked Out".eq.FALSE');
+  // fallback اذا الاعمدة lowercase
+  let rows = data;
+  if (!rows || rows.length===0) {
+    const { data: data2 } = await supabase.from('cart').select('*').eq('customer_id', customerID).or('checked_out.is.null,checked_out.eq.FALSE');
+    rows = data2 || [];
   }
-  return result;
+  return (rows || []).map(cartRowToObject).filter(c => String(c.customerId).trim()===String(customerID).trim() && c.checkedOut!=="TRUE");
 }
-async function getSheetIdByName(sheets, spreadsheetId, sheetName) {
-  const res = await sheets.spreadsheets.get({ spreadsheetId });
-  const sheet = res.data.sheets.find(s => s.properties.title === sheetName);
-  if (!sheet) throw new Error(`Sheet ${sheetName} not found`);
-  return sheet.properties.sheetId;
-}
-async function getCartSheetData() {
-  const sheets = getGoogleSheetsClient();
-  const response = await sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEETS_ID, range: "Cart!A:Z" });
-  return response.data.values || [];
-}
+
+// ===== CART Supabase بدل Google Sheets API =====
 async function addToCart(customerID, product, qty) {
-  const sheets = getGoogleSheetsClient();
-  if (!sheets) throw new Error("Google Sheets غير متاح");
+  const supabase = getSupabase();
   const quantity = Number(qty);
   if (!Number.isFinite(quantity) || quantity <= 0) return { success: false, message: "الكمية لازم تكون أكبر من صفر" };
   const cart = await getCustomerCart(customerID);
@@ -204,22 +177,21 @@ async function addToCart(customerID, product, qty) {
     const newQty = existing.qty + quantity;
     const newLineTotal = newQty * product.price;
     const newLinePoints = newQty * product.points;
-    const rows = await getCartSheetData();
-    let rowNumber = -1;
-    for (let i = 1; i < rows.length; i++) {
-      if (String(rows[i][0] || "").trim() === existing.cartId && String(rows[i][1] || "").trim() === String(customerID).trim()) { rowNumber = i + 1; break; }
+    const { error } = await supabase.from('cart').update({ "Qty": newQty, "Store ID": product.storeId, "Line Total": newLineTotal, "Line Points": newLinePoints }).eq('Cart ID', existing.cartId);
+    if (error) {
+      await supabase.from('cart').update({ qty: newQty, store_id: product.storeId, line_total: newLineTotal, line_points: newLinePoints }).eq('cart_id', existing.cartId);
     }
-    if (rowNumber === -1) return { success: false, message: "ما قدرت لاقي سطر السلة" };
-    await sheets.spreadsheets.values.update({ spreadsheetId: GOOGLE_SHEETS_ID, range: `Cart!D${rowNumber}:F${rowNumber}`, valueInputOption: "USER_ENTERED", requestBody: { values: [[newQty, product.storeId, newLineTotal]] } });
-    await sheets.spreadsheets.values.update({ spreadsheetId: GOOGLE_SHEETS_ID, range: `Cart!J${rowNumber}`, valueInputOption: "USER_ENTERED", requestBody: { values: [[newLinePoints]] } });
     clearCache("Cart");
     return { success: true, updated: true, qty: newQty };
   }
   const cartId = crypto.randomUUID().replace(/-/g, "").substring(0, 12);
   const lineTotal = quantity * product.price;
   const linePoints = quantity * product.points;
-  const row = [cartId, customerID, product.productId, quantity, product.storeId, lineTotal, "FALSE", "FALSE", "", linePoints];
-  await sheets.spreadsheets.values.append({ spreadsheetId: GOOGLE_SHEETS_ID, range: "Cart!A:J", valueInputOption: "USER_ENTERED", requestBody: { values: [row] } });
+  const row = { "Cart ID": cartId, "Customer ID": customerID, "Product ID": product.productId, "Qty": quantity, "Store ID": product.storeId, "Line Total": lineTotal, "Checked Out": "FALSE", "Check Out Flag": "FALSE", "Request ID": "", "Line Points": linePoints };
+  const { error } = await supabase.from('cart').insert([row]);
+  if (error) {
+    await supabase.from('cart').insert([{ cart_id: cartId, customer_id: customerID, product_id: product.productId, qty: quantity, store_id: product.storeId, line_total: lineTotal, checked_out: false, line_points: linePoints }]);
+  }
   clearCache("Cart");
   return { success: true, updated: false, cartId, qty: quantity, lineTotal };
 }
@@ -235,58 +207,30 @@ async function updateCartQty(customerID, productId, qty) {
   if (!product) return { success: false, message: "المنتج مش موجود" };
   const price = Number(product["Price"] || 0);
   const points = Number(product["Points"] || product["Point"] || product["Loyalty Points"] || 0);
-  const rows = await getCartSheetData();
-  let rowNumber = -1;
-  for (let i = 1; i < rows.length; i++) { if (String(rows[i][0] || "").trim() === item.cartId) { rowNumber = i + 1; break; } }
-  if (rowNumber === -1) return { success: false, message: "تعذر تعديل السلة" };
-  await sheetsUpdateCartRow(rowNumber, quantity, item.storeId, quantity * price, quantity * points);
+  const supabase = getSupabase();
+  const { error } = await supabase.from('cart').update({ "Qty": quantity, "Line Total": quantity*price, "Line Points": quantity*points }).eq('Cart ID', item.cartId);
+  if (error) await supabase.from('cart').update({ qty: quantity, line_total: quantity*price, line_points: quantity*points }).eq('cart_id', item.cartId);
   clearCache("Cart");
   return { success: true, qty: quantity };
 }
-async function sheetsUpdateCartRow(rowNumber, qty, storeId, lineTotal, linePoints) {
-  const sheets = getGoogleSheetsClient();
-  await sheets.spreadsheets.values.update({ spreadsheetId: GOOGLE_SHEETS_ID, range: `Cart!D${rowNumber}:F${rowNumber}`, valueInputOption: "USER_ENTERED", requestBody: { values: [[qty, storeId, lineTotal]] } });
-  await sheets.spreadsheets.values.update({ spreadsheetId: GOOGLE_SHEETS_ID, range: `Cart!J${rowNumber}`, valueInputOption: "USER_ENTERED", requestBody: { values: [[linePoints]] } });
-}
 async function removeFromCart(customerID, productId) {
-  const sheets = getGoogleSheetsClient();
-  const rows = await getCartSheetData();
-  const cartSheetId = await getSheetIdByName(sheets, GOOGLE_SHEETS_ID, "Cart");
-  const rowsToDelete = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const rowCustomer = String(row[1] || "").trim();
-    const rowProduct = String(row[2] || "").trim();
-    const checkedOut = String(row[6] || "FALSE").toUpperCase();
-    if (rowCustomer === String(customerID).trim() && rowProduct === String(productId).trim() && checkedOut!== "TRUE") rowsToDelete.push(i + 1);
-  }
-  if (!rowsToDelete.length) return { success: false, message: "المنتج مش موجود بالسلة" };
-  rowsToDelete.sort((a, b) => b - a);
-  await sheets.spreadsheets.batchUpdate({ spreadsheetId: GOOGLE_SHEETS_ID, requestBody: { requests: rowsToDelete.map(rowNumber => ({ deleteDimension: { range: { sheetId: cartSheetId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber } } })) } });
+  const supabase = getSupabase();
+  const cart = await getCustomerCart(customerID);
+  const found = cart.find(r => r.productId === String(productId).trim());
+  if (!found) return { success: false, message: "المنتج مش موجود بالسلة" };
+  const { error } = await supabase.from('cart').delete().eq('Cart ID', found.cartId);
+  if (error) await supabase.from('cart').delete().eq('cart_id', found.cartId);
   clearCache("Cart");
   return { success: true };
 }
 async function clearCustomerCart(customerID) {
   if (!customerID) return;
-  const sheets = getGoogleSheetsClient();
-  if (!sheets) return;
+  const supabase = getSupabase();
   try {
-    const rows = await getCartSheetData();
-    const cartSheetId = await getSheetIdByName(sheets, GOOGLE_SHEETS_ID, "Cart");
-    const rowsToDelete = [];
-    for (let i = 1; i < rows.length; i++) {
-      const rowCustomer = String(rows[i][1] || "").trim();
-      const checkedOut = String(rows[i][6] || "FALSE").toUpperCase();
-      if (rowCustomer === String(customerID).trim() && checkedOut!== "TRUE") rowsToDelete.push(i + 1);
-    }
-    if (!rowsToDelete.length) { console.log(`🛒 لا يوجد سلة لمسحها لـ ${customerID}`); return; }
-    rowsToDelete.sort((a, b) => b - a);
-    console.log(`🗑 مسح ${rowsToDelete.length} من السلة لـ ${customerID}`);
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: GOOGLE_SHEETS_ID,
-      requestBody: { requests: rowsToDelete.map(rowNumber => ({ deleteDimension: { range: { sheetId: cartSheetId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber } } })) }
-    });
+    const { error } = await supabase.from('cart').delete().eq('Customer ID', customerID).eq('Checked Out', 'FALSE');
+    if (error) await supabase.from('cart').delete().eq('customer_id', customerID).eq('checked_out', false);
     clearCache("Cart");
+    console.log(`🗑 مسح السلة لـ ${customerID}`);
   } catch (e) { console.error("❌ خطأ مسح السلة:", e); }
 }
 async function buildCartView(customerID) {
@@ -317,9 +261,6 @@ function formatCart(cart) {
   text += `📦 عدد القطع: ${cart.count}`;
   return text;
 }
-// ======================================================
-// === الحل الحلو - بدون تعقيد ===
-// ======================================================
 const LAST_SHOWN = new Map();
 function parseChoice(text) {
   const raw = convertArabicNumbers(text);
@@ -329,14 +270,9 @@ function parseChoice(text) {
   m = t.match(/^(\d+)\s+(\d+)$/);
   if (m) return { idx: parseInt(m[1])-1, qty: parseInt(m[2]) };
   m = t.match(/^(?:رقم)?\s*(\d+)\s*(?:عدد|كمية|كميه)?\s*(\d+)?/);
-  if (m) {
-    const idx = parseInt(m[1])-1;
-    const qty = m[2]? parseInt(m[2]) : 1;
-    if (idx >=0) return { idx, qty };
-  }
+  if (m) { const idx = parseInt(m[1])-1; const qty = m[2]? parseInt(m[2]) : 1; if (idx >=0) return { idx, qty }; }
   return null;
 }
-// ======================================================
 function productToObject(row) {
   const price = Number(row["Price"] || 0);
   const points = Number(row["Points"] || row["Point"] || row["Loyalty Points"] || 0);
@@ -403,44 +339,22 @@ function isCheckoutConfirmation(message) {
   const confirmations = ["تأكيد الطلب","تاكيد الطلب","أكد الطلب","اكد الطلب","تأكيد","تاكيد","أكد","اكد","confirm order","confirm"];
   return confirmations.some(item => text === normalizeText(item));
 }
-// === الحل الحلو - يشيك بس من Customers ===
 async function checkCheckoutReadinessSimple(customerID) {
   const cart = await buildCartView(customerID);
   if (!cart.items.length) return { ready: false, reason: "EMPTY_CART", cart };
-
   const delivery = await getCustomerDeliveryData(customerID);
   if (!delivery.exists) return { ready: false, reason: "CUSTOMER_NOT_FOUND", cart };
-
   if (!delivery.area) {
-    return {
-      ready: false,
-      reason: "AREA_MISSING",
-      cart,
-      customMessage: "📍 ما عندك منطقة محفوظة بملفك.\nفوت على الموقع www.md-marketplace.store وحدد منطقتك وعنوانك، وبعدين ارجع اطلب واتساب ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة."
-    };
+    return { ready: false, reason: "AREA_MISSING", cart, customMessage: "📍 ما عندك منطقة محفوظة بملفك.\nفوت على الموقع www.md-marketplace.store وحدد منطقتك وعنوانك، وبعدين ارجع اطلب واتساب ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
   }
-
   if (!delivery.address) {
-    return {
-      ready: false,
-      reason: "ADDRESS_MISSING",
-      cart,
-      customMessage: "🏠 ما عندك عنوان محفوظ بملفك.\nفوت على الموقع www.md-marketplace.store وكمل عنوانك، وبعدين ارجع اطلب واتساب ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة."
-    };
+    return { ready: false, reason: "ADDRESS_MISSING", cart, customMessage: "🏠 ما عندك عنوان محفوظ بملفك.\nفوت على الموقع www.md-marketplace.store وكمل عنوانك، وبعدين ارجع اطلب واتساب ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
   }
-
   if (!delivery.lat ||!delivery.lng) {
-    return {
-      ready: false,
-      reason: "LOCATION_MISSING",
-      cart,
-      customMessage: "📍 حسابك ما فيه لوكيشن مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك تلقائياً، وبعدين فيك تطلب من الواتساب عادي ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة."
-    };
+    return { ready: false, reason: "LOCATION_MISSING", cart, customMessage: "📍 حسابك ما فيه لوكيشن مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك تلقائياً، وبعدين فيك تطلب من الواتساب عادي ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
   }
-
   return { ready: true, reason: "READY", cart, delivery, area: delivery.area, address: delivery.address };
 }
-
 async function detectAreaFromMessage(message) {
   const areas = await getSheetRows("Areas");
   const text = normalizeText(message);
@@ -462,10 +376,7 @@ async function runRealCheckout(customerID, readiness) {
     const data = await response.json();
     console.log("🛒 Checkout API:", JSON.stringify(data));
     return data;
-  } catch (error) {
-    console.error("❌ Checkout API Error:", error);
-    return { success: false, message: "ما قدرنا نرسل الطلب حالياً، جرب بعد شوي." };
-  }
+  } catch (error) { console.error("❌ Checkout API Error:", error); return { success: false, message: "ما قدرنا نرسل الطلب حالياً، جرب بعد شوي." }; }
 }
 async function getRecentConversation(phone) {
   const messages = await getSheetRows("Messages");
@@ -473,19 +384,12 @@ async function getRecentConversation(phone) {
   return messages.filter(row => normalizeWhatsAppNumber(row["Phone"] || "") === normalizedPhone).slice(-2).map(row => ({ customerMessage: row["CustomerMessage"] || "", botReply: row["AIReply"] || "", date: row["Date"] || "" }));
 }
 async function saveToAppSheet(from, userMessage, aiReply) {
-  if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) { console.error("❌ AppSheet credentials ناقصة"); return; }
+  const supabase = getSupabase();
   try {
     const today = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Beirut" });
-    const response = await fetch(`https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/Messages/Action`, {
-      method: "POST",
-      headers: { ApplicationAccessKey: APPSHEET_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        Action: "Add",
-        Properties: { Locale: "en-US", TimeZone: "Asia/Beirut" },
-        Rows: [{ Phone: normalizeWhatsAppNumber(from), CustomerMessage: userMessage, AIReply: aiReply, Date: today, "Bot Session": "BOT2", Bot: "BOT2", "Message Type": "WHATSAPP" }]
-      })
-    });
-    console.log("💾 Messages BOT2:", response.status);
+    const { error } = await supabase.from('messages').insert([{ Phone: normalizeWhatsAppNumber(from), CustomerMessage: userMessage, AIReply: aiReply, Date: today, "Bot Session": "BOT2", Bot: "BOT2", "Message Type": "WHATSAPP" }]);
+    if (error) console.error("❌ Save Message Supabase Error:", error.message);
+    else console.log("💾 Messages BOT2: 200");
   } catch (error) { console.error("❌ Save Message Error:", error); }
 }
 function detectIntent(message) {
@@ -547,16 +451,13 @@ async function handleCart(customerID, message) {
   }
   return { success: true, reply: formatCart(cart) };
 }
-// === الحل الحلو - تأكيد بسيط ===
 async function handleCheckout(customerID, message) {
   const readiness = await checkCheckoutReadinessSimple(customerID);
-
   if (readiness.reason === "EMPTY_CART") return { success: false, reply: "🛒 قبل ما نأكد الطلب، السلة فاضية. خبرني شو بدك تشتري." };
   if (readiness.reason === "CUSTOMER_NOT_FOUND") return { success: false, reply: "ما قدرت لاقي بيانات حسابك." };
   if (readiness.reason === "AREA_MISSING" || readiness.reason === "ADDRESS_MISSING" || readiness.reason === "LOCATION_MISSING") {
     return { success: false, reply: readiness.customMessage };
   }
-
   if (!isCheckoutConfirmation(message)) {
     let confirmation = "🧾 *ملخص طلبك قبل التأكيد:*\n\n";
     confirmation += formatCart(readiness.cart);
@@ -567,98 +468,17 @@ async function handleCheckout(customerID, message) {
     confirmation += "\n\nاذا كل شي صحيح، اكتب بالضبط: *تأكيد الطلب*";
     return { success: true, reply: confirmation };
   }
-
   const checkout = await runRealCheckout(customerID, readiness);
   if (!checkout?.success) return { success: false, reply: checkout?.message || "صار خطأ أثناء تأكيد الطلب، وما تم اعتماد الطلب." };
-
   LAST_SHOWN.delete(customerID);
   return { success: true, checkout: true, reply: `✅ *تم تأكيد طلبك بنجاح!*\n\n🧾 رقم الطلب: *${checkout.request_id}*\n📍 المنطقة: ${readiness.area.areaName}\n🏠 العنوان: ${readiness.address}\n\nتم إرسال الطلب للمراجعة، ورح نخبرك بالتحديثات. ❤\n\n💡 اذا بدك تغير عنوانك للمرات الجاي، فوت على الموقع وعدلو.` };
 }
 async function runAI(userMessage, context) {
   if (!GROQ_KEY) return { success: false, reply: "أهلا وسهلا! كيف بقدر ساعدك؟ 😊" };
   try {
-    const prompt = `
-أنت BOT2 — مساعد الشراء الرسمي في MD‑Marketplace عبر WhatsApp.
-مهمتك تنفيذ عمليات الشراء فقط، بدقة صارمة، ومن دون أي اختراع أو هلوسة.
-
-⛔ ممنوعات صارمة:
-- ممنوع تخترع منتج غير موجود في بيانات المنتجات أو السلة أدناه.
-- ممنوع تخترع سعر أو وحدة أو متجر أو منطقة أو عنوان.
-- ممنوع تخترع أي معلومة غذائية أو سعرات حرارية غير موجودة بالبيانات.
-- ممنوع تقول "تم تأكيد الطلب" إلا إذا استلمت checkout_success=true من الكود.
-- ممنوع تعتبر كلمات مثل "خلص"، "تمام"، "ايه"، "ماشي" تأكيد للطلب.
-- ممنوع تقول "حسب البيانات" أو "حسب ما لدي" — جاوب مباشرة.
-- ممنوع تذكر Product ID أو Store ID أو Area ID للعميل.
-- ممنوع تكرر كل البيانات إذا مش ضرورية للسؤال.
-
-📦 بيانات موثوقة (لا تستعمل غيرها):
-العميل:
-${JSON.stringify(context.user)}
-
-السلة الحالية:
-${JSON.stringify(context.cart)}
-
-العنوان والمنطقة:
-${JSON.stringify(context.delivery)}
-
-المنتجات المتاحة:
-${JSON.stringify(context.products)}
-
-💬 رسالة العميل:
-${userMessage}
-
-🎯 النية:
-${context.intent}
-
-🔥 قواعد التنفيذ الدقيقة:
-1. إذا intent = "shopping":
-   - فتّش فقط ضمن المنتجات الموجودة في context.products.
-   - إذا المنتج موجود → اعرضه كما هو.
-   - إذا غير موجود → قل "ما لقيت هالمنتج" واعرض أقرب 2–3 منتجات موجودة فعلياً.
-   - إذا في أكثر من خيار → اعرض الخيارات بدون اختراع.
-
-2. إذا intent = "add_to_cart":
-   - أضف المنتج الموجود فعلياً فقط.
-   - إذا المنتج غير موجود → قل "ما لقيت هالمنتج" وانتهى.
-   - لا تعدّل السعر أو الوحدة أو المتجر.
-
-3. إذا intent = "cart":
-   - اعرض السلة كما هي بدون أي تعديل أو اختراع.
-   - إذا السلة فاضية → قل "السلة فاضية حالياً.
-   - اذا طلب تعديل الكمية او حذف منتج ساعدو".
-
-4. إذا intent = "checkout":
-   يجب أن يكون موجوداً:
-   - منتجات داخل السلة
-   - منطقة صحيحة موجودة ضمن Areas
-   - عنوان واضح
-   - Location (lat/lng) موجود ببيانات العميل
-   إذا أي عنصر ناقص:
-   - قل للعميل تحديداً شو الناقص (مثال: "ناقص المنطقة"، "ناقص اللوكيشن").
-   التأكيد النهائي فقط عندما يكتب العميل:
-   - "تأكيد الطلب"
-   أو صيغة واضحة جداً بنفس المعنى.
-   بعد التأكيد:
-   - انتظر نتيجة الـ API.
-   - إذا checkout_success=true → قل "تم تسجيل طلبك بنجاح 🎉".
-   - إذا false → قل "صار خطأ بالتسجيل، جرب بعد شوي".
-
-5. إذا intent = "delivery_question":
-   - جاوب فقط من بيانات الطلب الموجودة.
-   - ممنوع تخترع حالة توصيل.
-
-6. إذا intent غير واضح:
-   - اسأل سؤال واحد فقط لتوضيح النية.
-
-🎙 أسلوب الرد:
-- لهجة لبنانية طبيعية، ودّية، مختصرة.
-- جملة أو جملتين فقط.
-- بدون تكرار، بدون حكي زايد، بدون سرد بيانات غير مطلوبة.
-
-`;
+    const prompt = `أنت BOT2 — مساعد الشراء الرسمي في MD‑Marketplace عبر WhatsApp. مهمتك تنفيذ عمليات الشراء فقط، بدقة صارمة، ومن دون أي اختراع أو هلوسة.\n⛔ ممنوعات صارمة:\n- ممنوع تخترع منتج غير موجود في بيانات المنتجات أو السلة أدناه.\n- ممنوع تخترع سعر أو وحدة أو متجر أو منطقة أو عنوان.\n- ممنوع تخترع أي معلومة غذائية أو سعرات حرارية غير موجودة بالبيانات.\n- ممنوع تقول "تم تأكيد الطلب" إلا إذا استلمت checkout_success=true من الكود.\n- ممنوع تعتبر كلمات مثل "خلص"، "تمام"، "ايه"، "ماشي" تأكيد للطلب.\n- ممنوع تقول "حسب البيانات" أو "حسب ما لدي" — جاوب مباشرة.\n- ممنوع تذكر Product ID أو Store ID أو Area ID للعميل.\n- ممنوع تكرر كل البيانات إذا مش ضرورية للسؤال.\n📦 بيانات موثوقة (لا تستعمل غيرها):\nالعميل:\n${JSON.stringify(context.user)}\nالسلة الحالية:\n${JSON.stringify(context.cart)}\nالعنوان والمنطقة:\n${JSON.stringify(context.delivery)}\nالمنتجات المتاحة:\n${JSON.stringify(context.products)}\n💬 رسالة العميل:\n${userMessage}\n🎯 النية:\n${context.intent}\n`;
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+      method: "POST", headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: "openai/gpt-oss-20b", messages: [{ role: "system", content: prompt }, { role: "user", content: userMessage }], temperature: 0.2 })
     });
     const data = await response.json();
@@ -673,22 +493,26 @@ async function buildContext(user, message) {
   const delivery = customerID? await getCustomerDeliveryData(customerID) : null;
   return { user, cart, delivery, intent: detectIntent(message) };
 }
-
-// ======================================================
-// BOT SESSIONS - إدارة الجلسات
-// ======================================================
+// BOT SESSIONS Supabase
 async function appSheetAction(tableName, action, rows) {
-  if (!APPSHEET_APP_ID ||!APPSHEET_API_KEY) return null;
+  const supabase = getSupabase();
+  const table = mapTable(tableName);
   try {
-    const response = await fetch(`https://api.appsheet.com/api/v2/apps/${APPSHEET_APP_ID}/tables/${encodeURIComponent(tableName)}/Action`, {
-      method: "POST",
-      headers: { ApplicationAccessKey: APPSHEET_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ Action: action, Properties: { Locale: "en-US", TimeZone: "Asia/Beirut" }, Rows: rows })
-    });
-    const text = await response.text();
-    console.log(`📡 AppSheet ${tableName}/${action}:`, response.status, text);
-    return { ok: response.ok, status: response.status, text };
-  } catch (error) { console.error(`❌ AppSheet ${tableName}/${action}:`, error); return null; }
+    if (action === "Add") {
+      const { error } = await supabase.from(table).insert(rows);
+      if (error) { console.error(`❌ Supabase ${table}/${action}:`, error.message); return { ok: false }; }
+      return { ok: true, status: 200, text: "OK" };
+    }
+    if (action === "Edit") {
+      for (const row of rows) {
+        const phone = row["Phone"];
+        const { Phone,...update } = row;
+        await supabase.from(table).update(update).eq('Phone', phone);
+      }
+      return { ok: true, status: 200, text: "OK" };
+    }
+    return { ok: false };
+  } catch (error) { console.error(`❌ Supabase ${table}/${action}:`, error); return null; }
 }
 async function getBotSessionRow(phone) {
   const rows = await getSheetRows("Bot Sessions");
@@ -696,20 +520,16 @@ async function getBotSessionRow(phone) {
   return rows.find(r => normalizeWhatsAppNumber(r["Phone"] || "") === normalized) || null;
 }
 async function touchBotSession(phone) {
+  const supabase = getSupabase();
   const now = new Date().toISOString();
-  return await appSheetAction("Bot Sessions", "Edit", [{ Phone: normalizeWhatsAppNumber(phone), "Last Activity": now }]);
+  await supabase.from('bot_sessions').update({ "Last Activity": now }).eq('Phone', normalizeWhatsAppNumber(phone));
 }
 async function closeBotSessionAndReturnToBot1(phone, reason = "CHECKOUT_SUCCESS") {
+  const supabase = getSupabase();
   const now = new Date().toISOString();
   console.log(`🔒 تسكير جلسة BOT2 لـ ${phone} - السبب: ${reason} - رجوع لـ BOT1`);
-  const result = await appSheetAction("Bot Sessions", "Edit", [{
-    Phone: normalizeWhatsAppNumber(phone),
-    "Active Bot": "BOT1",
-    Status: "CLOSED",
-    "Closed At": now,
-    "Last Activity": now
-  }]);
-  return result;
+  await supabase.from('bot_sessions').update({ "Active Bot": "BOT1", Status: "CLOSED", "Closed At": now, "Last Activity": now }).eq('Phone', normalizeWhatsAppNumber(phone));
+  return { ok: true };
 }
 async function checkAndHandleTimeout(phone) {
   const session = await getBotSessionRow(phone);
@@ -724,10 +544,7 @@ async function checkAndHandleTimeout(phone) {
     console.log(`⏰ سكون 30 دقيقة لـ ${phone} - تسكير وارجاع لـ BOT1`);
     await closeBotSessionAndReturnToBot1(phone, "TIMEOUT_30MIN");
     const user = await getUserByWhatsAppNumber(phone);
-    if (user?.customerId) {
-      await clearCustomerCart(user.customerId);
-      console.log(`🗑 تم مسح السلة بعد Timeout لـ ${user.customerId}`);
-    }
+    if (user?.customerId) { await clearCustomerCart(user.customerId); }
     const timeoutMsg = "⏰ انتهت جلسة الطلب بسبب عدم النشاط لمدة 30 دقيقة.\n\nتم إرجاعك للمساعد العام 😊 إذا بدك ترجع تطلب، اكتب *بدي طلب*";
     await sendMessage(phone, timeoutMsg);
     await saveToAppSheet(phone, "TIMEOUT_30MIN", timeoutMsg);
@@ -735,7 +552,6 @@ async function checkAndHandleTimeout(phone) {
   }
   return false;
 }
-
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -746,51 +562,29 @@ export async function GET(req) {
     return new Response("Forbidden", { status: 403 });
   } catch (error) { console.error("❌ GET Error:", error); return new Response("Forbidden", { status: 403 }); }
 }
-
 export async function POST(req) {
   try {
     const body = await req.json();
     console.log("📩 Bot 2:", JSON.stringify(body));
-
     if (body.command === "START_ORDER" || body.transferKey === "START_ORDER" || body.event === "NEW_ORDER") {
       const bridgePhone = normalizeWhatsAppNumber(body.phone || body.Phone || body.from || "");
       if (!bridgePhone) return NextResponse.json({ status: "ok", error: "NO_PHONE" });
       console.log(`🚀 BOT2 Bridge START_ORDER: ${bridgePhone}`);
-
       const now = new Date().toISOString();
-      try {
-        await appSheetAction("Bot Sessions", "Add", [{
-          Phone: bridgePhone,
-          "Active Bot": "BOT2",
-          Status: "ACTIVE",
-          "Request ID": "",
-          "Started At": now,
-          "Closed At": "",
-          "Last Activity": now
-        }]);
-      } catch(e){
-        await appSheetAction("Bot Sessions", "Edit", [{
-          Phone: bridgePhone,
-          "Active Bot": "BOT2",
-          Status: "ACTIVE",
-          "Last Activity": now
-        }]);
-      }
-
+      const supabase = getSupabase();
+      const { error } = await supabase.from('bot_sessions').insert([{ Phone: bridgePhone, "Active Bot": "BOT2", Status: "ACTIVE", "Request ID": "", "Started At": now, "Closed At": "", "Last Activity": now }]);
+      if (error) await supabase.from('bot_sessions').update({ "Active Bot": "BOT2", Status: "ACTIVE", "Last Activity": now }).eq('Phone', bridgePhone);
       const startMsg = body.startMessage || "يلا نبلّش تسجيل الأوردر 😊 شو حابب تطلب؟";
       await sendMessage(bridgePhone, startMsg);
       await saveToAppSheet(bridgePhone, body.originalMessage || "بدي اعمل اوردر", startMsg);
       return NextResponse.json({ status: "ok", bridge: "STARTED", phone: bridgePhone });
     }
-
     const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from || body?.from || body?.whatsappNumber || "";
     const userText = message?.text?.body || body?.text || body?.userText || "";
     if (!from ||!userText) return NextResponse.json({ status: "ok" });
-
     const whatsappNumber = normalizeWhatsAppNumber(from);
     console.log(`📱 Customer BOT2: ${whatsappNumber} | ${userText}`);
-
     const user = await getUserByWhatsAppNumber(whatsappNumber);
     const customerIDForChoice = user?.customerId || "";
     if (customerIDForChoice) {
@@ -812,14 +606,9 @@ export async function POST(req) {
         }
       }
     }
-
     const isTimedOut = await checkAndHandleTimeout(whatsappNumber);
-    if (isTimedOut) {
-      return NextResponse.json({ status: "ok", action: "TIMEOUT_RETURNED_TO_BOT1" });
-    }
-
+    if (isTimedOut) return NextResponse.json({ status: "ok", action: "TIMEOUT_RETURNED_TO_BOT1" });
     await touchBotSession(whatsappNumber);
-
     if (!user) {
       const reply = "أهلا وسهلا فيك بـ MD-Marketplace ❤\n\nلازم يكون عندك حساب مسجل حتى أقدر ساعدك بالشراء والطلبات.";
       await sendMessage(whatsappNumber, reply);
@@ -833,24 +622,18 @@ export async function POST(req) {
       await saveToAppSheet(from, userText, reply);
       return NextResponse.json({ status: "ok" });
     }
-
     const context = await buildContext(user, userText);
-
     if (isCheckoutConfirmation(userText) || normalizeText(userText).includes("خلص") || normalizeText(userText).includes("جاهز")) {
       const result = await handleCheckout(customerID, userText);
       await sendMessage(whatsappNumber, result.reply);
       await saveToAppSheet(from, userText, result.reply);
-
       if (result.checkout) {
         console.log("✅ طلب ناجح - تسكير الجلسة وارجاع لـ BOT1");
         await closeBotSessionAndReturnToBot1(whatsappNumber, "CHECKOUT_SUCCESS");
         await clearCustomerCart(customerID);
-        console.log(`🗑 تم مسح السلة لـ ${customerID} بعد نجاح الطلب`);
       }
-
       return NextResponse.json({ status: "ok", action: result.checkout? "CHECKOUT_SUCCESS_CLOSED" : "CHECKOUT_VALIDATION" });
     }
-
     const cartCommand = detectCartCommand(userText);
     if (cartCommand) {
       const result = await handleCart(customerID, userText);
@@ -858,14 +641,12 @@ export async function POST(req) {
       await saveToAppSheet(from, userText, result.reply);
       return NextResponse.json({ status: "ok", action: "CART" });
     }
-
     if (context.intent === "shopping") {
       const result = await handleShopping(customerID, userText);
       await sendMessage(whatsappNumber, result.reply);
       await saveToAppSheet(from, userText, result.reply);
       return NextResponse.json({ status: "ok", action: "SHOPPING" });
     }
-
     const history = await getRecentConversation(whatsappNumber);
     context.history = history;
     const aiResult = await runAI(userText, context);
@@ -873,7 +654,6 @@ export async function POST(req) {
     await sendMessage(whatsappNumber, reply);
     await saveToAppSheet(from, userText, reply);
     return NextResponse.json({ status: "ok", bot: "bot2", readOnly: false });
-
   } catch (error) {
     console.error("❌ Bot 2 POST Error:", error);
     return NextResponse.json({ status: "ok" }, { status: 200 });
