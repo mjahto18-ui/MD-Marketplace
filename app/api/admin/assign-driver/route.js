@@ -1,17 +1,19 @@
 export const dynamic = "force-dynamic";
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
+  if (!url) throw new Error("SUPABASE_URL missing in env");
+  return createClient(url, key);
+}
 
 export async function POST(req){
   try {
+    const supabase = getSupabase();
     const { requestID, driverId } = await req.json()
     if(!requestID || !driverId) return Response.json({error:'missing data'}, {status:400})
 
-    // بدون " " حول الاسم
     const { data: order } = await supabase
       .from('order_requuest')
       .select('*')
