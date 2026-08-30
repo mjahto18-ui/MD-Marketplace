@@ -42,7 +42,6 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-// خريطة اسماء الشيت القديم -> جدول supabase
 function mapTable(sheetName) {
   const n = String(sheetName || "").toLowerCase().trim();
   if (n === "products") return "products";
@@ -228,7 +227,6 @@ async function getCaloriesFromNet(barcode, productName) {
   } catch(e) { return null; }
 }
 
-// ===== نفس getSheetRows بس من Supabase - لا تغيير منطق! =====
 const SHEETS_LOADING = new Map();
 async function getSheetRows(sheetName) {
   const table = mapTable(sheetName);
@@ -326,7 +324,7 @@ async function getSmartMemory(user) {
   if (!user?.customerId) return { lastProducts: [], lastOrderText: "" };
   try {
     const orders = await getSheetRows("Order Requuest");
-    const userOrders = orders.filter(o => String(o["Customer ID"]||"").trim() === String(user.customerId).trim());
+    const userOrders = orders.filter(o => String(o["customer ID"]||"").trim() === String(user.customerId).trim());
     if (!userOrders.length) return { lastProducts: [], lastOrderText: "" };
     const lastTwo = userOrders.slice(-2).reverse();
     const details = await getSheetRows("Order Details");
@@ -350,21 +348,21 @@ async function getUserByWhatsAppNumber(whatsappNumber) {
   console.log(`🔎 البحث في Users Supabase: ${normalized}`);
   const rows = await getSheetRows("Users");
   for (const row of rows) {
-    const rowWhatsApp = normalizeWhatsAppNumber(row["WhatsApp Number"] || row["Whatsapp Number"] || row["Phone"] || "");
+    const rowWhatsApp = normalizeWhatsAppNumber(row["WhatsApp Number"] || "");
     if (rowWhatsApp === normalized) {
       const user = {
-        userId: row["User ID"] || row["user_id"] || "",
-        role: row["Role"] || row["role"] || "",
-        name: row["Name"] || row["name"] || "",
-        mobile: row["Mobile"] || row["mobile"] || "",
-        customerId: row["Customer ID"] || row["customer_id"] || "",
-        whatsappNumber: row["WhatsApp Number"] || row["Whatsapp Number"] || "",
+        userId: row["User ID"] || "",
+        role: row["Role"] || "",
+        name: row["Name"] || "",
+        mobile: row["Mobile"] || "",
+        customerId: row["Customer ID"] || "",
+        whatsappNumber: row["WhatsApp Number"] || "",
         storeId: row["Store ID"] || "",
         area: row["Area"] || "",
         status: row["Status"] || "",
         active: row["Active"] || "",
-        gender: String(row["Gender"] || row["gender"] || "").toLowerCase().trim(),
-        assignedPersona: String(row["Assigned Persona"] || row["assigned_persona"] || "").toLowerCase().trim(),
+        gender: String(row["Gender"] || "").toLowerCase().trim(),
+        assignedPersona: String(row["Assigned Persona"] || "").toLowerCase().trim(),
         acceptedTerms: row["AcceptedTerms"] || ""
       };
       console.log("🎯 المستخدم:", JSON.stringify(user));
@@ -375,7 +373,6 @@ async function getUserByWhatsAppNumber(whatsappNumber) {
   return null;
 }
 
-// AppSheet -> Supabase
 async function appSheetAction(tableName, action, rows) {
   const supabase = getSupabase();
   const table = mapTable(tableName);
@@ -503,7 +500,7 @@ async function searchProducts(userMessage) {
     results.push({
       score, storeId: product["Store ID"], productName: product["Product Name"], unit: product["Unit"], price: product["Price"],
       storeName: store?.["Store Name"] || "غير معروف", address: store?.["Adress"] || "", openTime: store?.["Open Time"] || "", closeTime: store?.["Close Time"] || "",
-      areaName: areas.find(a => String(a["Area ID"]) === String(store?.["Area"] || product["Area"]))?.["Area Name"] || "", isOpen: openStatus.isOpen
+      areaName: areas.find(a => String(a["Area ID"]) === String(store?.["Area"] || ""))?.["Area Name"] || "", isOpen: openStatus.isOpen
     });
   }
   results.sort((a, b) => {
@@ -523,7 +520,7 @@ async function getUserOrders(user) {
   const userMobile = normalizeWhatsAppNumber(user.mobile || "");
   const results = [];
   for (const order of orders) {
-    const orderCustomerId = String(order["Customer ID"] || "").trim();
+    const orderCustomerId = String(order["customer ID"] || "").trim();
     const orderMobile = normalizeWhatsAppNumber(order["Mobile"] || "");
     if (isAdmin) { results.push(order); continue; }
     if (customerId && orderCustomerId === customerId) { results.push(order); continue; }
@@ -551,9 +548,9 @@ async function getDriverById(driverId) {
   if (!driverId) return null;
   const drivers = await getSheetRows("Drivers");
   const id = String(driverId).trim().toLowerCase();
-  const driver = drivers.find(d => String(d["Driver ID"] || d["ID"] || "").trim().toLowerCase() === id);
+  const driver = drivers.find(d => String(d["Driver ID"] || "").trim().toLowerCase() === id);
   if (!driver) return null;
-  return { name: driver["Driver Name"] || driver["Name"] || "غير معروف", phone: driver["Phone"] || driver["Mobile"] || driver["WhatsApp"] || "" };
+  return { name: driver["Driver Name"] || "غير معروف", phone: driver["Mobile"] || "" };
 }
 async function buildOrderContext(user, userMessage) {
   const orders = await getUserOrders(user);
@@ -766,7 +763,6 @@ export async function POST(req) {
       const transferred = await transferToBot2({ from: whatsappNumber, user, originalMessage: userText });
       if (transferred) { return Response.json({ status: "ok", transferred: true, target: "BOT2", command: BOT2_START_COMMAND }, { status: 200 }); }
     }
-    // ===== PERSONA ASSIGNMENT - من Supabase الآن =====
     let persona = null; let smartMemory = { lastProducts: [], lastOrderText: "" };
     if (user && user.gender) {
       const allPersonas = await getPersonasFromSheet();
@@ -778,13 +774,11 @@ export async function POST(req) {
           persona = picked;
           try {
             const supabase = getSupabase();
-            // FIXED: update بـ Supabase بدل Google Sheets
-            const { error } = await supabase.from('users').update({ "Assigned Persona": picked.PhotoFolder, assigned_persona: picked.PhotoFolder }).eq('User ID', user.userId).eq('Customer ID', user.customerId);
+            const { error } = await supabase.from('users').update({ "Assigned Persona": picked.PhotoFolder }).eq('User ID', user.userId);
             if (!error) console.log("✅ انحفظت الشخصية بنجاح في Supabase!");
             else {
-              // fallback: جرب بـ Phone
-              await supabase.from('users').update({ "Assigned Persona": picked.PhotoFolder }).eq('Phone', whatsappNumber);
-              console.log("✅ انحفظت الشخصية بـ Phone fallback");
+              await supabase.from('users').update({ "Assigned Persona": picked.PhotoFolder }).eq('WhatsApp Number', whatsappNumber);
+              console.log("✅ انحفظت الشخصية بـ WhatsApp Number fallback");
             }
           } catch (e) { console.log("❌ فشل حفظ Assigned Persona Supabase", e.message); }
           user.assignedPersona = picked.PhotoFolder;
