@@ -13,9 +13,9 @@ function getSupabase() {
 
 async function getLastCaseID() {
   const supabase = getSupabase();
-  const { data } = await supabase.from('protection_cases').select('"Case ID", case_id').order('created_at', { ascending: false }).limit(1);
+  const { data } = await supabase.from('protection_cases').select('"Case ID"').order('supa_id', { ascending: false }).limit(1);
   if (!data?.length) return "REF-000000";
-  return data[0]['Case ID'] || data[0]['case_id'] || "REF-000000";
+  return data[0]['Case ID'] || "REF-000000";
 }
 
 function generateCaseID(lastID) {
@@ -23,15 +23,11 @@ function generateCaseID(lastID) {
   return `REF-${String(number).padStart(6, "0")}`;
 }
 
-// من Supabase بدل Sheets
+// من Supabase
 async function getCustomerName(phone) {
   const supabase = getSupabase();
   const { data } = await supabase.from('users').select('*').eq('Mobile', String(phone).trim()).limit(1);
-  if (data?.[0]) return data[0]['Name'] || data[0]['name'] || "زائر";
-
-  const { data: data2 } = await supabase.from('users').select('*').eq('mobile', String(phone).trim()).limit(1);
-  if (data2?.[0]) return data2[0]['Name'] || data2[0]['name'] || "زائر";
-
+  if (data?.[0]) return data[0]['Name'] || "زائر";
   return "زائر";
 }
 
@@ -66,13 +62,15 @@ export async function POST(req) {
           "Photo 1": body.photo1 || "",
           "Photo 2": body.photo2 || "",
           "Photo 3": body.photo3 || "",
+          "Video": body.video || "",
           "Status": "Pending",
           "Decision": "",
           "Refund Amount": "",
           "Admin Note": "",
           "WhatsApp Chat": body.whatsapp || "",
           "Created Date": new Date().toISOString(),
-          "Close Date": ""
+          "Close Date": "",
+          "Responsible": ""
         }]
       })
     });
@@ -81,22 +79,24 @@ export async function POST(req) {
     console.log("AppSheet:", res.status, text);
     if (!res.ok) throw new Error(text);
 
-    // وكمان اكتب نسخة بـ Supabase للـ last update
+    // وكمان اكتب نسخة بـ Supabase
     try {
       const supabase = getSupabase();
       await supabase.from('protection_cases').insert([{
         "Case ID": caseID,
-        "case_id": caseID,
         "Order ID": body.orderId || "",
         "Customer ID": customerName,
         "Store ID": body.storeId || "",
         "Driver ID": body.driverId || "",
         "Case Type": body.caseType || "",
         "Description": body.description || "",
+        "Photo 1": body.photo1 || "",
+        "Photo 2": body.photo2 || "",
+        "Photo 3": body.photo3 || "",
+        "Video": body.video || "",
         "Status": "Pending",
         "WhatsApp Chat": body.whatsapp || "",
-        "Created Date": new Date().toISOString(),
-        "created_at": new Date().toISOString()
+        "Created Date": new Date().toISOString()
       }]);
     } catch(e) { console.log("Supabase backup insert failed", e.message) }
 
