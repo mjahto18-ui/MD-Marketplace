@@ -16,18 +16,18 @@ export async function POST(req) {
     const supabase = getSupabase();
 
     const { data: users } = await supabase.from('users').select('*');
-    const user = (users||[]).find(row => String(row['Phone'] || row['phone'] || row['Mobile'] || row[4] || "").trim() === phoneStr);
+    const user = (users||[]).find(row => String(row['Mobile'] || "").trim() === phoneStr);
 
     if (!user) {
       return NextResponse.json({ success: false, message: "رقم الهاتف أو رمز الدخول غير صحيح." }, { status: 401 });
     }
 
-    const userStatus = user['Status'] || user['status'] || user[9];
-    const lockStatus = user['isLocked'] || user['lock_status'] || user['Locked'] || user[15];
-    const storedPin = String(user['PIN'] || user['pin'] || user['Password'] || user[10] || "").trim();
-    const attempts = parseInt(user['failedAttempts'] || user['login_attempts'] || user[14] || "0");
+    const userStatus = user['Status'] || "";
+    const lockStatus = user['isLocked'] || "";
+    const storedPin = String(user['PIN'] || "").trim();
+    const attempts = parseInt(user['failedAttempts'] || "0");
 
-    if (String(lockStatus).toUpperCase() === "LOCKED") {
+    if (String(lockStatus).toUpperCase() === "TRUE" || String(lockStatus).toUpperCase() === "LOCKED") {
       return NextResponse.json({
         success: false,
         message: "تم قفل الحساب بسبب محاولات دخول غير صحيحة. يرجى التواصل مع فريق الدعم أو طلب إعادة تعيين رمز الدخول لإعادة تفعيل الحساب."
@@ -42,26 +42,22 @@ export async function POST(req) {
     }
 
     if (storedPin === String(pin).trim()) {
-      // reset attempts - نفس المنطق
+      // صح - صفر المحاولات
       await supabase.from('users').update({
-        'Login Attempts': "0",
-        'login_attempts': 0,
-        'Attempts': "0"
-      }).eq('Phone', phoneStr);
-
-      await supabase.from('users').update({ login_attempts: 0 }).eq('phone', phoneStr);
+        'failedAttempts': "0",
+        'isLocked': "FALSE"
+      }).eq('Mobile', phoneStr);
 
       const cookieStore = await cookies();
       cookieStore.delete('md_guest');
 
-      const acceptedTermsValue = String(user['Accepted Terms'] || user['accepted_terms'] || user[17] || "").toUpperCase().trim();
+      const acceptedTermsValue = String(user['AcceptedTerms'] || "").toUpperCase().trim();
 
       cookieStore.set('session', JSON.stringify({
-        customerId: user['Customer ID'] || user['customer_id'] || user[0],
-        name: user['Name'] || user['name'] || user[3],
+        customerId: user['Customer ID'],
+        name: user['Name'],
         phone: phoneStr,
         AcceptedTerms: acceptedTermsValue,
-        acceptedTerms: acceptedTermsValue
       }), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -74,29 +70,26 @@ export async function POST(req) {
         success: true,
         message: "تم تسجيل الدخول بنجاح",
         user: {
-          userId: user['User ID'] || user['user_id'] || user[0],
-          customerId: user['Customer ID'] || user['customer_id'] || user[7],
-          name: user['Name'] || user['name'] || user[3],
+          userId: user['User ID'],
+          customerId: user['Customer ID'],
+          name: user['Name'],
           phone: phoneStr,
-          role: user['Role'] || user['role'] || user[2],
-          email: user['Email'] || user['email'] || user[6],
+          role: user['Role'],
+          email: user['Email'],
           AcceptedTerms: acceptedTermsValue
         }
       });
     }
 
-    // PIN غلط - نفس المنطق 3 محاولات
+    // PIN غلط - 3 محاولات
     let newAttempts = attempts + 1;
 
     if (newAttempts >= 3) {
       await supabase.from('users').update({
-        'Login Attempts': String(newAttempts),
+        'failedAttempts': String(newAttempts),
         'PIN': "",
-        'Lock Status': "Locked",
-        'login_attempts': newAttempts,
-        'pin': "",
-        'lock_status': "Locked"
-      }).eq('Phone', phoneStr);
+        'isLocked': "TRUE"
+      }).eq('Mobile', phoneStr);
 
       return NextResponse.json({
         success: false,
@@ -105,9 +98,8 @@ export async function POST(req) {
     }
 
     await supabase.from('users').update({
-      'Login Attempts': String(newAttempts),
-      'login_attempts': newAttempts
-    }).eq('Phone', phoneStr);
+      'failedAttempts': String(newAttempts)
+    }).eq('Mobile', phoneStr);
 
     return NextResponse.json({
       success: false,
