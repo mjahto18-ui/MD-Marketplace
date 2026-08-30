@@ -13,7 +13,7 @@ export async function POST(req) {
     const { userId, subscriptionId } = await req.json();
 
     if (!userId ||!subscriptionId) {
-      return Response.json({
+      return NextResponse.json({
         success: false,
         message: "Missing data",
       });
@@ -21,47 +21,37 @@ export async function POST(req) {
 
     const supabase = getSupabase();
 
-    // أولاً: إزالة Subscription ID من أي مستخدم آخر - نفس المنطق row[16] === subscriptionId && row[0]!== userId
-    await supabase.from('users').update({ "Subscription ID": "", "subscription_id": "" }).eq("Subscription ID", subscriptionId).neq("User ID", userId.toString());
-    // fallback lowercase
-    await supabase.from('users').update({ "Subscription ID": "", "subscription_id": "" }).eq("subscription_id", subscriptionId).neq("user_id", userId.toString());
+    // أولاً: إزالة Subscription ID من أي مستخدم آخر
+    await supabase.from('users').update({ "Subscription ID": "" }).eq("Subscription ID", subscriptionId).neq("User ID", userId.toString());
 
-    // ثانياً: البحث عن المستخدم الحالي - row[0] === userId
+    // ثانياً: البحث عن المستخدم الحالي
     const { data: users } = await supabase.from('users').select('*').eq("User ID", userId.toString()).limit(1);
     let user = users?.[0];
-    if (!user) {
-      const { data } = await supabase.from('users').select('*').eq("user_id", userId.toString()).limit(1);
-      user = data?.[0];
-    }
 
     if (!user) {
-      return Response.json({
+      return NextResponse.json({
         success: false,
         message: "User not found",
       });
     }
 
-    // ثالثاً: حفظ Subscription ID للمستخدم الحالي - Users!Q = [16]
+    // ثالثاً: حفظ Subscription ID للمستخدم الحالي
     const { error } = await supabase.from('users').update({
-      "Subscription ID": subscriptionId,
-      "subscription_id": subscriptionId,
-      "Subscription ID_16": subscriptionId
+      "Subscription ID": subscriptionId
     }).eq("User ID", userId.toString());
 
-    if (error) {
-      await supabase.from('users').update({ "subscription_id": subscriptionId, "Subscription ID": subscriptionId }).eq("user_id", userId.toString());
-    }
+    if (error) throw error;
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       message: "Subscription updated",
     });
 
   } catch (err) {
     console.error(err);
-    return Response.json({
+    return NextResponse.json({
       success: false,
       message: "Server error",
-    });
+    }, { status: 500 });
   }
 }
