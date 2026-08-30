@@ -11,59 +11,63 @@ function getSupabase() {
 export async function GET(req) {
   try {
     const storeID = req.nextUrl.searchParams.get("storeID");
-    const search = req.nextUrl.searchParams.get("search")?.toLowerCase().trim() || "";
+    const search = req.nextUrl.searchParams.get("search")?.trim() || "";
     const limit = parseInt(req.nextUrl.searchParams.get("limit") || "20", 10);
     const page = parseInt(req.nextUrl.searchParams.get("page") || "1", 10);
 
     const supabase = getSupabase();
 
-    const { data: productsValues } = await supabase.from('products').select('*');
-    const { data: storesValues } = await supabase.from('stores').select('*');
-
-    let productsRows = productsValues || [];
+    let query = supabase.from('products').select('*', { count: 'exact' });
 
     if (storeID) {
-      productsRows = productsRows.filter((row) => String(row['Store ID'] || row['store_id'] || row[1] || "").trim() === String(storeID).trim());
+      query = query.eq('Store ID', String(storeID).trim());
     }
 
     if (search) {
-      productsRows = productsRows.filter((row) => {
-        const name = String(row['Name'] || row['name'] || row['Product Name'] || row[2] || "").toLowerCase();
-        return name.includes(search);
+      query = query.ilike('Product Name', `%${search}%`);
+    }
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    
+    const { data: productsRows, count, error } = await query.range(from, to);
+
+    if (error) throw error;
+
+    // جلب اسماء المتاجر للمنتجات المعروضة فقط
+    const storeIds = [...new Set((productsRows||[]).map(r => r['Store ID']).filter(Boolean))];
+    let storesMap = {};
+    if (storeIds.length > 0) {
+      const { data: storesValues } = await supabase.from('stores').select('*').in('Store ID', storeIds);
+      (storesValues||[]).forEach(s => {
+        storesMap[s['Store ID']] = s['Store Name'];
       });
     }
 
-    const total = productsRows.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedRows = productsRows.slice(start, end);
-
-    const products = paginatedRows.map((row) => {
-      const storeIdForRow = row['Store ID'] || row['store_id'] || row[1];
-      const store = (storesValues||[]).find((s) => String(s['Store ID'] || s['store_id'] || s[0] || "").trim() === String(storeIdForRow).trim());
+    const products = (productsRows||[]).map((row) => {
       return {
-        productID: row['Product ID'] || row['product_id'] || row[0],
-        storeID: row['Store ID'] || row['store_id'] || row[1],
-        name: row['Name'] || row['name'] || row[2],
-        category: row['Category'] || row['category'] || row[3],
-        unit: row['Unit'] || row['unit'] || row[4],
-        price: Number(row['Price'] || row['price'] || row[5]),
-        image: row['Image'] || row['image'] || row[6],
-        description: row['Description'] || row['description'] || row[7],
-        available: row['Available'] || row['available'] || row[8],
-        stock: Number(row['Stock'] || row['stock'] || row[9]),
-        active: row['Active'] || row['active'] || row[10],
-        weightPoint: Number(row['Weight Point'] || row['weight_point'] || row[11]),
-        storeName: store? (store['Store Name'] || store['store_name'] || store[1] || "متجر محذوف") : "متجر محذوف",
+        productID: row['Product ID'],
+        storeID: row['Store ID'],
+        name: row['Product Name'],
+        category: row['Category'],
+        unit: row['Unit'],
+        price: Number(row['Price']),
+        image: row['Image'],
+        description: row['Description'],
+        available: row['Available'],
+        stock: Number(row['Stock Qty']),
+        active: row['Active'],
+        weightPoint: Number(row['Weight Points']),
+        storeName: storesMap[row['Store ID']] || "متجر محذوف",
       };
     });
 
     return NextResponse.json({
       success: true,
       products,
-      total,
+      total: count || 0,
       page,
-      hasMore: end < total,
+      hasMore: from + products.length < (count || 0),
     });
 
   } catch (err) {
