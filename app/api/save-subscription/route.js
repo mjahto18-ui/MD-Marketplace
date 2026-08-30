@@ -1,80 +1,56 @@
-import { google } from "googleapis";
+export const dynamic = "force-dynamic";
+import { NextResponse } from "next/server";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function POST(req) {
   try {
     const { userId, subscriptionId } = await req.json();
 
-    if (!userId || !subscriptionId) {
+    if (!userId ||!subscriptionId) {
       return Response.json({
         success: false,
         message: "Missing data",
       });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: [
-        "https://www.googleapis.com/auth/spreadsheets",
-      ],
-    });
+    const supabase = getSupabase();
 
-    const sheets = google.sheets({
-      version: "v4",
-      auth,
-    });
+    // أولاً: إزالة Subscription ID من أي مستخدم آخر - نفس المنطق row[16] === subscriptionId && row[0]!== userId
+    await supabase.from('users').update({ "Subscription ID": "", "subscription_id": "" }).eq("Subscription ID", subscriptionId).neq("User ID", userId.toString());
+    // fallback lowercase
+    await supabase.from('users').update({ "Subscription ID": "", "subscription_id": "" }).eq("subscription_id", subscriptionId).neq("user_id", userId.toString());
 
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-
-    const read = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Users!A:Z",
-    });
-
-    const rows = read.data.values || [];
-
-    // أولاً: إزالة Subscription ID من أي مستخدم آخر
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-
-      if (
-        row[16] === subscriptionId &&
-        row[0] !== userId.toString()
-      ) {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `Users!Q${i + 1}`,
-          valueInputOption: "RAW",
-          requestBody: {
-            values: [[""]],
-          },
-        });
-      }
+    // ثانياً: البحث عن المستخدم الحالي - row[0] === userId
+    const { data: users } = await supabase.from('users').select('*').eq("User ID", userId.toString()).limit(1);
+    let user = users?.[0];
+    if (!user) {
+      const { data } = await supabase.from('users').select('*').eq("user_id", userId.toString()).limit(1);
+      user = data?.[0];
     }
 
-    // ثانياً: البحث عن المستخدم الحالي
-    const rowIndex = rows.findIndex(
-      (row) => row[0] === userId.toString()
-    );
-
-    if (rowIndex === -1) {
+    if (!user) {
       return Response.json({
         success: false,
         message: "User not found",
       });
     }
 
-    // ثالثاً: حفظ Subscription ID للمستخدم الحالي
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `Users!Q${rowIndex + 1}`,
-      valueInputOption: "RAW",
-      requestBody: {
-        values: [[subscriptionId]],
-      },
-    });
+    // ثالثاً: حفظ Subscription ID للمستخدم الحالي - Users!Q = [16]
+    const { error } = await supabase.from('users').update({
+      "Subscription ID": subscriptionId,
+      "subscription_id": subscriptionId,
+      "Subscription ID_16": subscriptionId
+    }).eq("User ID", userId.toString());
+
+    if (error) {
+      await supabase.from('users').update({ "subscription_id": subscriptionId, "Subscription ID": subscriptionId }).eq("user_id", userId.toString());
+    }
 
     return Response.json({
       success: true,
@@ -83,7 +59,6 @@ export async function POST(req) {
 
   } catch (err) {
     console.error(err);
-
     return Response.json({
       success: false,
       message: "Server error",
