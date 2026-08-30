@@ -16,25 +16,25 @@ export async function GET(req) {
     const supabase = getSupabase();
     const custIdLower = customerID.toString().trim().toLowerCase();
 
-    // Rewards - نفس المنطق: Earned - Redeemed
+    // Rewards - Points Added - Points Used
     const { data: rewardsRows } = await supabase.from('rewards').select('*');
     let points = 0;
     (rewardsRows||[]).forEach(r => {
-      const id = String(r['Customer ID'] || r['customer_id'] || r[1] || "").trim().toLowerCase();
+      const id = String(r['Customer ID'] || "").trim().toLowerCase();
       if(id === custIdLower) {
-        const earned = Number(r['Earned'] || r['earned'] || r['Points Earned'] || r[5] || 0);
-        const redeemed = Number(r['Redeemed'] || r['redeemed'] || r['Points Redeemed'] || r[6] || 0);
+        const earned = Number(r['Points Added'] || 0);
+        const redeemed = Number(r['Points Used'] || 0);
         points += earned - redeemed;
       }
     });
 
-    // Wallet Transactions - نفس المنطق
+    // Wallet Transactions
     const { data: walletRows } = await supabase.from('wallet_transactions').select('*');
     let wallet = 0;
     (walletRows||[]).forEach((r) => {
-      const id = String(r['Customer ID'] || r['customer_id'] || r[1] || "").trim().toLowerCase();
-      const type = String(r['Type'] || r['type'] || r[3] || "").trim().toLowerCase();
-      const amount = Number(r['Amount'] || r['amount'] || r[4] || 0);
+      const id = String(r['Customer ID'] || "").trim().toLowerCase();
+      const type = String(r['Type'] || "").trim().toLowerCase();
+      const amount = Number(r['Amount'] || 0);
 
       if (id === custIdLower) {
         switch (type) {
