@@ -19,30 +19,17 @@ export async function GET(req) {
 
     const supabase = getSupabase();
 
-    const { data: rows } = await supabase.from('stores').select('*').eq('Category', String(categoryID).trim()).limit(1000);
-    let data = rows;
-    if (!data?.length) {
-      const { data: rows2 } = await supabase.from('stores').select('*').eq('category', String(categoryID).trim()).limit(1000);
-      data = rows2;
-    }
+    const { data: rows } = await supabase.from('stores').select('*').eq('Category', String(categoryID).trim());
 
-    if (!data?.length) {
-      const { data: allRows } = await supabase.from('stores').select('*');
-      data = (allRows||[]).filter(row => {
-        const rowCategory = String(row['Category'] || row['category'] || "").trim().replace('.0','');
-        return rowCategory === String(categoryID).trim();
-      });
-    }
-
-    const stores = (data||[]).map(row => {
+    const stores = (rows||[]).map(row => {
         return {
-          store_id: row["Store ID"] || row["store_id"],
-          store_name: row["Store Name"] || row["store_name"],
-          logo: row["Logo"] || row["logo"] || "",
-          description: row["Description"] || row["description"] || "",
-          category: row["Category"] || row["category"],
-          status: row["Status"] || row["status"] || "",
-          address: row["Adress"] || row["Address"] || row["adress"] || row["address"] || "",
+          store_id: row["Store ID"],
+          store_name: row["Store Name"],
+          logo: row["Logo"] || "",
+          description: row["Description"] || "",
+          category: row["Category"],
+          status: row["Status"] || "",
+          address: row["Adress"] || "",
         };
       });
 
@@ -53,6 +40,6 @@ export async function GET(req) {
     return NextResponse.json({
       success: false,
       message: err.message || "Server Error"
-    });
+    }, { status: 500 });
   }
 }
