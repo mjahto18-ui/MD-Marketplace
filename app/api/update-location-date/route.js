@@ -1,46 +1,38 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function POST(req) {
   try {
     const { customerID } = await req.json();
+    const supabase = getSupabase();
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-
-    const sheets = google.sheets({ version: "v4", auth });
-
-    // جلب كل العملاء
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!A2:Z",
-    });
-
-    const rows = res.data.values || [];
-
-    // إيجاد صف العميل
-    const rowIndex = rows.findIndex(r => r[0] === customerID);
+    // جلب كل العملاء - نفس findIndex r[0] === customerID
+    const { data: rows } = await supabase.from('customers').select('*');
+    const rowIndex = (rows||[]).findIndex(r => String(r['customer_id'] || r['Customer ID'] || r[0] || "").trim() === String(customerID).trim());
 
     if (rowIndex === -1) {
       return NextResponse.json({ ok: false, msg: "Customer not found" });
     }
 
-    // عمود Last Location Update هو آخر عمود
-    const updateCol = rows[0].length - 1; 
+    // عمود Last Location Update هو آخر عمود - نفس المنطق
+    await supabase.from('customers').update({
+      "last_location_update": new Date().toLocaleDateString("en-US"),
+      "Last Location Update": new Date().toLocaleDateString("en-US"),
+      "last_location_update_iso": new Date().toISOString()
+    }).eq('customer_id', String(customerID).trim());
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: `Customers!${String.fromCharCode(65 + updateCol)}${rowIndex + 2}`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[new Date().toLocaleDateString("en-US")]],
-      },
-    });
+    // fallback capital
+    await supabase.from('customers').update({
+      "Last Location Update": new Date().toLocaleDateString("en-US"),
+      "last_location_update": new Date().toLocaleDateString("en-US")
+    }).eq('Customer ID', String(customerID).trim());
 
     return NextResponse.json({ ok: true });
   } catch (err) {
