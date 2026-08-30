@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+export const dynamic = "force-dynamic";
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
+
 export async function POST() {
-  // جوا الفانكشن مش برا!
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+  const supabase = getSupabase();
   const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID
   const ONESIGNAL_KEY = process.env.ONESIGNAL_REST_KEY
 
@@ -28,4 +35,5 @@ export async function POST() {
   }
   return NextResponse.json({done:true})
 }
+
 export async function GET() { return POST() }
