@@ -1,11 +1,11 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
 
-async function getSheetIdByName(sheets, spreadsheetId, sheetName) {
-  const res = await sheets.spreadsheets.get({ spreadsheetId });
-  const sheet = res.data.sheets.find(s => s.properties.title === sheetName);
-  if (!sheet) throw new Error(`Sheet ${sheetName} not found`);
-  return sheet.properties.sheetId;
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
 }
 
 export async function POST(req) {
@@ -13,104 +13,79 @@ export async function POST(req) {
     const body = await req.json();
     const { customerID, areaID, deliveryAddress, note, addressType, lat, lng } = body;
 
-    if (!customerID || !addressType) {
-      return NextResponse.json({
-        success: false,
-        message: "نوع العنوان غير محدد",
-      }, { status: 400 });
+    if (!customerID ||!addressType) {
+      return NextResponse.json({ success: false, message: "نوع العنوان غير محدد" }, { status: 400 });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const supabase = getSupabase();
 
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-
-    // 1) جلب البيانات
+    // 1) جلب البيانات من Supabase
     const [
-      cartRes,
-      customersRes,
-      deliveryRatesRes,
-      areasRes,
+      { data: cartRowsRaw },
+      { data: customerRows },
+      { data: deliveryRatesRows },
+      { data: areasRows },
     ] = await Promise.all([
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Cart!A:Z" }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Customers!A:AE" }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Delivery Rates!A:Z" }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: "Areas!A:Z" }),
+      supabase.from('cart').select('*'),
+      supabase.from('customers').select('*'),
+      supabase.from('delivery_rates').select('*'),
+      supabase.from('areas').select('*'),
     ]);
 
-    const cartRows = cartRes.data.values?.slice(1) || [];
-    const customerRows = customersRes.data.values?.slice(1) || [];
-    const deliveryRatesRows = deliveryRatesRes.data.values?.slice(1) || [];
-    const areasRows = areasRes.data.values?.slice(1) || [];
-
-    // 2) سلة الزبون
-    const customerCart = cartRows.filter(
-      (row) => String(row[1]).trim() === String(customerID).trim() && String(row[6]).trim() === "FALSE"
+    // 2) سلة الزبون - نفس المنطق
+    const customerCart = (cartRowsRaw||[]).filter(
+      (row) => String(row["Customer ID"] || row["customer_id"] || "").trim() === String(customerID).trim() && String(row["Checked Out"] || row["checked_out"] || "FALSE").trim().toUpperCase() === "FALSE"
     );
 
     if (customerCart.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "السلة فاضية" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "السلة فاضية" }, { status: 400 });
     }
 
     // 3) الوزن
     let totalWeight = 0;
     const cartWithProducts = customerCart.map(row => {
-      const qty = Number(row[3]);
-      const linePoints = Number(row[9]);
-      const lineTotal = Number(row[5]);
-      const unitPrice = qty > 0 ? lineTotal / qty : 0;
-
+      const qty = Number(row["Qty"] || row["qty"] || 0);
+      const linePoints = Number(row["Line Points"] || row["line_points"] || 0);
+      const lineTotal = Number(row["Line Total"] || row["line_total"] || 0);
+      const unitPrice = qty > 0? lineTotal / qty : 0;
       totalWeight += qty * linePoints;
-
       return {
-        productID: row[2],
+        productID: row["Product ID"] || row["product_id"],
         qty,
         linePoints,
         unitPrice,
         lineTotal,
-        storeID: row[4],
+        storeID: row["Store ID"] || row["store_id"],
       };
     });
 
-    // 4) بيانات الزبون + Delivery Fee
-    const customer = customerRows.find((row) => String(row[0]).trim() === String(customerID).trim());
+    // 4) بيانات الزبون + Delivery Fee - نفس المنطق
+    const customer = (customerRows||[]).find((row) => String(row["Customer ID"] || row["customer_id"] || row["ID"] || "").trim() === String(customerID).trim());
     if (!customer) {
       return NextResponse.json({ success: false, message: "الزبون غير موجود" }, { status: 400 });
     }
 
-    const freeDeliveryRemaining = Number(customer[8]) || 0;
-    const lastFreeDeliveryDate = customer[23] || "";
+    const freeDeliveryRemaining = Number(customer["Free Delivery Remaining"] || customer["free_delivery_remaining"] || customer[8] || 0);
+    const lastFreeDeliveryDate = customer["Last Free Delivery Date"] || customer["last_free_delivery_date"] || customer[23] || "";
     const today = new Date().toLocaleDateString("en-GB");
 
-    const rateRow = deliveryRatesRows.find((row) => {
-      const min = Number(row[1]);
-      const max = Number(row[2]);
+    const rateRow = (deliveryRatesRows||[]).find((row) => {
+      const min = Number(row["Min"] || row["min"] || row["Min Weight"] || row[1] || 0);
+      const max = Number(row["Max"] || row["max"] || row["Max Weight"] || row[2] || 999999);
       return totalWeight >= min && totalWeight <= max;
     });
 
-    const baseDeliveryFee = rateRow ? Number(rateRow[3]) : 0;
-    const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight <= 10 && lastFreeDeliveryDate !== today;
-    const deliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
+    const baseDeliveryFee = rateRow? Number(rateRow["Fee"] || rateRow["fee"] || rateRow["Delivery Fee"] || rateRow[3] || 0) : 0;
+    const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
+    const deliveryFee = isFreeDelivery? 0 : baseDeliveryFee;
 
-    // 5) تجهيز ID وتواريخ
+    // 5) تجهيز ID وتواريخ - نفس المنطق
     const requestID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
     const now = new Date();
-    const requestDate = now.toLocaleString("en-GB", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-    }).replace(",", "");
+    const requestDate = now.toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }).replace(",", "");
     const createdDate = now.toLocaleDateString("en-GB");
 
-    // 6) تحديد المنطقة والعنوان واللوكيشن حسب نوع العنوان
+    // 6) تحديد المنطقة والعنوان واللوكيشن حسب نوع العنوان - نفس المنطق 100%
     let finalAreaID = String(areaID || "").trim();
     let finalAddress = deliveryAddress || "";
     let finalNote = note || "";
@@ -118,27 +93,17 @@ export async function POST(req) {
     let finalLng = lng || "";
 
     if (addressType === "fixed") {
-      const customerArea = (customer[3] || "").trim();
-      const customerAddress = customer[4] || "";
-      const customerLat = customer[11] || "";
-      const customerLng = customer[12] || "";
+      const customerArea = String(customer["Area"] || customer["area"] || customer["Area ID"] || "").trim();
+      const customerAddress = customer["Adress"] || customer["Address"] || customer["Delivery Address"] || "";
+      const customerLat = customer["Current Latitude"] || customer["current_latitude"] || customer["Latitude"] || customer[11] || "";
+      const customerLng = customer["Current Longitude"] || customer["current_longitude"] || customer["Longitude"] || customer[12] || "";
 
-      // شرطين: كود مع كود + اسم مع اسم
-      const areaExistsByID = areasRows.some(row =>
-        String(row[0]).trim() === String(customerArea).trim()
-      );
-
-      const areaExistsByName = areasRows.some(row =>
-        String(row[1]).trim() === String(customerArea).trim()
-      );
-
+      const areaExistsByID = (areasRows||[]).some(row => String(row["Area ID"] || row["area_id"] || row[0] || "").trim() === String(customerArea).trim());
+      const areaExistsByName = (areasRows||[]).some(row => String(row["Area Name"] || row["area_name"] || row[1] || "").trim() === String(customerArea).trim());
       const areaExists = areaExistsByID || areaExistsByName;
 
       if (!areaExists) {
-        return NextResponse.json({
-          success: false,
-          message: "عذراً، منطقتك الحالية غير مدعومة للتوصيل",
-        }, { status: 400 });
+        return NextResponse.json({ success: false, message: "عذراً، منطقتك الحالية غير مدعومة للتوصيل" }, { status: 400 });
       }
 
       finalAreaID = customerArea;
@@ -147,105 +112,97 @@ export async function POST(req) {
       finalLat = customerLat;
       finalLng = customerLng;
     } else if (addressType === "new") {
-      if (!finalAreaID || !finalAddress) {
-        return NextResponse.json({
-          success: false,
-          message: "تأكد من تعبئة المنطقة والعنوان",
-        }, { status: 400 });
+      if (!finalAreaID ||!finalAddress) {
+        return NextResponse.json({ success: false, message: "تأكد من تعبئة المنطقة والعنوان" }, { status: 400 });
       }
-      if (!finalLat || !finalLng) {
-        return NextResponse.json({
-          success: false,
-          message: "ما قدرنا نحدد موقعك، جرّب مرة تانية",
-        }, { status: 400 });
+      if (!finalLat ||!finalLng) {
+        return NextResponse.json({ success: false, message: "ما قدرنا نحدد موقعك، جرّب مرة تانية" }, { status: 400 });
       }
     } else {
-      return NextResponse.json({
-        success: false,
-        message: "نوع العنوان غير معروف",
-      }, { status: 400 });
+      return NextResponse.json({ success: false, message: "نوع العنوان غير معروف" }, { status: 400 });
     }
 
-    // 7) نسخ الطلب على Order requuest (مع Customer Latitude/Longitude)
-    const newOrderRequestRow = [
-      requestID,                      // A
-      customerID,                     // B
-      String(finalAreaID),            // C
-      createdDate,                    // D
-      finalNote,                      // E
-      String(finalAddress),           // F
-      deliveryFee,                    // G
-      "", "", "Pending", "", requestDate, "", "FALSE", "Pending",
-      "", "", "", "", "", "Pending", "FALSE", 0, "", "", customer[2] || "",
-      "", "", "",                     // AC
-      finalLat,                       // AD
-      finalLng,                       // AE
-    ];
+    // 7) نسخ الطلب على Order requuest من Supabase
+    const orderRow = {
+      "Request ID": requestID,
+      "Customer ID": customerID,
+      "Area": String(finalAreaID),
+      "Created Date": createdDate,
+      "Note": finalNote,
+      "Delivery Adress": String(finalAddress),
+      "Delivery Fee": deliveryFee,
+      "Approval Status": "Pending",
+      "Request Date": requestDate,
+      "Checked": "FALSE",
+      "Delivery Status": "Pending",
+      "Payment Status": "Pending",
+      "Is Free Delivery": isFreeDelivery? "TRUE" : "FALSE",
+      "Free Delivery Count": 0,
+      "Customer Phone": customer["Mobile"] || customer["Phone"] || "",
+      "Customer Latitude": finalLat,
+      "Customer Longitude": finalLng,
+    };
+    // fallback lowercase
+    const orderRowLower = {
+      request_id: requestID,
+      customer_id: customerID,
+      area: String(finalAreaID),
+      created_date: createdDate,
+      note: finalNote,
+      delivery_address: String(finalAddress),
+      delivery_fee: deliveryFee,
+      approval_status: "Pending",
+      request_date: requestDate,
+      checked: false,
+      delivery_status: "Pending",
+      payment_status: "Pending",
+      is_free_delivery: isFreeDelivery,
+      customer_latitude: finalLat,
+      customer_longitude: finalLng,
+    };
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: "Order Requuest!A:AE",
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [newOrderRequestRow] },
-    });
+    let { error: orderErr } = await supabase.from('order_requuest').insert([orderRow]);
+    if (orderErr) {
+      const { error: err2 } = await supabase.from('order_requuest').insert([orderRowLower]);
+      if (err2) throw err2;
+    }
 
     // 8) نسخ تفاصيل الطلب على Order Details
-    const detailRows = cartWithProducts.map(item => {
-      const detailID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
-      const commissionAmount = item.lineTotal * 0.1;
-      return [
-        detailID, "", item.productID, item.qty, item.unitPrice, item.lineTotal,
-        item.storeID, customerID, requestID, finalAreaID, customerID, commissionAmount,
-      ];
-    });
+    const detailRows = cartWithProducts.map(item => ({
+      "Detail ID": crypto.randomUUID().replace(/-/g, "").substring(0, 8),
+      "Request ID": requestID,
+      "Product ID": item.productID,
+      "Qty": item.qty,
+      "Unit Price": item.unitPrice,
+      "Line Total": item.lineTotal,
+      "Store ID": item.storeID,
+      "Customer ID": customerID,
+      "Area": finalAreaID,
+      "Commission Amount": item.lineTotal * 0.1,
+    }));
 
     if (detailRows.length > 0) {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: "Order Details!A:Z",
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: detailRows },
-      });
-    }
-
-    // 9) مسح سلة الزبون
-    const fullCartRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Cart!A:Z",
-    });
-
-    const fullCartRows = fullCartRes.data.values || [];
-    const dataRows = fullCartRows.slice(1);
-
-    const rowsToDelete = [];
-    dataRows.forEach((row, index) => {
-      const rowCustomerID = String(row[1]).trim();
-      const isCheckedOut = String(row[6]).trim();
-      if (rowCustomerID === String(customerID).trim() && isCheckedOut === "FALSE") {
-        rowsToDelete.push(index + 2);
+      let { error } = await supabase.from('order_details').insert(detailRows);
+      if (error) {
+        const lowerRows = detailRows.map(r => ({
+          detail_id: r["Detail ID"],
+          request_id: r["Request ID"],
+          product_id: r["Product ID"],
+          qty: r["Qty"],
+          unit_price: r["Unit Price"],
+          line_total: r["Line Total"],
+          store_id: r["Store ID"],
+          customer_id: r["Customer ID"],
+          area: r["Area"],
+          commission_amount: r["Commission Amount"],
+        }));
+        await supabase.from('order_details').insert(lowerRows);
       }
-    });
-
-    if (rowsToDelete.length > 0) {
-      const cartSheetId = await getSheetIdByName(sheets, spreadsheetId, "Cart");
-      rowsToDelete.sort((a, b) => b - a);
-
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: rowsToDelete.map(rowNumber => ({
-            deleteDimension: {
-              range: {
-                sheetId: cartSheetId,
-                dimension: "ROWS",
-                startIndex: rowNumber - 1,
-                endIndex: rowNumber
-              }
-            }
-          }))
-        }
-      });
     }
+
+    // 9) مسح سلة الزبون من Supabase
+    await supabase.from('cart').delete().eq('Customer ID', customerID).eq('Checked Out', 'FALSE');
+    await supabase.from('cart').delete().eq('customer_id', customerID).eq('checked_out', false);
 
     return NextResponse.json({
       success: true,
@@ -256,9 +213,6 @@ export async function POST(req) {
 
   } catch (err) {
     console.error("Checkout Error:", err);
-    return NextResponse.json(
-      { success: false, message: "صار خطأ، جرب مرة تانية", error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: "صار خطأ، جرب مرة تانية", error: err.message }, { status: 500 });
   }
 }
