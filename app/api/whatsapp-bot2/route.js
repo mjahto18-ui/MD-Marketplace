@@ -386,8 +386,7 @@ async function getRecentConversation(phone) {
 async function saveToAppSheet(from, userMessage, aiReply) {
   const supabase = getSupabase();
   try {
-    const today = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Beirut" });
-    const { error } = await supabase.from('messages').insert([{ Phone: normalizeWhatsAppNumber(from), CustomerMessage: userMessage, AIReply: aiReply, Date: today, "Bot Session": "BOT2", Bot: "BOT2", "Message Type": "WHATSAPP" }]);
+    const { error } = await supabase.from('messages').insert([{ Phone: normalizeWhatsAppNumber(from), CustomerMessage: userMessage, AIReply: aiReply, Date: new Date().toISOString(), "Bot Session": "BOT2", Bot: "BOT2", "Message Type": "WHATSAPP" }]);
     if (error) console.error("❌ Save Message Supabase Error:", error.message);
     else console.log("💾 Messages BOT2: 200");
   } catch (error) { console.error("❌ Save Message Error:", error); }
