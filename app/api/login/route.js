@@ -1,60 +1,65 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { getgooglesheets } from "@/lib/googlesheets";
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function POST(req) {
   try {
     const { phone, pin } = await req.json();
     const phoneStr = String(phone).trim();
+    const supabase = getSupabase();
 
-    // هون الحل - بيستعمل نفس الكاش تبع باقي الموقع
-    const sheets = await getgooglesheets();
-
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Users!A2:Z",
-    });
-
-    const users = res.data.values || [];
-    const userIndex = users.findIndex(row => String(row[4]).trim() === phoneStr);
-    const user = users[userIndex];
+    const { data: users } = await supabase.from('users').select('*');
+    const user = (users||[]).find(row => String(row['Phone'] || row['phone'] || row['Mobile'] || row[4] || "").trim() === phoneStr);
 
     if (!user) {
       return NextResponse.json({ success: false, message: "رقم الهاتف أو رمز الدخول غير صحيح." }, { status: 401 });
     }
 
-    if (user[15] === "Locked") {
+    const userStatus = user['Status'] || user['status'] || user[9];
+    const lockStatus = user['Lock Status'] || user['lock_status'] || user['Locked'] || user[15];
+    const storedPin = String(user['PIN'] || user['pin'] || user['Password'] || user[10] || "").trim();
+    const attempts = parseInt(user['Login Attempts'] || user['login_attempts'] || user[14] || "0");
+
+    if (String(lockStatus).toUpperCase() === "LOCKED") {
       return NextResponse.json({
         success: false,
         message: "تم قفل الحساب بسبب محاولات دخول غير صحيحة. يرجى التواصل مع فريق الدعم أو طلب إعادة تعيين رمز الدخول لإعادة تفعيل الحساب."
       }, { status: 403 });
     }
 
-    if (user[9]!== "Active") {
+    if (String(userStatus).toUpperCase()!== "ACTIVE") {
       return NextResponse.json({
         success: false,
         message: "لا يمكن تسجيل الدخول لأن الحساب غير مفعل. يرجى التواصل مع فريق الدعم لتفعيل الحساب."
       }, { status: 403 });
     }
 
-    if (String(user[10]).trim() === String(pin).trim()) {
-      user[14] = "0";
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-        range: `Users!A${userIndex + 2}:Z`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: [user] }
-      });
+    if (storedPin === String(pin).trim()) {
+      // reset attempts - نفس المنطق
+      await supabase.from('users').update({
+        'Login Attempts': "0",
+        'login_attempts': 0,
+        'Attempts': "0"
+      }).eq('Phone', phoneStr);
+
+      await supabase.from('users').update({ login_attempts: 0 }).eq('phone', phoneStr);
 
       const cookieStore = await cookies();
       cookieStore.delete('md_guest');
 
-      const acceptedTermsValue = (user[17] || "").toString().toUpperCase().trim();
+      const acceptedTermsValue = String(user['Accepted Terms'] || user['accepted_terms'] || user[17] || "").toUpperCase().trim();
 
       cookieStore.set('session', JSON.stringify({
-        customerId: user[0],
-        name: user[3],
-        phone: String(user[4]).trim(),
+        customerId: user['Customer ID'] || user['customer_id'] || user[0],
+        name: user['Name'] || user['name'] || user[3],
+        phone: phoneStr,
         AcceptedTerms: acceptedTermsValue,
         acceptedTerms: acceptedTermsValue
       }), {
@@ -69,41 +74,40 @@ export async function POST(req) {
         success: true,
         message: "تم تسجيل الدخول بنجاح",
         user: {
-          userId: user[0],
-          customerId: user[7],
-          name: user[3],
-          phone: String(user[4]).trim(),
-          role: user[2],
-          email: user[6],
+          userId: user['User ID'] || user['user_id'] || user[0],
+          customerId: user['Customer ID'] || user['customer_id'] || user[7],
+          name: user['Name'] || user['name'] || user[3],
+          phone: phoneStr,
+          role: user['Role'] || user['role'] || user[2],
+          email: user['Email'] || user['email'] || user[6],
           AcceptedTerms: acceptedTermsValue
         }
       });
     }
 
-    let attempts = parseInt(user[14] || "0") + 1;
-    user[14] = attempts.toString();
+    // PIN غلط - نفس المنطق 3 محاولات
+    let newAttempts = attempts + 1;
 
-    if (attempts >= 3) {
-      user[10] = "";
-      user[15] = "Locked";
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-        range: `Users!A${userIndex + 2}:Z`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: [user] }
-      });
+    if (newAttempts >= 3) {
+      await supabase.from('users').update({
+        'Login Attempts': String(newAttempts),
+        'PIN': "",
+        'Lock Status': "Locked",
+        'login_attempts': newAttempts,
+        'pin': "",
+        'lock_status': "Locked"
+      }).eq('Phone', phoneStr);
+
       return NextResponse.json({
         success: false,
         message: "تم قفل الحساب بسبب محاولات دخول غير صحيحة. يرجى التواصل مع فريق الدعم أو طلب إعادة تعيين رمز الدخول لإعادة تفعيل الحساب."
       }, { status: 403 });
     }
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: `Users!A${userIndex + 2}:Z`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [user] }
-    });
+    await supabase.from('users').update({
+      'Login Attempts': String(newAttempts),
+      'login_attempts': newAttempts
+    }).eq('Phone', phoneStr);
 
     return NextResponse.json({
       success: false,
