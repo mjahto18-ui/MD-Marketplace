@@ -21,45 +21,43 @@ export async function GET() {
     const { phone } = JSON.parse(session.value);
     const supabase = getSupabase();
 
-    // 1. جيب معلومات اليوزر من جدول Users - Supabase فقط
+    // 1. جيب معلومات اليوزر من جدول Users
     const { data: usersRows } = await supabase.from('users').select('*');
-    const userRow = (usersRows||[]).find(row => String(row['Mobile'] || row['mobile'] || "").trim() === String(phone).trim());
+    const userRow = (usersRows||[]).find(row => String(row['Mobile'] || "").trim() === String(phone).trim());
 
     if (!userRow) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // 2. جيب معلومات الكوستومر من جدول Customers عن طريق Mobile - Supabase فقط
+    // 2. جيب معلومات الكوستومر من جدول Customers عن طريق Mobile
     const { data: customersRows } = await supabase.from('customers').select('*');
-    const customerRow = (customersRows||[]).find(row => String(row['Mobile'] || row['mobile'] || "").trim() === String(phone).trim());
+    const customerRow = (customersRows||[]).find(row => String(row['Mobile'] || "").trim() === String(phone).trim());
 
     const customerData = customerRow || {};
     const userData = userRow;
 
     // 3. اختار الاحداثيات
-    let lat = customerData['Current Latitude'] || customerData['current_latitude'] || customerData['Registration Latitude'] || null;
-    let lng = customerData['Current Longtitude'] || customerData['Current Longitude'] || customerData['current_longitude'] || customerData['Registration Longitude'] || null;
+    let lat = customerData['Current Latitude'] || customerData['Registration Latitude'] || null;
+    let lng = customerData['Current Longtitude'] || customerData['Registration Longitude'] || null;
 
     // 4. ادمج كلشي سوا
     return NextResponse.json({
       user: {
-        name: userData['Name'] || userData['name'],
-        phone: userData['Mobile'] || userData['mobile'],
-        role: userData['Role'] || userData['role'] || 'Customer',
-        email: userData['Email'] || userData['email'],
-        status: userData['Status'] || userData['status'],
-
-        // ⭐⭐ المهم جداً
-        AcceptedTerms: userData['AcceptedTerms'] || userData['accepted_terms'] || userData['Accepted Terms'],
+        name: userData['Name'],
+        phone: userData['Mobile'],
+        role: userData['Role'] || 'Customer',
+        email: userData['Email'],
+        status: userData['Status'],
+        AcceptedTerms: userData['AcceptedTerms'],
 
         // من جدول Customers
-        customerId: customerData['Customer ID'] || customerData['customer_id'],
-        area: customerData['Area'] || customerData['area'],
-        address: customerData['Adress'] || customerData['Address'] || customerData['address'],
-        freeDeliveries: parseInt(customerData['Free Delivery Remaining'] || customerData['free_delivery_remaining'] || 0) || 0,
+        customerId: customerData['Customer ID'],
+        area: customerData['Area'],
+        address: customerData['Adress'],
+        freeDeliveries: parseInt(customerData['Free Delivery Remaining'] || 0) || 0,
         lat: lat,
         lng: lng,
-        lastLocationUpdate: customerData['Last Location Update'] || customerData['last_location_update']
+        lastLocationUpdate: customerData['Last Location Update']
       }
     });
 
