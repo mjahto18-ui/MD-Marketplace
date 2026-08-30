@@ -1,5 +1,12 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function POST(req) {
   try {
@@ -8,8 +15,9 @@ export async function POST(req) {
     console.log("===== OneSignal Webhook =====");
     console.log(body);
     console.log(JSON.stringify(body, null, 2));
+
     // -----------------------------
-    // Extract Data From OneSignal
+    // Extract Data From OneSignal - نفس المنطق
     // -----------------------------
     const customerId = body?.notification?.target?.user?.id;
     const title = body?.notification?.headings?.en || "";
@@ -24,32 +32,24 @@ export async function POST(req) {
       });
     }
 
-    // -----------------------------
-    // Google Sheets Auth
-    // -----------------------------
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-
-    const sheets = google.sheets({ version: "v4", auth });
-
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    const supabase = getSupabase();
 
     // -----------------------------
-    // Append Notification
+    // Insert Notification - Supabase
     // -----------------------------
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: "Webhook!A:E",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[customerId, title, message, image, date]],
-      },
-    });
+    await supabase.from('webhook').insert([{
+      "Customer ID": customerId,
+      "Title": title,
+      "Message": message,
+      "Image": image,
+      "Date": date,
+      "customer_id": customerId,
+      "title": title,
+      "message": message,
+      "image": image,
+      "date": date,
+      "created_at": new Date().toISOString()
+    }]);
 
     return NextResponse.json({
       success: true,
