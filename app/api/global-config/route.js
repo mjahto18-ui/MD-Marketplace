@@ -11,7 +11,7 @@ export async function GET() {
     if (cache.data && (now - cache.time) < TTL) {
       return new Response(JSON.stringify(cache.data), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
       });
     }
 
@@ -20,9 +20,10 @@ export async function GET() {
 
     return new Response(JSON.stringify(config), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
     });
   } catch (e) {
+    console.error("Config API Error:", e);
     if (cache.data) {
       return new Response(JSON.stringify(cache.data), {
         status: 200,
