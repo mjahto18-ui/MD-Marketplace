@@ -12,9 +12,9 @@ export async function POST(req) {
     const body = await req.json();
     console.log("========== PUSH QUEUE SUPABASE ==========", body);
 
-    const queueId = body.queueId || body.Queue_ID || body["Queue ID"];
-    const userId = body.userId || body.User_ID || body["User ID"];
-    const code = body.code || body.Code;
+    const queueId = body["Queue ID"];
+    const userId = body["User ID"];
+    const code = body["Code"];
 
     if (!userId ||!code) {
       return NextResponse.json({ success: false, message: "Missing data" });
@@ -23,7 +23,7 @@ export async function POST(req) {
     const { data: user } = await supabase.from("users").select("*").eq("User ID", userId).single();
     if (!user) return NextResponse.json({ success: false, message: "User not found" });
 
-    const subscriptionId = user["Subscription ID"] || user["subscription_id"];
+    const subscriptionId = user["Subscription ID"];
     console.log("Subscription =", subscriptionId);
 
     if (!subscriptionId) {
@@ -33,8 +33,8 @@ export async function POST(req) {
     const { data: template } = await supabase.from("notification_templates").select("*").eq("Code", code).single();
     if (!template) return NextResponse.json({ success: false, message: "Template not found" });
 
-    const title = template["Title AR"] || template["title_ar"];
-    const message = template["Message AR"] || template["message_ar"];
+    const title = template["Title AR"];
+    const message = template["Message AR"];
 
     const response = await fetch("https://api.onesignal.com/notifications?c=push", {
       method: "POST",
@@ -53,7 +53,7 @@ export async function POST(req) {
     const result = await response.json();
 
     if (queueId) {
-      await supabase.from("push_queue").update({ Status: "Sent", status: "Sent" }).eq("Queue ID", queueId);
+      await supabase.from("push_queue").update({ "Status": "Sent", "Sent At": new Date().toISOString() }).eq("Queue ID", queueId);
     }
 
     return NextResponse.json({ success: true, result });
