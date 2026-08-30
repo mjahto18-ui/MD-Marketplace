@@ -13,30 +13,21 @@ export async function POST(req) {
     const { customerID } = await req.json();
     const supabase = getSupabase();
 
-    // جلب كل العملاء - نفس findIndex r[0] === customerID
-    const { data: rows } = await supabase.from('customers').select('*');
-    const rowIndex = (rows||[]).findIndex(r => String(r['customer_id'] || r['Customer ID'] || r[0] || "").trim() === String(customerID).trim());
+    const { data: rows } = await supabase.from('customers').select('"Customer ID"').eq('Customer ID', String(customerID).trim()).limit(1);
 
-    if (rowIndex === -1) {
+    if (!rows?.length) {
       return NextResponse.json({ ok: false, msg: "Customer not found" });
     }
 
-    // عمود Last Location Update هو آخر عمود - نفس المنطق
-    await supabase.from('customers').update({
-      "last_location_update": new Date().toLocaleDateString("en-US"),
-      "Last Location Update": new Date().toLocaleDateString("en-US"),
-      "last_location_update_iso": new Date().toISOString()
-    }).eq('customer_id', String(customerID).trim());
-
-    // fallback capital
-    await supabase.from('customers').update({
-      "Last Location Update": new Date().toLocaleDateString("en-US"),
-      "last_location_update": new Date().toLocaleDateString("en-US")
+    const { error } = await supabase.from('customers').update({
+      "Last Location Update": new Date().toISOString()
     }).eq('Customer ID', String(customerID).trim());
+
+    if (error) throw error;
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ ok: false });
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
