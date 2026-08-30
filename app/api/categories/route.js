@@ -15,9 +15,9 @@ export async function GET() {
     if (error) throw error;
 
     const categories = (data || []).map(category => ({
-      id: category['Category ID'] || category['category_id'] || category['id'],
-      name: category['Category Name'] || category['category_name'] || category['name'],
-      image: category['Icon'] || category['icon'] || category['image'] // نفس السر: Icon -> image
+      id: category['Category ID'],
+      name: category['Category Name'],
+      image: category['Icon']
     })).filter(cat => cat.id && cat.name);
 
     return NextResponse.json({ categories });
