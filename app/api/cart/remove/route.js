@@ -25,14 +25,13 @@ async function getCustomerIDFromSession(supabase) {
 
   const { data: customers } = await supabase.from('customers').select('*');
   for (const c of customers || []) {
-    const mobiles = [c["Mobile"], c["mobile"], c["Phone"], c["phone"], c[1], c[2]].map(normalize);
-    if (mobiles.includes(normalize(phone))) {
-      return c["Customer ID"] || c["customer_id"] || c["ID"] || c["id"] || c[0];
+    if (normalize(c["Mobile"]) === normalize(phone)) {
+      return c["Customer ID"];
     }
   }
   const { data: users } = await supabase.from('users').select('*');
   const user = (users||[]).find(row => Object.values(row).map(v=>String(v)).includes(String(phone)));
-  if (user) return user["User ID"] || user["user_id"] || user["Customer ID"] || user["customer_id"];
+  if (user) return user["User ID"] || user["Customer ID"];
   return null;
 }
 
@@ -49,28 +48,17 @@ export async function DELETE(req) {
       return NextResponse.json({ success: false, message: "لازم تسجل دخول" }, { status: 401 });
     }
 
-    // نفس المنطق: دور بالـ Cart حيث Customer ID + Product ID + FALSE
     const { data: cartRows } = await supabase.from('cart').select('*').eq('Customer ID', customerID).eq('Product ID', productID).eq('Checked Out', 'FALSE');
     let row = (cartRows||[])[0];
-    if (!row) {
-      const { data: cartRows2 } = await supabase.from('cart').select('*').eq('customer_id', customerID).eq('product_id', productID).eq('checked_out', false);
-      row = (cartRows2||[])[0];
-    }
 
     if (!row) {
       return NextResponse.json({ success: false, message: "المنتج غير موجود بالسلة" }, { status: 404 });
     }
 
-    const cartId = row["Cart ID"] || row["cart_id"];
-    let delError = null;
+    const cartId = row["Cart ID"];
     const { error } = await supabase.from('cart').delete().eq('Cart ID', cartId);
-    delError = error;
-    if (delError) {
-      const { error: err2 } = await supabase.from('cart').delete().eq('cart_id', cartId);
-      delError = err2;
-    }
 
-    if (delError) throw delError;
+    if (error) throw error;
 
     return NextResponse.json({ success: true, message: "تم حذف المنتج من السلة" });
   } catch (err) {
