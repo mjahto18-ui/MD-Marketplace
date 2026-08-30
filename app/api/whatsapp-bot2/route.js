@@ -351,7 +351,7 @@ async function checkCheckoutReadinessSimple(customerID) {
     return { ready: false, reason: "ADDRESS_MISSING", cart, customMessage: "🏠 ما عندك عنوان محفوظ بملفك.\nفوت على الموقع www.md-marketplace.store وكمل عنوانك، وبعدين ارجع اطلب واتساب ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
   }
   if (!delivery.lat ||!delivery.lng) {
-    return { ready: false, reason: "LOCATION_MISSING", cart, customMessage: "📍 حسابك ما فيه لوكيشن مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك تلقائياً، وبعدين فيك تطلب من الواتساب عادي ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
+    return { ready: false, reason: "LOCATION_MISSING", cart, customMessage: "📍  حسابك ما فيه لوكيشن مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك تلقائياً، وبعدين فيك تطلب من الواتساب عادي ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
   }
   return { ready: true, reason: "READY", cart, delivery, area: delivery.area, address: delivery.address };
 }
