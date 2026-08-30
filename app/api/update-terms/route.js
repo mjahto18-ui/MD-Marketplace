@@ -24,29 +24,14 @@ export async function POST(request) {
 
     const supabase = getSupabase();
 
-    // Users!A:R find row[4] === phone
-    const { data: rows } = await supabase.from('users').select('*');
-    const userRow = (rows||[]).find((row) => String(row['mobile'] || row['Mobile'] || row[4] || "").trim() === String(phone).trim());
-
-    if (!userRow) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
     const valueToSave = AcceptedTerms? "TRUE" : "FALSE";
 
-    // Users!R = AcceptedTerms [17] - صغيرة
-    await supabase.from('users').update({
-      "accepted_terms": valueToSave === "TRUE",
-      "Accepted Terms": valueToSave,
-      "accepted_terms_str": valueToSave
-    }).eq('mobile', String(phone).trim());
-
-    await supabase.from('users').update({
-      "accepted_terms": valueToSave === "TRUE",
-      "Accepted Terms": valueToSave
+    const { error } = await supabase.from('users').update({
+      "AcceptedTerms": valueToSave
     }).eq('Mobile', String(phone).trim());
 
-    // *** الحل هون - حدث الـ session ***
+    if (error) throw error;
+
     const newSession = {...sessionData, AcceptedTerms: true, acceptedTerms: true };
     const response = NextResponse.json({ success: true });
 
