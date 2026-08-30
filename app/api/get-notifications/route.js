@@ -25,33 +25,28 @@ export async function POST(req) {
 
     const supabase = getSupabase();
 
-    // 1. جيب الـ Customer ID من رقم الموبايل - نفس المنطق
+    // 1. جيب الـ Customer ID من رقم الموبايل
     const { data: customers } = await supabase.from('customers').select('*');
     const customerRow = (customers||[]).find(row =>
-      String(row['Mobile'] || row['mobile'] || row['Phone'] || "").trim() === String(phone).trim()
+      String(row['Mobile'] || "").trim() === String(phone).trim()
     );
 
     if (!customerRow) {
       return NextResponse.json({ success: false, notifications: [], message: "Customer not found" });
     }
 
-    const customerId = customerRow['Customer ID'] || customerRow['customer_id'] || customerRow['ID'];
+    const customerId = customerRow['Customer ID'];
 
-    // 2. جيب التنبيهات من webhook table
-    const { data: webhookRows } = await supabase.from('webhook').select('*').eq('Customer ID', customerId);
-    let rows = webhookRows;
-    if (!rows?.length) {
-      const { data } = await supabase.from('webhook').select('*').eq('customer_id', customerId);
-      rows = data;
-    }
+    // 2. جيب التنبيهات من webhook
+    const { data: rows } = await supabase.from('webhook').select('*').eq('Customer ID', customerId);
 
     const notifications = (rows||[])
     .map(r => ({
-        customerId: r['Customer ID'] || r['customer_id'] || r[0],
-        title: r['Title'] || r['title'] || r[1],
-        message: r['Message'] || r['message'] || r[2],
-        image: r['Image'] || r['image'] || r[3],
-        date: r['Date'] || r['date'] || r[4],
+        customerId: r['Customer ID'],
+        title: r['Title'],
+        message: r['Message'],
+        image: r['Image'],
+        date: r['Date'],
       }))
     .reverse()
     .slice(0, 10);
