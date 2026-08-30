@@ -14,8 +14,8 @@ export async function GET() {
     if (error) throw error;
 
     const areas = (data || []).map(r => ({
-      id: r["Area ID"] || r["area_id"] || r["id"],
-      name: r["Area Name"] || r["area_name"] || r["name"],
+      id: r["Area ID"],
+      name: r["Area Name"],
     }));
 
     return NextResponse.json({ areas });
