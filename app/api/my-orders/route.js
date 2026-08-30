@@ -1,37 +1,35 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET(req) {
   try {
     const customerID = req.nextUrl.searchParams.get("customerID");
     if (!customerID) return NextResponse.json({ success: true, orders: [] });
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const supabase = getSupabase();
+    const custIdLower = customerID.toString().trim().toLowerCase();
 
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    const { data: rows } = await supabase.from('order_requuest').select('*').order('Created Date', { ascending: false });
 
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Order Requuest!A:AE",
-    });
+    let allRows = rows;
+    if (!allRows?.length) {
+      const { data } = await supabase.from('order_requuest').select('*').order('created_date', { ascending: false });
+      allRows = data;
+    }
 
-    const rows = res.data.values || [];
-
-    const orders = rows
-     .slice(1)
-     .filter(r => (r[1] || "").toString().trim().toLowerCase() === customerID.toString().trim().toLowerCase())
-     .reverse()
-     .map(r => {
-        // ⭐ فصل إحداثيات السائق من خانة وحدة r[26] -> Current Location
-        const currentLocation = (r[26] || "").toString().trim();
+    const orders = (allRows||[])
+    .filter(r => String(r['Customer ID'] || r['customer_id'] || r[1] || "").trim().toLowerCase() === custIdLower)
+    .reverse()
+    .map(r => {
+        // ⭐ فصل إحداثيات السائق - نفس المنطق
+        const currentLocation = String(r['Current Location'] || r['current_location'] || r[26] || "").trim();
         let driverLat = null;
         let driverLng = null;
 
@@ -39,20 +37,23 @@ export async function GET(req) {
           const parts = currentLocation.split(",");
           driverLat = parts[0]?.trim() || null;
           driverLng = parts[1]?.trim() || null;
+        } else {
+          driverLat = r['Driver Latitude'] || r['driver_latitude'] || null;
+          driverLng = r['Driver Longitude'] || r['driver_longitude'] || null;
         }
 
         return {
-          requestID: r[0],
-          date: r[3],
-          itemsCost: r[15],
-          deliveryFee: r[6],
-          total: r[16],
-          approvalStatus: r[9], // J
-          status: r[14],
-          freeUsed: r[24] === "TRUE",
+          requestID: r['Request ID'] || r['request_id'] || r[0],
+          date: r['Created Date'] || r['created_date'] || r[3],
+          itemsCost: r['Items Cost'] || r['items_cost'] || r[15],
+          deliveryFee: r['Delivery Fee'] || r['delivery_fee'] || r[6],
+          total: r['Total'] || r['total'] || r[16],
+          approvalStatus: r['Approval Status'] || r['approval_status'] || r[9],
+          status: r['Delivery Status'] || r['delivery_status'] || r[14],
+          freeUsed: String(r['Is Free Delivery'] || r['is_free_delivery'] || r[24] || "").toUpperCase() === "TRUE",
           // العميل
-          customerLat: (r[29] || "").toString().trim(),
-          customerLng: (r[30] || "").toString().trim(),
+          customerLat: String(r['Customer Latitude'] || r['customer_latitude'] || r[29] || "").trim(),
+          customerLng: String(r['Customer Longitude'] || r['customer_longitude'] || r[30] || "").trim(),
           // السائق مفصول
           driverLat: driverLat,
           driverLng: driverLng,
