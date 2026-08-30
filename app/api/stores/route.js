@@ -1,54 +1,41 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET() {
   try {
-    // Google Auth
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    const supabase = getSupabase();
 
     // ============================
-    // 1) جلب جدول Stores
+    // 1) جلب جدول Stores - صغيرة
     // ============================
-    const storesRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Stores!A:Z",
-    });
-
-    const rows = storesRes.data.values || [];
+    const { data: dataRows } = await supabase.from('stores').select('*');
 
     // ============================
-    // 2) تجاهل أول صف لأنه Header
+    // 2) تجهيز البيانات حسب ترتيب الأعمدة الصحيح - نفس mapping
     // ============================
-    const dataRows = rows.slice(1);
-
-    // ============================
-    // 3) تجهيز البيانات حسب ترتيب الأعمدة الصحيح
-    // ============================
-    const stores = dataRows.map((row) => ({
-      storeID: row[0],            // A
-      storeName: row[1],          // B
-      category: row[2],           // C
-      ownerName: row[3],          // D
-      phone: row[4],              // E
-      area: row[5],               // F
-      address: row[6],            // G
-      description: row[7],        // H
-      image: row[8],              // I (Logo)
-      status: row[9],             // J
-      joinDate: row[10],          // K
-      commissionRate: row[11],    // L
-      deliveryAvailable: row[12], // M
-      closeTime: row[13],         // N
-      openTime: row[14],          // O
+    const stores = (dataRows||[]).map((row) => ({
+      storeID: row['store_id'] || row['Store ID'] || row[0],
+      storeName: row['store_name'] || row['Store Name'] || row[1],
+      category: row['category'] || row['Category'] || row[2],
+      ownerName: row['owner_name'] || row['Owner Name'] || row[3],
+      phone: row['phone'] || row['Phone'] || row[4],
+      area: row['area'] || row['Area'] || row[5],
+      address: row['adress'] || row['address'] || row['Address'] || row[6],
+      description: row['description'] || row['Description'] || row[7],
+      image: row['logo'] || row['Logo'] || row['image'] || row[8],
+      status: row['status'] || row['Status'] || row[9],
+      joinDate: row['join_date'] || row['Join Date'] || row[10],
+      commissionRate: row['commission_rate'] || row['Commission Rate'] || row[11],
+      deliveryAvailable: row['delivery_available'] || row['Delivery Available'] || row[12],
+      closeTime: row['close_time'] || row['Close Time'] || row[13],
+      openTime: row['open_time'] || row['Open Time'] || row[14],
     }));
 
     return NextResponse.json({
