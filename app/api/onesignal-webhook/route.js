@@ -17,7 +17,7 @@ export async function POST(req) {
     console.log(JSON.stringify(body, null, 2));
 
     // -----------------------------
-    // Extract Data From OneSignal - نفس المنطق
+    // Extract Data From OneSignal
     // -----------------------------
     const customerId = body?.notification?.target?.user?.id;
     const title = body?.notification?.headings?.en || "";
@@ -38,17 +38,12 @@ export async function POST(req) {
     // Insert Notification - Supabase
     // -----------------------------
     await supabase.from('webhook').insert([{
+      "Webhook ID": `WH-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       "Customer ID": customerId,
       "Title": title,
       "Message": message,
       "Image": image,
-      "Date": date,
-      "customer_id": customerId,
-      "title": title,
-      "message": message,
-      "image": image,
-      "date": date,
-      "created_at": new Date().toISOString()
+      "Date": date
     }]);
 
     return NextResponse.json({
