@@ -100,7 +100,7 @@ async function getUserByWhatsAppNumber(phone) {
   const normalized = normalizeWhatsAppNumber(phone);
   const users = await getSheetRows("Users");
   for (const row of users) {
-    const rowPhone = normalizeWhatsAppNumber(row["WhatsApp Number"] || row["Mobile"] || row["Phone"] || "");
+    const rowPhone = normalizeWhatsAppNumber(row["WhatsApp Number"] || row["Mobile"] || "");
     if (rowPhone === normalized) {
       return {
         userId: row["User ID"] || "", customerId: row["Customer ID"] || "", name: row["Name"] || "",
@@ -116,7 +116,7 @@ async function getCustomer(customerID) {
   const customers = await getSheetRows("Customers");
   const wanted = String(customerID).trim();
   for (const row of customers) {
-    const id = String(row["Customer ID"] || row["ID"] || "").trim();
+    const id = String(row["Customer ID"] || "").trim();
     if (id === wanted) return row;
   }
   return null;
@@ -137,36 +137,29 @@ async function findArea(input) {
 async function getCustomerDeliveryData(customerID) {
   const customer = await getCustomer(customerID);
   if (!customer) return { exists: false, area: null, address: "", lat: "", lng: "" };
-  const areaValue = String(customer["Area"] || customer["Area ID"] || "").trim();
+  const areaValue = String(customer["Area"] || "").trim();
   const area = await findArea(areaValue);
-  const address = String(customer["Adress"] || customer["Delivery Address"] || customer["Old Address"] || "").trim();
-  const lat = String(customer["Current Latitude"] || customer["Registration Latitude"] || customer["Latitude"] || customer["Lat"] || customer["Customer Latitude"] || "").trim();
-  const lng = String(customer["Current Longitude"] || customer["Registration Longitude"] || customer["Longitude"] || customer["Lng"] || customer["Customer Longitude"] || "").trim();
-  console.log(`📍 L=${customer["Current Latitude"]} M=${customer["Current Longitude"]} => lat=${lat} lng=${lng}`);
+  const address = String(customer["Adress"] || "").trim();
+  const lat = String(customer["Current Latitude"] || customer["Registration Latitude"] || "").trim();
+  const lng = String(customer["Current Longtitude"] || customer["Registration Longitude"] || "").trim();
+  console.log(`📍 L=${customer["Current Latitude"]} M=${customer["Current Longtitude"]} => lat=${lat} lng=${lng}`);
   return { exists: true, area, address, lat, lng };
 }
 function cartRowToObject(row) {
   return {
-    cartId: row["Cart ID"] || row["cart_id"] || "", customerId: row["Customer ID"] || row["customer_id"] || "", productId: row["Product ID"] || row["product_id"] || "",
-    qty: Number(row["Qty"] || row["qty"] || 0), storeId: row["Store ID"] || row["store_id"] || "", lineTotal: Number(row["Line Total"] || row["line_total"] || 0),
-    checkedOut: String(row["Checked Out"] || row["checked_out"] || "FALSE").toUpperCase(),
+    cartId: row["Cart ID"] || "", customerId: row["Customer ID"] || "", productId: row["Product ID"] || "",
+    qty: Number(row["Qty"] || 0), storeId: row["Store ID"] || "", lineTotal: Number(row["Line Total"] || 0),
+    checkedOut: String(row["Checked Out"] || "FALSE").toUpperCase(),
     checkOutFlag: String(row["Check Out Flag"] || "FALSE").toUpperCase(),
-    requestId: row["Request ID"] || "", linePoints: Number(row["Line Points"] || row["line_points"] || 0)
+    requestId: row["Request ID"] || "", linePoints: Number(row["Line Points"] || 0)
   };
 }
 async function getCustomerCart(customerID) {
   const supabase = getSupabase();
   const { data } = await supabase.from('cart').select('*').eq('Customer ID', customerID).or('"Checked Out".is.null,"Checked Out".eq.FALSE');
-  // fallback اذا الاعمدة lowercase
-  let rows = data;
-  if (!rows || rows.length===0) {
-    const { data: data2 } = await supabase.from('cart').select('*').eq('customer_id', customerID).or('checked_out.is.null,checked_out.eq.FALSE');
-    rows = data2 || [];
-  }
-  return (rows || []).map(cartRowToObject).filter(c => String(c.customerId).trim()===String(customerID).trim() && c.checkedOut!=="TRUE");
+  let rows = data || [];
+  return rows.map(cartRowToObject).filter(c => String(c.customerId).trim()===String(customerID).trim() && c.checkedOut!=="TRUE");
 }
-
-// ===== CART Supabase بدل Google Sheets API =====
 async function addToCart(customerID, product, qty) {
   const supabase = getSupabase();
   const quantity = Number(qty);
@@ -178,9 +171,6 @@ async function addToCart(customerID, product, qty) {
     const newLineTotal = newQty * product.price;
     const newLinePoints = newQty * product.points;
     const { error } = await supabase.from('cart').update({ "Qty": newQty, "Store ID": product.storeId, "Line Total": newLineTotal, "Line Points": newLinePoints }).eq('Cart ID', existing.cartId);
-    if (error) {
-      await supabase.from('cart').update({ qty: newQty, store_id: product.storeId, line_total: newLineTotal, line_points: newLinePoints }).eq('cart_id', existing.cartId);
-    }
     clearCache("Cart");
     return { success: true, updated: true, qty: newQty };
   }
@@ -189,9 +179,6 @@ async function addToCart(customerID, product, qty) {
   const linePoints = quantity * product.points;
   const row = { "Cart ID": cartId, "Customer ID": customerID, "Product ID": product.productId, "Qty": quantity, "Store ID": product.storeId, "Line Total": lineTotal, "Checked Out": "FALSE", "Check Out Flag": "FALSE", "Request ID": "", "Line Points": linePoints };
   const { error } = await supabase.from('cart').insert([row]);
-  if (error) {
-    await supabase.from('cart').insert([{ cart_id: cartId, customer_id: customerID, product_id: product.productId, qty: quantity, store_id: product.storeId, line_total: lineTotal, checked_out: false, line_points: linePoints }]);
-  }
   clearCache("Cart");
   return { success: true, updated: false, cartId, qty: quantity, lineTotal };
 }
@@ -206,10 +193,9 @@ async function updateCartQty(customerID, productId, qty) {
   const product = products.find(row => String(row["Product ID"] || "").trim() === String(productId).trim());
   if (!product) return { success: false, message: "المنتج مش موجود" };
   const price = Number(product["Price"] || 0);
-  const points = Number(product["Points"] || product["Point"] || product["Loyalty Points"] || 0);
+  const points = Number(product["Weight Points"] || 0);
   const supabase = getSupabase();
   const { error } = await supabase.from('cart').update({ "Qty": quantity, "Line Total": quantity*price, "Line Points": quantity*points }).eq('Cart ID', item.cartId);
-  if (error) await supabase.from('cart').update({ qty: quantity, line_total: quantity*price, line_points: quantity*points }).eq('cart_id', item.cartId);
   clearCache("Cart");
   return { success: true, qty: quantity };
 }
@@ -219,7 +205,6 @@ async function removeFromCart(customerID, productId) {
   const found = cart.find(r => r.productId === String(productId).trim());
   if (!found) return { success: false, message: "المنتج مش موجود بالسلة" };
   const { error } = await supabase.from('cart').delete().eq('Cart ID', found.cartId);
-  if (error) await supabase.from('cart').delete().eq('cart_id', found.cartId);
   clearCache("Cart");
   return { success: true };
 }
@@ -228,7 +213,6 @@ async function clearCustomerCart(customerID) {
   const supabase = getSupabase();
   try {
     const { error } = await supabase.from('cart').delete().eq('Customer ID', customerID).eq('Checked Out', 'FALSE');
-    if (error) await supabase.from('cart').delete().eq('customer_id', customerID).eq('checked_out', false);
     clearCache("Cart");
     console.log(`🗑 مسح السلة لـ ${customerID}`);
   } catch (e) { console.error("❌ خطأ مسح السلة:", e); }
@@ -275,11 +259,11 @@ function parseChoice(text) {
 }
 function productToObject(row) {
   const price = Number(row["Price"] || 0);
-  const points = Number(row["Points"] || row["Point"] || row["Loyalty Points"] || 0);
+  const points = Number(row["Weight Points"] || 0);
   return {
     productId: String(row["Product ID"] || "").trim(), productName: String(row["Product Name"] || "").trim(),
     unit: String(row["Unit"] || "").trim(), price, points,
-    storeId: String(row["Store ID"] || "").trim(), areaId: String(row["Area"] || row["Area ID"] || "").trim(),
+    storeId: String(row["Store ID"] || "").trim(), areaId: String(row["Area"] || "").trim(),
     available: normalizeText(row["Available"] || ""), active: String(row["Active"] || "").toUpperCase(),
     category: String(row["Category"] || "").trim()
   };
@@ -311,7 +295,7 @@ async function searchProducts(message, customerID) {
     else if (customerAreaName && normalizeText(product.areaId) === normalizeText(customerAreaName)) score += 8;
     if (score <= 0) continue;
     const store = storesRows.find(store => String(store["Store ID"] || "").trim() === product.storeId);
-    results.push({...product, storeName: store?.["Store Name"] || product.storeId, storeAddress: store?.["Address"] || store?.["Adress"] || "", score });
+    results.push({...product, storeName: store?.["Store Name"] || product.storeId, storeAddress: store?.["Adress"] || "", score });
   }
   results.sort((a, b) => b.score - a.score);
   return results.slice(0, 10);
@@ -351,7 +335,7 @@ async function checkCheckoutReadinessSimple(customerID) {
     return { ready: false, reason: "ADDRESS_MISSING", cart, customMessage: "🏠 ما عندك عنوان محفوظ بملفك.\nفوت على الموقع www.md-marketplace.store وكمل عنوانك، وبعدين ارجع اطلب واتساب ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
   }
   if (!delivery.lat ||!delivery.lng) {
-    return { ready: false, reason: "LOCATION_MISSING", cart, customMessage: "📍  حسابك ما فيه لوكيشن مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك تلقائياً، وبعدين فيك تطلب من الواتساب عادي ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
+    return { ready: false, reason: "LOCATION_MISSING", cart, customMessage: "📍 حسابك ما فيه لوكيشن مسجل.\nلازم تفوت تطلب مرة من الموقع www.md-marketplace.store لياخد موقعك تلقائياً، وبعدين فيك تطلب من الواتساب عادي ❤\n\n⏰ سلتك بتضل محفوظة نص ساعة." };
   }
   return { ready: true, reason: "READY", cart, delivery, area: delivery.area, address: delivery.address };
 }
@@ -387,16 +371,16 @@ async function saveToAppSheet(from, userMessage, aiReply) {
   const supabase = getSupabase();
   try {
     const today = new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" });
-    const { error } = await supabase.from('messages').insert([{ 
-      Phone: normalizeWhatsAppNumber(from), 
-      CustomerMessage: userMessage, 
-      AIReply: aiReply, 
-      Date: today, 
-      "Bot Session": "BOT2", 
-      Bot: "BOT2", 
-      "Message Type": "WHATSAPP" 
+    const { error } = await supabase.from('messages').insert([{
+      Phone: normalizeWhatsAppNumber(from),
+      CustomerMessage: userMessage,
+      AIReply: aiReply,
+      Date: today,
+      "Bot Session": "BOT2",
+      Bot: "BOT2",
+      "Message Type": "WHATSAPP"
     }]);
-    
+
     if (error) console.error("❌ Save Message Supabase Error:", error.message);
     else console.log("💾 Messages BOT2: 200");
   } catch (error) { console.error("❌ Save Message Error:", error); }
@@ -502,7 +486,6 @@ async function buildContext(user, message) {
   const delivery = customerID? await getCustomerDeliveryData(customerID) : null;
   return { user, cart, delivery, intent: detectIntent(message) };
 }
-// BOT SESSIONS Supabase
 async function appSheetAction(tableName, action, rows) {
   const supabase = getSupabase();
   const table = mapTable(tableName);
