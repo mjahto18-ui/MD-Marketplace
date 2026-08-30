@@ -1,5 +1,12 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function POST(request) {
   try {
@@ -15,38 +22,29 @@ export async function POST(request) {
     const sessionData = JSON.parse(decoded);
     const phone = sessionData.phone;
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const supabase = getSupabase();
 
-    const sheets = google.sheets({ version: "v4", auth });
+    // Users!A:R find row[4] === phone
+    const { data: rows } = await supabase.from('users').select('*');
+    const userRow = (rows||[]).find((row) => String(row['mobile'] || row['Mobile'] || row[4] || "").trim() === String(phone).trim());
 
-    const usersSheet = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Users!A:R",
-    });
-
-    const rows = usersSheet.data.values;
-    const userRowIndex = rows.findIndex((row) => row[4] === phone);
-
-    if (userRowIndex === -1) {
+    if (!userRow) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const valueToSave = AcceptedTerms? "TRUE" : "FALSE";
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: `Users!R${userRowIndex + 1}`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[valueToSave]],
-      },
-    });
+    // Users!R = AcceptedTerms [17] - صغيرة
+    await supabase.from('users').update({
+      "accepted_terms": valueToSave === "TRUE",
+      "Accepted Terms": valueToSave,
+      "accepted_terms_str": valueToSave
+    }).eq('mobile', String(phone).trim());
+
+    await supabase.from('users').update({
+      "accepted_terms": valueToSave === "TRUE",
+      "Accepted Terms": valueToSave
+    }).eq('Mobile', String(phone).trim());
 
     // *** الحل هون - حدث الـ session ***
     const newSession = {...sessionData, AcceptedTerms: true, acceptedTerms: true };
@@ -55,7 +53,7 @@ export async function POST(request) {
     response.cookies.set('session', JSON.stringify(newSession), {
       httpOnly: false,
       path: '/',
-      maxAge: 60 * 60 * 24 * 30 // 30 يوم
+      maxAge: 60 * 60 * 24 * 30
     });
 
     return response;
