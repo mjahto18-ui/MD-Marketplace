@@ -81,67 +81,304 @@ export default function Dashboard(){
   }
 
   const Item = ({label, count, href}) => (
-    <Link href={href} className="group bg-white border border-[#e8e5db] p-5 flex justify-between items-center hover:bg-[#fdfcf8] hover:border-[#2d2a1a] transition-all duration-200">
-      <div className="text-right flex-1">
-        <div className="text- tracking-[0.2em] text-[#9a968a] font-bold">{label}</div>
-        <div className="text- font-black text-[#1c1a14] mt-1 leading-none">{count}</div>
+    <Link
+      href={href}
+      className="group relative overflow-hidden bg-white border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.09)] hover:border-slate-300 transition-all duration-200"
+    >
+      <div className="absolute inset-y-0 right-0 w-1 bg-slate-900 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+      <div className="flex items-center gap-4 min-w-0">
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+          count > 0
+            ? 'bg-red-50 text-red-600'
+            : 'bg-slate-100 text-slate-500'
+        }`}>
+          <span className="text-lg font-black">
+            {count > 0 ? '!' : '✓'}
+          </span>
+        </div>
+
+        <div className="text-right min-w-0">
+          <div className="text-[11px] tracking-[0.12em] text-slate-400 font-bold uppercase truncate">
+            {label}
+          </div>
+          <div className="text-[28px] font-black text-slate-900 mt-1 leading-none tracking-tight">
+            {count}
+          </div>
+        </div>
       </div>
-      <div className={`w- h- flex items-center justify-center text- font-black ${count>0?'bg-[#e6392e] text-white':'bg-[#2d3325] text-[#e8e6d9]'}`}>
+
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+        count > 0
+          ? 'bg-red-600 text-white'
+          : 'bg-slate-100 text-slate-500'
+      }`}>
         {count}
       </div>
     </Link>
   )
 
   return (
-    <div className="min-h-screen bg-[#f4f2eb] p-0">
-      {/* HEADER - مربع بلا حروف */}
-      <div className="bg-white border-b border-[#e8e5db] px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <img src="/logo.png" alt="logo" className="w-8 h-8 object-contain" onError={(e)=>e.target.style.display='none'} />
-          <div className="text-right">
-            <div className="font-black text- text-[#1c1a14] tracking-tight">MD MARKETPLACE</div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="bg-[#2d2a1a] text-white text- px-2.5 py-1 font-bold tracking-widest">{myRole}</span>
-              <span className="text- font-bold text-[#1c1a14]">{myName} 👤</span>
+    <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
+
+      {/* HEADER */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-200/80">
+
+        <div className="px-6 lg:px-10 py-4 flex justify-between items-center">
+
+          <div className="flex items-center gap-4">
+
+            <div className="w-11 h-11 rounded-2xl bg-slate-950 flex items-center justify-center shadow-lg shadow-slate-900/10 overflow-hidden">
+              <img
+                src="/logo.png"
+                alt="logo"
+                className="w-8 h-8 object-contain"
+                onError={(e)=>e.target.style.display='none'}
+              />
             </div>
+
+            <div className="text-right">
+              <div className="font-black text-[15px] tracking-[0.04em] text-slate-950">
+                MD MARKETPLACE
+              </div>
+
+              <div className="flex items-center gap-2 mt-1.5">
+
+                <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-slate-600">
+                  {myRole}
+                </span>
+
+                <span className="text-[12px] font-bold text-slate-500">
+                  {myName} 👤
+                </span>
+
+              </div>
+            </div>
+
           </div>
+
+          <div className="flex items-center gap-2">
+
+            <button
+              onClick={load}
+              className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all"
+            >
+              <span className="mr-1.5">↻</span>
+              تحديث
+            </button>
+
+            <button
+              onClick={logout}
+              className="h-10 px-5 rounded-xl bg-slate-950 text-white text-xs font-black hover:bg-slate-800 active:scale-[0.98] shadow-lg shadow-slate-900/10 transition-all"
+            >
+              خروج
+            </button>
+
+          </div>
+
         </div>
-        <div className="flex gap-2">
-          <button onClick={load} className="border border-[#2d2a1a] px-4 py-2 text- font-bold hover:bg-[#2d2a1a] hover:text-white transition">تحديث</button>
-          <button onClick={logout} className="bg-[#2d2a1a] text-white px-5 py-2 text- font-black hover:bg-black transition">خروج</button>
-        </div>
+
       </div>
 
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap- bg-[#e8e5db] border border-[#e8e5db]">
-          <Item label="CUSTOMERS PENDING" count={counts.customersPending} href="/admin/customers-pending" />
-          <Item label="PENDING ORDERS" count={counts.pendingOrders} href="/admin/pending" />
-          <Item label="TODAY ORDERS" count={counts.todayOrders} href="/admin/today-orders" />
-          <Item label="ACTIVE ORDERS" count={counts.activeOrders} href="/admin/active-orders" />
-          <Item label="APPROVED ORDERS" count={counts.approvedOrders} href="/admin/approved-orders" />
-          <Item label="COMPLETE ORDERS" count={counts.completeOrders} href="/admin/complete-orders" />
-          <Item label="CASH PENDING" count={counts.cashPending} href="/admin/cash-pending" />
-          <Item label="CASH RECEIVED" count={counts.cashReceived} href="/admin/cash-received" />
-          <Item label="REJECTED ORDERS" count={counts.rejectedOrders} href="/admin/rejected-orders" />
-          <Item label="MAPPING CUSTOMERS" count={0} href="/admin/mapping-customers" />
+
+      {/* CONTENT */}
+      <main className="px-5 lg:px-10 py-8 max-w-[1600px] mx-auto">
+
+        {/* WELCOME */}
+        <div className="mb-8 flex items-end justify-between gap-4">
+
+          <div className="text-right">
+            <div className="text-[11px] font-bold tracking-[0.16em] uppercase text-slate-400 mb-2">
+              CONTROL CENTER
+            </div>
+
+            <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-950">
+              لوحة التحكم
+            </h1>
+
+            <p className="text-sm text-slate-500 font-medium mt-2">
+              مرحباً {myName}، إليك ملخص عمليات المنصة.
+            </p>
+          </div>
+
+          <div className="hidden md:flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] font-bold text-slate-500">
+              SYSTEM ONLINE
+            </span>
+          </div>
+
         </div>
 
-        <div className="mt-10">
-          <div className="text- tracking-[0.2em] text-[#9a968a] font-bold mb-3">عرض خاص — {myRole} — ({menuTables.length})</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap- bg-[#d8d2be] border border-[#d8d2be]">
+
+        {/* MAIN STATUS CARDS */}
+        <section>
+
+          <div className="flex items-center justify-between mb-4">
+
+            <div className="text-right">
+              <h2 className="text-sm font-black text-slate-900">
+                حالة العمليات
+              </h2>
+
+              <p className="text-[11px] text-slate-400 mt-1">
+                Orders & Customers Overview
+              </p>
+            </div>
+
+            <div className="h-px flex-1 bg-slate-200 mx-5" />
+
+          </div>
+
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+
+            <Item
+              label="CUSTOMERS PENDING"
+              count={counts.customersPending}
+              href="/admin/customers-pending"
+            />
+
+            <Item
+              label="PENDING ORDERS"
+              count={counts.pendingOrders}
+              href="/admin/pending"
+            />
+
+            <Item
+              label="TODAY ORDERS"
+              count={counts.todayOrders}
+              href="/admin/today-orders"
+            />
+
+            <Item
+              label="ACTIVE ORDERS"
+              count={counts.activeOrders}
+              href="/admin/active-orders"
+            />
+
+            <Item
+              label="APPROVED ORDERS"
+              count={counts.approvedOrders}
+              href="/admin/approved-orders"
+            />
+
+            <Item
+              label="COMPLETE ORDERS"
+              count={counts.completeOrders}
+              href="/admin/complete-orders"
+            />
+
+            <Item
+              label="CASH PENDING"
+              count={counts.cashPending}
+              href="/admin/cash-pending"
+            />
+
+            <Item
+              label="CASH RECEIVED"
+              count={counts.cashReceived}
+              href="/admin/cash-received"
+            />
+
+            <Item
+              label="REJECTED ORDERS"
+              count={counts.rejectedOrders}
+              href="/admin/rejected-orders"
+            />
+
+            <Item
+              label="MAPPING CUSTOMERS"
+              count={0}
+              href="/admin/mapping-customers"
+            />
+
+          </div>
+
+        </section>
+
+
+        {/* MENU */}
+        <section className="mt-12">
+
+          <div className="flex items-end justify-between mb-4">
+
+            <div className="text-right">
+
+              <h2 className="text-sm font-black text-slate-900">
+                أدوات الإدارة
+              </h2>
+
+              <p className="text-[11px] text-slate-400 mt-1">
+                {myRole} · {menuTables.length} صلاحية متاحة
+              </p>
+
+            </div>
+
+            <div className="h-px flex-1 bg-slate-200 mx-5" />
+
+          </div>
+
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
             {menuTables.map(m=>(
-              <Link key={m.supa_id} href={`/admin/${m.Menu}`} className="bg-[#3e3b2f] text-[#f6f3e8] p-5 hover:bg-[#4a4739] transition-colors group">
-                <div className="text- tracking-[0.18em] opacity-50 font-bold">{m.Menu}</div>
-                <div className="font-bold text- mt-1">{m.View}</div>
-                <div className="mt-3">
-                  <span className="bg-[#f6f3e8] text-[#3e3b2f] text- px-3 py-1 font-black">{m._access}</span>
+
+              <Link
+                key={m.supa_id}
+                href={`/admin/${m.Menu}`}
+                className="group relative overflow-hidden bg-slate-950 rounded-2xl p-5 min-h-[150px] flex flex-col justify-between border border-slate-800 hover:-translate-y-1 hover:bg-slate-900 hover:shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition-all duration-200"
+              >
+
+                <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-white/[0.04] group-hover:bg-white/[0.07] transition-all" />
+
+                <div className="relative">
+
+                  <div className="flex items-center justify-between">
+
+                    <span className="text-[10px] tracking-[0.16em] text-white/35 font-black uppercase">
+                      {m.Menu}
+                    </span>
+
+                    <span className="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-white/[0.12] transition-all">
+                      →
+                    </span>
+
+                  </div>
+
+                  <div className="font-black text-[17px] text-white mt-5 leading-tight">
+                    {m.View}
+                  </div>
+
                 </div>
+
+
+                <div className="relative flex items-center justify-between mt-5">
+
+                  <span className={`inline-flex rounded-lg px-3 py-1.5 text-[10px] font-black ${
+                    m._access === 'Read & Write'
+                      ? 'bg-emerald-400/10 text-emerald-300 border border-emerald-400/10'
+                      : 'bg-white/[0.07] text-white/50 border border-white/[0.06]'
+                  }`}>
+                    {m._access}
+                  </span>
+
+                  <span className="text-[10px] text-white/25 font-bold tracking-wider">
+                    OPEN
+                  </span>
+
+                </div>
+
               </Link>
+
             ))}
+
           </div>
-        </div>
-      </div>
+
+        </section>
+
+      </main>
+
     </div>
   )
 }
-
