@@ -22,14 +22,13 @@ async function getCustomerIDFromSession(supabase) {
   if (!phone) return null;
   const { data: customers } = await supabase.from('customers').select('*');
   for (const c of customers || []) {
-    const vals = [c["Mobile"], c["mobile"], c["Phone"], c["phone"]].map(v=>String(v||"").trim());
-    if (vals.includes(String(phone).trim()) || String(c[1]||"").trim()===String(phone).trim() || String(c[2]||"").trim()===String(phone).trim()) {
-      return c["Customer ID"] || c["customer_id"] || c["ID"] || c["id"] || c[0];
+    if (String(c["Mobile"] || "").trim() === String(phone).trim()) {
+      return c["Customer ID"];
     }
   }
   const { data: users } = await supabase.from('users').select('*');
-  const user = (users||[]).find(row => Object.values(row).map(v=>String(v)).includes(String(phone)));
-  return user? (user["User ID"] || user["user_id"] || user["Customer ID"] || user["customer_id"]) : null;
+  const user = (users||[]).find(row => String(row["Mobile"] || "").trim() === String(phone).trim());
+  return user? (user["Customer ID"] || user["User ID"]) : null;
 }
 
 export async function PUT(req) {
@@ -42,33 +41,26 @@ export async function PUT(req) {
     const customerID = await getCustomerIDFromSession(supabase);
     if (!customerID) return NextResponse.json({ success: false, message: "لازم تسجل دخول" }, { status: 401 });
 
-    // Cart من Supabase
     const { data: cartRows } = await supabase.from('cart').select('*').eq('Cart ID', cartID);
     let cartItem = (cartRows||[])[0];
-    if (!cartItem) {
-      const { data: cartRows2 } = await supabase.from('cart').select('*').eq('cart_id', cartID);
-      cartItem = (cartRows2||[])[0];
-    }
     if (!cartItem) return NextResponse.json({ success: false, message: "المنتج مش بالسلة" }, { status: 404 });
 
-    const itemCustomer = String(cartItem["Customer ID"] || cartItem["customer_id"] || "").trim();
+    const itemCustomer = String(cartItem["Customer ID"] || "").trim();
     if (itemCustomer!== String(customerID).trim()) {
       return NextResponse.json({ success: false, message: "ما عندك صلاحية تعدل هالمنتج" }, { status: 403 });
     }
 
-    const productID = cartItem["Product ID"] || cartItem["product_id"];
+    const productID = cartItem["Product ID"];
 
     const { data: products } = await supabase.from('products').select('*');
-    const product = (products||[]).find((row) => String(row["Product ID"] || row["product_id"] || row["id"] || "").trim() === String(productID).trim());
+    const product = (products||[]).find((row) => String(row["Product ID"] || "").trim() === String(productID).trim());
     if (!product) return NextResponse.json({ success: false, message: "المنتج غير موجود" }, { status: 404 });
 
-    const unitPrice = Number(product["Price"] || product["price"] || product[5] || 0);
+    const unitPrice = Number(product["Price"] || 0);
     const newTotal = Number(qty) * unitPrice;
 
     const { error } = await supabase.from('cart').update({ "Qty": qty, "Line Total": newTotal }).eq('Cart ID', cartID);
-    if (error) {
-      await supabase.from('cart').update({ qty: qty, line_total: newTotal }).eq('cart_id', cartID);
-    }
+    if (error) throw error;
 
     return NextResponse.json({ success: true, message: "تم تعديل الكمية" });
   } catch (err) {
