@@ -3,8 +3,15 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url) throw new Error("Missing Supabase URL");
+  return createClient(url, key);
+}
+
 export async function POST() {
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+  const supabase = getSupabase();
   const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID
   const ONESIGNAL_KEY = process.env.ONESIGNAL_REST_KEY
 
