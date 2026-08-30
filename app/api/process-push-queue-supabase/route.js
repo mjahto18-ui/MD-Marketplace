@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req) {
   try {
-    // جوّا الـ POST منشان ما يعمل Error وقت الـ Build
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_KEY
@@ -24,7 +23,7 @@ export async function POST(req) {
     const { data: user } = await supabase.from("users").select("*").eq("User ID", userId).single();
     if (!user) return NextResponse.json({ success: false, message: "User not found" });
 
-    const subscriptionId = user["Subscription ID"];
+    const subscriptionId = user["Subscription ID"] || user["subscription_id"];
     console.log("Subscription =", subscriptionId);
 
     if (!subscriptionId) {
@@ -34,8 +33,8 @@ export async function POST(req) {
     const { data: template } = await supabase.from("notification_templates").select("*").eq("Code", code).single();
     if (!template) return NextResponse.json({ success: false, message: "Template not found" });
 
-    const title = template["Title AR"];
-    const message = template["Message AR"];
+    const title = template["Title AR"] || template["title_ar"];
+    const message = template["Message AR"] || template["message_ar"];
 
     const response = await fetch("https://api.onesignal.com/notifications?c=push", {
       method: "POST",
@@ -54,7 +53,7 @@ export async function POST(req) {
     const result = await response.json();
 
     if (queueId) {
-      await supabase.from("push_queue").update({ Status: "Sent" }).eq("Queue ID", queueId);
+      await supabase.from("push_queue").update({ Status: "Sent", status: "Sent" }).eq("Queue ID", queueId);
     }
 
     return NextResponse.json({ success: true, result });
