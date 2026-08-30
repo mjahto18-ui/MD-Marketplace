@@ -19,20 +19,8 @@ export async function GET(req) {
 
     const supabase = getSupabase();
 
-    // نفس المنطق - find by Request ID [0]
     const { data: rows } = await supabase.from('order_requuest').select('*').eq('Request ID', requestID).limit(1);
     let order = rows?.[0];
-
-    if (!order) {
-      const { data } = await supabase.from('order_requuest').select('*').eq('request_id', requestID).limit(1);
-      order = data?.[0];
-    }
-
-    if (!order) {
-      // fallback scan
-      const { data: all } = await supabase.from('order_requuest').select('*');
-      order = (all||[]).find(r => String(r['Request ID'] || r['request_id'] || r[0] || "").trim() === String(requestID).trim());
-    }
 
     if (!order) {
       return NextResponse.json({ success: false, message: "Order not found" });
@@ -41,8 +29,12 @@ export async function GET(req) {
     return NextResponse.json({
       success: true,
       order: {
-        requestID: order['Request ID'] || order['request_id'] || order[0],
-        totalAmount: order['Delivery Fee'] || order['delivery_fee'] || order['Total'] || order[6],
+        requestID: order['Request ID'],
+        totalAmount: order['Total Amount'],
+        deliveryFee: order['Delivery Fee'],
+        itemsCost: order['Items Cost'],
+        deliveryStatus: order['Delivery Status'],
+        approvalStatus: order['Approval Status'],
       },
     });
 
