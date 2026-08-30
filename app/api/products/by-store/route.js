@@ -19,37 +19,21 @@ export async function GET(req) {
 
     const supabase = getSupabase();
 
-    const { data: rows } = await supabase.from('products').select('*').eq('Store ID', String(storeID).trim()).limit(1000);
-    let data = rows;
-    if (!data?.length) {
-      const { data: rows2 } = await supabase.from('products').select('*').eq('store_id', String(storeID).trim()).limit(1000);
-      data = rows2;
-    }
+    const { data: rows } = await supabase.from('products').select('*').eq('Store ID', String(storeID).trim());
 
-    if (!data?.length) {
-      const { data: allRows } = await supabase.from('products').select('*');
-      data = (allRows||[]).filter(row => {
-        const raw = String(row['Store ID'] || row['store_id'] || row[1] || "");
-        const cleaned = raw.trim().replace(/"/g, "").replace(/\u00A0/g, "").replace('.0', '');
-        return cleaned === String(storeID).trim();
-      });
-    }
-
-    // نفس mapping - فلترة المنتجات حسب storeID
-    const products = (data||[]).map(row => {
+    const products = (rows||[]).map(row => {
         return {
-          id: row['Product ID'] || row['product_id'] || row[0],
-          productID: row['Product ID'] || row['product_id'] || row[0],
-          name: row['Product Name'] || row['Name'] || row['product_name'] || row['name'] || "",
-          image: row['Image'] || row['image'] || "",
-          price: Number(row['Price'] || row['price'] || 0),
-          unit: row['Unit'] || row['unit'] || "",
-          category: row['Category'] || row['category'] || "",
-          weightPoint: Number(row['Weight Points'] || row['WeightPoints'] || row['weight_points'] || 0),
-          storeName: row['Store Name'] || row['store_name'] || "",
-          available: row['Available'] || row['available'] || "Yes",
-          stockQty: Number(row['Stock Qty'] || row['StockQty'] || row['stock_qty'] || 0),
-          description: row['Description'] || row['description'] || "",
+          id: row['Product ID'],
+          productID: row['Product ID'],
+          name: row['Product Name'] || "",
+          image: row['Image'] || "",
+          price: Number(row['Price'] || 0),
+          unit: row['Unit'] || "",
+          category: row['Category'] || "",
+          weightPoint: Number(row['Weight Points'] || 0),
+          available: row['Available'] || "Yes",
+          stockQty: Number(row['Stock Qty'] || 0),
+          description: row['Description'] || "",
         };
       });
 
