@@ -13,34 +13,17 @@ export async function POST(req) {
     const { customerID, lat, lng } = await req.json();
     const supabase = getSupabase();
 
-    const { data: rows } = await supabase.from('customers').select('*');
-    const rowIndex = (rows||[]).findIndex(r => String(r['customer_id'] || r['Customer ID'] || r[0] || "").trim() === String(customerID).trim());
-
-    if (rowIndex === -1) {
-      return NextResponse.json({ ok: false, msg: "Customer not found" });
-    }
-
-    // Current Latitude = 11, Longtitude = 12, Last Update = 13 - نفس المنطق batchUpdate
     const { error } = await supabase.from('customers').update({
-      "current_latitude": lat,
-      "current_longitude": lng,
-      "last_location_update": new Date().toLocaleDateString("en-US"),
-      "Current Latitude": lat,
-      "Current Longtitude": lng,
+      "Current Latitude": String(lat),
+      "Current Longtitude": String(lng), // متل ما هي مكتوبة بجدولك حتى لو فيها غلطة
       "Last Location Update": new Date().toLocaleDateString("en-US")
-    }).eq('customer_id', String(customerID).trim());
+    }).eq('Customer ID', String(customerID).trim());
 
-    if (error) {
-      await supabase.from('customers').update({
-        "current_latitude": lat,
-        "current_longitude": lng,
-        "last_location_update": new Date().toLocaleDateString("en-US")
-      }).eq('Customer ID', String(customerID).trim());
-    }
+    if (error) throw error;
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ ok: false });
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
