@@ -62,14 +62,12 @@ export async function POST(req) {
   const rawText = msg.text?.body?.trim() || "";
   const text = rawText.toLowerCase();
 
-  // 1) بوابة ايه - اول كلمة بس
   const yesWords = ["ايه", "اي", "نعم", "اوكي", "يلا", "تمام", "شوف", "خليني شوف"];
   const firstWord = text.split(" ")[0];
   const isYes = yesWords.includes(firstWord) || yesWords.includes(text);
   console.log("📩 from:", from, "text:", text, "isYes:", isYes);
   if (!isYes) return Response.json({ ok: true });
 
-  // 2) FIXED: شوف ساعة الـ YES مش ساعة المحادثة + آخر صف بس - من Supabase
   const { data: allMessages } = await supabase
     .from('messages')
     .select('*')
@@ -112,28 +110,26 @@ export async function POST(req) {
 
   console.log(`✅ بوابة العروض مفتوحة لـ ${from}`);
 
-  // 3) جيب الزبون - من Supabase
   const { data: users } = await supabase
     .from('users')
     .select('*');
   
-  const user = users?.find(u => normalize(u["WhatsApp Number"] || u["Whatsapp Number"] || u["Phone"]) === from);
+  const user = users?.find(u => normalize(u["WhatsApp Number"]) === from);
   if (!user) {
     console.log(`❌ SKIP ${from} مش موجود بجدول Users!`);
     return Response.json({ ok: true });
   }
   const gender = String(user["Gender"] || "male").toLowerCase();
 
-  // 4) جيب العروض - من Supabase
   const { data: arrivals } = await supabase
     .from('new_arrivals')
     .select('*');
 
   const suitable = (arrivals || []).filter(p => {
-    const added = new Date(p["Date Added"] || p["Created At"] || p["created_at"]);
+    const added = new Date(p["Date Added"]);
     const diffDays = (now - added) / (1000 * 60 * 60 * 24);
     if (diffDays > 3) return false;
-    const target = String(p["Gender Target"] || p["Gender"] || "both").toLowerCase();
+    const target = String(p["Gender Target"] || "both").toLowerCase();
     return target === "both" || target === gender;
   });
 
@@ -141,20 +137,20 @@ export async function POST(req) {
     await sendMessage(from, "ولا يهمّك! ما في شي جديد مناسب إلك هاليومين 🌸");
   } else {
     for (const p of suitable) {
-      const isSensitive = String(p["Is Sensitive"] || p["is_sensitive"] || "").toUpperCase() === "TRUE";
+      const isSensitive = String(p["Is Sensitive"] || "").toUpperCase() === "TRUE";
       if (isSensitive && gender === "male") continue;
 
       if (isSensitive) {
-        const shortText = `${p["Product Name"] || p["Name"]}\nالسعر: ${p["Price"]}\nالحجم: ${p["Size"]}\n\nللطلب 👇\n${p["Product Link"] || p["Link"]}`;
-        if (p["Image URL"] || p["Image"]) {
-          await sendImage(from, p["Image URL"] || p["Image"], shortText);
+        const shortText = `${p["Product Name"]}\nالسعر: ${p["Price"]}\nالحجم: ${p["Size"]}\n\nللطلب 👇\n${p["Product Link"]}`;
+        if (p["Image URL"]) {
+          await sendImage(from, p["Image URL"], shortText);
         } else {
           await sendMessage(from, shortText);
         }
       } else {
-        const fullText = `*${p["Product Name"] || p["Name"]}*\n🏷 ${p["Brand"]}\n💰 ${p["Price"]}\n📦 ${p["Size"]}\n${p["Description"]}\n\nللطلب 👇\n${p["Product Link"] || p["Link"]}`;
-        if (p["Image URL"] || p["Image"]) {
-          await sendImage(from, p["Image URL"] || p["Image"], fullText);
+        const fullText = `*${p["Product Name"]}*\n🏷 ${p["Brand"]}\n💰 ${p["Price"]}\n📦 ${p["Size"]}\n${p["Description"]}\n\nللطلب 👇\n${p["Product Link"]}`;
+        if (p["Image URL"]) {
+          await sendImage(from, p["Image URL"], fullText);
         } else {
           await sendMessage(from, fullText);
         }
@@ -163,7 +159,6 @@ export async function POST(req) {
     }
   }
 
-  // 5) سكر البوابة - سجل انه انبعت - من Supabase
   const beirutStr = now.toLocaleString("en-US", { timeZone: "Asia/Beirut" });
   await supabase.from('messages').insert([{
     Phone: from,
