@@ -19,7 +19,6 @@ export async function POST(req) {
 
     const supabase = getSupabase();
 
-    // 1) جلب البيانات من Supabase
     const [
       { data: cartRowsRaw },
       { data: customerRows },
@@ -32,60 +31,61 @@ export async function POST(req) {
       supabase.from('areas').select('*'),
     ]);
 
-    // 2) سلة الزبون - نفس المنطق
+    // سلة الزبون
     const customerCart = (cartRowsRaw||[]).filter(
-      (row) => String(row["Customer ID"] || row["customer_id"] || "").trim() === String(customerID).trim() && String(row["Checked Out"] || row["checked_out"] || "FALSE").trim().toUpperCase() === "FALSE"
+      (row) => String(row["Customer ID"] || "").trim() === String(customerID).trim() && String(row["Checked Out"] || "FALSE").trim().toUpperCase() === "FALSE"
     );
 
     if (customerCart.length === 0) {
       return NextResponse.json({ success: false, message: "السلة فاضية" }, { status: 400 });
     }
 
-    // 3) الوزن
+    // الوزن
     let totalWeight = 0;
     const cartWithProducts = customerCart.map(row => {
-      const qty = Number(row["Qty"] || row["qty"] || 0);
-      const linePoints = Number(row["Line Points"] || row["line_points"] || 0);
-      const lineTotal = Number(row["Line Total"] || row["line_total"] || 0);
+      const qty = Number(row["Qty"] || 0);
+      const linePoints = Number(row["Line Points"] || 0);
+      const lineTotal = Number(row["Line Total"] || 0);
       const unitPrice = qty > 0? lineTotal / qty : 0;
       totalWeight += qty * linePoints;
       return {
-        productID: row["Product ID"] || row["product_id"],
+        productID: row["Product ID"],
         qty,
         linePoints,
         unitPrice,
         lineTotal,
-        storeID: row["Store ID"] || row["store_id"],
+        storeID: row["Store ID"],
       };
     });
 
-    // 4) بيانات الزبون + Delivery Fee - نفس المنطق
-    const customer = (customerRows||[]).find((row) => String(row["Customer ID"] || row["customer_id"] || row["ID"] || "").trim() === String(customerID).trim());
+    // بيانات الزبون + Delivery Fee
+    const customer = (customerRows||[]).find((row) => String(row["Customer ID"] || "").trim() === String(customerID).trim());
     if (!customer) {
       return NextResponse.json({ success: false, message: "الزبون غير موجود" }, { status: 400 });
     }
 
-    const freeDeliveryRemaining = Number(customer["Free Delivery Remaining"] || customer["free_delivery_remaining"] || customer[8] || 0);
-    const lastFreeDeliveryDate = customer["Last Free Delivery Date"] || customer["last_free_delivery_date"] || customer[23] || "";
+    const freeDeliveryRemaining = Number(customer["Free Delivery Remaining"] || 0);
+    // ملاحظة: Last Free Delivery Date مو موجود بجدول customers اللي بعته، تركته متل ما هو اذا ضفته انت
+    const lastFreeDeliveryDate = customer["Last Free Delivery Date"] || "";
     const today = new Date().toLocaleDateString("en-GB");
 
     const rateRow = (deliveryRatesRows||[]).find((row) => {
-      const min = Number(row["Min"] || row["min"] || row["Min Weight"] || row[1] || 0);
-      const max = Number(row["Max"] || row["max"] || row["Max Weight"] || row[2] || 999999);
+      const min = Number(row["Min Points"] || 0);
+      const max = Number(row["Max Points"] || 999999);
       return totalWeight >= min && totalWeight <= max;
     });
 
-    const baseDeliveryFee = rateRow? Number(rateRow["Fee"] || rateRow["fee"] || rateRow["Delivery Fee"] || rateRow[3] || 0) : 0;
+    const baseDeliveryFee = rateRow? Number(rateRow["Delivery Fee"] || 0) : 0;
     const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
     const deliveryFee = isFreeDelivery? 0 : baseDeliveryFee;
 
-    // 5) تجهيز ID وتواريخ - نفس المنطق
+    // تجهيز ID وتواريخ
     const requestID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
     const now = new Date();
-    const requestDate = now.toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }).replace(",", "");
-    const createdDate = now.toLocaleDateString("en-GB");
+    const requestDate = now.toISOString(); // Request Date هو timestamp with time zone
+    const createdDate = now.toLocaleDateString("en-GB"); // Cerated Date هو text
 
-    // 6) تحديد المنطقة والعنوان واللوكيشن حسب نوع العنوان - نفس المنطق 100%
+    // تحديد المنطقة والعنوان واللوكيشن
     let finalAreaID = String(areaID || "").trim();
     let finalAddress = deliveryAddress || "";
     let finalNote = note || "";
@@ -93,14 +93,12 @@ export async function POST(req) {
     let finalLng = lng || "";
 
     if (addressType === "fixed") {
-      const customerArea = String(customer["Area"] || customer["area"] || customer["Area ID"] || "").trim();
-      const customerAddress = customer["Adress"] || customer["Address"] || customer["Delivery Address"] || "";
-      const customerLat = customer["Current Latitude"] || customer["current_latitude"] || customer["Latitude"] || customer[11] || "";
-      const customerLng = customer["Current Longitude"] || customer["current_longitude"] || customer["Longitude"] || customer[12] || "";
+      const customerArea = String(customer["Area"] || "").trim(); // هون بكون fr7455fr5
+      const customerAddress = customer["Adress"] || "";
+      const customerLat = customer["Current Latitude"] || "";
+      const customerLng = customer["Current Longtitude"] || ""; // مع t زيادة حسب جدولك
 
-      const areaExistsByID = (areasRows||[]).some(row => String(row["Area ID"] || row["area_id"] || row[0] || "").trim() === String(customerArea).trim());
-      const areaExistsByName = (areasRows||[]).some(row => String(row["Area Name"] || row["area_name"] || row[1] || "").trim() === String(customerArea).trim());
-      const areaExists = areaExistsByID || areaExistsByName;
+      const areaExists = (areasRows||[]).some(row => String(row["Area ID"] || "").trim() === String(customerArea).trim() || String(row["Area Name"] || "").trim() === String(customerArea).trim());
 
       if (!areaExists) {
         return NextResponse.json({ success: false, message: "عذراً، منطقتك الحالية غير مدعومة للتوصيل" }, { status: 400 });
@@ -122,92 +120,56 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "نوع العنوان غير معروف" }, { status: 400 });
     }
 
-    // 7) نسخ الطلب على Order requuest من Supabase
+    // 7) نسخ الطلب على order_requuest - بالأسماء الصحيحة 100% مع الأخطاء الإملائية اللي بالـ DB
     const orderRow = {
       "Request ID": requestID,
-      "Customer ID": customerID,
-      "Area": String(finalAreaID),
-      "Created Date": createdDate,
+      "customer ID": customerID, // c صغير حسب جدولك
+      "Area": String(finalAreaID), // هون بنخزن fr7455fr5
+      "Cerated Date": createdDate, // Cerated بدون a حسب جدولك
       "Note": finalNote,
-      "Delivery Adress": String(finalAddress),
+      "Delivery Adress": String(finalAddress), // Adress بحرف واحد حسب جدولك
       "Delivery Fee": deliveryFee,
       "Approval Status": "Pending",
       "Request Date": requestDate,
-      "Checked": "FALSE",
       "Delivery Status": "Pending",
-      "Payment Status": "Pending",
-      "Is Free Delivery": isFreeDelivery? "TRUE" : "FALSE",
-      "Free Delivery Count": 0,
-      "Customer Phone": customer["Mobile"] || customer["Phone"] || "",
       "Customer Latitude": finalLat,
       "Customer Longitude": finalLng,
-    };
-    // fallback lowercase
-    const orderRowLower = {
-      request_id: requestID,
-      customer_id: customerID,
-      area: String(finalAreaID),
-      created_date: createdDate,
-      note: finalNote,
-      delivery_address: String(finalAddress),
-      delivery_fee: deliveryFee,
-      approval_status: "Pending",
-      request_date: requestDate,
-      checked: false,
-      delivery_status: "Pending",
-      payment_status: "Pending",
-      is_free_delivery: isFreeDelivery,
-      customer_latitude: finalLat,
-      customer_longitude: finalLng,
+      "Mobile": customer["Mobile"] || "",
     };
 
     let { error: orderErr } = await supabase.from('order_requuest').insert([orderRow]);
-    if (orderErr) {
-      const { error: err2 } = await supabase.from('order_requuest').insert([orderRowLower]);
-      if (err2) throw err2;
-    }
+    if (orderErr) throw orderErr;
 
-    // 8) نسخ تفاصيل الطلب على Order Details
+    // 8) نسخ تفاصيل الطلب على order_details
     const detailRows = cartWithProducts.map(item => ({
       "Detail ID": crypto.randomUUID().replace(/-/g, "").substring(0, 8),
       "Request ID": requestID,
       "Product ID": item.productID,
-      "Qty": item.qty,
-      "Unit Price": item.unitPrice,
-      "Line Total": item.lineTotal,
+      "Qty": String(item.qty),
+      "Unit Price": String(item.unitPrice),
+      "Line Total": String(item.lineTotal),
       "Store ID": item.storeID,
-      "Customer ID": customerID,
-      "Area": finalAreaID,
-      "Commission Amount": item.lineTotal * 0.1,
+      "Costumer ID": customerID, // Costumer بدون t حسب جدولك
+      "Area": finalAreaID, // fr7455fr5
+      "Commission Amount": String(item.lineTotal * 0.1),
     }));
 
     if (detailRows.length > 0) {
       let { error } = await supabase.from('order_details').insert(detailRows);
-      if (error) {
-        const lowerRows = detailRows.map(r => ({
-          detail_id: r["Detail ID"],
-          request_id: r["Request ID"],
-          product_id: r["Product ID"],
-          qty: r["Qty"],
-          unit_price: r["Unit Price"],
-          line_total: r["Line Total"],
-          store_id: r["Store ID"],
-          customer_id: r["Customer ID"],
-          area: r["Area"],
-          commission_amount: r["Commission Amount"],
-        }));
-        await supabase.from('order_details').insert(lowerRows);
-      }
+      if (error) throw error;
     }
 
-    // 9) مسح سلة الزبون من Supabase
+    // 9) مسح سلة الزبون
     await supabase.from('cart').delete().eq('Customer ID', customerID).eq('Checked Out', 'FALSE');
-    await supabase.from('cart').delete().eq('customer_id', customerID).eq('checked_out', false);
+
+    // لعرض اسم المنطقة بعدين: اعمل lookup
+    // const areaName = areasRows.find(a => a["Area ID"] === finalAreaID)?.["Area Name"]
 
     return NextResponse.json({
       success: true,
       request_id: requestID,
       delivery_fee: deliveryFee,
+      area_id: finalAreaID,
       message: "تم ارسال طلبك للمراجعة",
     });
 
