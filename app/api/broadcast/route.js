@@ -20,7 +20,7 @@ export async function POST() {
   for (const b of broadcasts) {
     await supabase.from('broadcast').update({Status:'Sending'}).eq('Broadcast ID', b['Broadcast ID'])
     let q = supabase.from('users').select('"Subscription ID"').not('"Subscription ID"','is',null)
-    if (b.Audience === 'Customer') q = q.eq('Role','customer')
+    if (b['Audience'] === 'Customer') q = q.eq('Role','customer')
     const { data: users } = await q
     const subs = (users||[]).map(u=>u['Subscription ID']).filter(Boolean)
     if (!subs.length) { await supabase.from('broadcast').update({Status:'Failed'}).eq('Broadcast ID', b['Broadcast ID']); continue }
@@ -28,7 +28,7 @@ export async function POST() {
       await fetch('https://api.onesignal.com/notifications', {
         method:'POST',
         headers:{Authorization: `Key ${ONESIGNAL_KEY}`, 'Content-Type':'application/json'},
-        body: JSON.stringify({ app_id: ONESIGNAL_APP_ID, include_subscription_ids: subs.slice(i,i+2000), headings: { en: b.Title }, contents: { en: b.Message } })
+        body: JSON.stringify({ app_id: ONESIGNAL_APP_ID, include_subscription_ids: subs.slice(i,i+2000), headings: { en: b['Title'] }, contents: { en: b['Message'] } })
       })
     }
     await supabase.from('broadcast').update({Status:'Sent'}).eq('Broadcast ID', b['Broadcast ID'])
