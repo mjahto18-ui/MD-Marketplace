@@ -49,59 +49,50 @@ export async function POST(req) {
     const supabase = getSupabase();
     const phoneNorm = normalizePhone(phone);
 
-    // Customers من Supabase بدل Sheets
+    // Customers من Supabase
     const { data: customers } = await supabase.from('customers').select('*');
     let customerID = null;
     for (const c of customers || []) {
-      const mobile = normalizePhone(c["Mobile"] || c["Phone"] || c["mobile"] || c["phone"] || c["Mobile Number"] || "");
-      const custPhoneField = normalizePhone(c["Customer Phone"] || "");
-      const rawPhone = String(c["Mobile"] || c["Phone"] || "").trim();
-      if (mobile === phoneNorm || custPhoneField === phoneNorm || rawPhone === phone || String(c["Customer ID"] || c["customer_id"]) === phone) {
-        customerID = c["Customer ID"] || c["customer_id"] || c["ID"] || c["id"];
+      const mobile = normalizePhone(c["Mobile"] || "");
+      const rawPhone = String(c["Mobile"] || "").trim();
+      if (mobile === phoneNorm || rawPhone === phone || String(c["Customer ID"] || "") === phone) {
+        customerID = c["Customer ID"];
         break;
       }
     }
-    // fallback: دور بـ Customers اذا الـ Mobile بالحرف
     if (!customerID) {
-      const found = (customers || []).find(c => String(c["Mobile"] || c["mobile"] || c["Phone"] || "").trim() === String(phone).trim());
-      if (found) customerID = found["Customer ID"] || found["customer_id"];
+      const found = (customers || []).find(c => String(c["Mobile"] || "").trim() === String(phone).trim());
+      if (found) customerID = found["Customer ID"];
     }
 
     if (!customerID) return NextResponse.json({ success: false, message: "حسابك مش موجود" }, { status: 401 });
 
     // Products من Supabase
     const { data: products } = await supabase.from('products').select('*');
-    const product = (products || []).find((row) => String(row["Product ID"] || row["product_id"] || row["id"] || "").trim() === String(productID).trim());
+    const product = (products || []).find((row) => String(row["Product ID"] || "").trim() === String(productID).trim());
     if (!product) return NextResponse.json({ success: false, message: "المنتج غير موجود" });
 
-    const unitPrice = Number(product["Price"] || product["price"] || product["Unit Price"] || 0);
-    const storeID = product["Store ID"] || product["store_id"] || product["Store"] || "";
-    const linePoints = Number(product["Points"] || product["points"] || product["Point"] || product["Loyalty Points"] || 0);
+    const unitPrice = Number(product["Price"] || 0);
+    const storeID = product["Store ID"] || "";
+    const linePoints = Number(product["Weight Points"] || 0);
 
     // Cart من Supabase
     const { data: cartRows } = await supabase.from('cart').select('*').eq('Customer ID', customerID).eq('Product ID', productID).eq('Checked Out', 'FALSE');
     let existing = (cartRows || [])[0];
-    if (!existing) {
-      const { data: cartRows2 } = await supabase.from('cart').select('*').eq('customer_id', customerID).eq('product_id', productID).eq('checked_out', false);
-      existing = (cartRows2 || [])[0];
-    }
 
     if (existing) {
-      const existingQty = Number(existing["Qty"] || existing["qty"] || 0);
+      const existingQty = Number(existing["Qty"] || 0);
       const newQty = existingQty + Number(qty);
       const newTotal = newQty * unitPrice;
-      const existingId = existing["Cart ID"] || existing["cart_id"];
-      const { error } = await supabase.from('cart').update({ "Qty": newQty, "Line Total": newTotal }).eq('Cart ID', existingId);
-      if (error) await supabase.from('cart').update({ qty: newQty, line_total: newTotal }).eq('cart_id', existingId);
+      const existingId = existing["Cart ID"];
+      await supabase.from('cart').update({ "Qty": newQty, "Line Total": newTotal }).eq('Cart ID', existingId);
       return NextResponse.json({ success: true, message: "تم تحديث الكمية" });
     }
 
     const cartID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
     const newRow = { "Cart ID": cartID, "Customer ID": customerID, "Product ID": productID, "Qty": qty, "Store ID": storeID, "Line Total": qty * unitPrice, "Checked Out": "FALSE", "Check Out Flag": "FALSE", "Request ID": "", "Line Points": linePoints };
-    const { error } = await supabase.from('cart').insert([newRow]);
-    if (error) {
-      await supabase.from('cart').insert([{ cart_id: cartID, customer_id: customerID, product_id: productID, qty: qty, store_id: storeID, line_total: qty * unitPrice, checked_out: false, line_points: linePoints }]);
-    }
+    await supabase.from('cart').insert([newRow]);
+
     return NextResponse.json({ success: true, message: "تمت الإضافة" });
 
   } catch (err) {
