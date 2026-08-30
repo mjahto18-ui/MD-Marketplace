@@ -23,9 +23,9 @@ export async function POST(req) {
     }
 
     const userStatus = user['Status'] || user['status'] || user[9];
-    const lockStatus = user['Lock Status'] || user['lock_status'] || user['Locked'] || user[15];
+    const lockStatus = user['isLocked'] || user['lock_status'] || user['Locked'] || user[15];
     const storedPin = String(user['PIN'] || user['pin'] || user['Password'] || user[10] || "").trim();
-    const attempts = parseInt(user['Login Attempts'] || user['login_attempts'] || user[14] || "0");
+    const attempts = parseInt(user['failedAttempts'] || user['login_attempts'] || user[14] || "0");
 
     if (String(lockStatus).toUpperCase() === "LOCKED") {
       return NextResponse.json({
