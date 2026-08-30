@@ -12,24 +12,23 @@ function getSupabase() {
 export async function POST(req) {
   try {
     const supabase = getSupabase();
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+    const now = new Date().toISOString();
     
-    // Log guest visit - نفس المنطق
-    await supabase.from('guest_logs').insert([{
-      "Timestamp": new Date().toISOString(),
-      "IP": req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-      "User Agent": req.headers.get('user-agent') || 'unknown',
-      "timestamp": new Date().toISOString(),
-      "ip": req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-      "user_agent": req.headers.get('user-agent') || 'unknown'
+    // Log guest visit - بالأسماء الصحيحة
+    await supabase.from('guestlogs').insert([{
+      "Log Date": now,
+      "IP Adresse": ip,
+      "Device Type": userAgent,
+      "Date Time": now,
+      "Note": "guest visit"
     }]);
     
-    // حط كوكي الزائر من السيرفر - نفس المنطق بالحرف
     const cookieStore = cookies();
     
-    // 1. امحي session اذا موجودة
     cookieStore.delete('session');
     
-    // 2. حط كوكي الزائر
     cookieStore.set('md_guest', 'true', {
       httpOnly: false,
       secure: false,
@@ -41,7 +40,6 @@ export async function POST(req) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);
-    // حتى لو فشل الـ log، حط الكوكي وخليه يفوت كزائر - نفس المنطق
     const cookieStore = cookies();
     cookieStore.delete('session');
     cookieStore.set('md_guest', 'true', {
