@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from "next/headers";
 
-async function getCustomerIDFromSession(sheets, spreadsheetId) {
+export const dynamic = "force-dynamic";
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
+
+async function getCustomerIDFromSession(supabase) {
   const cookieStore = cookies();
   const sessionCookie = cookieStore.get('session')?.value;
   if (!sessionCookie) return null;
@@ -12,68 +20,55 @@ async function getCustomerIDFromSession(sheets, spreadsheetId) {
     phone = session.phone || session.Mobile || session.user?.phone || sessionCookie;
   } catch { phone = sessionCookie; }
   if (!phone) return null;
-  const customersRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Customers!A:Z" });
-  const customers = customersRes.data.values || [];
-  const header = customers[0] || [];
-  const mobileIdx = header.findIndex(h => h.toLowerCase().includes('mobile') || h.toLowerCase().includes('phone'));
-  const customerIdIdx = header.findIndex(h => h.toLowerCase().includes('customer') && h.toLowerCase().includes('id'));
-  for (let i = 1; i < customers.length; i++) {
-    if (customers[i][mobileIdx] === phone || customers[i][1] === phone || customers[i][2] === phone) {
-      return customers[i][customerIdIdx >=0 ? customerIdIdx : 0] || customers[i][0];
+  const { data: customers } = await supabase.from('customers').select('*');
+  for (const c of customers || []) {
+    const vals = [c["Mobile"], c["mobile"], c["Phone"], c["phone"]].map(v=>String(v||"").trim());
+    if (vals.includes(String(phone).trim()) || String(c[1]||"").trim()===String(phone).trim() || String(c[2]||"").trim()===String(phone).trim()) {
+      return c["Customer ID"] || c["customer_id"] || c["ID"] || c["id"] || c[0];
     }
   }
-  const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Users!A:Z" });
-  const users = usersRes.data.values?.slice(1) || [];
-  const user = users.find(row => row.includes(phone));
-  return user ? user[0] : null;
+  const { data: users } = await supabase.from('users').select('*');
+  const user = (users||[]).find(row => Object.values(row).map(v=>String(v)).includes(String(phone)));
+  return user? (user["User ID"] || user["user_id"] || user["Customer ID"] || user["customer_id"]) : null;
 }
 
 export async function PUT(req) {
   try {
     const { cartID, qty } = await req.json();
-    if (!cartID || !qty) return NextResponse.json({ success: false, message: "cartID و qty مطلوبين" }, { status: 400 });
+    if (!cartID ||!qty) return NextResponse.json({ success: false, message: "cartID و qty مطلوبين" }, { status: 400 });
     if (qty < 1) return NextResponse.json({ success: false, message: "الكمية لازم تكون 1 أو أكثر" }, { status: 400 });
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: { client_email: process.env.GOOGLE_CLIENT_EMAIL, private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n") },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-
-    const customerID = await getCustomerIDFromSession(sheets, spreadsheetId);
+    const supabase = getSupabase();
+    const customerID = await getCustomerIDFromSession(supabase);
     if (!customerID) return NextResponse.json({ success: false, message: "لازم تسجل دخول" }, { status: 401 });
 
-    const cartRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Cart!A:Z" });
-    const cartRows = cartRes.data.values?.slice(1) || [];
+    // Cart من Supabase
+    const { data: cartRows } = await supabase.from('cart').select('*').eq('Cart ID', cartID);
+    let cartItem = (cartRows||[])[0];
+    if (!cartItem) {
+      const { data: cartRows2 } = await supabase.from('cart').select('*').eq('cart_id', cartID);
+      cartItem = (cartRows2||[])[0];
+    }
+    if (!cartItem) return NextResponse.json({ success: false, message: "المنتج مش بالسلة" }, { status: 404 });
 
-    const index = cartRows.findIndex((row) => row[0] === cartID);
-    if (index === -1) return NextResponse.json({ success: false, message: "المنتج مش بالسلة" }, { status: 404 });
-
-    const cartItem = cartRows[index];
-    // تأكد انو هالسلة لنفس الزبون
-    if (String(cartItem[1]).trim() !== String(customerID).trim()) {
+    const itemCustomer = String(cartItem["Customer ID"] || cartItem["customer_id"] || "").trim();
+    if (itemCustomer!== String(customerID).trim()) {
       return NextResponse.json({ success: false, message: "ما عندك صلاحية تعدل هالمنتج" }, { status: 403 });
     }
 
-    const productID = cartItem[2];
+    const productID = cartItem["Product ID"] || cartItem["product_id"];
 
-    const productsRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Products!A:L" });
-    const productsRows = productsRes.data.values?.slice(1) || [];
-    const product = productsRows.find((row) => row[0] === productID);
+    const { data: products } = await supabase.from('products').select('*');
+    const product = (products||[]).find((row) => String(row["Product ID"] || row["product_id"] || row["id"] || "").trim() === String(productID).trim());
     if (!product) return NextResponse.json({ success: false, message: "المنتج غير موجود" }, { status: 404 });
 
-    const unitPrice = Number(product[5]);
+    const unitPrice = Number(product["Price"] || product["price"] || product[5] || 0);
+    const newTotal = Number(qty) * unitPrice;
 
-    cartItem[3] = qty;
-    cartItem[5] = qty * unitPrice;
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `Cart!A${index + 2}:Z${index + 2}`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [cartItem] },
-    });
+    const { error } = await supabase.from('cart').update({ "Qty": qty, "Line Total": newTotal }).eq('Cart ID', cartID);
+    if (error) {
+      await supabase.from('cart').update({ qty: qty, line_total: newTotal }).eq('cart_id', cartID);
+    }
 
     return NextResponse.json({ success: true, message: "تم تعديل الكمية" });
   } catch (err) {
