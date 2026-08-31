@@ -38,7 +38,7 @@ export async function POST() {
       'Last Activity': new Date().toISOString()
     }).eq('Phone', phone)
 
-    const { data: customerUsers } = await supabase.from('users').select('*').eq('Role','customer')
+    const { data: customerUsers } = await supabase.from('users').select('*').eq('Role','Customer')
 
     const user = customerUsers?.find(u => {
       const num = (u['WhatsApp Number'] || u['Mobile'] || '').replace(/\D/g,'').slice(-8)
