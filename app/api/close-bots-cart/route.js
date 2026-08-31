@@ -13,7 +13,7 @@ function getSupabase() {
 export async function POST() {
   const supabase = getSupabase();
   const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID
-  const ONESIGNAL_KEY = process.env.ONESIGNAL_REST_KEY
+  const ONESIGNAL_KEY = process.env.ONESIGNAL_REST_API_KEY
 
   const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
 
