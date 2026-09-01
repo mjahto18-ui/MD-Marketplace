@@ -83,7 +83,7 @@ export default function Dashboard(){
   const Item = ({label, count, href}) => (
     <Link
       href={href}
-      className="group relative overflow-hidden bg-[#3385FF] border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.09)] hover:border-slate-300 transition-all duration-200"
+      className="group relative overflow-hidden bg-[#E5F0FF] border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.09)] hover:border-slate-300 transition-all duration-200"
     >
       <div className="absolute inset-y-0 right-0 w-1 bg-[#0052CC] opacity-0 group-hover:opacity-100 transition-opacity" />
 
@@ -123,7 +123,7 @@ export default function Dashboard(){
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap');`}</style>
 
       {/* HEADER - خلفية 3385FF */}
-      <div className="sticky top-0 z-30 bg-[#3385FF] backdrop-blur-xl border-b border-slate-200/80">
+      <div className="sticky top-0 z-30 bg-[#E5F0FF] backdrop-blur-xl border-b border-slate-200/80">
 
         <div className="px-6 lg:px-10 py-4 flex justify-between items-center">
 
@@ -273,7 +273,7 @@ export default function Dashboard(){
               <Link
                 key={m.supa_id}
                 href={`/admin/${m.Menu}`}
-                className="group relative overflow-hidden bg-[#3385FF] rounded-2xl p-5 min-h- flex flex-col justify-between border border-slate-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-all duration-200"
+                className="group relative overflow-hidden bg-[#E5F0FF] rounded-2xl p-5 min-h- flex flex-col justify-between border border-slate-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-all duration-200"
               >
 
                 <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-[#0052CC]/5 group-hover:bg-[#0052CC]/10 transition-all" />
