@@ -692,22 +692,32 @@ export async function POST(req) {
       const low = String(rawText || "").toLowerCase().trim();
       const first = low.split(/\s+/)[0];
       if (simpleYes.includes(first) || simpleYes.includes(low)) {
-        const allMsgs = await getAllUserMessages(whatsappNumber);
-        const lastRow = allMsgs[allMsgs.length - 1];
-        const hasYes = lastRow && String(lastRow["Reassurance_Sent"] || "").toUpperCase().includes("YES");
-        if (hasYes) {
-          hasYesForOffers = true;
-          console.log(`🔑 YES found for ${whatsappNumber} -> calling new-arrivals with 961 + YES`);
-          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.md-marketplace.store";
-          fetch(`${siteUrl}/api/whatsapp/new-arrivals`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ from: whatsappNumber, text: { body: rawText } }] } }] }] })
-          }).catch(e => console.log("new-arrivals call failed", e.message));
+        const supabase = getSupabase();
+        const { data: allMsgs } = await supabase.from('messages')
+       .select('*')
+       .eq('Phone', whatsappNumber)
+       .order('_supa_synced_at', { ascending: false })
+       .limit(1);
+        const lastRow = allMsgs?.[0];
+        if (lastRow && String(lastRow["Reassurance_Sent"] || "").toUpperCase() === "YES") {
+          const reassAt = lastRow["Reassurance_At"] || lastRow["Date"];
+          const diffMin = (new Date() - new Date(reassAt)) / (1000 * 60);
+          if (diffMin >= 0 && diffMin <= 30) {
+            hasYesForOffers = true; // <-- هيدا ناقص عندك
+            console.log(`🔑 YES diff ${diffMin.toFixed(1)} -> new-arrivals`);
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.md-marketplace.store";
+            await fetch(`${siteUrl}/api/whatsapp/new-arrivals`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ entry: [{ changes: [{ value: { messages: [{ from: whatsappNumber, text: { body: rawText } }] } }] }] })
+            });
+            return Response.json({ status: "ok", forwarded_to: "NEW_ARRIVALS" }, { status: 200 });
+          }
         }
       }
-    } catch(e) {}
+    } catch(e) { console.log("YES check error", e.message) }
+
     const normalizedMsg = normalizeText(rawText);
-    if (!hasYesForOffers && /^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) {
+    if (!hasYesForOffers && /^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) { // <-- رجع!hasYesForOffers هون للامان
       const lastProduct = globalThis._lastProduct.get(whatsappNumber);
       if (lastProduct) {
         console.log(`🔥 طلب سعرات لـ ${lastProduct.code}`);
