@@ -16,6 +16,7 @@ export default function GenericTable(){
   const [showAdd, setShowAdd] = useState(false)
   const [newRow, setNewRow] = useState({})
   const [dropdowns, setDropdowns] = useState({})
+  const [enums, setEnums] = useState({})
   const [search, setSearch] = useState('')
 
   const normalize = (v) => String(v).toUpperCase() === 'TRUE' || v === true
@@ -64,6 +65,13 @@ export default function GenericTable(){
       setPerm({can_view:true, can_edit:false, can_add:false, can_delete:false})
     }
 
+    // 1- جيب الـ ENUMS من نفس الجدول عن طريق الـ function يلي عملتها بالـ SQL
+    let enumMaps = {}
+    try{
+      const { data: enumJson } = await supabase.rpc('get_table_enums', { p_table: t })
+      if(enumJson) enumMaps = enumJson
+    }catch(e){}
+
     const { data: rows } = await supabase.from(t).select('*').order('supa_id',{ascending:true}).limit(200)
     setData(rows||[])
     if(rows?.[0]) {
@@ -72,6 +80,7 @@ export default function GenericTable(){
       let maps = {}
       for (const col of columns) {
         if (col==='supa_id') continue
+        if (enumMaps[col]) continue // اذا هو ENUM ما بدنا ندورلو ربط
         const ref = guessRef(col)
         if (ref) {
           try {
@@ -83,6 +92,7 @@ export default function GenericTable(){
         }
       }
       setDropdowns(maps)
+      setEnums(enumMaps)
     }
   }
 
@@ -110,6 +120,14 @@ export default function GenericTable(){
   const filtered = data.filter(r =>!search || Object.values(r).some(v => String(v).toLowerCase().includes(search.toLowerCase())))
 
   const renderInput = (colKey, value, onChange, small=false) => {
+    if (enums[colKey]) {
+      return (
+        <select className={small? "w-full h-9 rounded-xl border border-amber-200 bg-amber-50/80 px-3 text- font-medium text-black outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/10" : "w-full h-11 rounded-2xl border border-amber-200 bg-amber-50/50 px-4 text- font-medium text-black outline-none focus:bg-white focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)}>
+          <option value="">اختر {colKey}</option>
+          {enums[colKey].map(v=>(<option key={v} value={v}>{v}</option>))}
+        </select>
+      )
+    }
     if (dropdowns[colKey]) {
       return (
         <select className={small? "w-full h-9 rounded-xl border border-zinc-200 bg-white px-3 text- font-medium text-black outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/10" : "w-full h-11 rounded-2xl border border-zinc-200 bg-zinc-50/50 px-4 text- font-medium text-black outline-none focus:bg-white focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)}>
@@ -138,7 +156,7 @@ export default function GenericTable(){
               </div>
               <div className="flex items-center gap-2.5 mt-2">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[#0052CC] text-white px-3 py-1 text- font-bold tracking-wide" style={{fontFamily:'Andika'}}><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"/>{myRole}</span>
-                <span className="text- text-black font-medium" style={{fontFamily:'Andika'}}>{filtered.length} سجل • {Object.keys(dropdowns).length} روابط</span>
+                <span className="text- text-black font-medium" style={{fontFamily:'Andika'}}>{filtered.length} سجل • {Object.keys(dropdowns).length} روابط • {Object.keys(enums).length} ENUM</span>
               </div>
             </div>
           </div>
@@ -157,11 +175,11 @@ export default function GenericTable(){
         {showAdd && (
           <div className="bg-[#E5F0FF] rounded- border border-zinc-100 shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-7 mb-8">
             <div className="flex items-center justify-between mb-7">
-              <div><h2 className="text- font-[800] tracking-tight text-black" style={{fontFamily:'Andika'}}>إضافة سجل جديد</h2><p className="text- text-black mt-1 font-medium" style={{fontFamily:'Andika'}}>كل الحقول المربوطة صارت قوائم منسدلة تلقائياً ▼</p></div>
+              <div><h2 className="text- font-[800] tracking-tight text-black" style={{fontFamily:'Andika'}}>إضافة سجل جديد</h2><p className="text- text-black mt-1 font-medium" style={{fontFamily:'Andika'}}>البرتقالي ENUM من نفس الجدول ◆ الأزرق مربوط من جدول تاني ●</p></div>
               <button onClick={()=>setShowAdd(false)} className="w-10 h-10 rounded-2xl bg-zinc-50 border border-zinc-100 text-black hover:bg-zinc-100 transition">✕</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {cols.filter(c=>c!=='supa_id').map(k=>(<div key={k}><label className="block text- font-bold tracking-wide text-black mb-2" style={{fontFamily:'Andika'}}>{k} {dropdowns[k] && <span className="text-[#0052CC]">▼ مربوط</span>}</label>{renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}</div>))}
+              {cols.filter(c=>c!=='supa_id').map(k=>(<div key={k}><label className="block text- font-bold tracking-wide text-black mb-2" style={{fontFamily:'Andika'}}>{k} {dropdowns[k] && <span className="text-[#0052CC]">● مربوط</span>} {enums[k] && <span className="text-amber-600">◆ {enums[k].length} قيم</span>}</label>{renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}</div>))}
             </div>
             <div className="mt-7 flex gap-2.5"><button onClick={add} className="h-11 px-7 rounded-2xl bg-[#0052CC] text-white text- font-bold hover:bg-[#0041a3] transition" style={{fontFamily:'Andika'}}>حفظ السجل</button><button onClick={()=>setShowAdd(false)} className="h-11 px-7 rounded-2xl bg-zinc-50 border border-zinc-100 text-black text- font-bold hover:bg-zinc-100 transition" style={{fontFamily:'Andika'}}>إلغاء</button></div>
           </div>
@@ -173,7 +191,7 @@ export default function GenericTable(){
               <div className="w-9 h-9 rounded-xl bg-[#0052CC] text-white flex items-center justify-center text- font-black" style={{fontFamily:'Andika'}}>{filtered.length}</div>
               <div><div className="text- font-bold text-black" style={{fontFamily:'Andika'}}>جدول {table}</div><div className="text- text-black font-medium mt-0.5" style={{fontFamily:'Andika'}}>عرض {filtered.length} من {data.length} • تحديث مباشر</div></div>
             </div>
-            <div className="flex items-center gap-2 text- font-medium text-black" style={{fontFamily:'Andika'}}><span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]"/>LIVE SYNC • DROPDOWNS ACTIVE</div>
+            <div className="flex items-center gap-2 text- font-medium text-black" style={{fontFamily:'Andika'}}><span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]"/>LIVE SYNC • {Object.keys(enums).length} ENUMS • {Object.keys(dropdowns).length} LINKS</div>
           </div>
 
           <div className="overflow-auto max-h-[calc(100vh-240px)]">
@@ -181,7 +199,7 @@ export default function GenericTable(){
               <thead className="sticky top-0 z-20">
                 <tr className="bg-[#0052CC] text-white">
                   {canEdit && (<th className="sticky right-0 z-30 bg-[#0052CC] px-6 py-4 text-center text- font-bold tracking-widest text-white" style={{fontFamily:'Andika'}}>إجراء</th>)}
-                  {cols.map(k=>(<th key={k} className="px-6 py-4 text-right text- font-bold tracking-widest text-white whitespace-nowrap border-l border-white/20" style={{fontFamily:'Andika'}}>{k} {dropdowns[k] && <span className="ml-1 text-white">●</span>}</th>))}
+                  {cols.map(k=>(<th key={k} className="px-6 py-4 text-right text- font-bold tracking-widest text-white whitespace-nowrap border-l border-white/20" style={{fontFamily:'Andika'}}>{k} {dropdowns[k] && <span className="ml-1 text-white">●</span>} {enums[k] && <span className="ml-1 text-amber-200">◆</span>}</th>))}
                   {canEdit && (<th className="px-6 py-4 text-center text- font-bold tracking-widest text-white" style={{fontFamily:'Andika'}}>حذف</th>)}
                 </tr>
               </thead>
@@ -189,7 +207,7 @@ export default function GenericTable(){
                 {filtered.map((r,index)=>(
                   <tr key={r.supa_id} className={`group border-b border-zinc-100 hover:bg-[#e6efff]/50 transition-all ${index%2===0?'bg-white':'bg-[#f6f8ff]'}`}>
                     {canEdit && (<td className="sticky right-0 z-10 bg-inherit group-hover:bg-[#e6efff]/50 px-4 py-3 border-l border-zinc-100">{editId===r.supa_id? (<div className="flex gap-1.5"><button onClick={save} className="h-8 px-3 rounded-xl bg-[#0052CC] text-white text- font-bold hover:bg-[#0041a3] transition" style={{fontFamily:'Andika'}}>حفظ</button><button onClick={()=>setEditId(null)} className="h-8 w-8 rounded-xl bg-zinc-100 text-black hover:bg-zinc-200 transition">✕</button></div>) : (<button onClick={()=>{setEditId(r.supa_id); setEditRow(r)}} className="h-8 px-4 rounded-xl bg-black text-white text- font-bold group-hover:bg-[#0052CC] transition-all" style={{fontFamily:'Andika'}}>تعديل</button>)}</td>)}
-                    {cols.map(k=>(<td key={k} className="px-6 py-4 text-right text-black font-bold max-w- truncate border-l border-zinc-50/50" style={{fontFamily:'Andika'}}>{editId===r.supa_id && k!=='supa_id'? (renderInput(k, editRow[k]||'', (v)=>setEditRow({...editRow,[k]:v}), true)) : (<span className={`${dropdowns[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e6efff] text-black border border-[#b3ccff] text- font-bold':''}`} style={{fontFamily:'Andika'}}>{dropdowns[k]? (dropdowns[k].find(o=>o.value===String(r[k]??''))?.label || String(r[k]??'')) : String(r[k]??'')}</span>)}</td>))}
+                    {cols.map(k=>(<td key={k} className="px-6 py-4 text-right text-black font-bold max-w- truncate border-l border-zinc-50/50" style={{fontFamily:'Andika'}}>{editId===r.supa_id && k!=='supa_id'? (renderInput(k, editRow[k]||'', (v)=>setEditRow({...editRow,[k]:v}), true)) : (<span className={`${dropdowns[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e6efff] text-black border border-[#b3ccff] text- font-bold':''} ${enums[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text- font-bold':''}`} style={{fontFamily:'Andika'}}>{dropdowns[k]? (dropdowns[k].find(o=>o.value===String(r[k]??''))?.label || String(r[k]??'')) : String(r[k]??'')}</span>)}</td>))}
                     {canEdit && (<td className="px-4 py-3 text-center"><button onClick={()=>del(r.supa_id)} className="h-8 px-3 rounded-xl bg-white border border-zinc-200 text-black text- font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition" style={{fontFamily:'Andika'}}>حذف</button></td>)}
                   </tr>
                 ))}
