@@ -83,14 +83,14 @@ export default function Dashboard(){
   const Item = ({label, count, href}) => (
     <Link
       href={href}
-      className="group relative overflow-hidden bg-white border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.09)] hover:border-slate-300 transition-all duration-200"
+      className="group relative overflow-hidden bg-[#3385FF] border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.09)] hover:border-slate-300 transition-all duration-200"
     >
       <div className="absolute inset-y-0 right-0 w-1 bg-[#0052CC] opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <div className="flex items-center gap-4 min-w-0">
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
           count > 0
-           ? 'bg-[#0052CC] text-white'
+          ? 'bg-[#0052CC] text-white'
             : 'bg-[#e6efff] text-[#0052CC]'
         }`}>
           <span className="text-lg font-black" style={{fontFamily:'Andika'}}>
@@ -110,7 +110,7 @@ export default function Dashboard(){
 
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
         count > 0
-         ? 'bg-[#0052CC] text-white'
+        ? 'bg-[#0052CC] text-white'
           : 'bg-black text-white'
       }`} style={{fontFamily:'Andika'}}>
         {count}
@@ -122,8 +122,8 @@ export default function Dashboard(){
     <div className="min-h-screen bg-[#0052CC] text-slate-900">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap');`}</style>
 
-      {/* HEADER */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-200/80">
+      {/* HEADER - خلفية 3385FF */}
+      <div className="sticky top-0 z-30 bg-[#3385FF] backdrop-blur-xl border-b border-slate-200/80">
 
         <div className="px-6 lg:px-10 py-4 flex justify-between items-center">
 
@@ -233,65 +233,16 @@ export default function Dashboard(){
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 
-            <Item
-              label="CUSTOMERS PENDING"
-              count={counts.customersPending}
-              href="/admin/customers-pending"
-            />
-
-            <Item
-              label="PENDING ORDERS"
-              count={counts.pendingOrders}
-              href="/admin/pending"
-            />
-
-            <Item
-              label="TODAY ORDERS"
-              count={counts.todayOrders}
-              href="/admin/today-orders"
-            />
-
-            <Item
-              label="ACTIVE ORDERS"
-              count={counts.activeOrders}
-              href="/admin/active-orders"
-            />
-
-            <Item
-              label="APPROVED ORDERS"
-              count={counts.approvedOrders}
-              href="/admin/approved-orders"
-            />
-
-            <Item
-              label="COMPLETE ORDERS"
-              count={counts.completeOrders}
-              href="/admin/complete-orders"
-            />
-
-            <Item
-              label="CASH PENDING"
-              count={counts.cashPending}
-              href="/admin/cash-pending"
-            />
-
-            <Item
-              label="CASH RECEIVED"
-              count={counts.cashReceived}
-              href="/admin/cash-received"
-            />
-
-            <Item
-              label="REJECTED ORDERS"
-              count={counts.rejectedOrders}
-              href="/admin/rejected-orders"
-            />
-
-            <Item
-              label="MAPPING CUSTOMERS"
-              count={0}
-              href="/admin/mapping-customers"
-            />
+            <Item label="CUSTOMERS PENDING" count={counts.customersPending} href="/admin/customers-pending" />
+            <Item label="PENDING ORDERS" count={counts.pendingOrders} href="/admin/pending" />
+            <Item label="TODAY ORDERS" count={counts.todayOrders} href="/admin/today-orders" />
+            <Item label="ACTIVE ORDERS" count={counts.activeOrders} href="/admin/active-orders" />
+            <Item label="APPROVED ORDERS" count={counts.approvedOrders} href="/admin/approved-orders" />
+            <Item label="COMPLETE ORDERS" count={counts.completeOrders} href="/admin/complete-orders" />
+            <Item label="CASH PENDING" count={counts.cashPending} href="/admin/cash-pending" />
+            <Item label="CASH RECEIVED" count={counts.cashReceived} href="/admin/cash-received" />
+            <Item label="REJECTED ORDERS" count={counts.rejectedOrders} href="/admin/rejected-orders" />
+            <Item label="MAPPING CUSTOMERS" count={0} href="/admin/mapping-customers" />
 
           </div>
 
@@ -303,15 +254,12 @@ export default function Dashboard(){
           <div className="flex items-end justify-between mb-4">
 
             <div className="text-right">
-
               <h2 className="text-sm font-black text-white" style={{fontFamily:'Andika'}}>
                 أدوات الإدارة
               </h2>
-
               <p className="text- text-white/70 mt-1" style={{fontFamily:'Andika'}}>
                 {myRole} · {menuTables.length} صلاحية متاحة
               </p>
-
             </div>
 
             <div className="h-px flex-1 bg-white/20 mx-5" />
@@ -325,7 +273,7 @@ export default function Dashboard(){
               <Link
                 key={m.supa_id}
                 href={`/admin/${m.Menu}`}
-                className="group relative overflow-hidden bg-white rounded-2xl p-5 min-h- flex flex-col justify-between border border-slate-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-all duration-200"
+                className="group relative overflow-hidden bg-[#3385FF] rounded-2xl p-5 min-h- flex flex-col justify-between border border-slate-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-all duration-200"
               >
 
                 <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-[#0052CC]/5 group-hover:bg-[#0052CC]/10 transition-all" />
@@ -354,7 +302,7 @@ export default function Dashboard(){
 
                   <span className={`inline-flex rounded-lg px-3 py-1.5 text- font-black ${
                     m._access === 'Read & Write'
-                     ? 'bg-[#e6efff] text-black border border-[#b3ccff]'
+                   ? 'bg-[#e6efff] text-black border border-[#b3ccff]'
                       : 'bg-black/5 text-black/60 border border-black/10'
                   }`} style={{fontFamily:'Andika'}}>
                     {m._access}
