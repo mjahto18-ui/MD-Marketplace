@@ -1,4 +1,3 @@
-
 "use client"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -16,8 +15,21 @@ export default function GenericTable(){
   const [editRow, setEditRow] = useState({})
   const [showAdd, setShowAdd] = useState(false)
   const [newRow, setNewRow] = useState({})
+  const [dropdowns, setDropdowns] = useState({})
 
   const normalize = (v) => String(v).toUpperCase() === 'TRUE' || v === true
+
+  const guessRef = (col) => {
+    const c = col.toLowerCase().replace(/_id| id|_ID/g,'').trim()
+    if (c==='area' || c==='areas') return { table: 'areas', idCol: 'Area ID', labelCol: 'Area' }
+    if (c==='category' || c==='categories') return { table: 'categories', idCol: 'Category ID', labelCol: 'Category' }
+    if (c==='store' || c==='stores') return { table: 'stores', idCol: 'Store ID', labelCol: 'Store Name' }
+    if (c==='product' || c==='products') return { table: 'products', idCol: 'Product ID', labelCol: 'Product Name' }
+    if (c==='customer' || c==='customers') return { table: 'customers', idCol: 'Customer ID', labelCol: 'Name' }
+    if (c==='driver' || c==='drivers') return { table: 'drivers', idCol: 'Driver ID', labelCol: 'Name' }
+    if (c==='user' || c==='users') return { table: 'users', idCol: 'User ID', labelCol: 'Name' }
+    return null
+  }
 
   const load = async () => {
     const sessRes = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' })
@@ -53,7 +65,24 @@ export default function GenericTable(){
 
     const { data: rows } = await supabase.from(t).select('*').order('supa_id',{ascending:true}).limit(200)
     setData(rows||[])
-    if(rows?.[0]) setCols(Object.keys(rows[0]))
+    if(rows?.[0]) {
+      const columns = Object.keys(rows[0])
+      setCols(columns)
+      let maps = {}
+      for (const col of columns) {
+        if (col==='supa_id') continue
+        const ref = guessRef(col)
+        if (ref) {
+          try {
+            const { data: refRows } = await supabase.from(ref.table).select(`"${ref.idCol}", "${ref.labelCol}"`).limit(500)
+            if (refRows && refRows.length>0) {
+              maps[col] = refRows.map(r => ({ value: String(r[ref.idCol]), label: String(r[ref.labelCol]||r[ref.idCol]) }))
+            }
+          } catch(e) {}
+        }
+      }
+      setDropdowns(maps)
+    }
   }
 
   useEffect(()=>{ load() },[table])
@@ -84,6 +113,31 @@ export default function GenericTable(){
 
   const canEdit = perm.can_edit
 
+  const renderInput = (colKey, value, onChange, small=false) => {
+    if (dropdowns[colKey]) {
+      return (
+        <select
+          className={small? "w-full min-w- h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5" : "w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition"}
+          value={value||''}
+          onChange={e=>onChange(e.target.value)}
+        >
+          <option value="">اختر {colKey}</option>
+          {dropdowns[colKey].map(opt=>(
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      )
+    }
+    return (
+      <input
+        placeholder={colKey}
+        className={small? "w-full min-w- h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5" : "w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition"}
+        value={value||''}
+        onChange={e=>onChange(e.target.value)}
+      />
+    )
+  }
+
   return (
     <div dir="rtl" className="min-h-screen bg-[#f5f7fa] text-slate-900">
 
@@ -111,7 +165,7 @@ export default function GenericTable(){
                   {table}
                 </h1>
 
-                <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-[10px] font-black text-slate-600">
+                <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text- font-black text-slate-600">
                   {data.length} سجل
                 </span>
 
@@ -119,16 +173,16 @@ export default function GenericTable(){
 
               <div className="flex items-center gap-2 mt-1.5">
 
-                <span className="text-[11px] font-bold text-slate-400">
+                <span className="text- font-bold text-slate-400">
                   {myRole}
                 </span>
 
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
 
-                <span className={`text-[11px] font-black ${
-                  canEdit ? 'text-emerald-600' : 'text-slate-400'
+                <span className={`text- font-black ${
+                  canEdit? 'text-emerald-600' : 'text-slate-400'
                 }`}>
-                  {canEdit ? 'قراءة وتعديل' : 'قراءة فقط'}
+                  {canEdit? 'قراءة وتعديل' : 'قراءة فقط'}
                 </span>
 
               </div>
@@ -136,7 +190,6 @@ export default function GenericTable(){
             </div>
 
           </div>
-
 
           <div className="flex items-center gap-2 shrink-0">
 
@@ -163,7 +216,6 @@ export default function GenericTable(){
 
       </header>
 
-
       {/* CONTENT */}
       <main className="p-5 lg:p-8">
 
@@ -178,7 +230,7 @@ export default function GenericTable(){
                   إضافة سجل جديد
                 </h2>
 
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text- text-slate-400 mt-1">
                   أدخل بيانات السجل ثم اضغط حفظ
                 </p>
               </div>
@@ -192,30 +244,23 @@ export default function GenericTable(){
 
             </div>
 
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
 
               {cols.filter(c=>c!=='supa_id').map(k=>(
 
                 <div key={k} className="text-right">
 
-                  <label className="block text-[10px] font-black tracking-wide text-slate-400 mb-1.5">
+                  <label className="block text- font-black tracking-wide text-slate-400 mb-1.5">
                     {k}
                   </label>
 
-                  <input
-                    placeholder={k}
-                    className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition"
-                    value={newRow[k]||''}
-                    onChange={e=>setNewRow({...newRow,[k]:e.target.value})}
-                  />
+                  {renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}
 
                 </div>
 
               ))}
 
             </div>
-
 
             <div className="mt-5 flex gap-2 justify-start">
 
@@ -238,7 +283,6 @@ export default function GenericTable(){
           </div>
         )}
 
-
         {/* TABLE CARD */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_6px_25px_rgba(15,23,42,0.05)] overflow-hidden">
 
@@ -251,8 +295,8 @@ export default function GenericTable(){
                 بيانات {table}
               </div>
 
-              <div className="text-[10px] text-slate-400 mt-1">
-                {data.length} سجل معروض
+              <div className="text- text-slate-400 mt-1">
+                {data.length} سجل معروض {Object.keys(dropdowns).length>0 && `• ${Object.keys(dropdowns).length} قوائم منسدلة`}
               </div>
 
             </div>
@@ -261,14 +305,13 @@ export default function GenericTable(){
 
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
 
-              <span className="text-[10px] font-bold text-slate-400">
+              <span className="text- font-bold text-slate-400">
                 LIVE DATA
               </span>
 
             </div>
 
           </div>
-
 
           {/* TABLE */}
           <div className="overflow-auto max-h-[calc(100vh-190px)]">
@@ -283,7 +326,7 @@ export default function GenericTable(){
                 <tr className="bg-slate-950 text-white">
 
                   {canEdit && (
-                    <th className="sticky right-0 z-30 bg-slate-950 px-4 py-3 text-center text-[11px] font-black border-l border-white/10">
+                    <th className="sticky right-0 z-30 bg-slate-950 px-4 py-3 text-center text- font-black border-l border-white/10">
                       تعديل
                     </th>
                   )}
@@ -291,14 +334,14 @@ export default function GenericTable(){
                   {cols.map(k=>(
                     <th
                       key={k}
-                      className="px-4 py-3 text-right text-[11px] font-black text-slate-200 border-l border-white/10 min-w-[130px]"
+                      className="px-4 py-3 text-right text- font-black text-slate-200 border-l border-white/10 min-w-"
                     >
-                      {k}
+                      {k} {dropdowns[k]? '▼' : ''}
                     </th>
                   ))}
 
                   {canEdit && (
-                    <th className="px-4 py-3 text-center text-[11px] font-black min-w-[80px]">
+                    <th className="px-4 py-3 text-center text- font-black min-w-">
                       حذف
                     </th>
                   )}
@@ -307,7 +350,6 @@ export default function GenericTable(){
 
               </thead>
 
-
               <tbody>
 
                 {data.map((r,index)=>(
@@ -315,7 +357,7 @@ export default function GenericTable(){
                   <tr
                     key={r.supa_id}
                     className={`border-b border-slate-100 hover:bg-slate-50 transition ${
-                      index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                      index % 2 === 0? 'bg-white' : 'bg-slate-50/40'
                     }`}
                   >
 
@@ -323,13 +365,13 @@ export default function GenericTable(){
 
                       <td className="sticky right-0 z-10 bg-inherit px-3 py-2 border-l border-slate-100">
 
-                        {editId===r.supa_id ? (
+                        {editId===r.supa_id? (
 
                           <div className="flex items-center justify-center gap-1">
 
                             <button
                               onClick={save}
-                              className="w-9 h-8 rounded-lg bg-emerald-600 text-white text-[10px] font-black hover:bg-emerald-700 transition"
+                              className="w-9 h-8 rounded-lg bg-emerald-600 text-white text- font-black hover:bg-emerald-700 transition"
                             >
                               حفظ
                             </button>
@@ -350,7 +392,7 @@ export default function GenericTable(){
                               setEditId(r.supa_id)
                               setEditRow(r)
                             }}
-                            className="h-8 px-3 rounded-lg bg-slate-950 text-white text-[10px] font-black hover:bg-slate-800 transition"
+                            className="h-8 px-3 rounded-lg bg-slate-950 text-white text- font-black hover:bg-slate-800 transition"
                           >
                             تعديل
                           </button>
@@ -361,25 +403,20 @@ export default function GenericTable(){
 
                     )}
 
-
                     {cols.map(k=>(
 
                       <td
                         key={k}
-                        className="px-4 py-2.5 text-right border-l border-slate-100 max-w-[280px] truncate text-[12px] font-medium text-slate-700"
+                        className="px-4 py-2.5 text-right border-l border-slate-100 max-w- truncate text- font-medium text-slate-700"
                       >
 
-                        {editId===r.supa_id && k!=='supa_id' ? (
+                        {editId===r.supa_id && k!=='supa_id'? (
 
-                          <input
-                            className="w-full min-w-[120px] h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
-                            value={editRow[k]||''}
-                            onChange={e=>setEditRow({...editRow,[k]:e.target.value})}
-                          />
+                          renderInput(k, editRow[k]||'', (v)=>setEditRow({...editRow,[k]:v}), true)
 
                         ) : (
 
-                          String(r[k]??'')
+                          dropdowns[k]? (dropdowns[k].find(o=>o.value===String(r[k]??''))?.label || String(r[k]??'')) : String(r[k]??'')
 
                         )}
 
@@ -387,14 +424,13 @@ export default function GenericTable(){
 
                     ))}
 
-
                     {canEdit && (
 
                       <td className="px-3 py-2 text-center">
 
                         <button
                           onClick={()=>del(r.supa_id)}
-                          className="h-8 px-3 rounded-lg bg-red-50 text-red-600 border border-red-100 text-[10px] font-black hover:bg-red-600 hover:text-white transition"
+                          className="h-8 px-3 rounded-lg bg-red-50 text-red-600 border border-red-100 text- font-black hover:bg-red-600 hover:text-white transition"
                         >
                           حذف
                         </button>
@@ -414,7 +450,6 @@ export default function GenericTable(){
           </div>
 
         </div>
-
 
         {/* PERMISSION MESSAGE */}
         {!canEdit && perm.can_view && (
@@ -436,4 +471,3 @@ export default function GenericTable(){
     </div>
   )
 }
-
