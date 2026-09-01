@@ -75,8 +75,8 @@ export async function GET(req) {
       if (!user) { console.log(`❌ SKIP ${phone} مش موجود بجدول Users!`); continue; }
       console.log(`✅ USER FOUND ${phone} -> Name=${user["Name"]} Gender=${user["Gender"]}`);
       const name = user["Name"]; const gender = String(user["Gender"] || "male").toLowerCase(); const isFemale = gender === "female";
-      let allowed = false; if (isFemale) { if (nowHour >= 10 && nowHour <= 12) allowed = true; } else { if (nowHour >= 9 && nowHour <= 11) allowed = true; }
-      if (!allowed) { console.log(`⏭ SKIP ${phone} not allowed hour=${nowHour}`); continue; }
+      let allowed = true; //if (isFemale) { if (nowHour >= 10 && nowHour <= 12) allowed = true; } else { if (nowHour >= 9 && nowHour <= 11) allowed = true; }
+      //if (!allowed) { console.log(`⏭ SKIP ${phone} not allowed hour=${nowHour}`); continue; }
       const lower = last.text.toLowerCase(); let type = "general";
       if (lower.includes("طلب") || lower.includes("اطلب") || lower.includes("اوردر")) type = "order";
       else if (lower.includes("وين") || lower.includes("موجود") || lower.includes("بدي")) type = "product";
