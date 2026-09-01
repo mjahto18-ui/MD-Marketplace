@@ -125,7 +125,7 @@ export default function GenericTable(){
     <div dir="rtl" className="min-h-screen bg-[#0052CC] text-zinc-900 selection:bg-zinc-900 selection:text-white">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap'); *{font-family:'Andika',sans-serif}`}</style>
 
-      <header className="sticky top-0 z-40 bg-[#3385FF] backdrop-blur-2xl border-b border-white/20">
+      <header className="sticky top-0 z-40 bg-[#E5F0FF] backdrop-blur-2xl border-b border-white/20">
         <div className="px-6 lg:px-10 py-5 flex items-center justify-between">
           <div className="flex items-center gap-5">
             <div className="w-12 h-12 rounded- bg-[#0052CC] flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
@@ -155,7 +155,7 @@ export default function GenericTable(){
 
       <main className="px-6 lg:px-10 py-8">
         {showAdd && (
-          <div className="bg-[#3385FF] rounded- border border-zinc-100 shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-7 mb-8">
+          <div className="bg-[#E5F0FF] rounded- border border-zinc-100 shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-7 mb-8">
             <div className="flex items-center justify-between mb-7">
               <div><h2 className="text- font-[800] tracking-tight text-black" style={{fontFamily:'Andika'}}>إضافة سجل جديد</h2><p className="text- text-black mt-1 font-medium" style={{fontFamily:'Andika'}}>كل الحقول المربوطة صارت قوائم منسدلة تلقائياً ▼</p></div>
               <button onClick={()=>setShowAdd(false)} className="w-10 h-10 rounded-2xl bg-zinc-50 border border-zinc-100 text-black hover:bg-zinc-100 transition">✕</button>
@@ -167,8 +167,8 @@ export default function GenericTable(){
           </div>
         )}
 
-        <div className="bg-[#3385FF] rounded- border border-zinc-100 shadow-[0_20px_80px_rgba(0,0,0,0.15)] overflow-hidden">
-          <div className="px-8 py-6 border-b border-zinc-50 flex items-center justify-between bg-[#3385FF]">
+        <div className="bg-[#E5F0FF] rounded- border border-zinc-100 shadow-[0_20px_80px_rgba(0,0,0,0.15)] overflow-hidden">
+          <div className="px-8 py-6 border-b border-zinc-50 flex items-center justify-between bg-[#E5F0FF]">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-[#0052CC] text-white flex items-center justify-center text- font-black" style={{fontFamily:'Andika'}}>{filtered.length}</div>
               <div><div className="text- font-bold text-black" style={{fontFamily:'Andika'}}>جدول {table}</div><div className="text- text-black font-medium mt-0.5" style={{fontFamily:'Andika'}}>عرض {filtered.length} من {data.length} • تحديث مباشر</div></div>
