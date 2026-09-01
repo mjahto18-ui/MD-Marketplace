@@ -16,6 +16,7 @@ export default function GenericTable(){
   const [showAdd, setShowAdd] = useState(false)
   const [newRow, setNewRow] = useState({})
   const [dropdowns, setDropdowns] = useState({})
+  const [search, setSearch] = useState('')
 
   const normalize = (v) => String(v).toUpperCase() === 'TRUE' || v === true
 
@@ -68,7 +69,6 @@ export default function GenericTable(){
     if(rows?.[0]) {
       const columns = Object.keys(rows[0])
       setCols(columns)
-
       let maps = {}
       for (const col of columns) {
         if (col==='supa_id') continue
@@ -77,10 +77,7 @@ export default function GenericTable(){
           try {
             const { data: refRows } = await supabase.from(ref.table).select('*').limit(500)
             if (refRows && refRows.length>0) {
-              maps[col] = refRows.map(r => ({
-                value: String(r[ref.idCol]??''),
-                label: String(r[ref.labelCol]||r[ref.idCol]||'')
-              })).filter(o=>o.value)
+              maps[col] = refRows.map(r => ({ value: String(r[ref.idCol]??''), label: String(r[ref.labelCol]||r[ref.idCol]||'') })).filter(o=>o.value)
             }
           } catch(e) {}
         }
@@ -97,381 +94,113 @@ export default function GenericTable(){
     setEditId(null)
     load()
   }
-
   const del = async(id)=>{
     if(!confirm('تحذف؟')) return
     await supabase.from(table).delete().eq('supa_id', id)
     load()
   }
-
   const add = async()=>{
     const { supa_id,...clean } = newRow
     const { error } = await supabase.from(table).insert(clean)
     if(error) alert(error.message)
-    else {
-      setShowAdd(false)
-      setNewRow({})
-      load()
-    }
+    else { setShowAdd(false); setNewRow({}); load() }
   }
 
   const canEdit = perm.can_edit
+  const filtered = data.filter(r =>!search || Object.values(r).some(v => String(v).toLowerCase().includes(search.toLowerCase())))
 
   const renderInput = (colKey, value, onChange, small=false) => {
     if (dropdowns[colKey]) {
       return (
-        <select
-          className={small? "w-full min-w- h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5" : "w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition"}
-          value={value||''}
-          onChange={e=>onChange(e.target.value)}
-        >
+        <select className={small? "w-full h-9 rounded-xl border border-zinc-200 bg-white px-3 text- font-medium text-zinc-800 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10" : "w-full h-11 rounded-2xl border border-zinc-200 bg-zinc-50/50 px-4 text- font-medium text-zinc-800 outline-none focus:bg-white focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/5 transition-all"} value={value||''} onChange={e=>onChange(e.target.value)}>
           <option value="">اختر {colKey}</option>
-          {dropdowns[colKey].map(opt=>(
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
+          {dropdowns[colKey].map(opt=>(<option key={opt.value} value={opt.value}>{opt.label}</option>))}
         </select>
       )
     }
-    return (
-      <input
-        placeholder={colKey}
-        className={small? "w-full min-w- h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5" : "w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition"}
-        value={value||''}
-        onChange={e=>onChange(e.target.value)}
-      />
-    )
+    return (<input placeholder={colKey} className={small? "w-full h-9 rounded-xl border border-zinc-200 bg-white px-3 text- font-medium text-zinc-800 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10" : "w-full h-11 rounded-2xl border border-zinc-200 bg-zinc-50/50 px-4 text- font-medium text-zinc-800 outline-none placeholder:text-zinc-400 focus:bg-white focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/5 transition-all"} value={value||''} onChange={e=>onChange(e.target.value)} />)
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#f5f7fa] text-slate-900">
+    <div dir="rtl" className="min-h-screen bg-[#fbfbfd] text-zinc-900 selection:bg-zinc-900 selection:text-white">
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap'); *{font-family:'Tajawal',sans-serif}`}</style>
 
-      {/* HEADER */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-200">
-
-        <div className="px-5 lg:px-8 py-4 flex items-center justify-between gap-4">
-
-          <div className="flex items-center gap-4 min-w-0">
-
-            <div className="w-11 h-11 rounded-2xl bg-slate-950 flex items-center justify-center shrink-0 shadow-lg shadow-slate-900/10 overflow-hidden">
-              <img
-                src="/logo.png"
-                alt="logo"
-                className="w-8 h-8 object-contain"
-                onError={(e)=>e.target.style.display='none'}
-              />
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-2xl border-b border-zinc-100">
+        <div className="px-6 lg:px-10 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded- bg-zinc-900 flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
+              <div className="w-7 h-7 rounded- bg-white/10 backdrop-blur flex items-center justify-center text-white font-black text- tracking-widest">MD</div>
             </div>
-
-            <div className="text-right min-w-0">
-
-              <div className="flex items-center gap-2 flex-wrap">
-
-                <h1 className="font-black text-xl tracking-tight text-slate-950">
-                  {table}
-                </h1>
-
-                <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text- font-black text-slate-600">
-                  {data.length} سجل
-                </span>
-
+            <div>
+              <div className="flex items-baseline gap-3">
+                <h1 className="text- font-[900] tracking-[-0.02em] text-zinc-900 leading-none">{table}</h1>
+                <span className="text- font-bold text-zinc-400 tracking-wide">/ ADMIN</span>
               </div>
-
-              <div className="flex items-center gap-2 mt-1.5">
-
-                <span className="text- font-bold text-slate-400">
-                  {myRole}
-                </span>
-
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
-
-                <span className={`text- font-black ${
-                  canEdit? 'text-emerald-600' : 'text-slate-400'
-                }`}>
-                  {canEdit? 'قراءة وتعديل' : 'قراءة فقط'}
-                </span>
-
+              <div className="flex items-center gap-2.5 mt-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-zinc-900 text-white px-3 py-1 text- font-bold tracking-wide"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>{myRole}</span>
+                <span className="text- text-zinc-400 font-medium">{filtered.length} سجل • {Object.keys(dropdowns).length} روابط</span>
               </div>
-
             </div>
-
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-
-            {perm.can_add && (
-              <button
-                onClick={()=>setShowAdd(true)}
-                className="h-10 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-lg shadow-emerald-600/15 hover:bg-emerald-700 active:scale-[0.98] transition-all"
-              >
-                <span className="text-base ml-1">+</span>
-                إضافة
-              </button>
-            )}
-
-            <a
-              href="/admin/dashboard"
-              className="h-10 px-4 rounded-xl bg-slate-950 text-white flex items-center text-xs font-black hover:bg-slate-800 active:scale-[0.98] transition-all"
-            >
-              لوحة التحكم
-            </a>
-
+          <div className="flex items-center gap-2.5">
+            <div className="hidden md:flex items-center gap-2 h-11 px-4 rounded-2xl bg-zinc-50 border border-zinc-100">
+              <span className="text-zinc-400">⌕</span>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث سريع..." className="bg-transparent outline-none text- font-medium text-zinc-700 placeholder:text-zinc-400 w-"/>
+            </div>
+            {perm.can_add && (<button onClick={()=>setShowAdd(true)} className="h-11 px-5 rounded-2xl bg-zinc-900 text-white text- font-bold tracking-wide hover:bg-black hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] active:scale-[0.98] transition-all">+ إضافة جديد</button>)}
+            <a href="/admin/dashboard" className="h-11 px-5 rounded-2xl bg-white border border-zinc-200 text-zinc-700 text- font-bold hover:bg-zinc-50 transition">لوحة التحكم</a>
           </div>
-
         </div>
-
       </header>
 
-      {/* CONTENT */}
-      <main className="p-5 lg:p-8">
-
-        {/* ADD PANEL */}
+      <main className="px-6 lg:px-10 py-8">
         {showAdd && (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.06)] p-5 mb-5">
-
-            <div className="flex items-center justify-between mb-5">
-
-              <div className="text-right">
-                <h2 className="text-base font-black text-slate-950">
-                  إضافة سجل جديد
-                </h2>
-
-                <p className="text- text-slate-400 mt-1">
-                  أدخل بيانات السجل ثم اضغط حفظ
-                </p>
-              </div>
-
-              <button
-                onClick={()=>setShowAdd(false)}
-                className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 font-black hover:bg-slate-200 transition"
-              >
-                ×
-              </button>
-
+          <div className="bg-white rounded- border border-zinc-100 shadow-[0_20px_60px_rgba(0,0,0,0.06)] p-7 mb-8 animate-[in_0.3s_ease]">
+            <div className="flex items-center justify-between mb-7">
+              <div><h2 className="text- font-[800] tracking-tight text-zinc-900">إضافة سجل جديد</h2><p className="text- text-zinc-500 mt-1 font-medium">كل الحقول المربوطة صارت قوائم منسدلة تلقائياً ▼</p></div>
+              <button onClick={()=>setShowAdd(false)} className="w-10 h-10 rounded-2xl bg-zinc-50 border border-zinc-100 text-zinc-500 hover:bg-zinc-100 transition">✕</button>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-
-              {cols.filter(c=>c!=='supa_id').map(k=>(
-
-                <div key={k} className="text-right">
-
-                  <label className="block text- font-black tracking-wide text-slate-400 mb-1.5">
-                    {k} {dropdowns[k]? '▼' : ''}
-                  </label>
-
-                  {renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}
-
-                </div>
-
-              ))}
-
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {cols.filter(c=>c!=='supa_id').map(k=>(<div key={k}><label className="block text- font-bold tracking-wide text-zinc-500 mb-2">{k} {dropdowns[k] && <span className="text-emerald-600">▼ مربوط</span>}</label>{renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}</div>))}
             </div>
-
-            <div className="mt-5 flex gap-2 justify-start">
-
-              <button
-                onClick={add}
-                className="h-10 px-5 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 transition"
-              >
-                حفظ السجل
-              </button>
-
-              <button
-                onClick={()=>setShowAdd(false)}
-                className="h-10 px-5 rounded-xl bg-slate-100 text-slate-600 text-xs font-black hover:bg-slate-200 transition"
-              >
-                إلغاء
-              </button>
-
-            </div>
-
+            <div className="mt-7 flex gap-2.5"><button onClick={add} className="h-11 px-7 rounded-2xl bg-zinc-900 text-white text- font-bold hover:bg-black transition">حفظ السجل</button><button onClick={()=>setShowAdd(false)} className="h-11 px-7 rounded-2xl bg-zinc-50 border border-zinc-100 text-zinc-600 text- font-bold hover:bg-zinc-100 transition">إلغاء</button></div>
           </div>
         )}
 
-        {/* TABLE CARD */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_6px_25px_rgba(15,23,42,0.05)] overflow-hidden">
-
-          {/* TABLE TOP */}
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-
-            <div className="text-right">
-
-              <div className="text-xs font-black text-slate-900">
-                بيانات {table}
-              </div>
-
-              <div className="text- text-slate-400 mt-1">
-                {data.length} سجل معروض {Object.keys(dropdowns).length>0 && `• ${Object.keys(dropdowns).length} قوائم منسدلة`}
-              </div>
-
+        <div className="bg-white rounded- border border-zinc-100 shadow-[0_20px_80px_rgba(0,0,0,0.05)] overflow-hidden">
+          <div className="px-8 py-6 border-b border-zinc-50 flex items-center justify-between bg-gradient-to-b from-white to-zinc-50/50">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-zinc-900 text-white flex items-center justify-center text- font-black">{filtered.length}</div>
+              <div><div className="text- font-bold text-zinc-900">جدول {table}</div><div className="text- text-zinc-500 font-medium mt-0.5">عرض {filtered.length} من {data.length} • تحديث مباشر</div></div>
             </div>
-
-            <div className="flex items-center gap-2">
-
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-
-              <span className="text- font-bold text-slate-400">
-                LIVE DATA
-              </span>
-
-            </div>
-
+            <div className="flex items-center gap-2 text- font-medium text-zinc-400"><span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]"/>LIVE SYNC • DROPDOWNS ACTIVE</div>
           </div>
 
-          {/* TABLE */}
-          <div className="overflow-auto max-h-[calc(100vh-190px)]">
-
-            <table
-              dir="rtl"
-              className="w-full text-sm whitespace-nowrap border-collapse"
-            >
-
+          <div className="overflow-auto max-h-[calc(100vh-240px)] scrollbar-thin">
+            <table dir="rtl" className="w-full text- border-collapse">
               <thead className="sticky top-0 z-20">
-
-                <tr className="bg-slate-950 text-white">
-
-                  {canEdit && (
-                    <th className="sticky right-0 z-30 bg-slate-950 px-4 py-3 text-center text- font-black border-l border-white/10">
-                      تعديل
-                    </th>
-                  )}
-
-                  {cols.map(k=>(
-                    <th
-                      key={k}
-                      className="px-4 py-3 text-right text- font-black text-slate-200 border-l border-white/10 min-w-"
-                    >
-                      {k} {dropdowns[k]? '▼' : ''}
-                    </th>
-                  ))}
-
-                  {canEdit && (
-                    <th className="px-4 py-3 text-center text- font-black min-w-">
-                      حذف
-                    </th>
-                  )}
-
+                <tr className="bg-zinc-900 text-white">
+                  {canEdit && (<th className="sticky right-0 z-30 bg-zinc-900 px-6 py-4 text-center text- font-bold tracking-widest text-zinc-300">إجراء</th>)}
+                  {cols.map(k=>(<th key={k} className="px-6 py-4 text-right text- font-bold tracking-widest text-zinc-300 whitespace-nowrap border-l border-white/[0.06]">{k} {dropdowns[k] && <span className="ml-1 text-emerald-400">●</span>}</th>))}
+                  {canEdit && (<th className="px-6 py-4 text-center text- font-bold tracking-widest text-zinc-300">حذف</th>)}
                 </tr>
-
               </thead>
-
               <tbody>
-
-                {data.map((r,index)=>(
-
-                  <tr
-                    key={r.supa_id}
-                    className={`border-b border-slate-100 hover:bg-slate-50 transition ${
-                      index % 2 === 0? 'bg-white' : 'bg-slate-50/40'
-                    }`}
-                  >
-
-                    {canEdit && (
-
-                      <td className="sticky right-0 z-10 bg-inherit px-3 py-2 border-l border-slate-100">
-
-                        {editId===r.supa_id? (
-
-                          <div className="flex items-center justify-center gap-1">
-
-                            <button
-                              onClick={save}
-                              className="w-9 h-8 rounded-lg bg-emerald-600 text-white text- font-black hover:bg-emerald-700 transition"
-                            >
-                              حفظ
-                            </button>
-
-                            <button
-                              onClick={()=>setEditId(null)}
-                              className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 font-black hover:bg-slate-200 transition"
-                            >
-                              ×
-                            </button>
-
-                          </div>
-
-                        ) : (
-
-                          <button
-                            onClick={()=>{
-                              setEditId(r.supa_id)
-                              setEditRow(r)
-                            }}
-                            className="h-8 px-3 rounded-lg bg-slate-950 text-white text- font-black hover:bg-slate-800 transition"
-                          >
-                            تعديل
-                          </button>
-
-                        )}
-
-                      </td>
-
-                    )}
-
-                    {cols.map(k=>(
-
-                      <td
-                        key={k}
-                        className="px-4 py-2.5 text-right border-l border-slate-100 max-w- truncate text- font-medium text-slate-700"
-                      >
-
-                        {editId===r.supa_id && k!=='supa_id'? (
-
-                          renderInput(k, editRow[k]||'', (v)=>setEditRow({...editRow,[k]:v}), true)
-
-                        ) : (
-
-                          dropdowns[k]? (dropdowns[k].find(o=>o.value===String(r[k]??''))?.label || String(r[k]??'')) : String(r[k]??'')
-
-                        )}
-
-                      </td>
-
-                    ))}
-
-                    {canEdit && (
-
-                      <td className="px-3 py-2 text-center">
-
-                        <button
-                          onClick={()=>del(r.supa_id)}
-                          className="h-8 px-3 rounded-lg bg-red-50 text-red-600 border border-red-100 text- font-black hover:bg-red-600 hover:text-white transition"
-                        >
-                          حذف
-                        </button>
-
-                      </td>
-
-                    )}
-
+                {filtered.map((r,index)=>(
+                  <tr key={r.supa_id} className={`group border-b border-zinc-50 hover:bg-zinc-50/80 transition-all ${index%2===0?'bg-white':'bg-[#fcfcfd]'}`}>
+                    {canEdit && (<td className="sticky right-0 z-10 bg-inherit group-hover:bg-zinc-50/80 px-4 py-3 border-l border-zinc-50">{editId===r.supa_id? (<div className="flex gap-1.5"><button onClick={save} className="h-8 px-3 rounded-xl bg-emerald-600 text-white text- font-bold hover:bg-emerald-700 transition">حفظ</button><button onClick={()=>setEditId(null)} className="h-8 w-8 rounded-xl bg-zinc-100 text-zinc-500 hover:bg-zinc-200 transition">✕</button></div>) : (<button onClick={()=>{setEditId(r.supa_id); setEditRow(r)}} className="h-8 px-4 rounded-xl bg-zinc-900 text-white text- font-bold group-hover:bg-black transition-all">تعديل</button>)}</td>)}
+                    {cols.map(k=>(<td key={k} className="px-6 py-4 text-right text-zinc-700 font-medium max-w- truncate border-l border-zinc-50/50">{editId===r.supa_id && k!=='supa_id'? (renderInput(k, editRow[k]||'', (v)=>setEditRow({...editRow,[k]:v}), true)) : (<span className={`${dropdowns[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 text-white text- font-bold':''}`}>{dropdowns[k]? (dropdowns[k].find(o=>o.value===String(r[k]??''))?.label || String(r[k]??'')) : String(r[k]??'')}</span>)}</td>))}
+                    {canEdit && (<td className="px-4 py-3 text-center"><button onClick={()=>del(r.supa_id)} className="h-8 px-3 rounded-xl bg-white border border-zinc-200 text-zinc-500 text- font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition">حذف</button></td>)}
                   </tr>
-
                 ))}
-
               </tbody>
-
             </table>
-
           </div>
-
         </div>
 
-        {/* PERMISSION MESSAGE */}
-        {!canEdit && perm.can_view && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700 font-bold">
-            <span>🔒</span>
-            أنت {myRole} — هذا الجدول للقراءة فقط (can_edit = FALSE)
-          </div>
-        )}
-
-        {!perm.can_view && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-xs text-red-700 font-bold">
-            <span>⛔</span>
-            ما عندك صلاحية تشوف هذا الجدول
-          </div>
-        )}
-
+        {!canEdit && perm.can_view && (<div className="mt-6 rounded-2xl bg-amber-50 border border-amber-100 px-5 py-4 text- font-bold text-amber-800">🔒 وضع القراءة فقط — {myRole}</div>)}
+        {!perm.can_view && (<div className="mt-6 rounded-2xl bg-red-50 border border-red-100 px-5 py-4 text- font-bold text-red-800">⛔ لا تملك صلاحية عرض هذا الجدول</div>)}
       </main>
-
     </div>
   )
 }
