@@ -31,16 +31,6 @@ async function sendMessage(to, text) {
   const txt = await res.text(); console.log(`SEND to ${clean}: ${res.status} - ${txt}`); return res.ok;
 }
 
-async function sendImage(to, imageUrl, caption) {
-  const clean = normalize(to); if (!clean) return false;
-  const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to: clean, type: "image", image: { link: imageUrl, caption: String(caption||"") } })
-  });
-  const txt = await res.text(); console.log(`SEND IMAGE to ${clean}: ${res.status} - ${txt}`); return res.ok;
-}
-
 export async function GET(req) {
   const url = new URL(req.url);
   const secretParam = url.searchParams.get("secret");
@@ -92,9 +82,6 @@ export async function GET(req) {
       const gender = String(user["Gender"] || "male").toLowerCase();
       const isFemale = gender === "female";
 
-      let allowed = true; //if (isFemale) { if (nowHour >= 10 && nowHour <= 12) allowed = true; } else { if (nowHour >= 9 && nowHour <= 11) allowed = true; }
-      //if (!allowed) { console.log(`⏭ SKIP ${phone} not allowed hour=${nowHour}`); continue; }
-
       const lower = last.text.toLowerCase(); let type = "general";
       if (lower.includes("طلب") || lower.includes("اطلب") || lower.includes("اوردر")) type = "order";
       else if (lower.includes("وين") || lower.includes("موجود") || lower.includes("بدي")) type = "product";
@@ -110,12 +97,45 @@ export async function GET(req) {
       console.log(`hasNew=${suitableProducts.length > 0} suitableCount=${suitableProducts.length} for ${phone}`);
 
       let finalMsg = "";
-      if (isFemale) {
-        const pool = [`صباحو ${name} 🌸 نزل عنا شي جديد ع ذوقك، قلت خبرك قبل الكل 😍 ببعتلك؟`,`هاي ${name} كيفك؟ لقيت شغلة اتذكرتك دغري، سعرها لقطة اليوم 🫶 بتحبي تشوفي صورتها؟`,`يسعد صباحك ${name} ✨ في كم منتج جديد وصل، فكرت فيكي أول وحدة، بدك ابعتلك ياهن؟`,`صباح الخير ${name} 🌸 عنا شي جديد مرتب، وقلت انتي لازم تشوفيه قبل ما يخلص`];
-        finalMsg = pool[Math.floor(Math.random() * pool.length)];
+
+      if (suitableProducts.length > 0) {
+        // Pool 1: في عروض - 4 مسجات قديمة
+        if (isFemale) {
+          const poolWithOffers = [
+            `صباحو ${name} 🌸 نزل عنا شي جديد ع ذوقك، قلت خبرك قبل الكل 😍 ببعتلك؟`,
+            `هاي ${name} كيفك؟ لقيت شغلة اتذكرتك دغري، سعرها لقطة اليوم 🫶 بتحبي تشوفي صورتها؟`,
+            `يسعد صباحك ${name} ✨ في كم منتج جديد وصل، فكرت فيكي أول وحدة، بدك ابعتلك ياهن؟`,
+            `صباح الخير ${name} 🌸 عنا شي جديد مرتب، وقلت انتي لازم تشوفيه قبل ما يخلص`
+          ];
+          finalMsg = poolWithOffers[Math.floor(Math.random() * poolWithOffers.length)];
+        } else {
+          const poolWithOffers = [
+            `صباحو ${name} 👋 نزل شي جديد مرتب، قلت انت أول واحد لازم تعرف، ابعتلك؟`,
+            `هاي ${name}، كيف الوضع؟ في شغلة حلوة نزلت وسعرها لقطة اليوم، بتحب تشوفها؟`,
+            `يسعد صباحك ${name} 👌 وصلنا جديد وقلت خبرك دغري قبل ما يخلص`,
+            `صباح الخير ${name}، عنا كم شغلة جديدة نزلوا، فكرت فيك، ببعتلك الصور؟`
+          ];
+          finalMsg = poolWithOffers[Math.floor(Math.random() * poolWithOffers.length)];
+        }
       } else {
-        const pool = [`صباحو ${name} 👋 نزل شي جديد مرتب، قلت انت أول واحد لازم تعرف، ابعتلك؟`,`هاي ${name}، كيف الوضع؟ في شغلة حلوة نزلت وسعرها لقطة اليوم، بتحب تشوفها؟`,`يسعد صباحك ${name} 👌 وصلنا جديد وقلت خبرك دغري قبل ما يخلص`,`صباح الخير ${name}، عنا كم شغلة جديدة نزلوا، فكرت فيك، ببعتلك الصور؟`];
-        finalMsg = pool[Math.floor(Math.random() * pool.length)];
+        // Pool 2: بلا عروض - 4 مسجات جداد اطمئنان صافي
+        if (isFemale) {
+          const poolNoOffers = [
+            `صباحو ${name} 🌸 حبينا نتطمن عنك، كيفك اليوم؟`,
+            `هاي ${name} مشتاقينلك والله، طمنينا عنك 🫶`,
+            `يسعد صباحك ${name} ✨ قلنا نسأل عنك، ان شاء الله انتي بخير؟`,
+            `صباح الخير ${name} 🌸 كيفك حبيبتي؟ حبينا نتطمن عليكي`
+          ];
+          finalMsg = poolNoOffers[Math.floor(Math.random() * poolNoOffers.length)];
+        } else {
+          const poolNoOffers = [
+            `صباحو ${name} 👋 حبينا نتطمن عنك، كيف الوضع؟`,
+            `هاي ${name} مشتاقينلك يا غالي، طمنا عنك`,
+            `يسعد صباحك ${name} 👌 قلنا نسأل عنك، ان شاء الله بخير؟`,
+            `صباح الخير ${name}، كيفك؟ حبينا نتطمن عليك`
+          ];
+          finalMsg = poolNoOffers[Math.floor(Math.random() * poolNoOffers.length)];
+        }
       }
 
       console.log(`💬 FINAL MSG to ${phone}: ${finalMsg}`);
