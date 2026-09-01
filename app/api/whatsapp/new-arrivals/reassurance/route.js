@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
