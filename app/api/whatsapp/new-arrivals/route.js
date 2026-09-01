@@ -23,7 +23,7 @@ function normalize(phone) {
   return c;
 }
 function getBeirutNow() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" }));
+  return new Date();
 }
 
 async function sendMessage(to, text) {
@@ -159,7 +159,7 @@ export async function POST(req) {
     }
   }
 
-  const beirutStr = now.toLocaleString("en-US", { timeZone: "Asia/Beirut" });
+    const beirutStr = new Date().toISOString();
   await supabase.from('messages').insert([{
     Phone: from,
     CustomerMessage: rawText,
