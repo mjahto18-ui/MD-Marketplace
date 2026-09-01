@@ -26,7 +26,7 @@ export default function GenericTable(){
     if (c==='store' || c==='stores') return { table: 'stores', idCol: 'Store ID', labelCol: 'Store Name' }
     if (c==='product' || c==='products') return { table: 'products', idCol: 'Product ID', labelCol: 'Product Name' }
     if (c==='customer' || c==='customers') return { table: 'customers', idCol: 'Customer ID', labelCol: 'Name' }
-    if (c==='driver' || c==='drivers') return { table: 'drivers', idCol: 'Driver ID', labelCol: 'Name' }
+    if (c==='driver' || c==='drivers') return { table: 'drivers', idCol: 'Driver ID', labelCol: 'Driver Name' }
     if (c==='user' || c==='users') return { table: 'users', idCol: 'User ID', labelCol: 'Name' }
     return null
   }
@@ -68,15 +68,19 @@ export default function GenericTable(){
     if(rows?.[0]) {
       const columns = Object.keys(rows[0])
       setCols(columns)
+
       let maps = {}
       for (const col of columns) {
         if (col==='supa_id') continue
         const ref = guessRef(col)
         if (ref) {
           try {
-            const { data: refRows } = await supabase.from(ref.table).select(`"${ref.idCol}", "${ref.labelCol}"`).limit(500)
+            const { data: refRows } = await supabase.from(ref.table).select('*').limit(500)
             if (refRows && refRows.length>0) {
-              maps[col] = refRows.map(r => ({ value: String(r[ref.idCol]), label: String(r[ref.labelCol]||r[ref.idCol]) }))
+              maps[col] = refRows.map(r => ({
+                value: String(r[ref.idCol]??''),
+                label: String(r[ref.labelCol]||r[ref.idCol]||'')
+              })).filter(o=>o.value)
             }
           } catch(e) {}
         }
@@ -251,7 +255,7 @@ export default function GenericTable(){
                 <div key={k} className="text-right">
 
                   <label className="block text- font-black tracking-wide text-slate-400 mb-1.5">
-                    {k}
+                    {k} {dropdowns[k]? '▼' : ''}
                   </label>
 
                   {renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}
