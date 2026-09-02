@@ -655,11 +655,10 @@ export async function POST(req) {
             await sendMessage(from, `✅ انضاف *${addData.product || "المنتج"}* عالسلة 🛒`);
             
             await saveToAppSheet(cleanPhone, `كبس اطلب ${productID}`, `انضاف ${productID}`, {
-              botSession: BOT1_SESSION,
+              botSession: "BOT1_SESSION",
               bot: "BOT1",
-              messageType: "NEW_ARRIVALS_ORDER",
-              Reassurance_Sent: "YES",
-              Reassurance_At: new Date().toISOString()
+              messageType: "NEW_ARRIVALS_ORDER"
+              
             });
 
             // --- فتح سيشن BOT2 لمحي السلة بعد 30 دقيقة ---
