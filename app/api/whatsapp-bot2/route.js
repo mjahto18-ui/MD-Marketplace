@@ -301,12 +301,18 @@ async function searchProducts(message, customerID) {
   return results.slice(0, 10);
 }
 function extractQuantity(message) {
-  const normalized = normalizeText(convertArabicNumbers(message));
+  const raw = convertArabicNumbers(String(message || ""));
+  const normalized = normalizeText(raw);
+
+  // 1. كلمات عربية
   const arabicNumbers = { "واحد": 1,"وحدة": 1,"قطعة": 1,"اتنين": 2,"اثنين": 2,"تنين": 2,"ثلاثة": 3,"تلاته": 3,"تلات": 3,"اربعة": 4,"خمسة": 5,"ستة": 6,"سبعة": 7,"ثمانية": 8,"تسعة": 9,"عشرة": 10 };
-  for (const key of Object.keys(arabicNumbers)) { if (normalized.includes(key)) return arabicNumbers[key]; }
-  // يلقط اخر رقم بالجملة - مش اول رقم
-  const matches = normalized.match(/\d+/g);
-  if (matches) return Number(matches[matches.length - 1]);
+  for (const key in arabicNumbers) {
+    if (normalized.includes(key)) return arabicNumbers[key];
+  }
+  // 2. اول رقم بالجملة هو الكمية - مش اخر رقم
+  const m = raw.match(/(\d+)/);
+  if (m) return Number(m[1]);
+
   return 1;
 }
 function detectCartCommand(message) {
