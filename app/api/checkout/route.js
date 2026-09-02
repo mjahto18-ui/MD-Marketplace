@@ -147,6 +147,12 @@ export async function POST(req) {
     let { error: orderErr } = await supabase.from('order_requuest').insert([orderRow]);
     if (orderErr) throw orderErr;
 
+    if (isFreeDelivery) {
+  await supabase.from('customers').update({
+    "Last Free Delivery Date": today
+  }).eq("Customer ID", customerID);
+}
+
     // 8) نسخ تفاصيل الطلب على order_details
     const detailRows = cartWithProducts.map(item => ({
       "Detail ID": crypto.randomUUID().replace(/-/g, "").substring(0, 8),
