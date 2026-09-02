@@ -627,7 +627,7 @@ export async function POST(req) {
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from || Mobile;
     if (!from) return Response.json({ status: "ok" }, { status: 200 });
-        // ==== زر اطلب من new-arrivals -> ينادي /api/offer/add ====
+      // ==== زر اطلب من new-arrivals -> ينادي /api/offer/add ====
     if (message?.type === "interactive") {
       const buttonId = message?.interactive?.button_reply?.id || "";
       
@@ -643,8 +643,8 @@ export async function POST(req) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-              phone: cleanPhone,      // 9613177653
-              productID: productID    // 0011110636768 يلي هو Product Link = Product ID
+              phone: cleanPhone,
+              productID: productID
             })
           });
 
@@ -653,6 +653,7 @@ export async function POST(req) {
 
           if (addData.success) {
             await sendMessage(from, `✅ انضاف *${addData.product || "المنتج"}* عالسلة 🛒`);
+            
             await saveToAppSheet(cleanPhone, `كبس اطلب ${productID}`, `انضاف ${productID}`, {
               botSession: BOT1_SESSION,
               bot: "BOT1",
@@ -660,6 +661,18 @@ export async function POST(req) {
               Reassurance_Sent: "YES",
               Reassurance_At: new Date().toISOString()
             });
+
+            // --- فتح سيشن BOT2 لمحي السلة بعد 30 دقيقة ---
+            const now = new Date().toISOString();
+            await supabase.from('bot_sessions').upsert({
+              'Phone': cleanPhone,
+              'Active Bot': 'BOT2',
+              'Status': 'ACTIVE',
+              'Request ID': 'EMPTY',
+              'Started At': now,
+              'Last Activity': now
+            }, { onConflict: 'Phone' });
+
           } else {
             await sendMessage(from, `❌ ${addData.message || "ما انضاف"}`);
           }
