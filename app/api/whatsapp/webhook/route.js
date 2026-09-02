@@ -398,9 +398,9 @@ async function openBot2Session(phone) {
     Phone: normalizeWhatsAppNumber(phone),
     "Active Bot": "BOT2",
     Status: "ACTIVE",
-    "Request ID": "",
+    //"Request ID": "",
     "Started At": beirutString,
-    "Closed At": "",
+    //"Closed At": "",
     "Last Activity": beirutString
   }]);
 }
