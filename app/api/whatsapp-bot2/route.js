@@ -151,7 +151,7 @@ function cartRowToObject(row) {
     qty: Number(row["Qty"] || 0), storeId: row["Store ID"] || "", lineTotal: Number(row["Line Total"] || 0),
     checkedOut: String(row["Checked Out"] || "FALSE").toUpperCase(),
     checkOutFlag: String(row["Check Out Flag"] || "FALSE").toUpperCase(),
-    requestId: row["Request ID"] || "", linePoints: Number(row["Line Points"] || 0)
+     linePoints: Number(row["Line Points"] || 0)
   };
 }
 async function getCustomerCart(customerID) {
