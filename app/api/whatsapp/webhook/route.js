@@ -393,7 +393,7 @@ async function getBotSessionTable(phone) {
   return rows.find(r => normalizeWhatsAppNumber(r["Phone"] || "") === normalized) || null;
 }
 async function openBot2Session(phone) {
-  const beirutString = new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut", hour12: false }).replace(",", "");
+  const beirutString = new Date().toISOString();
   return await appSheetAction("Bot Sessions", "Add", [{
     Phone: normalizeWhatsAppNumber(phone),
     "Active Bot": "BOT2",
@@ -424,7 +424,7 @@ async function saveToAppSheet(from, userMessage, aiReply, options = {}) {
   const bot = options.bot || "BOT1";
   const messageType = options.messageType || "WHATSAPP";
   try {
-    const today = new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" });
+    const today = new Date().toISOString();
     const row = {
       Phone: normalizeWhatsAppNumber(from),
       CustomerMessage: userMessage || "",
