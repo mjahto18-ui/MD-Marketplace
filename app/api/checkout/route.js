@@ -79,6 +79,11 @@ export async function POST(req) {
     const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
     const deliveryFee = isFreeDelivery? 0 : baseDeliveryFee;
 
+    // === هون الزيادة اللي اتفقنا عليها ===
+    const itemsCost = cartWithProducts.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
+    const totalAmount = itemsCost + deliveryFee;
+    // === نهاية الزيادة ===
+
     // تجهيز ID وتواريخ
     const requestID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
     const now = new Date();
@@ -129,6 +134,8 @@ export async function POST(req) {
       "Note": finalNote,
       "Delivery Adress": String(finalAddress), // Adress بحرف واحد حسب جدولك
       "Delivery Fee": deliveryFee,
+      "Items Cost": itemsCost,
+      "Total Amount": totalAmount,
       "Approval Status": "Pending",
       "Request Date": requestDate,
       "Delivery Status": "Pending",
