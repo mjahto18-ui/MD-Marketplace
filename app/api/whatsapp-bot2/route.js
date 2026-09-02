@@ -177,7 +177,7 @@ async function addToCart(customerID, product, qty) {
   const cartId = crypto.randomUUID().replace(/-/g, "").substring(0, 12);
   const lineTotal = quantity * product.price;
   const linePoints = quantity * product.points;
-  const row = { "Cart ID": cartId, "Customer ID": customerID, "Product ID": product.productId, "Qty": quantity, "Store ID": product.storeId, "Line Total": lineTotal, "Checked Out": "FALSE", "Check Out Flag": "FALSE", "Request ID": "", "Line Points": linePoints };
+  const row = { "Cart ID": cartId, "Customer ID": customerID, "Product ID": product.productId, "Qty": quantity, "Store ID": product.storeId, "Line Total": lineTotal, "Checked Out": "FALSE", "Check Out Flag": "FALSE", "Line Points": linePoints };
   const { error } = await supabase.from('cart').insert([row]);
   clearCache("Cart");
   return { success: true, updated: false, cartId, qty: quantity, lineTotal };
@@ -302,20 +302,26 @@ async function searchProducts(message, customerID) {
 }
 function extractQuantity(message) {
   const normalized = normalizeText(convertArabicNumbers(message));
-  const arabicNumbers = { "واحد": 1,"وحدة": 1,"قطعة": 1,"اتنين": 2,"اثنين": 2,"تنين": 2,"ثلاثة": 3,"تلاته": 3,"تلات": 3,"اربعة": 4,"أربعة": 4,"خمسة": 5,"خمسه": 5,"ستة": 6,"سته": 6,"سبعة": 7,"سبعه": 7,"ثمانية": 8,"تمانية": 8,"تسعة": 9,"تسعه": 9,"عشرة": 10 };
+  const arabicNumbers = { "واحد": 1,"وحدة": 1,"قطعة": 1,"اتنين": 2,"اثنين": 2,"تنين": 2,"ثلاثة": 3,"تلاته": 3,"تلات": 3,"اربعة": 4,"خمسة": 5,"ستة": 6,"سبعة": 7,"ثمانية": 8,"تسعة": 9,"عشرة": 10 };
   for (const key of Object.keys(arabicNumbers)) { if (normalized.includes(key)) return arabicNumbers[key]; }
-  const match = normalized.match(/(?:^|\s)(\d+)(?:\s|$)/);
-  if (match) return Number(match[1]);
+  // يلقط اخر رقم بالجملة - مش اول رقم
+  const matches = normalized.match(/\d+/g);
+  if (matches) return Number(matches[matches.length - 1]);
   return 1;
 }
 function detectCartCommand(message) {
   const text = normalizeText(message);
-  if (text.includes("امحي") || text.includes("امسح")) return "REMOVE";
-  if (text.includes("السله") || text.includes("سلة") || text.includes("سلت") || text.includes("cart")) {
-    if (text.includes("شو فيها") || text.includes("شو بالسله") || text.includes("عرض") || text.includes("شوف") || text.includes("view") || text.includes("فيها")) return "SHOW";
+  // SHOW
+  if (text.includes("شو في") || text.includes("شو بالسله") || text.includes("عرض السله") || text.includes("السله") && text.includes("شو")) return "SHOW";
+  if (text.includes("طلباتي") || text.includes("سلتي")) return "SHOW";
+
+  // REMOVE
+  if (text.includes("امحي") || text.includes("امسح") || text.includes("احذف") || text.includes("شيل")) return "REMOVE";
+
+  // UPDATE - هي الاهم
+  if (text.includes("عدد") || text.includes("عدل") || text.includes("غير") || text.includes("اعمل")) {
+    if (/\d/.test(text)) return "UPDATE";
   }
-  if (text.includes("احذف") || text.includes("شيل") || text.includes("حذف") || text.includes("remove")) return "REMOVE";
-  if (text.includes("غير الكميه") || text.includes("عدل الكميه") || text.includes("بدل الكميه") || text.includes("update") || text.includes("عدل")) return "UPDATE";
   return null;
 }
 function isCheckoutConfirmation(message) {
@@ -421,26 +427,32 @@ async function handleShopping(customerID, message) {
 async function handleCart(customerID, message) {
   const command = detectCartCommand(message);
   if (command === "SHOW") { const cart = await buildCartView(customerID); return { success: true, reply: formatCart(cart) }; }
+
   const cart = await buildCartView(customerID);
   if (!cart.items.length) return { success: true, reply: "🛒 السلة فاضية." };
+
   if (command === "REMOVE") {
-    const found = cart.items.find(item => normalizeText(message).includes(normalizeText(item.productName))) || cart.items[0];
-    if (!found) return { success: false, reply: "أي منتج بدك شيل من السلة؟ اكتبلي اسمه." };
-    const removed = await removeFromCart(customerID, found.productId);
-    if (!removed.success) return { success: false, reply: removed.message };
-    clearCache("Cart");
+    const found = cart.items.find(item => normalizeText(message).includes(normalizeText(item.productName))) || (cart.items.length === 1? cart.items[0] : null);
+    if (!found) return { success: false, reply: "أي منتج بدك تشيل؟ اكتبلي اسمه." };
+    await removeFromCart(customerID, found.productId);
     const newCart = await buildCartView(customerID);
-    return { success: true, reply: `🗑 شلت ${found.productName} من السلة.\n\n${formatCart(newCart)}` };
+    return { success: true, reply: `🗑 شلت ${found.productName}\n\n${formatCart(newCart)}` };
   }
   if (command === "UPDATE") {
-    const found = cart.items.find(item => normalizeText(message).includes(normalizeText(item.productName))) || cart.items[0];
-    if (!found) return { success: false, reply: "أي منتج بدك تغيّر كميته؟" };
     const qty = extractQuantity(message);
+    // اذا في منتج واحد بالسلة - عدلو دغري بلا ما يدور عالاسم
+    let found = null;
+    if (cart.items.length === 1) {
+      found = cart.items[0];
+    } else {
+      found = cart.items.find(item => normalizeText(message).includes(normalizeText(item.productName)));
+    }
+    if (!found) return { success: false, reply: "عندك اكتر من منتج - قلي اي منتج بدك تعدل؟ مثلا: لبنة عدد 3" };
+
     const updated = await updateCartQty(customerID, found.productId, qty);
     if (!updated.success) return { success: false, reply: updated.message };
-    clearCache("Cart");
     const newCart = await buildCartView(customerID);
-    return { success: true, reply: `✅ عدلت كمية ${found.productName} لـ ${qty}.\n\n${formatCart(newCart)}` };
+    return { success: true, reply: `✅ عدلت ${found.productName} صار العدد ${qty}\n\n${formatCart(newCart)}` };
   }
   return { success: true, reply: formatCart(cart) };
 }
