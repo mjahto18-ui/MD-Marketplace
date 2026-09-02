@@ -627,6 +627,50 @@ export async function POST(req) {
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from || Mobile;
     if (!from) return Response.json({ status: "ok" }, { status: 200 });
+        // ==== زر اطلب من new-arrivals -> ينادي /api/offer/add ====
+    if (message?.type === "interactive") {
+      const buttonId = message?.interactive?.button_reply?.id || "";
+      
+      if (buttonId.startsWith("order_")) {
+        const productID = buttonId.replace("order_", "").trim();
+        const cleanPhone = normalizeWhatsAppNumber(from);
+        console.log(`🔘 زر اطلب: ${productID} من ${cleanPhone}`);
+
+        try {
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.md-marketplace.store";
+          
+          const addRes = await fetch(`${siteUrl}/api/offer/add`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              phone: cleanPhone,      // 9613177653
+              productID: productID    // 0011110636768 يلي هو Product Link = Product ID
+            })
+          });
+
+          const addData = await addRes.json();
+          console.log("🛒 Offer/Add result:", addData);
+
+          if (addData.success) {
+            await sendMessage(from, `✅ انضاف *${addData.product || "المنتج"}* عالسلة 🛒`);
+            await saveToAppSheet(cleanPhone, `كبس اطلب ${productID}`, `انضاف ${productID}`, {
+              botSession: BOT1_SESSION,
+              bot: "BOT1",
+              messageType: "NEW_ARRIVALS_ORDER"
+            });
+          } else {
+            await sendMessage(from, `❌ ${addData.message || "ما انضاف"}`);
+          }
+
+        } catch (e) {
+          console.log("Offer/Add error", e.message);
+          await sendMessage(from, "صار خطأ - جرب مرة تانية 🙏");
+        }
+
+        return Response.json({ status: "ok", forwarded_to: "OFFER_ADD" }, { status: 200 });
+      }
+    }
+   
     const whatsappNumber = normalizeWhatsAppNumber(from);
     try {
       const { getGlobalConfig } = await import('@/lib/getGlobalConfig');
