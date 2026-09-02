@@ -56,7 +56,6 @@ export async function GET(req) {
       const cust = String(row["CustomerMessage"] || "").trim();
       if (!cust) continue;
       let d = new Date(row["Date"]);
-      if (isNaN(d)) d = new Date(String(row["Date"]).replace(' ', 'T'));
       lastMsg[phone] = { phone, text: cust, date: d, row };
     }
 
