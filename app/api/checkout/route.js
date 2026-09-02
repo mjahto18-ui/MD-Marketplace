@@ -141,6 +141,7 @@ export async function POST(req) {
       "Delivery Status": "Pending",
       "Customer Latitude": finalLat,
       "Customer Longitude": finalLng,
+      "Total Weight": totalWeight, // هيدا السطر الجديد
       "Mobile": customer["Mobile"] || "",
     };
 
@@ -161,6 +162,7 @@ export async function POST(req) {
       "Qty": String(item.qty),
       "Unit Price": String(item.unitPrice),
       "Line Total": String(item.lineTotal),
+      "Line Weight": String(item.qty * item.linePoints), // هون الصح
       "Store ID": item.storeID,
       "Costumer ID": customerID, // Costumer بدون t حسب جدولك
       "Area": finalAreaID, // fr7455fr5
