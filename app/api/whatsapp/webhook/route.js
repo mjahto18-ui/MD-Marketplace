@@ -627,7 +627,7 @@ export async function POST(req) {
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from || Mobile;
     if (!from) return Response.json({ status: "ok" }, { status: 200 });
-      // ==== زر اطلب من new-arrivals -> ينادي /api/offer/add ====
+     // ==== زر اطلب من new-arrivals -> ينادي /api/offer/add ====
     if (message?.type === "interactive") {
       const buttonId = message?.interactive?.button_reply?.id || "";
       
@@ -655,22 +655,13 @@ export async function POST(req) {
             await sendMessage(from, `✅ انضاف *${addData.product || "المنتج"}* عالسلة 🛒`);
             
             await saveToAppSheet(cleanPhone, `كبس اطلب ${productID}`, `انضاف ${productID}`, {
-              botSession: "BOT1_SESSION",
+              botSession: BOT1_SESSION,
               bot: "BOT1",
               messageType: "NEW_ARRIVALS_ORDER"
-              
             });
 
-            // --- فتح سيشن BOT2 لمحي السلة بعد 30 دقيقة ---
-            const now = new Date().toISOString();
-            await supabase.from('bot_sessions').upsert({
-              'Phone': cleanPhone,
-              'Active Bot': 'BOT2',
-              'Status': 'ACTIVE',
-              'Request ID': 'EMPTY',
-              'Started At': now,
-              'Last Activity': now
-            }, { onConflict: 'Phone' });
+            // فتح سيشن BOT2 - هون كان الغلط
+            await openBot2Session(cleanPhone);
 
           } else {
             await sendMessage(from, `❌ ${addData.message || "ما انضاف"}`);
