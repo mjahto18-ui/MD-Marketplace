@@ -370,7 +370,7 @@ async function getRecentConversation(phone) {
 async function saveToAppSheet(from, userMessage, aiReply) {
   const supabase = getSupabase();
   try {
-    const today = new Date().toLocaleString("en-US", { timeZone: "Asia/Beirut" });
+    const today = new Date().toISOString();
     const { error } = await supabase.from('messages').insert([{
       Phone: normalizeWhatsAppNumber(from),
       CustomerMessage: userMessage,
