@@ -38,15 +38,42 @@ async function sendMessage(to, text) {
   return res.ok;
 }
 
-async function sendImage(to, imageUrl, caption) {
-  console.log(`📤 SEND IMG TRY to ${to}: ${imageUrl}`);
+async function sendProductWithButton(to, p) {
+  const productID = p["Product Link"]; // هلق هون هو Product ID موصول مع products
+  const isSensitive = String(p["Is Sensitive"] || "").toUpperCase() === "TRUE";
+
+  let bodyText = "";
+  if (isSensitive) {
+    bodyText = `${p["Product Name"]}\nالسعر: ${p["Price"]}\nالحجم: ${p["Size"]}`;
+  } else {
+    bodyText = `*${p["Product Name"]}*\n🏷 ${p["Brand"]}\n💰 ${p["Price"]}\n📦 ${p["Size"]}\n${p["Description"] || ""}`;
+  }
+
+  const interactive = {
+    type: "button",
+    body: { text: bodyText.slice(0, 1024) },
+    action: {
+      buttons: [
+        { type: "reply", reply: { id: `order_${productID}`, title: "اطلب 🛒" } }
+      ]
+    }
+  };
+
+  if (p["Image URL"]) {
+    interactive.header = {
+      type: "image",
+      image: { link: p["Image URL"] }
+    };
+  }
+
+  console.log(`📤 SEND BUTTON TRY to ${to}: ${productID}`);
   const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to, type: "image", image: { link: imageUrl, caption } })
+    body: JSON.stringify({ messaging_product: "whatsapp", to, type: "interactive", interactive })
   });
   const txt = await res.text();
-  console.log(`📬 SEND IMG to ${to}: ${res.status} - ${txt}`);
+  console.log(`📬 SEND BUTTON to ${to}: ${res.status} - ${txt}`);
   return res.ok;
 }
 
@@ -69,10 +96,10 @@ export async function POST(req) {
   if (!isYes) return Response.json({ ok: true });
 
   const { data: allMessages } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('Phone', from)
-    .order('Date', { ascending: true });
+   .from('messages')
+   .select('*')
+   .eq('Phone', from)
+   .order('Date', { ascending: true });
 
   const userMessages = allMessages || [];
   if (userMessages.length === 0) {
@@ -111,9 +138,9 @@ export async function POST(req) {
   console.log(`✅ بوابة العروض مفتوحة لـ ${from}`);
 
   const { data: users } = await supabase
-    .from('users')
-    .select('*');
-  
+   .from('users')
+   .select('*');
+
   const user = users?.find(u => normalize(u["WhatsApp Number"]) === from);
   if (!user) {
     console.log(`❌ SKIP ${from} مش موجود بجدول Users!`);
@@ -122,8 +149,8 @@ export async function POST(req) {
   const gender = String(user["Gender"] || "male").toLowerCase();
 
   const { data: arrivals } = await supabase
-    .from('new_arrivals')
-    .select('*');
+   .from('new_arrivals')
+   .select('*');
 
   const suitable = (arrivals || []).filter(p => {
     const added = new Date(p["Date Added"]);
@@ -140,21 +167,9 @@ export async function POST(req) {
       const isSensitive = String(p["Is Sensitive"] || "").toUpperCase() === "TRUE";
       if (isSensitive && gender === "male") continue;
 
-      if (isSensitive) {
-        const shortText = `${p["Product Name"]}\nالسعر: ${p["Price"]}\nالحجم: ${p["Size"]}\n\nللطلب 👇\n${p["Product Link"]}`;
-        if (p["Image URL"]) {
-          await sendImage(from, p["Image URL"], shortText);
-        } else {
-          await sendMessage(from, shortText);
-        }
-      } else {
-        const fullText = `*${p["Product Name"]}*\n🏷 ${p["Brand"]}\n💰 ${p["Price"]}\n📦 ${p["Size"]}\n${p["Description"]}\n\nللطلب 👇\n${p["Product Link"]}`;
-        if (p["Image URL"]) {
-          await sendImage(from, p["Image URL"], fullText);
-        } else {
-          await sendMessage(from, fullText);
-        }
-      }
+      // نفس البادي - صورة + نص + زر اطلب
+      await sendProductWithButton(from, p);
+
       await new Promise(r => setTimeout(r, 1000));
     }
   }
