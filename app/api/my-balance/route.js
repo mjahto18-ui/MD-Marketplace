@@ -11,7 +11,7 @@ function getSupabase() {
 export async function GET(req) {
   try {
     const customerID = req.nextUrl.searchParams.get("customerID");
-    if (!customerID) return NextResponse.json({ success: true, points: 0, wallet: 0 });
+    if (!customerID) return NextResponse.json({ success: true, points: 0, wallet: 0, total_spent: 0 });
 
     const supabase = getSupabase();
     const custIdLower = customerID.toString().trim().toLowerCase();
@@ -53,8 +53,18 @@ export async function GET(req) {
       }
     });
 
-    return NextResponse.json({ success: true, points, wallet });
+    // Orders History - Total Spent
+    const { data: historyRows } = await supabase.from('orders_history').select('*');
+    let total_spent = 0;
+    (historyRows||[]).forEach((r) => {
+      const id = String(r['Costumer ID'] || "").trim().toLowerCase();
+      if (id === custIdLower) {
+        total_spent += Number(r['Total Amount'] || 0);
+      }
+    });
+
+    return NextResponse.json({ success: true, points, wallet, total_spent });
   } catch (e) {
-    return NextResponse.json({ success: true, points: 0, wallet: 0, error: e.message });
+    return NextResponse.json({ success: true, points: 0, wallet: 0, total_spent: 0, error: e.message });
   }
 }
