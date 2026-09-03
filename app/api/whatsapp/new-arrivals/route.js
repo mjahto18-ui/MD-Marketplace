@@ -163,7 +163,8 @@ export async function POST(req) {
   if (suitable.length === 0) {
     await sendMessage(from, "ولا يهمّك! ما في شي جديد مناسب إلك هاليومين 🌸");
   } else {
-    for (const p of suitable) {
+    const toSend = suitable.slice(0, 2);
+    for (const p of toSend) {
       const isSensitive = String(p["Is Sensitive"] || "").toUpperCase() === "TRUE";
       if (isSensitive && gender === "male") continue;
 
