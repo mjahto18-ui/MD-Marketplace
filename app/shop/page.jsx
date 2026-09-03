@@ -1,7 +1,7 @@
 "use client"
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, Store, Package, Sparkles } from "lucide-react";
+import { ShoppingCart, User, LogOut, Store, Package, Sparkles, Crown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -42,12 +42,34 @@ export default function ShopPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
+  const [tierData, setTierData] = useState(null);
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' }).then(async (res) => {
       if (res.ok) {
         const data = await res.json();
-        if (data.user) setUser(data.user);
+        if (data.user) {
+          setUser(data.user);
+
+          fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
+         .then(r=>r.json()).then(b=>{
+            fetch('/api/loyalty-tiers').then(r=>r.json()).then(tData=>{
+              const tiersList = tData.tiers || [];
+              if(tiersList.length){
+                let current = tiersList[0];
+                for(let t of tiersList) if((b.points||0) >= t.min_points) current = t;
+                let fill = current.min_spent && current.min_spent>0? (b.total_spent||0)/current.min_spent : 1;
+                if(fill>1) fill=1; if(fill<0) fill=0;
+                let disc = Number(current.base_discount)*fill;
+                setTierData({
+                  current,
+                  fill_percent: Math.round(fill*100),
+                  actual_discount: Number(disc.toFixed(2))
+                });
+              }
+            });
+          });
+        }
       }
     }).finally(() => setLoading(false));
     
@@ -96,7 +118,7 @@ export default function ShopPage() {
       </div>
 
       <div className="max-w-6xl mx-auto p-4">
-        <div className="grid grid-cols-3 gap-3 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30 active:scale-95"><Store className="w-7 h-7 text-purple-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المتاجر</h3></Link>
           {user ? (
             <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95"><Package className="w-7 h-7 text-pink-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المنتجات</h3></Link>
@@ -107,6 +129,28 @@ export default function ShopPage() {
             <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95"><Sparkles className="w-7 h-7 text-yellow-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">طلب خاص</h3></button>
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Sparkles className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 طلب خاص</h3></button>
+          )}
+
+          {user && tierData ? (
+            <Link href="/dashboard" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all active:scale-95 relative overflow-hidden group" style={{ borderColor: tierData.current.color, borderWidth: '1px', background: `linear-gradient(135deg, ${tierData.current.color}15, transparent)` }}>
+              <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 -mr-10 -mt-10" style={{ background: tierData.current.color }}></div>
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center relative" style={{ background: tierData.current.color }}>
+                <Crown className="w-6 h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] group-hover:scale-110 transition-transform" />
+                <div className="absolute inset-0 rounded-xl blur-md opacity-50" style={{ background: tierData.current.color }}></div>
+              </div>
+              <h3 className="text-white font-bold text-sm" style={{ color: tierData.current.color }}>{tierData.current.tier_name}</h3>
+              <p className="text-xs mt-1 font-bold" style={{ color: tierData.current.color }}>خصمك {tierData.actual_discount}%</p>
+              <div className="w-full bg-white/10 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div className="h-1.5 rounded-full transition-all" style={{ width: `${tierData.fill_percent}%`, background: tierData.current.color }}></div>
+              </div>
+            </Link>
+          ) : user ? (
+            <div className="glass rounded-2xl p-4 text-center border border-white/10 opacity-50">
+              <Crown className="w-7 h-7 text-gray-400 mx-auto mb-2 animate-pulse" />
+              <h3 className="text-white font-bold text-sm">...</h3>
+            </div>
+          ) : (
+            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Crown className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 مرتبتي</h3></button>
           )}
         </div>
         <h2 className="text-white font-bold text-lg mb-4">تصفح حسب القسم</h2>
