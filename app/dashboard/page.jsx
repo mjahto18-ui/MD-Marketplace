@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw, Gift } from "lucide-react";
+import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw, Gift, Crown, TrendingUp } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 
@@ -11,7 +11,7 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notificationCount, setNotificationCount] = useState(0);
-  const [balance, setBalance] = useState({ points: 0, wallet: 0 });
+  const [balance, setBalance] = useState({ points: 0, wallet: 0, total_spent: 0 });
   const [orders, setOrders] = useState([]);
   const [openNotifications, setOpenNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -20,9 +20,12 @@ export default function Dashboard() {
   const [needsLocationUpdate, setNeedsLocationUpdate] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
+  const [tiers, setTiers] = useState([]);
+  const [tierData, setTierData] = useState(null);
+
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-    .then(async (res) => {
+   .then(async (res) => {
         if (!res.ok) { window.location.href = '/login'; return; }
         const data = await res.json();
         setUser(data.user);
@@ -38,12 +41,45 @@ export default function Dashboard() {
         // ✅ شلنا api/notifications/count القديم يلي فيه ثغرة
 
         fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-        .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0 }));
+       .then(r => r.json()).then(b => {
+          setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 });
+
+          fetch('/api/loyalty-tiers', { credentials: 'include' })
+         .then(r => r.json()).then(tData => {
+            const tiersList = tData.tiers || [];
+            setTiers(tiersList);
+            if(tiersList.length){
+              let current = tiersList[0];
+              for(let t of tiersList){
+                if((b.points||0) >= t.min_points){
+                  current = t;
+                }
+              }
+              let next = tiersList.find(t => t.tier_level === current.tier_level + 1) || null;
+              let fill = 1;
+              if(current.min_spent && current.min_spent > 0){
+                fill = (b.total_spent||0) / current.min_spent;
+              }
+              if(fill > 1) fill = 1;
+              if(fill < 0) fill = 0;
+              let disc = Number(current.base_discount) * fill;
+              setTierData({
+                current: current,
+                next: next,
+                fill_rate: fill,
+                fill_percent: Math.round(fill * 100),
+                actual_discount: Number(disc.toFixed(2)),
+                points_needed: next? Math.max(0, next.min_points - (b.points||0)) : 0,
+                spent_needed: next? Math.max(0, next.min_spent - (b.total_spent||0)) : 0
+              });
+            }
+          });
+        });
 
         fetch(`/api/my-orders?customerID=${data.user.customerId}`, { credentials: 'include' })
-        .then(r => r.json()).then(o => setOrders(o.orders || []));
+       .then(r => r.json()).then(o => setOrders(o.orders || []));
       })
-    .catch(() => { window.location.href = '/login'; });
+   .catch(() => { window.location.href = '/login'; });
   }, []);
 
   useEffect(() => {
@@ -146,7 +182,7 @@ export default function Dashboard() {
               </button>
 
                 {openNotifications && (
-                <div className="absolute left-0 top-full mt-3 w-[92vw] max-w-[185px] bg-[#1a1a1a] text-white shadow-2xl rounded-xl p-3 z-50 border border-white/10 max-h-[70vh] overflow-y-auto">
+                <div className="absolute left-0 top-full mt-3 w- max-w- bg-[#1a1a1a] text-white shadow-2xl rounded-xl p-3 z-50 border border-white/10 max-h- overflow-y-auto">
                   {notifications.length === 0 && (
                     <div className="text-center py-8 text-gray-400">
                       لا يوجد إشعارات بعد
@@ -233,6 +269,58 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl border border-blue-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-4 h-4 text-blue-300" />
+              <p className="text-blue-200 text-xs">إجمالي مدفوعاتي</p>
+            </div>
+            <p className="text-white text-xl font-bold">{Number(balance.total_spent).toLocaleString()}</p>
+            <p className="text-blue-200/60 text-xs mt-1">ل.ل من الأرشيف</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-xl border rounded-2xl p-4" style={{ borderColor: tierData?.current?.color || 'rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="w-4 h-4" style={{ color: tierData?.current?.color || '#e9d5ff' }} />
+              <p className="text-purple-200 text-xs">مرتبتي</p>
+            </div>
+            <p className="text-white text-xl font-bold" style={{ color: tierData?.current?.color || '#fff' }}>
+              {tierData?.current?.tier_name || '...'}
+            </p>
+            <p className="text-purple-200/60 text-xs mt-1">خصمك: {tierData?.actual_discount || 0}%</p>
+          </div>
+        </div>
+
+        {tierData && (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-white text-sm font-bold">تقدم المرتبة</p>
+              <p className="text-white text-sm">{tierData.fill_percent}%</p>
+            </div>
+            <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
+              <div
+                className="h-3 rounded-full transition-all duration-700"
+                style={{ width: `${tierData.fill_percent}%`, background: tierData.current.color || '#a855f7' }}
+              ></div>
+            </div>
+            <div className="flex justify-between mt-2">
+              <p className="text-purple-200/60 text-xs">
+                {Number(balance.total_spent).toLocaleString()} / {Number(tierData.current.min_spent).toLocaleString()} ل.ل
+              </p>
+              <p className="text-purple-200/60 text-xs">
+                خصم {tierData.current.base_discount}% → فعلي {tierData.actual_discount}%
+              </p>
+            </div>
+            {tierData.next && (
+              <div className="mt-3 bg-white/5 rounded-xl p-3 border border-white/5">
+                <p className="text-yellow-200 text-xs">
+                  🚀 للـ {tierData.next.tier_name}: بقي {tierData.points_needed} نقطة و {Number(tierData.spent_needed).toLocaleString()} ل.ل
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {user?.lat && user?.lng? (
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
@@ -346,7 +434,7 @@ export default function Dashboard() {
         group-active:scale-95
       "
     >
-      <span className="text-[34px] leading-none">
+      <span className="text- leading-none">
         🤖
       </span>
     </div>
@@ -356,13 +444,13 @@ export default function Dashboard() {
         absolute
         -top-2
         -right-2
-        min-w-[28px]
-        h-[28px]
+        min-w-
+        h-
         px-1.5
         rounded-full
         bg-white
         text-purple-700
-        text-[11px]
+        text-
         font-black
         flex items-center justify-center
         shadow-md
@@ -382,7 +470,7 @@ export default function Dashboard() {
       rounded-full
       bg-white
       text-[#11183f]
-      text-[10px]
+      text-
       font-black
       shadow-lg
       whitespace-nowrap
