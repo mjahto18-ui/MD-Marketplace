@@ -77,7 +77,7 @@ export default function GuestStatsPage(){
 
       <div className="bg-white rounded-xl shadow border overflow-hidden">
         <div className="p-3 font-bold border-b">خريطة الزوار العالمية</div>
-        <div className="h- w-full">
+        <div className="w-full">
           <GuestStatsMap data={data} />
         </div>
       </div>
