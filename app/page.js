@@ -11,6 +11,7 @@ import {
   Headphones,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const SITE = {
   emails: {
@@ -36,6 +37,7 @@ const SITE = {
 };
 
 export default function HomePage() {
+  const router = useRouter();
   const [comingSoonMessage, setComingSoonMessage] = useState("");
   const [bannerVisible, setBannerVisible] = useState(false);
 
@@ -71,6 +73,14 @@ export default function HomePage() {
 
     loadConfig();
   }, []);
+
+  const handleShopClick = async (e) => {
+    e.preventDefault();
+    try {
+      await fetch("/api/guest", { method: "POST" });
+    } catch {}
+    router.push("/shop");
+  };
 
   const categories = [
     {
@@ -159,12 +169,12 @@ export default function HomePage() {
 
       <div className="hidden md:flex items-center gap-2">
 
-        <Link
-          href="/shop"
+        <button
+          onClick={handleShopClick}
           className="bg-white text-[#17144d] px-5 md:px-7 py-2.5 rounded-full font-black text-sm shadow-lg hover:scale-105 transition"
         >
           Shop
-        </Link>
+        </button>
 
         <Link
           href={SITE.links.aiGuide}
@@ -199,12 +209,12 @@ export default function HomePage() {
 
         <div className="absolute left-0 top-14 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#171442]/95 p-2 shadow-2xl backdrop-blur-xl">
 
-          <Link
-            href="/shop"
+          <button
+            onClick={handleShopClick}
             className="block rounded-xl px-4 py-3 text-sm font-black text-white hover:bg-white/10"
           >
-            🛍️ Shop
-          </Link>
+            🛍 Shop
+          </button>
 
           <Link
             href={SITE.links.aiGuide}
@@ -306,13 +316,13 @@ export default function HomePage() {
 
 
         {/* Shop button */}
-        <Link
-          href="/shop"
+        <button
+          onClick={handleShopClick}
           className="relative mt-8 bg-gradient-to-br from-purple-500 to-pink-500 text-white px-8 md:px-10 py-4 rounded-full font-black flex items-center gap-3 text-[14px] md:text-base shadow-[0_0_35px_rgba(168,85,247,0.45)] hover:scale-105 active:scale-95 transition"
         >
           Start Shopping
           <ArrowRight size={19} />
-        </Link>
+        </button>
 
 
         {/* Small trust line */}
@@ -396,8 +406,8 @@ export default function HomePage() {
 
             {categories.map((category, i) => (
 
-              <Link
-                href="/shop"
+              <button
+                onClick={handleShopClick}
                 key={i}
                 className="group relative h-[190px] md:h-[260px] rounded-[24px] md:rounded-[30px] overflow-hidden shadow-sm hover:shadow-2xl transition-all"
               >
@@ -409,7 +419,7 @@ export default function HomePage() {
                   className="object-cover group-hover:scale-110 transition duration-700"
                 />
 
-              </Link>
+              </button>
 
             ))}
 
@@ -418,13 +428,13 @@ export default function HomePage() {
 
           <div className="text-center mt-9">
 
-            <Link
-              href="/shop"
+            <button
+              onClick={handleShopClick}
               className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text-[13px] hover:bg-purple-700 transition"
             >
               اكتشف كل المتاجر
               <ArrowRight size={16} />
-            </Link>
+            </button>
 
           </div>
 
