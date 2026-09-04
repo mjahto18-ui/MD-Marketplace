@@ -1,96 +1,76 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function POST(req) {
   try {
     const data = await req.json();
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-
-    const sheets = google.sheets({ version: "v4", auth });
+    const supabase = getSupabase();
 
     // ===== 1) Check رقم الهاتف =====
-    const phoneColumn = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!C:C",
-    });
-
     const submittedPhone = data.phone.toString().trim();
-    const existingPhones = (phoneColumn.data.values || [])
-      .flat()
-      .map(p => p?.toString().trim())
-      .filter(p => p);
-
-    if (existingPhones.includes(submittedPhone)) {
+    
+    const { data: existing } = await supabase.from('customers').select('"Customer ID"').eq('Mobile', submittedPhone).limit(1);
+    
+    if (existing?.length) {
       return NextResponse.json({
         success: false,
-        message: "الرقم مسجل مسبقاً، "
+        message: "الرقم مسجل مسبقاً"
       });
     }
 
-    // ===== 2) جيب كل الـ New PINs من عمود W =====
-    const pinColumn = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!W:W",
-    });
-
-    const existingNewPins = (pinColumn.data.values || [])
-      .flat()
-      .map(p => p?.toString().trim())
-      .filter(p => p);
+    // ===== 2) جيب كل الـ New PINs =====
+    const { data: pinRows } = await supabase.from('customers').select('"New PIN"');
+    const existingNewPins = (pinRows||[]).map(r => String(r['New PIN'] || "").trim()).filter(Boolean);
 
     // ===== 3) ولّد PIN جديد غير مكرّر =====
     function generateUniqueNewPIN() {
       let pin;
       do {
-        pin = Math.floor(1000 + Math.random() * 9000).toString(); // 4 digits
+        pin = Math.floor(1000 + Math.random() * 9000).toString();
       } while (existingNewPins.includes(pin));
       return pin;
     }
 
     const newPIN = generateUniqueNewPIN();
 
-    // ===== 4) كتابة الصف كامل بعمود W الجديد =====
+    // ===== 4) كتابة الصف =====
     const customerId = "CUST-" + Date.now();
     const now = new Date().toISOString();
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Customers!A:W",
-      valueInputOption: "RAW",
-      requestBody: {
-        values: [[
-          customerId,              // A
-          data.name,               // B
-          submittedPhone,          // C
-          data.area,               // D
-          data.address,            // E
-          data.email || '',        // F
-          now,                     // G
-          'Pending',               // H
-          5,                       // I
-          data.registrationLatitude,   // J
-          data.registrationLongitude,  // K
-          data.currentLatitude,        // L
-          data.currentLongitude,        // M
-          now,                     // N
-          data.deviceType,         // O
-          data.deviceName,         // P
-          data.browser,            // Q
-          data.ipAddress,          // R
-          '',                      // S
-          '',                      // T
-          '',                      // U
-          data.pin,                // V ← العميل بيكتبو، ما خصّنا فيه
-          newPIN                   // W ← شغلنا الحقيقي
-        ]],
-      },
-    });
+    const { error } = await supabase.from('customers').insert([{
+      "Customer ID": customerId,
+      "Name": data.name,
+      "Mobile": submittedPhone,
+      "Area": data.area,
+      "Adress": data.address,
+      "Email": data.email || '',
+      "Join Date": now,
+      "Status": 'Pending',
+      "Free Delivery Remaining": "5",
+      "Registration Latitude": String(data.registrationLatitude || ""),
+      "Registration Longitude": String(data.registrationLongitude || ""),
+      "Current Latitude": String(data.currentLatitude || ""),
+      "Current Longtitude": String(data.currentLongitude || ""),
+      "Last Location Update": now,
+      "Device Type": data.deviceType || "",
+      "Device Name": data.deviceName || "",
+      "Browser": data.browser || "",
+      "IP Address": data.ipAddress || "",
+      "PIN": String(data.pin || ""),
+      "New PIN": newPIN
+    }]);
+
+    if (error) throw error;
+
+    // ملاحظة: جدول users رح ينعمل تلقائي من trigger trg_customers_create_user عند الـ Approved
+    // ما في داعي تدخله هون، الـ trigger تبعك يشتغل after UPDATE
 
     return NextResponse.json({
       success: true,

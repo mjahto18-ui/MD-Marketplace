@@ -1,7 +1,12 @@
-export const dynamic = "force-dynamic";   // ← الحل الأساسي
-
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET(req, { params }) {
   try {
@@ -14,29 +19,13 @@ export async function GET(req, { params }) {
       });
     }
 
-    // Google Auth
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    const supabase = getSupabase();
 
     // ============================
     // 1) جلب جدول Products
     // ============================
-    const productsRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Products!A:Z",
-    });
-
-    const products = productsRes.data.values || [];
-
-    const product = products.find((row) => row[0] === productID);
+    const { data: products } = await supabase.from('products').select('*').eq('Product ID', productID).limit(1);
+    let product = products?.[0];
 
     if (!product) {
       return NextResponse.json(
@@ -48,32 +37,27 @@ export async function GET(req, { params }) {
     // ============================
     // 2) جلب جدول Stores
     // ============================
-    const storesRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Stores!A:Z",
-    });
-
-    const stores = storesRes.data.values || [];
-
-    const store = stores.find((row) => row[0] === product[1]); // Store ID
+    const storeId = product['Store ID'];
+    const { data: stores } = await supabase.from('stores').select('*').eq('Store ID', storeId).limit(1);
+    let store = stores?.[0];
 
     // ============================
     // 3) تجهيز بيانات المنتج
     // ============================
     const productData = {
-      productID: product[0],
-      storeID: product[1],
-      name: product[2],
-      category: product[3],
-      unit: product[4],
-      price: Number(product[5]),
-      image: product[6],
-      description: product[7],
-      available: product[8],
-      stock: Number(product[9]),
-      active: product[10],
-      weightPoint: Number(product[11]),
-      storeName: store ? store[1] : "متجر محذوف",
+      productID: product['Product ID'],
+      storeID: product['Store ID'],
+      name: product['Product Name'],
+      category: product['Category'],
+      unit: product['Unit'],
+      price: Number(product['Price']),
+      image: product['Image'],
+      description: product['Description'],
+      available: product['Available'],
+      stock: Number(product['Stock Qty']),
+      active: product['Active'],
+      weightPoint: Number(product['Weight Points']),
+      storeName: store? store['Store Name'] : "متجر محذوف",
     };
 
     return NextResponse.json({

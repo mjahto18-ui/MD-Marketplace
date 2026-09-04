@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
-
-
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET(req) {
   try {
@@ -13,59 +17,19 @@ export async function GET(req) {
       return NextResponse.json({ success: false, message: "Missing category ID" });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-    });
+    const supabase = getSupabase();
 
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    const { data: rows } = await supabase.from('stores').select('*').eq('Category', String(categoryID).trim());
 
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Stores!A:Z",
-    });
-
-    const rows = res.data.values || [];
-    if (rows.length <= 1) {
-      return NextResponse.json({ success: true, stores: [] });
-    }
-
-    const headers = rows[0].map(h => h.trim());
-    const data = rows.slice(1);
-
-    // عمود Category في شيت Stores
-    const categoryIndex = headers.findIndex(h => h.toLowerCase() === 'category');
-
-    if (categoryIndex === -1) {
-      return NextResponse.json({
-        success: false,
-        message: "Category column not found in Stores sheet"
-      });
-    }
-
-    const stores = data
-     .filter(row => {
-        const rowCategory = String(row[categoryIndex] || "")
-         .trim()
-         .replace('.0', ''); // عشان 3002.0 تصير 3002
-        return rowCategory === String(categoryID).trim();
-      })
-     .map(row => {
-        const store = {};
-        headers.forEach((h, i) => store[h] = row[i] || "");
-
+    const stores = (rows||[]).map(row => {
         return {
-          store_id: store["Store ID"],
-          store_name: store["Store Name"],
-          logo: store["Logo"] || "",
-          description: store["Description"] || "",
-          category: store["Category"],
-          status: store["Status"] || "",
-          address: store["Adress"] || store["Address"] || "",
+          store_id: row["Store ID"],
+          store_name: row["Store Name"],
+          logo: row["Logo"] || "",
+          description: row["Description"] || "",
+          category: row["Category"],
+          status: row["Status"] || "",
+          address: row["Adress"] || "",
         };
       });
 
@@ -76,6 +40,6 @@ export async function GET(req) {
     return NextResponse.json({
       success: false,
       message: err.message || "Server Error"
-    });
+    }, { status: 500 });
   }
 }

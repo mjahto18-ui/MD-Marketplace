@@ -1,92 +1,57 @@
-import { google } from "googleapis";
+export const dynamic = "force-dynamic";
+import { NextResponse } from "next/server";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function POST(req) {
   try {
     const { userId, subscriptionId } = await req.json();
 
-    if (!userId || !subscriptionId) {
-      return Response.json({
+    if (!userId ||!subscriptionId) {
+      return NextResponse.json({
         success: false,
         message: "Missing data",
       });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: [
-        "https://www.googleapis.com/auth/spreadsheets",
-      ],
-    });
-
-    const sheets = google.sheets({
-      version: "v4",
-      auth,
-    });
-
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-
-    const read = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Users!A:Z",
-    });
-
-    const rows = read.data.values || [];
+    const supabase = getSupabase();
 
     // أولاً: إزالة Subscription ID من أي مستخدم آخر
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-
-      if (
-        row[16] === subscriptionId &&
-        row[0] !== userId.toString()
-      ) {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `Users!Q${i + 1}`,
-          valueInputOption: "RAW",
-          requestBody: {
-            values: [[""]],
-          },
-        });
-      }
-    }
+    await supabase.from('users').update({ "Subscription ID": "" }).eq("Subscription ID", subscriptionId).neq("User ID", userId.toString());
 
     // ثانياً: البحث عن المستخدم الحالي
-    const rowIndex = rows.findIndex(
-      (row) => row[0] === userId.toString()
-    );
+    const { data: users } = await supabase.from('users').select('*').eq("User ID", userId.toString()).limit(1);
+    let user = users?.[0];
 
-    if (rowIndex === -1) {
-      return Response.json({
+    if (!user) {
+      return NextResponse.json({
         success: false,
         message: "User not found",
       });
     }
 
     // ثالثاً: حفظ Subscription ID للمستخدم الحالي
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `Users!Q${rowIndex + 1}`,
-      valueInputOption: "RAW",
-      requestBody: {
-        values: [[subscriptionId]],
-      },
-    });
+    const { error } = await supabase.from('users').update({
+      "Subscription ID": subscriptionId
+    }).eq("User ID", userId.toString());
 
-    return Response.json({
+    if (error) throw error;
+
+    return NextResponse.json({
       success: true,
       message: "Subscription updated",
     });
 
   } catch (err) {
     console.error(err);
-
-    return Response.json({
+    return NextResponse.json({
       success: false,
       message: "Server error",
-    });
+    }, { status: 500 });
   }
 }

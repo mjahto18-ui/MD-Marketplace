@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req) {
   try {
-    // جوّا الـ POST منشان ما يعمل Error وقت الـ Build
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_KEY
@@ -13,9 +12,9 @@ export async function POST(req) {
     const body = await req.json();
     console.log("========== PUSH QUEUE SUPABASE ==========", body);
 
-    const queueId = body.queueId || body.Queue_ID || body["Queue ID"];
-    const userId = body.userId || body.User_ID || body["User ID"];
-    const code = body.code || body.Code;
+    const queueId = body["Queue ID"];
+    const userId = body["User ID"];
+    const code = body["Code"];
 
     if (!userId ||!code) {
       return NextResponse.json({ success: false, message: "Missing data" });
@@ -54,7 +53,7 @@ export async function POST(req) {
     const result = await response.json();
 
     if (queueId) {
-      await supabase.from("push_queue").update({ Status: "Sent" }).eq("Queue ID", queueId);
+      await supabase.from("push_queue").update({ "Status": "Sent", "Sent At": new Date().toISOString() }).eq("Queue ID", queueId);
     }
 
     return NextResponse.json({ success: true, result });

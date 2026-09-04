@@ -1,37 +1,24 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
-import { getgooglesheets, ensuresheetheaders } from '@/lib/googlesheets';
+import { createClient } from '@supabase/supabase-js';
 
-const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
-const CATEGORIES_SHEET = 'Categories';
-const CATEGORY_HEADERS = ['Category ID', 'Category Name', 'Icon'];
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET() {
   try {
-    const sheets = await getgooglesheets();
-    await ensuresheetheaders(sheets, SPREADSHEET_ID, CATEGORIES_SHEET, CATEGORY_HEADERS);
+    const supabase = getSupabase();
+    const { data, error } = await supabase.from('categories').select('*');
+    if (error) throw error;
 
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${CATEGORIES_SHEET}!A:C`,
-    });
-
-    const rows = response.data.values || [];
-    if (rows.length <= 1) {
-      return NextResponse.json({ categories: [] });
-    }
-
-    const headers = rows[0];
-    const categories = rows.slice(1).map(row => {
-      const category = {};
-      headers.forEach((header, index) => {
-        category[header] = row[index] || '';
-      });
-      return {
-        id: category['Category ID'],
-        name: category['Category Name'],
-        image: category['Icon'] // هون السر: منقرأ Icon ومنرجعه باسم image
-      };
-    }).filter(cat => cat.id && cat.name); // نتأكد انه في id و name
+    const categories = (data || []).map(category => ({
+      id: category['Category ID'],
+      name: category['Category Name'],
+      image: category['Icon']
+    })).filter(cat => cat.id && cat.name);
 
     return NextResponse.json({ categories });
   } catch (error) {

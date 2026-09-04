@@ -1,10 +1,26 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
+
+function normalize(phone) {
+  let c = String(phone || "").replace(/\D/g, "");
+  if (!c) return null;
+  if (c.startsWith("961")) return c;
+  if (c.startsWith("0")) c = c.substring(1);
+  if (c.length === 7 && c.startsWith("3")) return "961" + c;
+  if (c.length === 8) return "961" + c;
+  return c;
+}
 
 export async function POST(request) {
   try {
     const { AcceptedTerms } = await request.json();
-
     const cookie = request.headers.get("cookie");
     const raw = cookie?.match(/session=([^;]+)/)?.[1];
     if (!raw) {
@@ -13,55 +29,49 @@ export async function POST(request) {
 
     const decoded = decodeURIComponent(raw);
     const sessionData = JSON.parse(decoded);
-    const phone = sessionData.phone;
+    const phoneRaw = String(sessionData.phone || "").trim();
+    const phoneNorm = normalize(phoneRaw);
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const supabase = getSupabase();
 
-    const sheets = google.sheets({ version: "v4", auth });
+    const { data: allUsers, error: fetchErr } = await supabase.from('users').select('*');
+    if (fetchErr) throw fetchErr;
 
-    const usersSheet = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: "Users!A:R",
-    });
+    let targetUser = null;
+    for (const u of allUsers || []) {
+      const mobNorm = normalize(u["Mobile"] || "");
+      // بس Mobile - ما دخل واتساب
+      if (mobNorm === phoneNorm || String(u["Mobile"]||"").trim() === phoneRaw) {
+        targetUser = u;
+        break;
+      }
+    }
 
-    const rows = usersSheet.data.values;
-    const userRowIndex = rows.findIndex((row) => row[4] === phone);
-
-    if (userRowIndex === -1) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!targetUser) {
+      return NextResponse.json({ error: "User not found by Mobile", phone: phoneRaw }, { status: 404 });
     }
 
     const valueToSave = AcceptedTerms? "TRUE" : "FALSE";
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: `Users!R${userRowIndex + 1}`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[valueToSave]],
-      },
-    });
+    const { data, error } = await supabase.from('users').update({
+      "AcceptedTerms": valueToSave
+    }).eq('User ID', targetUser["User ID"]).select();
 
-    // *** الحل هون - حدث الـ session ***
+    if (error) throw error;
+
     const newSession = {...sessionData, AcceptedTerms: true, acceptedTerms: true };
     const response = NextResponse.json({ success: true });
 
     response.cookies.set('session', JSON.stringify(newSession), {
       httpOnly: false,
       path: '/',
-      maxAge: 60 * 60 * 24 * 30 // 30 يوم
+      maxAge: 60 * 60 * 24 * 30
     });
 
     return response;
 
   } catch (err) {
     console.error("UPDATE TERMS ERROR:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error", details: err.message }, { status: 500 });
   }
 }

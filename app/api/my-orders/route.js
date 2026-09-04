@@ -1,37 +1,27 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET(req) {
   try {
     const customerID = req.nextUrl.searchParams.get("customerID");
     if (!customerID) return NextResponse.json({ success: true, orders: [] });
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const supabase = getSupabase();
+    const custIdLower = customerID.toString().trim().toLowerCase();
 
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    const { data: rows } = await supabase.from('order_requuest').select('*').order('Cerated Date', { ascending: false });
 
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Order Requuest!A:AE",
-    });
-
-    const rows = res.data.values || [];
-
-    const orders = rows
-     .slice(1)
-     .filter(r => (r[1] || "").toString().trim().toLowerCase() === customerID.toString().trim().toLowerCase())
-     .reverse()
-     .map(r => {
-        // ⭐ فصل إحداثيات السائق من خانة وحدة r[26] -> Current Location
-        const currentLocation = (r[26] || "").toString().trim();
+    const orders = (rows||[])
+   .filter(r => String(r['customer ID'] || "").trim().toLowerCase() === custIdLower)
+   .map(r => {
+        const currentLocation = String(r['Current Location'] || "").trim();
         let driverLat = null;
         let driverLng = null;
 
@@ -42,18 +32,16 @@ export async function GET(req) {
         }
 
         return {
-          requestID: r[0],
-          date: r[3],
-          itemsCost: r[15],
-          deliveryFee: r[6],
-          total: r[16],
-          approvalStatus: r[9], // J
-          status: r[14],
-          freeUsed: r[24] === "TRUE",
-          // العميل
-          customerLat: (r[29] || "").toString().trim(),
-          customerLng: (r[30] || "").toString().trim(),
-          // السائق مفصول
+          requestID: r['Request ID'],
+          date: r['Cerated Date'],
+          itemsCost: r['Items Cost'],
+          deliveryFee: r['Delivery Fee'],
+          total: r['Total Amount'],
+          approvalStatus: r['Approval Status'],
+          status: r['Delivery Status'],
+          freeUsed: String(r['Free Delivery Used'] || "").toUpperCase() === "TRUE",
+          customerLat: String(r['Customer Latitude'] || "").trim(),
+          customerLng: String(r['Customer Longitude'] || "").trim(),
           driverLat: driverLat,
           driverLng: driverLng,
         };

@@ -18,9 +18,10 @@ export async function POST(req) {
       photo1, 
       photo2, 
       photo3,
-      url: photo1 // للتوافق مع الكود القديم
+      url: photo1
     });
   } catch (e) {
+    console.error("Upload error:", e);
     return Response.json({ error: e.message }, { status: 500 });
   }
 }

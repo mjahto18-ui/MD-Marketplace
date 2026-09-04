@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/load-test/route.js - V3 مع عدد عملاء متغير
 
 export async function GET(req) {
@@ -59,7 +60,7 @@ export async function GET(req) {
     });
   }
 
-  return new Response(JSON.stringify({ results }, null, 2), {
+  return new Response(JSON.stringify({ results, timestamp: new Date().toISOString(), clients: CLIENTS }, null, 2), {
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
   });
 }

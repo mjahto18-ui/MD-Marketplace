@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from "next/headers";
 import { getGlobalConfig } from "@/lib/getGlobalConfig";
+
+export const dynamic = "force-dynamic";
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
+
+function normalizePhone(p) {
+  return String(p || "").replace(/\D/g, "").trim();
+}
 
 export async function POST(req) {
   try {
     const config = await getGlobalConfig();
 
-    // 1- حداد - قفل كامل المنصة
     if (config.isLocked) {
       return NextResponse.json({
         success: false,
@@ -15,7 +26,6 @@ export async function POST(req) {
       }, { status: 403 });
     }
 
-    // 2- السلة مسكرة فقط هي يلي بتمنع الاضافة
     if (config.isCartClosed) {
       return NextResponse.json({
         success: false,
@@ -23,8 +33,6 @@ export async function POST(req) {
         message: config.cart_closed_message || "السلة مغلقة حالياً"
       }, { status: 403 });
     }
-
-    // 3- coming soon ما الها دخل بالسلة - ما منسكر هون
 
     const { productID, qty = 1 } = await req.json();
     if (!productID) return NextResponse.json({ success: false, message: "Missing product" }, { status: 400 });
@@ -38,65 +46,53 @@ export async function POST(req) {
       phone = s.phone || s.Mobile || s.user?.phone || sessionCookie;
     } catch { phone = sessionCookie; }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    const supabase = getSupabase();
+    const phoneNorm = normalizePhone(phone);
 
-    const customersRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Customers!A:Z" });
-    const customers = customersRes.data.values || [];
-    const header = customers[0] || [];
-    const mobileIdx = header.findIndex(h => h.toLowerCase().includes('mobile') || h.toLowerCase().includes('phone'));
-    const custIdIdx = header.findIndex(h => h.toLowerCase().includes('customer') && h.toLowerCase().includes('id'));
-
+    // Customers من Supabase
+    const { data: customers } = await supabase.from('customers').select('*');
     let customerID = null;
-    for (let i = 1; i < customers.length; i++) {
-      if (customers[i][mobileIdx] === phone || customers[i][1] === phone) {
-        customerID = customers[i][custIdIdx >=0? custIdIdx : 0] || customers[i][0];
+    for (const c of customers || []) {
+      const mobile = normalizePhone(c["Mobile"] || "");
+      const rawPhone = String(c["Mobile"] || "").trim();
+      if (mobile === phoneNorm || rawPhone === phone || String(c["Customer ID"] || "") === phone) {
+        customerID = c["Customer ID"];
         break;
       }
     }
+    if (!customerID) {
+      const found = (customers || []).find(c => String(c["Mobile"] || "").trim() === String(phone).trim());
+      if (found) customerID = found["Customer ID"];
+    }
+
     if (!customerID) return NextResponse.json({ success: false, message: "حسابك مش موجود" }, { status: 401 });
 
-    const productsRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Products!A:L" });
-    const products = productsRes.data.values?.slice(1) || [];
-    const product = products.find((row) => row[0] === productID);
+    // Products من Supabase
+    const { data: products } = await supabase.from('products').select('*');
+    const product = (products || []).find((row) => String(row["Product ID"] || "").trim() === String(productID).trim());
     if (!product) return NextResponse.json({ success: false, message: "المنتج غير موجود" });
 
-    const unitPrice = Number(product[5]);
-    const storeID = product[1];
-    const linePoints = Number(product[11]);
+    const unitPrice = Number(product["Price"] || 0);
+    const storeID = product["Store ID"] || "";
+    const linePoints = Number(product["Weight Points"] || 0);
 
-    const cartRes = await sheets.spreadsheets.values.get({ spreadsheetId, range: "Cart!A:Z" });
-    const cartRows = cartRes.data.values?.slice(1) || [];
-    const existingIndex = cartRows.findIndex((row) => row[1] === customerID && row[2] === productID && row[6] === "FALSE");
+    // Cart من Supabase
+    const { data: cartRows } = await supabase.from('cart').select('*').eq('Customer ID', customerID).eq('Product ID', productID).eq('Checked Out', 'FALSE');
+    let existing = (cartRows || [])[0];
 
-    if (existingIndex!== -1) {
-      const row = cartRows[existingIndex];
-      row[3] = Number(row[3]) + qty;
-      row[5] = row[3] * unitPrice;
-      await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `Cart!A${existingIndex + 2}:Z${existingIndex + 2}`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: [row] },
-      });
+    if (existing) {
+      const existingQty = Number(existing["Qty"] || 0);
+      const newQty = existingQty + Number(qty);
+      const newTotal = newQty * unitPrice;
+      const existingId = existing["Cart ID"];
+      await supabase.from('cart').update({ "Qty": newQty, "Line Total": newTotal }).eq('Cart ID', existingId);
       return NextResponse.json({ success: true, message: "تم تحديث الكمية" });
     }
 
     const cartID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
-    const newRow = [cartID, customerID, productID, qty, storeID, qty * unitPrice, "FALSE", "FALSE", "", linePoints];
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: "Cart!A:Z",
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [newRow] },
-    });
+    const newRow = { "Cart ID": cartID, "Customer ID": customerID, "Product ID": productID, "Qty": qty, "Store ID": storeID, "Line Total": qty * unitPrice, "Checked Out": "FALSE", "Check Out Flag": "FALSE", "Request ID": "", "Line Points": linePoints };
+    await supabase.from('cart').insert([newRow]);
+
     return NextResponse.json({ success: true, message: "تمت الإضافة" });
 
   } catch (err) {

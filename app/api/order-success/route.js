@@ -1,7 +1,12 @@
 export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return createClient(url, key);
+}
 
 export async function GET(req) {
   try {
@@ -12,26 +17,10 @@ export async function GET(req) {
       return NextResponse.json({ success: false, message: "Missing ID" });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const supabase = getSupabase();
 
-    const sheets = google.sheets({ version: "v4", auth });
-    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Order Requuest!A:AE",
-    });
-
-    const rows = res.data.values || [];
-    const data = rows.slice(1);
-
-    const order = data.find((row) => row[0] === requestID);
+    const { data: rows } = await supabase.from('order_requuest').select('*').eq('Request ID', requestID).limit(1);
+    let order = rows?.[0];
 
     if (!order) {
       return NextResponse.json({ success: false, message: "Order not found" });
@@ -40,8 +29,12 @@ export async function GET(req) {
     return NextResponse.json({
       success: true,
       order: {
-        requestID: order[0],
-        totalAmount: order[6],
+        requestID: order['Request ID'],
+        totalAmount: order['Total Amount'],
+        deliveryFee: order['Delivery Fee'],
+        itemsCost: order['Items Cost'],
+        deliveryStatus: order['Delivery Status'],
+        approvalStatus: order['Approval Status'],
       },
     });
 

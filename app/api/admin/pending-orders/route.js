@@ -1,12 +1,15 @@
 export const dynamic = "force-dynamic";
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-)
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url) throw new Error("Missing Supabase URL");
+  return createClient(url, key);
+}
 
 export async function GET(){
+  const supabase = getSupabase();
   const { data: orders, error } = await supabase
     .from('order_requuest')
     .select(`"Request ID", "customer ID", "Mobile", "Customer Latitude", "Customer Longitude", "Approval Status", "Assigned Driver", "Delivery Adress", "Items Cost", "Delivery Fee", "Total Amount", "Note", "Order Area", "Admin Note", "Area", "Cerated Date"`)

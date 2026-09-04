@@ -83,26 +83,26 @@ export default function Dashboard(){
   const Item = ({label, count, href}) => (
     <Link
       href={href}
-      className="group relative overflow-hidden bg-white border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.09)] hover:border-slate-300 transition-all duration-200"
+      className="group relative overflow-hidden bg-[#E5F0FF] border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.09)] hover:border-slate-300 transition-all duration-200"
     >
-      <div className="absolute inset-y-0 right-0 w-1 bg-slate-900 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="absolute inset-y-0 right-0 w-1 bg-[#0052CC] opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <div className="flex items-center gap-4 min-w-0">
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
           count > 0
-            ? 'bg-red-50 text-red-600'
-            : 'bg-slate-100 text-slate-500'
+          ? 'bg-[#0052CC] text-white'
+            : 'bg-[#e6efff] text-[#0052CC]'
         }`}>
-          <span className="text-lg font-black">
-            {count > 0 ? '!' : '✓'}
+          <span className="text-lg font-black" style={{fontFamily:'Andika'}}>
+            {count > 0? '!' : '✓'}
           </span>
         </div>
 
         <div className="text-right min-w-0">
-          <div className="text-[11px] tracking-[0.12em] text-slate-400 font-bold uppercase truncate">
+          <div className="text- tracking-[0.12em] text-black font-bold uppercase truncate" style={{fontFamily:'Andika'}}>
             {label}
           </div>
-          <div className="text-[28px] font-black text-slate-900 mt-1 leading-none tracking-tight">
+          <div className="text- font-black text-black mt-1 leading-none tracking-tight" style={{fontFamily:'Andika'}}>
             {count}
           </div>
         </div>
@@ -110,25 +110,26 @@ export default function Dashboard(){
 
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
         count > 0
-          ? 'bg-red-600 text-white'
-          : 'bg-slate-100 text-slate-500'
-      }`}>
+        ? 'bg-[#0052CC] text-white'
+          : 'bg-black text-white'
+      }`} style={{fontFamily:'Andika'}}>
         {count}
       </div>
     </Link>
   )
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
+    <div className="min-h-screen bg-[#0052CC] text-slate-900">
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap');`}</style>
 
-      {/* HEADER */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-200/80">
+      {/* HEADER - خلفية 3385FF */}
+      <div className="sticky top-0 z-30 bg-[#E5F0FF] backdrop-blur-xl border-b border-slate-200/80">
 
         <div className="px-6 lg:px-10 py-4 flex justify-between items-center">
 
           <div className="flex items-center gap-4">
 
-            <div className="w-11 h-11 rounded-2xl bg-slate-950 flex items-center justify-center shadow-lg shadow-slate-900/10 overflow-hidden">
+            <div className="w-11 h-11 rounded-2xl bg-[#0052CC] flex items-center justify-center shadow-lg shadow-slate-900/10 overflow-hidden">
               <img
                 src="/logo.png"
                 alt="logo"
@@ -138,17 +139,17 @@ export default function Dashboard(){
             </div>
 
             <div className="text-right">
-              <div className="font-black text-[15px] tracking-[0.04em] text-slate-950">
+              <div className="font-black text- tracking-[0.04em] text-black" style={{fontFamily:'Andika'}}>
                 MD MARKETPLACE
               </div>
 
               <div className="flex items-center gap-2 mt-1.5">
 
-                <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-slate-600">
+                <span className="inline-flex items-center rounded-full bg-[#e6efff] border border-[#b3ccff] px-2.5 py-1 text- font-black tracking-[0.12em] text-black" style={{fontFamily:'Andika'}}>
                   {myRole}
                 </span>
 
-                <span className="text-[12px] font-bold text-slate-500">
+                <span className="text- font-bold text-black" style={{fontFamily:'Andika'}}>
                   {myName} 👤
                 </span>
 
@@ -161,7 +162,8 @@ export default function Dashboard(){
 
             <button
               onClick={load}
-              className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all"
+              className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-black text-xs font-bold hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all"
+              style={{fontFamily:'Andika'}}
             >
               <span className="mr-1.5">↻</span>
               تحديث
@@ -169,7 +171,8 @@ export default function Dashboard(){
 
             <button
               onClick={logout}
-              className="h-10 px-5 rounded-xl bg-slate-950 text-white text-xs font-black hover:bg-slate-800 active:scale-[0.98] shadow-lg shadow-slate-900/10 transition-all"
+              className="h-10 px-5 rounded-xl bg-black text-white text-xs font-black hover:bg-slate-800 active:scale-[0.98] shadow-lg shadow-slate-900/10 transition-all"
+              style={{fontFamily:'Andika'}}
             >
               خروج
             </button>
@@ -180,36 +183,34 @@ export default function Dashboard(){
 
       </div>
 
-
       {/* CONTENT */}
-      <main className="px-5 lg:px-10 py-8 max-w-[1600px] mx-auto">
+      <main className="px-5 lg:px-10 py-8 max-w- mx-auto">
 
         {/* WELCOME */}
         <div className="mb-8 flex items-end justify-between gap-4">
 
           <div className="text-right">
-            <div className="text-[11px] font-bold tracking-[0.16em] uppercase text-slate-400 mb-2">
+            <div className="text- font-bold tracking-[0.16em] uppercase text-white/70 mb-2" style={{fontFamily:'Andika'}}>
               CONTROL CENTER
             </div>
 
-            <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-950">
+            <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-white" style={{fontFamily:'Andika'}}>
               لوحة التحكم
             </h1>
 
-            <p className="text-sm text-slate-500 font-medium mt-2">
+            <p className="text-sm text-white/80 font-medium mt-2" style={{fontFamily:'Andika'}}>
               مرحباً {myName}، إليك ملخص عمليات المنصة.
             </p>
           </div>
 
           <div className="hidden md:flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-bold text-slate-500">
+            <span className="text- font-bold text-black" style={{fontFamily:'Andika'}}>
               SYSTEM ONLINE
             </span>
           </div>
 
         </div>
-
 
         {/* MAIN STATUS CARDS */}
         <section>
@@ -217,86 +218,35 @@ export default function Dashboard(){
           <div className="flex items-center justify-between mb-4">
 
             <div className="text-right">
-              <h2 className="text-sm font-black text-slate-900">
+              <h2 className="text-sm font-black text-white" style={{fontFamily:'Andika'}}>
                 حالة العمليات
               </h2>
 
-              <p className="text-[11px] text-slate-400 mt-1">
+              <p className="text- text-white/70 mt-1" style={{fontFamily:'Andika'}}>
                 Orders & Customers Overview
               </p>
             </div>
 
-            <div className="h-px flex-1 bg-slate-200 mx-5" />
+            <div className="h-px flex-1 bg-white/20 mx-5" />
 
           </div>
 
-
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 
-            <Item
-              label="CUSTOMERS PENDING"
-              count={counts.customersPending}
-              href="/admin/customers-pending"
-            />
-
-            <Item
-              label="PENDING ORDERS"
-              count={counts.pendingOrders}
-              href="/admin/pending"
-            />
-
-            <Item
-              label="TODAY ORDERS"
-              count={counts.todayOrders}
-              href="/admin/today-orders"
-            />
-
-            <Item
-              label="ACTIVE ORDERS"
-              count={counts.activeOrders}
-              href="/admin/active-orders"
-            />
-
-            <Item
-              label="APPROVED ORDERS"
-              count={counts.approvedOrders}
-              href="/admin/approved-orders"
-            />
-
-            <Item
-              label="COMPLETE ORDERS"
-              count={counts.completeOrders}
-              href="/admin/complete-orders"
-            />
-
-            <Item
-              label="CASH PENDING"
-              count={counts.cashPending}
-              href="/admin/cash-pending"
-            />
-
-            <Item
-              label="CASH RECEIVED"
-              count={counts.cashReceived}
-              href="/admin/cash-received"
-            />
-
-            <Item
-              label="REJECTED ORDERS"
-              count={counts.rejectedOrders}
-              href="/admin/rejected-orders"
-            />
-
-            <Item
-              label="MAPPING CUSTOMERS"
-              count={0}
-              href="/admin/mapping-customers"
-            />
+            <Item label="CUSTOMERS PENDING" count={counts.customersPending} href="/admin/customers-pending" />
+            <Item label="PENDING ORDERS" count={counts.pendingOrders} href="/admin/pending" />
+            <Item label="TODAY ORDERS" count={counts.todayOrders} href="/admin/today-orders" />
+            <Item label="ACTIVE ORDERS" count={counts.activeOrders} href="/admin/active-orders" />
+            <Item label="APPROVED ORDERS" count={counts.approvedOrders} href="/admin/approved-orders" />
+            <Item label="COMPLETE ORDERS" count={counts.completeOrders} href="/admin/complete-orders" />
+            <Item label="CASH PENDING" count={counts.cashPending} href="/admin/cash-pending" />
+            <Item label="CASH RECEIVED" count={counts.cashReceived} href="/admin/cash-received" />
+            <Item label="REJECTED ORDERS" count={counts.rejectedOrders} href="/admin/rejected-orders" />
+            <Item label="MAPPING CUSTOMERS" count={0} href="/admin/mapping-customers" />
 
           </div>
 
         </section>
-
 
         {/* MENU */}
         <section className="mt-12">
@@ -304,21 +254,17 @@ export default function Dashboard(){
           <div className="flex items-end justify-between mb-4">
 
             <div className="text-right">
-
-              <h2 className="text-sm font-black text-slate-900">
+              <h2 className="text-sm font-black text-white" style={{fontFamily:'Andika'}}>
                 أدوات الإدارة
               </h2>
-
-              <p className="text-[11px] text-slate-400 mt-1">
+              <p className="text- text-white/70 mt-1" style={{fontFamily:'Andika'}}>
                 {myRole} · {menuTables.length} صلاحية متاحة
               </p>
-
             </div>
 
-            <div className="h-px flex-1 bg-slate-200 mx-5" />
+            <div className="h-px flex-1 bg-white/20 mx-5" />
 
           </div>
-
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
 
@@ -327,43 +273,42 @@ export default function Dashboard(){
               <Link
                 key={m.supa_id}
                 href={`/admin/${m.Menu}`}
-                className="group relative overflow-hidden bg-slate-950 rounded-2xl p-5 min-h-[150px] flex flex-col justify-between border border-slate-800 hover:-translate-y-1 hover:bg-slate-900 hover:shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition-all duration-200"
+                className="group relative overflow-hidden bg-[#E5F0FF] rounded-2xl p-5 min-h- flex flex-col justify-between border border-slate-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-all duration-200"
               >
 
-                <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-white/[0.04] group-hover:bg-white/[0.07] transition-all" />
+                <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-[#0052CC]/5 group-hover:bg-[#0052CC]/10 transition-all" />
 
                 <div className="relative">
 
                   <div className="flex items-center justify-between">
 
-                    <span className="text-[10px] tracking-[0.16em] text-white/35 font-black uppercase">
+                    <span className="text- tracking-[0.16em] text-black/50 font-black uppercase" style={{fontFamily:'Andika'}}>
                       {m.Menu}
                     </span>
 
-                    <span className="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-white/[0.12] transition-all">
+                    <span className="w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center text-black/50 group-hover:text-black group-hover:bg-black/10 transition-all">
                       →
                     </span>
 
                   </div>
 
-                  <div className="font-black text-[17px] text-white mt-5 leading-tight">
+                  <div className="font-black text- text-black mt-5 leading-tight" style={{fontFamily:'Andika'}}>
                     {m.View}
                   </div>
 
                 </div>
 
-
                 <div className="relative flex items-center justify-between mt-5">
 
-                  <span className={`inline-flex rounded-lg px-3 py-1.5 text-[10px] font-black ${
+                  <span className={`inline-flex rounded-lg px-3 py-1.5 text- font-black ${
                     m._access === 'Read & Write'
-                      ? 'bg-emerald-400/10 text-emerald-300 border border-emerald-400/10'
-                      : 'bg-white/[0.07] text-white/50 border border-white/[0.06]'
-                  }`}>
+                   ? 'bg-[#e6efff] text-black border border-[#b3ccff]'
+                      : 'bg-black/5 text-black/60 border border-black/10'
+                  }`} style={{fontFamily:'Andika'}}>
                     {m._access}
                   </span>
 
-                  <span className="text-[10px] text-white/25 font-bold tracking-wider">
+                  <span className="text- text-black/40 font-bold tracking-wider" style={{fontFamily:'Andika'}}>
                     OPEN
                   </span>
 

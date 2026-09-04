@@ -1,13 +1,16 @@
 export const dynamic = "force-dynamic";
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
+  if (!url) throw new Error("Missing Supabase URL");
+  return createClient(url, key);
+}
 
 export async function GET(){
   try {
+    const supabase = getSupabase();
     // جيب السائقين اللي حدثو موقعن بآخر 5 دقايق بس
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
 

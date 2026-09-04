@@ -1,4 +1,3 @@
-
 "use client"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -16,8 +15,23 @@ export default function GenericTable(){
   const [editRow, setEditRow] = useState({})
   const [showAdd, setShowAdd] = useState(false)
   const [newRow, setNewRow] = useState({})
+  const [dropdowns, setDropdowns] = useState({})
+  const [enums, setEnums] = useState({})
+  const [search, setSearch] = useState('')
 
   const normalize = (v) => String(v).toUpperCase() === 'TRUE' || v === true
+
+  const guessRef = (col) => {
+    const c = col.toLowerCase().replace(/_id| id|_ID/g,'').trim()
+    if (c==='area' || c==='areas') return { table: 'areas', idCol: 'Area ID', labelCol: 'Area' }
+    if (c==='category' || c==='categories') return { table: 'categories', idCol: 'Category ID', labelCol: 'Category' }
+    if (c==='store' || c==='stores') return { table: 'stores', idCol: 'Store ID', labelCol: 'Store Name' }
+    if (c==='product' || c==='products') return { table: 'products', idCol: 'Product ID', labelCol: 'Product Name' }
+    if (c==='customer' || c==='customers') return { table: 'customers', idCol: 'Customer ID', labelCol: 'Name' }
+    if (c==='driver' || c==='drivers') return { table: 'drivers', idCol: 'Driver ID', labelCol: 'Driver Name' }
+    if (c==='user' || c==='users') return { table: 'users', idCol: 'User ID', labelCol: 'Name' }
+    return null
+  }
 
   const load = async () => {
     const sessRes = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' })
@@ -51,9 +65,35 @@ export default function GenericTable(){
       setPerm({can_view:true, can_edit:false, can_add:false, can_delete:false})
     }
 
+    // 1- جيب الـ ENUMS من نفس الجدول عن طريق الـ function يلي عملتها بالـ SQL
+    let enumMaps = {}
+    try{
+      const { data: enumJson } = await supabase.rpc('get_table_enums', { p_table: t })
+      if(enumJson) enumMaps = enumJson
+    }catch(e){}
+
     const { data: rows } = await supabase.from(t).select('*').order('supa_id',{ascending:true}).limit(200)
     setData(rows||[])
-    if(rows?.[0]) setCols(Object.keys(rows[0]))
+    if(rows?.[0]) {
+      const columns = Object.keys(rows[0])
+      setCols(columns)
+      let maps = {}
+      for (const col of columns) {
+        if (col==='supa_id') continue
+        if (enumMaps[col]) continue // اذا هو ENUM ما بدنا ندورلو ربط
+        const ref = guessRef(col)
+        if (ref) {
+          try {
+            const { data: refRows } = await supabase.from(ref.table).select('*').limit(500)
+            if (refRows && refRows.length>0) {
+              maps[col] = refRows.map(r => ({ value: String(r[ref.idCol]??''), label: String(r[ref.labelCol]||r[ref.idCol]||'') })).filter(o=>o.value)
+            }
+          } catch(e) {}
+        }
+      }
+      setDropdowns(maps)
+      setEnums(enumMaps)
+    }
   }
 
   useEffect(()=>{ load() },[table])
@@ -64,376 +104,121 @@ export default function GenericTable(){
     setEditId(null)
     load()
   }
-
   const del = async(id)=>{
     if(!confirm('تحذف؟')) return
     await supabase.from(table).delete().eq('supa_id', id)
     load()
   }
-
   const add = async()=>{
     const { supa_id,...clean } = newRow
     const { error } = await supabase.from(table).insert(clean)
     if(error) alert(error.message)
-    else {
-      setShowAdd(false)
-      setNewRow({})
-      load()
-    }
+    else { setShowAdd(false); setNewRow({}); load() }
   }
 
   const canEdit = perm.can_edit
+  const filtered = data.filter(r =>!search || Object.values(r).some(v => String(v).toLowerCase().includes(search.toLowerCase())))
+
+  const renderInput = (colKey, value, onChange, small=false) => {
+    if (enums[colKey]) {
+      return (
+        <select className={small? "w-full h-9 rounded-xl border border-amber-200 bg-amber-50/80 px-3 text- font-medium text-black outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/10" : "w-full h-11 rounded-2xl border border-amber-200 bg-amber-50/50 px-4 text- font-medium text-black outline-none focus:bg-white focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)}>
+          <option value="">اختر {colKey}</option>
+          {enums[colKey].map(v=>(<option key={v} value={v}>{v}</option>))}
+        </select>
+      )
+    }
+    if (dropdowns[colKey]) {
+      return (
+        <select className={small? "w-full h-9 rounded-xl border border-zinc-200 bg-white px-3 text- font-medium text-black outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/10" : "w-full h-11 rounded-2xl border border-zinc-200 bg-zinc-50/50 px-4 text- font-medium text-black outline-none focus:bg-white focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)}>
+          <option value="">اختر {colKey}</option>
+          {dropdowns[colKey].map(opt=>(<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+        </select>
+      )
+    }
+    return (<input placeholder={colKey} className={small? "w-full h-9 rounded-xl border border-zinc-200 bg-white px-3 text- font-medium text-black outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/10" : "w-full h-11 rounded-2xl border border-zinc-200 bg-zinc-50/50 px-4 text- font-medium text-black outline-none placeholder:text-zinc-400 focus:bg-white focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)} />)
+  }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#f5f7fa] text-slate-900">
+    <div dir="rtl" className="min-h-screen bg-[#0052CC] text-zinc-900 selection:bg-zinc-900 selection:text-white">
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap'); *{font-family:'Andika',sans-serif}`}</style>
 
-      {/* HEADER */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-200">
-
-        <div className="px-5 lg:px-8 py-4 flex items-center justify-between gap-4">
-
-          <div className="flex items-center gap-4 min-w-0">
-
-            <div className="w-11 h-11 rounded-2xl bg-slate-950 flex items-center justify-center shrink-0 shadow-lg shadow-slate-900/10 overflow-hidden">
-              <img
-                src="/logo.png"
-                alt="logo"
-                className="w-8 h-8 object-contain"
-                onError={(e)=>e.target.style.display='none'}
-              />
+      <header className="sticky top-0 z-40 bg-[#E5F0FF] backdrop-blur-2xl border-b border-white/20">
+        <div className="px-6 lg:px-10 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded- bg-[#0052CC] flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
+              <div className="w-7 h-7 rounded- bg-white/20 backdrop-blur flex items-center justify-center text-white font-black text- tracking-widest" style={{fontFamily:'Andika'}}>MD</div>
             </div>
-
-            <div className="text-right min-w-0">
-
-              <div className="flex items-center gap-2 flex-wrap">
-
-                <h1 className="font-black text-xl tracking-tight text-slate-950">
-                  {table}
-                </h1>
-
-                <span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-[10px] font-black text-slate-600">
-                  {data.length} سجل
-                </span>
-
+            <div>
+              <div className="flex items-baseline gap-3">
+                <h1 className="text- font-[900] tracking-[-0.02em] text-black leading-none" style={{fontFamily:'Andika'}}>{table}</h1>
+                <span className="text- font-bold text-black/60 tracking-wide" style={{fontFamily:'Andika'}}>/ ADMIN</span>
               </div>
-
-              <div className="flex items-center gap-2 mt-1.5">
-
-                <span className="text-[11px] font-bold text-slate-400">
-                  {myRole}
-                </span>
-
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
-
-                <span className={`text-[11px] font-black ${
-                  canEdit ? 'text-emerald-600' : 'text-slate-400'
-                }`}>
-                  {canEdit ? 'قراءة وتعديل' : 'قراءة فقط'}
-                </span>
-
+              <div className="flex items-center gap-2.5 mt-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#0052CC] text-white px-3 py-1 text- font-bold tracking-wide" style={{fontFamily:'Andika'}}><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"/>{myRole}</span>
+                <span className="text- text-black font-medium" style={{fontFamily:'Andika'}}>{filtered.length} سجل • {Object.keys(dropdowns).length} روابط • {Object.keys(enums).length} ENUM</span>
               </div>
-
             </div>
-
           </div>
-
-
-          <div className="flex items-center gap-2 shrink-0">
-
-            {perm.can_add && (
-              <button
-                onClick={()=>setShowAdd(true)}
-                className="h-10 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-lg shadow-emerald-600/15 hover:bg-emerald-700 active:scale-[0.98] transition-all"
-              >
-                <span className="text-base ml-1">+</span>
-                إضافة
-              </button>
-            )}
-
-            <a
-              href="/admin/dashboard"
-              className="h-10 px-4 rounded-xl bg-slate-950 text-white flex items-center text-xs font-black hover:bg-slate-800 active:scale-[0.98] transition-all"
-            >
-              لوحة التحكم
-            </a>
-
+          <div className="flex items-center gap-2.5">
+            <div className="hidden md:flex items-center gap-2 h-11 px-4 rounded-2xl bg-zinc-50 border border-zinc-100">
+              <span className="text-black">⌕</span>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث سريع..." className="bg-transparent outline-none text- font-medium text-black placeholder:text-zinc-400 w-" style={{fontFamily:'Andika'}}/>
+            </div>
+            {perm.can_add && (<button onClick={()=>setShowAdd(true)} className="h-11 px-5 rounded-2xl bg-[#0052CC] text-white text- font-bold tracking-wide hover:bg-[#0041a3] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] active:scale-[0.98] transition-all" style={{fontFamily:'Andika'}}>+ إضافة جديد</button>)}
+            <a href="/admin/dashboard" className="h-11 px-5 rounded-2xl bg-black border border-zinc-200 text-white text- font-bold hover:bg-zinc-800 transition" style={{fontFamily:'Andika'}}>لوحة التحكم</a>
           </div>
-
         </div>
-
       </header>
 
-
-      {/* CONTENT */}
-      <main className="p-5 lg:p-8">
-
-        {/* ADD PANEL */}
+      <main className="px-6 lg:px-10 py-8">
         {showAdd && (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgba(15,23,42,0.06)] p-5 mb-5">
-
-            <div className="flex items-center justify-between mb-5">
-
-              <div className="text-right">
-                <h2 className="text-base font-black text-slate-950">
-                  إضافة سجل جديد
-                </h2>
-
-                <p className="text-[11px] text-slate-400 mt-1">
-                  أدخل بيانات السجل ثم اضغط حفظ
-                </p>
-              </div>
-
-              <button
-                onClick={()=>setShowAdd(false)}
-                className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 font-black hover:bg-slate-200 transition"
-              >
-                ×
-              </button>
-
+          <div className="bg-[#E5F0FF] rounded- border border-zinc-100 shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-7 mb-8">
+            <div className="flex items-center justify-between mb-7">
+              <div><h2 className="text- font-[800] tracking-tight text-black" style={{fontFamily:'Andika'}}>إضافة سجل جديد</h2><p className="text- text-black mt-1 font-medium" style={{fontFamily:'Andika'}}>البرتقالي ENUM من نفس الجدول ◆ الأزرق مربوط من جدول تاني ●</p></div>
+              <button onClick={()=>setShowAdd(false)} className="w-10 h-10 rounded-2xl bg-zinc-50 border border-zinc-100 text-black hover:bg-zinc-100 transition">✕</button>
             </div>
-
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-
-              {cols.filter(c=>c!=='supa_id').map(k=>(
-
-                <div key={k} className="text-right">
-
-                  <label className="block text-[10px] font-black tracking-wide text-slate-400 mb-1.5">
-                    {k}
-                  </label>
-
-                  <input
-                    placeholder={k}
-                    className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition"
-                    value={newRow[k]||''}
-                    onChange={e=>setNewRow({...newRow,[k]:e.target.value})}
-                  />
-
-                </div>
-
-              ))}
-
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {cols.filter(c=>c!=='supa_id').map(k=>(<div key={k}><label className="block text- font-bold tracking-wide text-black mb-2" style={{fontFamily:'Andika'}}>{k} {dropdowns[k] && <span className="text-[#0052CC]">● مربوط</span>} {enums[k] && <span className="text-amber-600">◆ {enums[k].length} قيم</span>}</label>{renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}</div>))}
             </div>
-
-
-            <div className="mt-5 flex gap-2 justify-start">
-
-              <button
-                onClick={add}
-                className="h-10 px-5 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 transition"
-              >
-                حفظ السجل
-              </button>
-
-              <button
-                onClick={()=>setShowAdd(false)}
-                className="h-10 px-5 rounded-xl bg-slate-100 text-slate-600 text-xs font-black hover:bg-slate-200 transition"
-              >
-                إلغاء
-              </button>
-
-            </div>
-
+            <div className="mt-7 flex gap-2.5"><button onClick={add} className="h-11 px-7 rounded-2xl bg-[#0052CC] text-white text- font-bold hover:bg-[#0041a3] transition" style={{fontFamily:'Andika'}}>حفظ السجل</button><button onClick={()=>setShowAdd(false)} className="h-11 px-7 rounded-2xl bg-zinc-50 border border-zinc-100 text-black text- font-bold hover:bg-zinc-100 transition" style={{fontFamily:'Andika'}}>إلغاء</button></div>
           </div>
         )}
 
-
-        {/* TABLE CARD */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_6px_25px_rgba(15,23,42,0.05)] overflow-hidden">
-
-          {/* TABLE TOP */}
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-
-            <div className="text-right">
-
-              <div className="text-xs font-black text-slate-900">
-                بيانات {table}
-              </div>
-
-              <div className="text-[10px] text-slate-400 mt-1">
-                {data.length} سجل معروض
-              </div>
-
+        <div className="bg-[#E5F0FF] rounded- border border-zinc-100 shadow-[0_20px_80px_rgba(0,0,0,0.15)] overflow-hidden">
+          <div className="px-8 py-6 border-b border-zinc-50 flex items-center justify-between bg-[#E5F0FF]">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#0052CC] text-white flex items-center justify-center text- font-black" style={{fontFamily:'Andika'}}>{filtered.length}</div>
+              <div><div className="text- font-bold text-black" style={{fontFamily:'Andika'}}>جدول {table}</div><div className="text- text-black font-medium mt-0.5" style={{fontFamily:'Andika'}}>عرض {filtered.length} من {data.length} • تحديث مباشر</div></div>
             </div>
-
-            <div className="flex items-center gap-2">
-
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-
-              <span className="text-[10px] font-bold text-slate-400">
-                LIVE DATA
-              </span>
-
-            </div>
-
+            <div className="flex items-center gap-2 text- font-medium text-black" style={{fontFamily:'Andika'}}><span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]"/>LIVE SYNC • {Object.keys(enums).length} ENUMS • {Object.keys(dropdowns).length} LINKS</div>
           </div>
 
-
-          {/* TABLE */}
-          <div className="overflow-auto max-h-[calc(100vh-190px)]">
-
-            <table
-              dir="rtl"
-              className="w-full text-sm whitespace-nowrap border-collapse"
-            >
-
+          <div className="overflow-auto max-h-[calc(100vh-240px)]">
+            <table dir="rtl" className="w-full text- border-collapse">
               <thead className="sticky top-0 z-20">
-
-                <tr className="bg-slate-950 text-white">
-
-                  {canEdit && (
-                    <th className="sticky right-0 z-30 bg-slate-950 px-4 py-3 text-center text-[11px] font-black border-l border-white/10">
-                      تعديل
-                    </th>
-                  )}
-
-                  {cols.map(k=>(
-                    <th
-                      key={k}
-                      className="px-4 py-3 text-right text-[11px] font-black text-slate-200 border-l border-white/10 min-w-[130px]"
-                    >
-                      {k}
-                    </th>
-                  ))}
-
-                  {canEdit && (
-                    <th className="px-4 py-3 text-center text-[11px] font-black min-w-[80px]">
-                      حذف
-                    </th>
-                  )}
-
+                <tr className="bg-[#0052CC] text-white">
+                  {canEdit && (<th className="sticky right-0 z-30 bg-[#0052CC] px-6 py-4 text-center text- font-bold tracking-widest text-white" style={{fontFamily:'Andika'}}>إجراء</th>)}
+                  {cols.map(k=>(<th key={k} className="px-6 py-4 text-right text- font-bold tracking-widest text-white whitespace-nowrap border-l border-white/20" style={{fontFamily:'Andika'}}>{k} {dropdowns[k] && <span className="ml-1 text-white">●</span>} {enums[k] && <span className="ml-1 text-amber-200">◆</span>}</th>))}
+                  {canEdit && (<th className="px-6 py-4 text-center text- font-bold tracking-widest text-white" style={{fontFamily:'Andika'}}>حذف</th>)}
                 </tr>
-
               </thead>
-
-
               <tbody>
-
-                {data.map((r,index)=>(
-
-                  <tr
-                    key={r.supa_id}
-                    className={`border-b border-slate-100 hover:bg-slate-50 transition ${
-                      index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                    }`}
-                  >
-
-                    {canEdit && (
-
-                      <td className="sticky right-0 z-10 bg-inherit px-3 py-2 border-l border-slate-100">
-
-                        {editId===r.supa_id ? (
-
-                          <div className="flex items-center justify-center gap-1">
-
-                            <button
-                              onClick={save}
-                              className="w-9 h-8 rounded-lg bg-emerald-600 text-white text-[10px] font-black hover:bg-emerald-700 transition"
-                            >
-                              حفظ
-                            </button>
-
-                            <button
-                              onClick={()=>setEditId(null)}
-                              className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 font-black hover:bg-slate-200 transition"
-                            >
-                              ×
-                            </button>
-
-                          </div>
-
-                        ) : (
-
-                          <button
-                            onClick={()=>{
-                              setEditId(r.supa_id)
-                              setEditRow(r)
-                            }}
-                            className="h-8 px-3 rounded-lg bg-slate-950 text-white text-[10px] font-black hover:bg-slate-800 transition"
-                          >
-                            تعديل
-                          </button>
-
-                        )}
-
-                      </td>
-
-                    )}
-
-
-                    {cols.map(k=>(
-
-                      <td
-                        key={k}
-                        className="px-4 py-2.5 text-right border-l border-slate-100 max-w-[280px] truncate text-[12px] font-medium text-slate-700"
-                      >
-
-                        {editId===r.supa_id && k!=='supa_id' ? (
-
-                          <input
-                            className="w-full min-w-[120px] h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
-                            value={editRow[k]||''}
-                            onChange={e=>setEditRow({...editRow,[k]:e.target.value})}
-                          />
-
-                        ) : (
-
-                          String(r[k]??'')
-
-                        )}
-
-                      </td>
-
-                    ))}
-
-
-                    {canEdit && (
-
-                      <td className="px-3 py-2 text-center">
-
-                        <button
-                          onClick={()=>del(r.supa_id)}
-                          className="h-8 px-3 rounded-lg bg-red-50 text-red-600 border border-red-100 text-[10px] font-black hover:bg-red-600 hover:text-white transition"
-                        >
-                          حذف
-                        </button>
-
-                      </td>
-
-                    )}
-
+                {filtered.map((r,index)=>(
+                  <tr key={r.supa_id} className={`group border-b border-zinc-100 hover:bg-[#e6efff]/50 transition-all ${index%2===0?'bg-white':'bg-[#f6f8ff]'}`}>
+                    {canEdit && (<td className="sticky right-0 z-10 bg-inherit group-hover:bg-[#e6efff]/50 px-4 py-3 border-l border-zinc-100">{editId===r.supa_id? (<div className="flex gap-1.5"><button onClick={save} className="h-8 px-3 rounded-xl bg-[#0052CC] text-white text- font-bold hover:bg-[#0041a3] transition" style={{fontFamily:'Andika'}}>حفظ</button><button onClick={()=>setEditId(null)} className="h-8 w-8 rounded-xl bg-zinc-100 text-black hover:bg-zinc-200 transition">✕</button></div>) : (<button onClick={()=>{setEditId(r.supa_id); setEditRow(r)}} className="h-8 px-4 rounded-xl bg-black text-white text- font-bold group-hover:bg-[#0052CC] transition-all" style={{fontFamily:'Andika'}}>تعديل</button>)}</td>)}
+                    {cols.map(k=>(<td key={k} className="px-6 py-4 text-right text-black font-bold max-w- truncate border-l border-zinc-50/50" style={{fontFamily:'Andika'}}>{editId===r.supa_id && k!=='supa_id'? (renderInput(k, editRow[k]||'', (v)=>setEditRow({...editRow,[k]:v}), true)) : (<span className={`${dropdowns[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e6efff] text-black border border-[#b3ccff] text- font-bold':''} ${enums[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text- font-bold':''}`} style={{fontFamily:'Andika'}}>{dropdowns[k]? (dropdowns[k].find(o=>o.value===String(r[k]??''))?.label || String(r[k]??'')) : String(r[k]??'')}</span>)}</td>))}
+                    {canEdit && (<td className="px-4 py-3 text-center"><button onClick={()=>del(r.supa_id)} className="h-8 px-3 rounded-xl bg-white border border-zinc-200 text-black text- font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition" style={{fontFamily:'Andika'}}>حذف</button></td>)}
                   </tr>
-
                 ))}
-
               </tbody>
-
             </table>
-
           </div>
-
         </div>
 
-
-        {/* PERMISSION MESSAGE */}
-        {!canEdit && perm.can_view && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700 font-bold">
-            <span>🔒</span>
-            أنت {myRole} — هذا الجدول للقراءة فقط (can_edit = FALSE)
-          </div>
-        )}
-
-        {!perm.can_view && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-xs text-red-700 font-bold">
-            <span>⛔</span>
-            ما عندك صلاحية تشوف هذا الجدول
-          </div>
-        )}
-
+        {!canEdit && perm.can_view && (<div className="mt-6 rounded-2xl bg-white border border-zinc-100 px-5 py-4 text- font-bold text-black" style={{fontFamily:'Andika'}}>🔒 وضع القراءة فقط — {myRole}</div>)}
+        {!perm.can_view && (<div className="mt-6 rounded-2xl bg-white border border-red-100 px-5 py-4 text- font-bold text-black" style={{fontFamily:'Andika'}}>⛔ لا تملك صلاحية عرض هذا الجدول</div>)}
       </main>
-
     </div>
   )
 }
-
