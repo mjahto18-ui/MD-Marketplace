@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from '@supabase/supabase-js';
+import BackToDashboard from "@/components/BackToDashboard"
 
 // هون الحل - ما منخلي السيرفر يرندر الخريطة
 const GuestStatsMap = dynamic(() => import("@/components/GuestStatsMap"), {
@@ -56,6 +57,7 @@ export default function GuestStatsPage(){
 
   return (
     <div className="p-4 space-y-4">
+      <BackToDashboard />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl shadow p-4 border">
           <div className="text-xs text-gray-500">إجمالي الزيارات</div>
