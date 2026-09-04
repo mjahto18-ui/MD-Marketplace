@@ -46,6 +46,21 @@ export default function ShopPage() {
   const [kingsData, setKingsData] = useState(null);
   const [showKings, setShowKings] = useState(false);
 
+  // قفل سكرول الخلفية لما ينفتح الملوك
+  useEffect(() => {
+    if (showKings) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+      document.documentElement.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.documentElement.style.overflow = 'unset';
+    };
+  }, [showKings]);
+
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' }).then(async (res) => {
       if (res.ok) {
@@ -53,7 +68,7 @@ export default function ShopPage() {
         if (data.user) {
           setUser(data.user);
           fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-        .then(r=>r.json()).then(b=>{
+       .then(r=>r.json()).then(b=>{
             fetch('/api/loyalty-tiers').then(r=>r.json()).then(tData=>{
               const tiersList = tData.tiers || [];
               if(tiersList.length){
@@ -123,14 +138,11 @@ export default function ShopPage() {
       <div className="max-w-6xl mx-auto p-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30 active:scale-95"><Store className="w-7 h-7 text-purple-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المتاجر</h3></Link>
-
           {user? (
             <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95"><Package className="w-7 h-7 text-pink-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المنتجات</h3></Link>
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Package className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 جميع المنتجات</h3></button>
           )}
-
-          {/* هون قسمنا بوكس الطلب الخاص ل تنين */}
           {user? (
             <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95">
               <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
@@ -142,18 +154,15 @@ export default function ShopPage() {
               <h3 className="text-white font-bold text-xs">🔒 طلب خاص</h3>
             </button>
           )}
-
-          {/* البوكس الجديد - الملك العام - يلمع */}
           <button onClick={() => setShowKings(true)} className="rounded-2xl p-3 text-center active:scale-95 relative overflow-hidden group border border-yellow-400/50"
             style={{ background: 'linear-gradient(135deg, #FFD70015, #FFA50025)', boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" style={{animation:'shine 2s infinite'}}></div>
-            <style>{`@keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}} @keyframes glow{0%,100%{box-shadow:0 0 10px gold}50%{box-shadow:0 0 25px gold}}`}</style>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+            <style>{`@keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style>
             <Crown className="w-6 h-6 text-yellow-400 mx-auto mb-1 animate-pulse drop-shadow-[0_0_8px_gold]" />
             <h3 className="text-yellow-300 font-bold text-xs">👑 ملك المتجر</h3>
             <p className="text- text-white/80 mt-1 truncate">{kingsData?.top1? `${kingsData.top1.display_name} - ${kingsData.top1.tier_name}` : 'جاري...'}</p>
             <p className="text- text-yellow-200/60">اضغط للعرض</p>
           </button>
-
           {user && tierData? (
             <Link href="/dashboard" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all active:scale-95 relative overflow-hidden group col-span-2 md:col-span-2" style={{ borderColor: tierData.current.color, borderWidth: '1px', background: `linear-gradient(135deg, ${tierData.current.color}15, transparent)` }}>
               <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 -mr-10 -mt-10" style={{ background: tierData.current.color }}></div>
@@ -175,7 +184,6 @@ export default function ShopPage() {
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95 col-span-2"><Crown className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 مرتبتي</h3></button>
           )}
         </div>
-
         <h2 className="text-white font-bold text-lg mb-4">تصفح حسب القسم</h2>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-8">
           {categories.map((cat, index) => (
@@ -192,11 +200,11 @@ export default function ShopPage() {
       </div>
 
       {showKings && kingsData && (
-        <div onClick={()=>setShowKings(false)} className="fixed inset-0 bg-black/70 z-[9999] flex justify-center items-center p-4">
-          <div onClick={e=>e.stopPropagation()} className="glass w-full max-w- max-h- overflow-auto rounded- p-5" style={{background:'#1a1a3e'}}>
-            <div className="flex justify-between items-center mb-4">
+        <div onClick={()=>setShowKings(false)} className="fixed inset-0 bg-black/70 z-[9999] flex justify-center items-start p-4 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+          <div onClick={e=>e.stopPropagation()} className="glass w-full max-w- rounded- p-5 mt-8 mb-8" style={{background:'#1a1a3e', maxHeight:'85vh', overflowY:'auto', overscrollBehavior:'contain'}} onTouchMove={e=>e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-[#1a1a3e] py-2 z-10">
               <h2 className="text-white font-bold text-lg">👑 لائحة الملوك</h2>
-              <button onClick={()=>setShowKings(false)} className="text-white/60 w-8 h-8 bg-white/10 rounded-full">✕</button>
+              <button onClick={()=>setShowKings(false)} className="text-white/60 w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">✕</button>
             </div>
             {kingsData.top1 && (
               <div className="mb-4 p-3 rounded-xl border" style={{background: `${kingsData.top1.color}20`, borderColor: kingsData.top1.color, boxShadow:`0 0 15px ${kingsData.top1.color}50`}}>
