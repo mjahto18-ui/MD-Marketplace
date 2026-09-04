@@ -1,5 +1,4 @@
-يا اخي شبك 
-هي ما بينربط فيها الشوب ؟ كبسة الشوب بقلبها مرتين 
+
 "use client";
 
 import Link from "next/link";
