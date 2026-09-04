@@ -11,6 +11,13 @@ import {
   Headphones,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 const SITE = {
   emails: {
@@ -36,6 +43,7 @@ const SITE = {
 };
 
 export default function HomePage() {
+  const router = useRouter();
   const [comingSoonMessage, setComingSoonMessage] = useState("");
   const [bannerVisible, setBannerVisible] = useState(false);
 
@@ -63,7 +71,7 @@ export default function HomePage() {
           cfg?.platform_status?.value === "COMING_SOON";
 
         setComingSoonMessage(message);
-        setBannerVisible(isComingSoon && !!message);
+        setBannerVisible(isComingSoon &&!!message);
       } catch (error) {
         console.error("Global config error:", error);
       }
@@ -71,6 +79,33 @@ export default function HomePage() {
 
     loadConfig();
   }, []);
+
+  // ربط زر Shop مع تسجيل الزائر - نفس شغل صفحة الزائر
+  const handleShopClick = async (e) => {
+    e.preventDefault();
+
+    if (!sessionStorage.getItem('guest_logged')) {
+      try {
+        const geo = await fetch('https://ipapi.co/json/').then(r=>r.json());
+
+        if (geo.ip) {
+          await supabase.from('guestlogs').insert([{
+            "IP Adresse": geo.ip,
+            city: geo.city,
+            country: geo.country_name,
+            lat: geo.latitude,
+            lng: geo.longitude,
+            "Log Date": new Date().toISOString(),
+            page: "home->shop"
+          }]);
+
+          sessionStorage.setItem('guest_logged','1');
+        }
+      } catch {}
+    }
+
+    router.push('/shop');
+  };
 
   const categories = [
     {
@@ -145,26 +180,25 @@ export default function HomePage() {
         href="/"
         className="text-white text-right shrink-0"
       >
-        <div className="font-black text-[16px] md:text-[22px] tracking-wide">
+        <div className="font-black text- md:text- tracking-wide">
           MD-MARKETPLACE
         </div>
 
-        <div className="text-white/50 text-[9px] md:text-xs mt-1">
+        <div className="text-white/50 text- md:text-xs mt-1">
           One App For Everything
         </div>
       </Link>
-
 
       {/* ================= DESKTOP NAV ================= */}
 
       <div className="hidden md:flex items-center gap-2">
 
-        <Link
-          href="/shop"
+        <button
+          onClick={handleShopClick}
           className="bg-white text-[#17144d] px-5 md:px-7 py-2.5 rounded-full font-black text-sm shadow-lg hover:scale-105 transition"
         >
           Shop
-        </Link>
+        </button>
 
         <Link
           href={SITE.links.aiGuide}
@@ -182,7 +216,6 @@ export default function HomePage() {
 
       </div>
 
-
       {/* ================= MOBILE MENU ================= */}
 
       <details className="relative md:hidden">
@@ -196,15 +229,14 @@ export default function HomePage() {
           </span>
         </summary>
 
-
         <div className="absolute left-0 top-14 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#171442]/95 p-2 shadow-2xl backdrop-blur-xl">
 
-          <Link
-            href="/shop"
-            className="block rounded-xl px-4 py-3 text-sm font-black text-white hover:bg-white/10"
+          <button
+            onClick={handleShopClick}
+            className="block w-full text-left rounded-xl px-4 py-3 text-sm font-black text-white hover:bg-white/10"
           >
-            🛍️ Shop
-          </Link>
+            🛍 Shop
+          </button>
 
           <Link
             href={SITE.links.aiGuide}
@@ -233,13 +265,12 @@ export default function HomePage() {
           HERO
       ===================================================== */}
 
-      <section className="relative min-h-[720px] md:min-h-[820px] bg-gradient-to-br from-[#171442] via-[#21185b] to-[#32166c] flex flex-col items-center justify-center px-5 pt-28 pb-16 text-center overflow-hidden">
+      <section className="relative min-h- md:min-h- bg-gradient-to-br from-[#171442] via-[#21185b] to-[#32166c] flex flex-col items-center justify-center px-5 pt-28 pb-16 text-center overflow-hidden">
 
         {/* Background glow */}
-        <div className="absolute w-[650px] h-[650px] bg-purple-600/20 rounded-full blur-[140px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="absolute w- h- bg-purple-600/20 rounded-full blur- top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
-        <div className="absolute w-[300px] h-[300px] bg-pink-500/10 rounded-full blur-[100px] top-20 right-0 pointer-events-none" />
-
+        <div className="absolute w- h- bg-pink-500/10 rounded-full blur- top-20 right-0 pointer-events-none" />
 
         {/* =================================================
             COMING SOON BANNER
@@ -248,17 +279,17 @@ export default function HomePage() {
         {bannerVisible && comingSoonMessage && (
           <div className="relative w-full max-w-3xl mb-8 overflow-hidden rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl shadow-[0_0_35px_rgba(168,85,247,0.25)]">
 
-            <div className="flex items-center min-h-[52px]">
+            <div className="flex items-center min-h-">
 
               {/* ثابت صغير */}
-              <div className="relative z-10 shrink-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-3 font-black text-[11px] md:text-xs">
+              <div className="relative z-10 shrink-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-3 font-black text- md:text-xs">
                 أحدث العروض
               </div>
 
               {/* النص المتحرك */}
               <div className="relative flex-1 overflow-hidden whitespace-nowrap">
 
-                <div className="coming-soon-marquee inline-block text-white font-bold text-[12px] md:text-sm">
+                <div className="coming-soon-marquee inline-block text-white font-bold text- md:text-sm">
                   {comingSoonMessage}
                 </div>
 
@@ -268,9 +299,8 @@ export default function HomePage() {
           </div>
         )}
 
-
         {/* Logo */}
-        <div className="relative mb-7 md:mb-9 bg-white p-3 md:p-4 rounded-[26px] md:rounded-[32px] shadow-[0_0_55px_rgba(168,85,247,0.55)]">
+        <div className="relative mb-7 md:mb-9 bg-white p-3 md:p-4 rounded- md:rounded- shadow-[0_0_55px_rgba(168,85,247,0.55)]">
 
           <Image
             src="/icon.png"
@@ -278,14 +308,13 @@ export default function HomePage() {
             width={120}
             height={120}
             priority
-            className="w-[78px] h-[78px] md:w-[120px] md:h-[120px] object-contain"
+            className="w- h- md:w- md:h- object-contain"
           />
 
         </div>
 
-
         {/* Main title */}
-        <h1 className="relative text-[34px] md:text-7xl font-black text-white leading-[1.05] max-w-5xl">
+        <h1 className="relative text- md:text-7xl font-black text-white leading-[1.05] max-w-5xl">
 
           Everything You Need
 
@@ -297,32 +326,28 @@ export default function HomePage() {
 
         </h1>
 
-
-        <p className="relative text-white/55 mt-5 text-[13px] md:text-[17px] max-w-xl leading-relaxed">
+        <p className="relative text-white/55 mt-5 text- md:text- max-w-xl leading-relaxed">
           Discover products from multiple local stores.
           <br className="hidden md:block" />
           Shop your favorite stores in one simple checkout.
         </p>
 
-
         {/* Shop button */}
-        <Link
-          href="/shop"
-          className="relative mt-8 bg-gradient-to-br from-purple-500 to-pink-500 text-white px-8 md:px-10 py-4 rounded-full font-black flex items-center gap-3 text-[14px] md:text-base shadow-[0_0_35px_rgba(168,85,247,0.45)] hover:scale-105 active:scale-95 transition"
+        <button
+          onClick={handleShopClick}
+          className="relative mt-8 bg-gradient-to-br from-purple-500 to-pink-500 text-white px-8 md:px-10 py-4 rounded-full font-black flex items-center gap-3 text- md:text-base shadow-[0_0_35px_rgba(168,85,247,0.45)] hover:scale-105 active:scale-95 transition"
         >
           Start Shopping
           <ArrowRight size={19} />
-        </Link>
-
+        </button>
 
         {/* Small trust line */}
-        <div className="relative mt-6 flex items-center gap-2 text-white/35 text-[11px]">
+        <div className="relative mt-6 flex items-center gap-2 text-white/35 text-">
           <MapPin size={14} />
           <span>من متاجرنا المحلية إلى باب بيتك</span>
         </div>
 
       </section>
-
 
       {/* =====================================================
           FEATURES
@@ -345,11 +370,11 @@ export default function HomePage() {
                   {feature.icon}
                 </div>
 
-                <h3 className="font-black text-[#17144d] text-[13px] md:text-[15px]">
+                <h3 className="font-black text-[#17144d] text- md:text-">
                   {feature.title}
                 </h3>
 
-                <p className="text-gray-500 text-[10px] md:text-xs mt-2">
+                <p className="text-gray-500 text- md:text-xs mt-2">
                   {feature.desc}
                 </p>
 
@@ -362,7 +387,6 @@ export default function HomePage() {
         </div>
 
       </section>
-
 
       {/* =====================================================
           CATEGORIES
@@ -377,29 +401,28 @@ export default function HomePage() {
 
           <div className="text-center mb-9 md:mb-12">
 
-            <div className="inline-block bg-purple-50 text-purple-600 px-4 py-2 rounded-full text-[11px] font-black mb-4">
+            <div className="inline-block bg-purple-50 text-purple-600 px-4 py-2 rounded-full text- font-black mb-4">
               MD-MARKETPLACE
             </div>
 
-            <h2 className="text-[25px] md:text-4xl font-black text-[#13113a]">
+            <h2 className="text- md:text-4xl font-black text-[#13113a]">
               كل شي بدك ياه بمكان واحد
             </h2>
 
-            <p className="text-gray-500 text-[13px] md:text-sm mt-3">
+            <p className="text-gray-500 text- md:text-sm mt-3">
               اكتشف مجموعة متنوعة من المتاجر والمنتجات
             </p>
 
           </div>
 
-
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
 
             {categories.map((category, i) => (
 
-              <Link
-                href="/shop"
+              <button
+                onClick={handleShopClick}
                 key={i}
-                className="group relative h-[190px] md:h-[260px] rounded-[24px] md:rounded-[30px] overflow-hidden shadow-sm hover:shadow-2xl transition-all"
+                className="group relative h- md:h- rounded- md:rounded- overflow-hidden shadow-sm hover:shadow-2xl transition-all text-left"
               >
 
                 <Image
@@ -409,29 +432,27 @@ export default function HomePage() {
                   className="object-cover group-hover:scale-110 transition duration-700"
                 />
 
-              </Link>
+              </button>
 
             ))}
 
           </div>
 
-
           <div className="text-center mt-9">
 
-            <Link
-              href="/shop"
-              className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text-[13px] hover:bg-purple-700 transition"
+            <button
+              onClick={handleShopClick}
+              className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text- hover:bg-purple-700 transition"
             >
               اكتشف كل المتاجر
               <ArrowRight size={16} />
-            </Link>
+            </button>
 
           </div>
 
         </div>
 
       </section>
-
 
       {/* =====================================================
           BRAND / DELIVERY IMAGE
@@ -441,7 +462,7 @@ export default function HomePage() {
 
         <div className="max-w-6xl mx-auto px-5 md:px-8">
 
-          <div className="relative overflow-hidden rounded-[30px] md:rounded-[40px] shadow-xl">
+          <div className="relative overflow-hidden rounded- md:rounded- shadow-xl">
 
             <Image
               src="/home-delivery.webp"
@@ -456,7 +477,6 @@ export default function HomePage() {
         </div>
 
       </section>
-
 
       {/* =====================================================
           FOOTER
@@ -501,7 +521,6 @@ export default function HomePage() {
 
             </div>
 
-
             {/* Address */}
             <div>
 
@@ -544,7 +563,6 @@ export default function HomePage() {
               </div>
 
             </div>
-
 
             {/* Social */}
             <div>
@@ -593,7 +611,7 @@ export default function HomePage() {
 
               </div>
 
-              <p className="text-white/30 text-[11px] mt-6">
+              <p className="text-white/30 text- mt-6">
                 www.md-marketplace.store
               </p>
 
@@ -603,20 +621,18 @@ export default function HomePage() {
 
         </div>
 
-
-        <div className="border-t border-white/10 text-center py-6 text-white/30 text-[11px]">
+        <div className="border-t border-white/10 text-center py-6 text-white/30 text-">
           © 2020-2026 MD Marketplace - جميع الحقوق محفوظة
         </div>
 
       </footer>
-
 
       {/* =====================================================
           MARQUEE ANIMATION
       ===================================================== */}
 
       <style jsx>{`
-        .coming-soon-marquee {
+       .coming-soon-marquee {
           padding-right: 100%;
           animation: comingSoonMoveReverse 18s linear infinite;
           direction: rtl;
