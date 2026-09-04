@@ -1,7 +1,7 @@
 "use client"
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, Store, Package, Sparkles, Crown } from "lucide-react";
+import { ShoppingCart, User, LogOut, Store, Package, Sparkles, Crown, Lock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -37,6 +37,14 @@ function CartIcon({ user }) {
   );
 }
 
+function LockBadge(){
+  return (
+    <div className="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center border border-white/20">
+      <Lock className="w-3 h-3 text-white" />
+    </div>
+  )
+}
+
 export default function ShopPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -46,7 +54,6 @@ export default function ShopPage() {
   const [kingsData, setKingsData] = useState(null);
   const [showKings, setShowKings] = useState(false);
 
-  // قفل سكرول الخلفية لما ينفتح الملوك
   useEffect(() => {
     if (showKings) {
       document.body.style.overflow = 'hidden';
@@ -88,11 +95,9 @@ export default function ShopPage() {
         }
       }
     }).finally(() => setLoading(false));
-
     fetch('/api/categories', { cache: 'no-store' }).then(r => r.json()).then((catData) => {
       setCategories(catData.categories || []);
     });
-
     fetch('/api/leaderboard', { cache: 'no-store' }).then(r=>r.json()).then(setKingsData);
   }, []);
 
@@ -137,32 +142,46 @@ export default function ShopPage() {
 
       <div className="max-w-6xl mx-auto p-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30 active:scale-95"><Store className="w-7 h-7 text-purple-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المتاجر</h3></Link>
+          <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30 active:scale-95 relative">
+            <Store className="w-7 h-7 text-purple-400 mx-auto mb-2" />
+            <h3 className="text-white font-bold text-sm">جميع المتاجر</h3>
+          </Link>
+
           {user? (
-            <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95"><Package className="w-7 h-7 text-pink-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المنتجات</h3></Link>
+            <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95 relative">
+              <Package className="w-7 h-7 text-pink-400 mx-auto mb-2" />
+              <h3 className="text-white font-bold text-sm">جميع المنتجات</h3>
+            </Link>
           ) : (
-            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Package className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 جميع المنتجات</h3></button>
+            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 active:scale-95 relative">
+              <LockBadge />
+              <Package className="w-7 h-7 text-pink-400 mx-auto mb-2" />
+              <h3 className="text-white font-bold text-sm">جميع المنتجات</h3>
+            </button>
           )}
+
           {user? (
-            <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95">
+            <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
               <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
               <h3 className="text-white font-bold text-xs">طلب خاص</h3>
             </button>
           ) : (
-            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-3 text-center border border-white/10 opacity-60 active:scale-95">
-              <Sparkles className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-              <h3 className="text-white font-bold text-xs">🔒 طلب خاص</h3>
+            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-3 text-center border border-yellow-500/30 active:scale-95 relative">
+              <LockBadge />
+              <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
+              <h3 className="text-white font-bold text-xs">طلب خاص</h3>
             </button>
           )}
-          <button onClick={() => setShowKings(true)} className="rounded-2xl p-3 text-center active:scale-95 relative overflow-hidden group border border-yellow-400/50"
+
+          <button onClick={() => user? setShowKings(true) : router.push('/login')} className="rounded-2xl p-3 text-center active:scale-95 relative overflow-hidden group border border-yellow-400/50"
             style={{ background: 'linear-gradient(135deg, #FFD70015, #FFA50025)', boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-            <style>{`@keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style>
+            {!user && <LockBadge />}
             <Crown className="w-6 h-6 text-yellow-400 mx-auto mb-1 animate-pulse drop-shadow-[0_0_8px_gold]" />
             <h3 className="text-yellow-300 font-bold text-xs">👑 ملك المتجر</h3>
             <p className="text- text-white/80 mt-1 truncate">{kingsData?.top1? `${kingsData.top1.display_name} - ${kingsData.top1.tier_name}` : 'جاري...'}</p>
-            <p className="text- text-yellow-200/60">اضغط للعرض</p>
+            <p className="text- text-yellow-200/60">{user? 'اضغط للعرض' : 'سجل دخول'}</p>
           </button>
+
           {user && tierData? (
             <Link href="/dashboard" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all active:scale-95 relative overflow-hidden group col-span-2 md:col-span-2" style={{ borderColor: tierData.current.color, borderWidth: '1px', background: `linear-gradient(135deg, ${tierData.current.color}15, transparent)` }}>
               <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 -mr-10 -mt-10" style={{ background: tierData.current.color }}></div>
@@ -176,14 +195,19 @@ export default function ShopPage() {
               </div>
             </Link>
           ) : user? (
-            <div className="glass rounded-2xl p-4 text-center border border-white/10 opacity-50 col-span-2">
+            <div className="glass rounded-2xl p-4 text-center border border-white/10 opacity-50 col-span-2 relative">
               <Crown className="w-7 h-7 text-gray-400 mx-auto mb-2 animate-pulse" />
               <h3 className="text-white font-bold text-sm">...</h3>
             </div>
           ) : (
-            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95 col-span-2"><Crown className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 مرتبتي</h3></button>
+            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center border border-white/10 active:scale-95 col-span-2 relative">
+              <LockBadge />
+              <Crown className="w-7 h-7 text-gray-400 mx-auto mb-2" />
+              <h3 className="text-white font-bold text-sm">مرتبتي</h3>
+            </button>
           )}
         </div>
+
         <h2 className="text-white font-bold text-lg mb-4">تصفح حسب القسم</h2>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-8">
           {categories.map((cat, index) => (
@@ -207,9 +231,9 @@ export default function ShopPage() {
               <button onClick={()=>setShowKings(false)} className="text-white/60 w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">✕</button>
             </div>
             {kingsData.top1 && (
-              <div className="mb-4 p-3 rounded-xl border" style={{background: `${kingsData.top1.color}20`, borderColor: kingsData.top1.color, boxShadow:`0 0 15px ${kingsData.top1.color}50`}}>
+              <div className="mb-4 p-3 rounded-xl border" style={{background: `${kingsData.top1.color}20`, borderColor: kingsData.top1.color}}>
                 <p className="text-xs opacity-70 text-white">👑 ملك المتجر الحالي</p>
-                <p className="text-white font-bold">{kingsData.top1.display_name} - {kingsData.top1.tier_name} - {Math.floor(kingsData.top1.total_spent/1000000)}M</p>
+                <p className="text-white font-bold">{kingsData.top1.display_name} - {kingsData.top1.tier_name}</p>
               </div>
             )}
             {Object.entries(kingsData.grouped).map(([slug, users])=>(
