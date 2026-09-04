@@ -41,39 +41,12 @@ export default function Dashboard() {
         // ✅ شلنا api/notifications/count القديم يلي فيه ثغرة
 
         fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-       .then(r => r.json()).then(b => {
-          setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 });
+       .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 }));
 
-          fetch('/api/loyalty-tiers', { credentials: 'include' })
-         .then(r => r.json()).then(tData => {
-            const tiersList = tData.tiers || [];
-            setTiers(tiersList);
-            if(tiersList.length){
-              let current = tiersList[0];
-              for(let t of tiersList){
-                if((b.points||0) >= t.min_points){
-                  current = t;
-                }
-              }
-              let next = tiersList.find(t => t.tier_level === current.tier_level + 1) || null;
-              let fill = 1;
-              if(current.min_spent && current.min_spent > 0){
-                fill = (b.total_spent||0) / current.min_spent;
-              }
-              if(fill > 1) fill = 1;
-              if(fill < 0) fill = 0;
-              let disc = Number(current.base_discount) * fill;
-              setTierData({
-                current: current,
-                next: next,
-                fill_rate: fill,
-                fill_percent: Math.round(fill * 100),
-                actual_discount: Number(disc.toFixed(2)),
-                points_needed: next? Math.max(0, next.min_points - (b.points||0)) : 0,
-                spent_needed: next? Math.max(0, next.min_spent - (b.total_spent||0)) : 0
-              });
-            }
-          });
+        fetch('/api/loyalty-tiers', { credentials: 'include' })
+       .then(r => r.json()).then(tData => {
+          const tiersList = tData.tiers || [];
+          setTiers(tiersList);
         });
 
         fetch(`/api/my-orders?customerID=${data.user.customerId}`, { credentials: 'include' })
@@ -81,6 +54,34 @@ export default function Dashboard() {
       })
    .catch(() => { window.location.href = '/login'; });
   }, []);
+
+  useEffect(() => {
+    if(tiers.length > 0 && (balance.points > 0 || balance.total_spent > 0 || balance.wallet >= 0)){
+      let current = tiers[0];
+      for(let t of tiers){
+        if((balance.points||0) >= t.min_points){
+          current = t;
+        }
+      }
+      let next = tiers.find(t => t.tier_level === current.tier_level + 1) || null;
+      let fill = 1;
+      if(current.min_spent && current.min_spent > 0){
+        fill = (balance.total_spent||0) / current.min_spent;
+      }
+      if(fill > 1) fill = 1;
+      if(fill < 0) fill = 0;
+      let disc = Number(current.base_discount) * fill;
+      setTierData({
+        current: current,
+        next: next,
+        fill_rate: fill,
+        fill_percent: Math.round(fill * 100),
+        actual_discount: Number(disc.toFixed(2)),
+        points_needed: next? Math.max(0, next.min_points - (balance.points||0)) : 0,
+        spent_needed: next? Math.max(0, next.min_spent - (balance.total_spent||0)) : 0
+      });
+    }
+  }, [balance, tiers]);
 
   useEffect(() => {
     async function loadNotifications(isFirstLoad = false) {
