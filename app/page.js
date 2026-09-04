@@ -1,3 +1,5 @@
+يا اخي شبك 
+هي ما بينربط فيها الشوب ؟ كبسة الشوب بقلبها مرتين 
 "use client";
 
 import Link from "next/link";
@@ -11,13 +13,6 @@ import {
   Headphones,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 const SITE = {
   emails: {
@@ -43,7 +38,6 @@ const SITE = {
 };
 
 export default function HomePage() {
-  const router = useRouter();
   const [comingSoonMessage, setComingSoonMessage] = useState("");
   const [bannerVisible, setBannerVisible] = useState(false);
 
@@ -71,7 +65,7 @@ export default function HomePage() {
           cfg?.platform_status?.value === "COMING_SOON";
 
         setComingSoonMessage(message);
-        setBannerVisible(isComingSoon &&!!message);
+        setBannerVisible(isComingSoon && !!message);
       } catch (error) {
         console.error("Global config error:", error);
       }
@@ -79,33 +73,6 @@ export default function HomePage() {
 
     loadConfig();
   }, []);
-
-  // ربط زر Shop مع تسجيل الزائر - نفس شغل صفحة الزائر
-  const handleShopClick = async (e) => {
-    e.preventDefault();
-
-    if (!sessionStorage.getItem('guest_logged')) {
-      try {
-        const geo = await fetch('https://ipapi.co/json/').then(r=>r.json());
-
-        if (geo.ip) {
-          await supabase.from('guestlogs').insert([{
-            "IP Adresse": geo.ip,
-            city: geo.city,
-            country: geo.country_name,
-            lat: geo.latitude,
-            lng: geo.longitude,
-            "Log Date": new Date().toISOString(),
-            page: "home->shop"
-          }]);
-
-          sessionStorage.setItem('guest_logged','1');
-        }
-      } catch {}
-    }
-
-    router.push('/shop');
-  };
 
   const categories = [
     {
@@ -189,16 +156,17 @@ export default function HomePage() {
         </div>
       </Link>
 
+
       {/* ================= DESKTOP NAV ================= */}
 
       <div className="hidden md:flex items-center gap-2">
 
-        <button
-          onClick={handleShopClick}
+        <Link
+          href="/shop"
           className="bg-white text-[#17144d] px-5 md:px-7 py-2.5 rounded-full font-black text-sm shadow-lg hover:scale-105 transition"
         >
           Shop
-        </button>
+        </Link>
 
         <Link
           href={SITE.links.aiGuide}
@@ -216,6 +184,7 @@ export default function HomePage() {
 
       </div>
 
+
       {/* ================= MOBILE MENU ================= */}
 
       <details className="relative md:hidden">
@@ -229,14 +198,15 @@ export default function HomePage() {
           </span>
         </summary>
 
+
         <div className="absolute left-0 top-14 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#171442]/95 p-2 shadow-2xl backdrop-blur-xl">
 
-          <button
-            onClick={handleShopClick}
-            className="block w-full text-left rounded-xl px-4 py-3 text-sm font-black text-white hover:bg-white/10"
+          <Link
+            href="/shop"
+            className="block rounded-xl px-4 py-3 text-sm font-black text-white hover:bg-white/10"
           >
             🛍 Shop
-          </button>
+          </Link>
 
           <Link
             href={SITE.links.aiGuide}
@@ -272,6 +242,7 @@ export default function HomePage() {
 
         <div className="absolute w- h- bg-pink-500/10 rounded-full blur- top-20 right-0 pointer-events-none" />
 
+
         {/* =================================================
             COMING SOON BANNER
         ================================================= */}
@@ -299,6 +270,7 @@ export default function HomePage() {
           </div>
         )}
 
+
         {/* Logo */}
         <div className="relative mb-7 md:mb-9 bg-white p-3 md:p-4 rounded- md:rounded- shadow-[0_0_55px_rgba(168,85,247,0.55)]">
 
@@ -313,6 +285,7 @@ export default function HomePage() {
 
         </div>
 
+
         {/* Main title */}
         <h1 className="relative text- md:text-7xl font-black text-white leading-[1.05] max-w-5xl">
 
@@ -326,20 +299,23 @@ export default function HomePage() {
 
         </h1>
 
+
         <p className="relative text-white/55 mt-5 text- md:text- max-w-xl leading-relaxed">
           Discover products from multiple local stores.
           <br className="hidden md:block" />
           Shop your favorite stores in one simple checkout.
         </p>
 
+
         {/* Shop button */}
-        <button
-          onClick={handleShopClick}
+        <Link
+          href="/shop"
           className="relative mt-8 bg-gradient-to-br from-purple-500 to-pink-500 text-white px-8 md:px-10 py-4 rounded-full font-black flex items-center gap-3 text- md:text-base shadow-[0_0_35px_rgba(168,85,247,0.45)] hover:scale-105 active:scale-95 transition"
         >
           Start Shopping
           <ArrowRight size={19} />
-        </button>
+        </Link>
+
 
         {/* Small trust line */}
         <div className="relative mt-6 flex items-center gap-2 text-white/35 text-">
@@ -348,6 +324,7 @@ export default function HomePage() {
         </div>
 
       </section>
+
 
       {/* =====================================================
           FEATURES
@@ -388,6 +365,7 @@ export default function HomePage() {
 
       </section>
 
+
       {/* =====================================================
           CATEGORIES
       ===================================================== */}
@@ -415,14 +393,15 @@ export default function HomePage() {
 
           </div>
 
+
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
 
             {categories.map((category, i) => (
 
-              <button
-                onClick={handleShopClick}
+              <Link
+                href="/shop"
                 key={i}
-                className="group relative h- md:h- rounded- md:rounded- overflow-hidden shadow-sm hover:shadow-2xl transition-all text-left"
+                className="group relative h- md:h- rounded- md:rounded- overflow-hidden shadow-sm hover:shadow-2xl transition-all"
               >
 
                 <Image
@@ -432,27 +411,29 @@ export default function HomePage() {
                   className="object-cover group-hover:scale-110 transition duration-700"
                 />
 
-              </button>
+              </Link>
 
             ))}
 
           </div>
 
+
           <div className="text-center mt-9">
 
-            <button
-              onClick={handleShopClick}
+            <Link
+              href="/shop"
               className="inline-flex items-center gap-2 bg-[#17144d] text-white px-7 py-3 rounded-full font-black text- hover:bg-purple-700 transition"
             >
               اكتشف كل المتاجر
               <ArrowRight size={16} />
-            </button>
+            </Link>
 
           </div>
 
         </div>
 
       </section>
+
 
       {/* =====================================================
           BRAND / DELIVERY IMAGE
@@ -477,6 +458,7 @@ export default function HomePage() {
         </div>
 
       </section>
+
 
       {/* =====================================================
           FOOTER
@@ -521,6 +503,7 @@ export default function HomePage() {
 
             </div>
 
+
             {/* Address */}
             <div>
 
@@ -563,6 +546,7 @@ export default function HomePage() {
               </div>
 
             </div>
+
 
             {/* Social */}
             <div>
@@ -621,18 +605,20 @@ export default function HomePage() {
 
         </div>
 
+
         <div className="border-t border-white/10 text-center py-6 text-white/30 text-">
           © 2020-2026 MD Marketplace - جميع الحقوق محفوظة
         </div>
 
       </footer>
 
+
       {/* =====================================================
           MARQUEE ANIMATION
       ===================================================== */}
 
       <style jsx>{`
-       .coming-soon-marquee {
+        .coming-soon-marquee {
           padding-right: 100%;
           animation: comingSoonMoveReverse 18s linear infinite;
           direction: rtl;
