@@ -43,6 +43,8 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [tierData, setTierData] = useState(null);
+  const [showKings, setShowKings] = useState(false);
+  const [kingsData, setKingsData] = useState(null);
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' }).then(async (res) => {
@@ -50,9 +52,8 @@ export default function ShopPage() {
         const data = await res.json();
         if (data.user) {
           setUser(data.user);
-
           fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-         .then(r=>r.json()).then(b=>{
+        .then(r=>r.json()).then(b=>{
             fetch('/api/loyalty-tiers').then(r=>r.json()).then(tData=>{
               const tiersList = tData.tiers || [];
               if(tiersList.length){
@@ -72,10 +73,12 @@ export default function ShopPage() {
         }
       }
     }).finally(() => setLoading(false));
-    
+
     fetch('/api/categories', { cache: 'no-store' }).then(r => r.json()).then((catData) => {
       setCategories(catData.categories || []);
     });
+
+    fetch('/api/leaderboard', { cache: 'no-store' }).then(r=>r.json()).then(setKingsData);
   }, []);
 
   const handleLogout = async () => {
@@ -104,7 +107,7 @@ export default function ShopPage() {
             </div>
             <div className="flex items-center gap-2">
               <CartIcon user={user} />
-              {user ? (
+              {user? (
                 <>
                   <button onClick={() => router.push('/dashboard')} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 active:scale-95 transition"><User className="w-5 h-5 text-white" /></button>
                   <button onClick={handleLogout} className="bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/30 transition active:scale-95"><LogOut className="w-4 h-4 text-red-300" /><span className="text-red-300 text-sm font-bold hidden sm:block">خروج</span></button>
@@ -120,19 +123,19 @@ export default function ShopPage() {
       <div className="max-w-6xl mx-auto p-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30 active:scale-95"><Store className="w-7 h-7 text-purple-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المتاجر</h3></Link>
-          {user ? (
+          {user? (
             <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95"><Package className="w-7 h-7 text-pink-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المنتجات</h3></Link>
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Package className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 جميع المنتجات</h3></button>
           )}
-          {user ? (
+          {user? (
             <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95"><Sparkles className="w-7 h-7 text-yellow-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">طلب خاص</h3></button>
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Sparkles className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 طلب خاص</h3></button>
           )}
 
-          {user && tierData ? (
-            <Link href="/dashboard" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all active:scale-95 relative overflow-hidden group" style={{ borderColor: tierData.current.color, borderWidth: '1px', background: `linear-gradient(135deg, ${tierData.current.color}15, transparent)` }}>
+          {user && tierData? (
+            <button onClick={() => setShowKings(true)} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all active:scale-95 relative overflow-hidden group" style={{ borderColor: tierData.current.color, borderWidth: '1px', background: `linear-gradient(135deg, ${tierData.current.color}15, transparent)` }}>
               <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 -mr-10 -mt-10" style={{ background: tierData.current.color }}></div>
               <div className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center relative" style={{ background: tierData.current.color }}>
                 <Crown className="w-6 h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] group-hover:scale-110 transition-transform" />
@@ -143,8 +146,9 @@ export default function ShopPage() {
               <div className="w-full bg-white/10 rounded-full h-1.5 mt-2 overflow-hidden">
                 <div className="h-1.5 rounded-full transition-all" style={{ width: `${tierData.fill_percent}%`, background: tierData.current.color }}></div>
               </div>
-            </Link>
-          ) : user ? (
+              <p className="text- mt-1 opacity-60">👑 الملوك</p>
+            </button>
+          ) : user? (
             <div className="glass rounded-2xl p-4 text-center border border-white/10 opacity-50">
               <Crown className="w-7 h-7 text-gray-400 mx-auto mb-2 animate-pulse" />
               <h3 className="text-white font-bold text-sm">...</h3>
@@ -159,16 +163,16 @@ export default function ShopPage() {
             <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group active:scale-95">
               <div className="relative aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
                 {cat.image && (
-  <Image 
-    src={cat.image} 
-    alt={cat.name} 
-    fill 
+  <Image
+    src={cat.image}
+    alt={cat.name}
+    fill
     sizes="200px"
-    className="object-contain p-2 group-hover:scale-110 transition-all duration-300" 
+    className="object-contain p-2 group-hover:scale-110 transition-all duration-300"
     unoptimized
     loading="eager"
     priority={index < 3}
-    fetchPriority={index < 3 ? "high" : "low"}
+    fetchPriority={index < 3? "high" : "low"}
   />
 )}
               </div>
@@ -177,6 +181,36 @@ export default function ShopPage() {
           ))}
         </div>
       </div>
+
+      {showKings && kingsData && (
+        <div onClick={()=>setShowKings(false)} className="fixed inset-0 bg-black/70 z-[9999] flex justify-center items-center p-4">
+          <div onClick={e=>e.stopPropagation()} className="glass w-full max-w- max-h- overflow-auto rounded- p-5" style={{background:'#1a1a3e'}}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-white font-bold text-lg">👑 ملوك المتجر - أعلى 3 من كل مرتبة</h2>
+              <button onClick={()=>setShowKings(false)} className="text-white/60 w-8 h-8 bg-white/10 rounded-full">✕</button>
+            </div>
+            {kingsData.top1 && (
+              <div className="mb-4 p-3 rounded-xl" style={{background: `${kingsData.top1.color}20`, border: `1px solid ${kingsData.top1.color}`}}>
+                <p className="text-xs opacity-70 text-white">👑 الملك الحالي</p>
+                <p className="text-white font-bold">{kingsData.top1.display_name} - {kingsData.top1.tier_name} - {Math.floor(kingsData.top1.total_spent/1000000)}M ل.ل</p>
+              </div>
+            )}
+            {Object.entries(kingsData.grouped).map(([slug, users])=>(
+              <div key={slug} className="mb-4 pb-3 border-b border-white/10">
+                <h3 className="text-white/80 text-sm font-bold uppercase mb-2">{slug} ({users.length})</h3>
+                {users.length===0? <p className="text-white/30 text-xs">لا يوجد ملوك بعد</p> :
+                  users.map((u,i)=>(
+                    <div key={u.customer_id} className="flex justify-between py-2">
+                      <span className="text-white text-sm">{i+1}. {u.display_name}</span>
+                      <span className="text-white/60 text-xs">{Math.floor(u.total_spent/1000000)}M - {u.points} نقطة</span>
+                    </div>
+                  ))
+                }
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
