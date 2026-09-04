@@ -1,225 +1,539 @@
-"use client"
-export const dynamic = "force-dynamic";
+"use client";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, Store, Package, Sparkles, Crown } from "lucide-react";
-import Link from "next/link";
+import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw, Gift, Crown, TrendingUp } from "lucide-react";
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 
-function CartBell() {
-  const [hasItems, setHasItems] = useState(false);
-  useEffect(() => {
-    async function checkCart() {
-      try {
-        const res = await fetch('/api/cart', { credentials: 'include' });
-        const data = await res.json();
-        if (data.success && data.cart && data.cart.length > 0) setHasItems(true);
-      } catch (e) {}
-    }
-    checkCart();
-  }, []);
-  if (!hasItems) return null;
-  return (
-    <div style={{ position: 'absolute', top: -4, right: -4, background: 'yellow', width: 16, height: 16, borderRadius: '50%', border: '2px solid white', animation: 'shake 0.5s infinite' }}>
-      <style>{`@keyframes shake {0%{transform:translate(0,0)}25%{transform:translate(2px,-2px)}50%{transform:translate(-2px,2px)}75%{transform:translate(2px,2px)}100%{transform:translate(0,0)}}`}</style>
-    </div>
-  );
-}
+const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 
-function CartIcon({ user }) {
-  const router = useRouter();
-  if (!user) return null;
-  return (
-    <button onClick={() => router.push('/cart')} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 relative active:scale-95 transition">
-      <ShoppingCart className="w-5 h-5 text-white" />
-      <CartBell />
-    </button>
-  );
-}
-
-export default function ShopPage() {
+export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState([]);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [balance, setBalance] = useState({ points: 0, wallet: 0, total_spent: 0 });
+  const [orders, setOrders] = useState([]);
+  const [openNotifications, setOpenNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [hasNew, setHasNew] = useState(false);
+
+  const [needsLocationUpdate, setNeedsLocationUpdate] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+
+  const [tiers, setTiers] = useState([]);
   const [tierData, setTierData] = useState(null);
-  const [kingsData, setKingsData] = useState(null);
-  const [showKings, setShowKings] = useState(false);
 
   useEffect(() => {
-    fetch('/api/me', { credentials: 'include', cache: 'no-store' }).then(async (res) => {
-      if (res.ok) {
+    fetch('/api/me', { credentials: 'include' })
+   .then(async (res) => {
+        if (!res.ok) { window.location.href = '/login'; return; }
         const data = await res.json();
-        if (data.user) {
-          setUser(data.user);
-          fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-        .then(r=>r.json()).then(b=>{
-            fetch('/api/loyalty-tiers').then(r=>r.json()).then(tData=>{
-              const tiersList = tData.tiers || [];
-              if(tiersList.length){
-                let current = tiersList[0];
-                for(let t of tiersList) if((b.points||0) >= t.min_points) current = t;
-                let fill = current.min_spent && current.min_spent>0? (b.total_spent||0)/current.min_spent : 1;
-                if(fill>1) fill=1; if(fill<0) fill=0;
-                let disc = Number(current.base_discount)*fill;
-                setTierData({
-                  current,
-                  fill_percent: Math.round(fill*100),
-                  actual_discount: Number(disc.toFixed(2))
-                });
-              }
-            });
-          });
+        setUser(data.user);
+        setLoading(false);
+
+        if (data.user.lastLocationUpdate) {
+          const last = new Date(data.user.lastLocationUpdate);
+          const now = new Date();
+          const diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+          if (diffDays >= 15) setNeedsLocationUpdate(true);
+        }
+
+        // ✅ شلنا api/notifications/count القديم يلي فيه ثغرة
+
+        fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
+       .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 }));
+
+        fetch('/api/loyalty-tiers', { credentials: 'include' })
+       .then(r => r.json()).then(tData => {
+          const tiersList = tData.tiers || [];
+          setTiers(tiersList);
+        });
+
+        fetch(`/api/my-orders?customerID=${data.user.customerId}`, { credentials: 'include' })
+       .then(r => r.json()).then(o => setOrders(o.orders || []));
+      })
+   .catch(() => { window.location.href = '/login'; });
+  }, []);
+
+  useEffect(() => {
+    if(tiers.length > 0 && (balance.points > 0 || balance.total_spent > 0 || balance.wallet >= 0)){
+      let current = tiers[0];
+      for(let t of tiers){
+        if((balance.points||0) >= t.min_points){
+          current = t;
         }
       }
-    }).finally(() => setLoading(false));
+      let next = tiers.find(t => t.tier_level === current.tier_level + 1) || null;
+      let fill = 1;
+      if(current.min_spent && current.min_spent > 0){
+        fill = (balance.total_spent||0) / current.min_spent;
+      }
+      if(fill > 1) fill = 1;
+      if(fill < 0) fill = 0;
+      let disc = Number(current.base_discount) * fill;
+      setTierData({
+        current: current,
+        next: next,
+        fill_rate: fill,
+        fill_percent: Math.round(fill * 100),
+        actual_discount: Number(disc.toFixed(2)),
+        points_needed: next? Math.max(0, next.min_points - (balance.points||0)) : 0,
+        spent_needed: next? Math.max(0, next.min_spent - (balance.total_spent||0)) : 0
+      });
+    }
+  }, [balance, tiers]);
 
-    fetch('/api/categories', { cache: 'no-store' }).then(r => r.json()).then((catData) => {
-      setCategories(catData.categories || []);
-    });
+  useEffect(() => {
+    async function loadNotifications(isFirstLoad = false) {
+      try {
+        const res = await fetch("/api/get-notifications", {
+          method: "POST",
+          credentials: 'include',
+        });
+        const data = await res.json();
+        const newNotifications = data.notifications || [];
 
-    fetch('/api/leaderboard', { cache: 'no-store' }).then(r=>r.json()).then(setKingsData);
-  }, []);
+        if (!isFirstLoad && newNotifications.length > notifications.length) {
+          setHasNew(true);
+          setTimeout(() => setHasNew(false), 5000);
+        }
+
+        setNotifications(newNotifications);
+        // اذا البوب اب مسكر احسب العدد، اذا مفتوح خليه 0
+        if (!openNotifications) {
+          setNotificationCount(newNotifications.length);
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    }
+
+    if (user) {
+      loadNotifications(true);
+      const interval = setInterval(() => loadNotifications(false), 15000);
+      return () => clearInterval(interval);
+    }
+  }, [user, openNotifications, notifications.length]);
 
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-    document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
-    document.cookie = 'acceptedTerms=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
-    router.push('/login');
-    router.refresh();
+    document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    window.location.href = '/login';
   };
 
-  if (loading) return (<div className="min-h-screen gradient-bg flex items-center justify-center"><div className="text-white text-xl">جاري التحميل...</div></div>);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">جاري التحميل...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  const latestApproved = orders
+.filter(o => o.approvalStatus === "Approved")
+.slice(-1)[0];
 
   return (
-    <div className="min-h-screen gradient-bg">
-      <div className="glass border-b border-white/10 p-4">
-        <div className="max-w-6xl mx-auto flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                <ShoppingCart className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-white font-bold">MD Marketplace</h1>
-                <p className="text-purple-200 text-xs">{user? `أهلاً ${user.name}` : 'تصفح كزائر'}</p>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950" style={{ direction: "rtl" }}>
+
+      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4 sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push('/shop')} className="bg-white/10 p-2 rounded-xl active:scale-90 transition">
+              <ChevronRight className="w-5 h-5 text-white" />
+            </button>
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
             </div>
-            <div className="flex items-center gap-2">
-              <CartIcon user={user} />
-              {user? (
-                <>
-                  <button onClick={() => router.push('/dashboard')} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 active:scale-95 transition"><User className="w-5 h-5 text-white" /></button>
-                  <button onClick={handleLogout} className="bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/30 transition active:scale-95"><LogOut className="w-4 h-4 text-red-300" /><span className="text-red-300 text-sm font-bold hidden sm:block">خروج</span></button>
-                </>
-              ) : (
-                <button onClick={() => router.push('/login')} className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 rounded-xl text-white text-sm font-semibold active:scale-95 transition">تسجيل دخول</button>
+            <div>
+              <h1 className="text-white font-bold">اهلاً {user?.name}</h1>
+              <p className="text-purple-200 text-xs">{user?.phone}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setOpenNotifications(!openNotifications);
+                  setHasNew(false);
+                  if(!openNotifications) setNotificationCount(0);
+                }}
+                className={`p-2 rounded-xl bg-white/10 active:scale-90 transition relative border
+                  ${hasNew? 'animate-bounce bg-yellow-500/30 border-yellow-400' : 'border-transparent'}
+                `}
+              >
+                <Bell className={`w-6 h-6 transition-colors ${hasNew? 'text-yellow-300' : 'text-white'}`} />
+
+                {notificationCount > 0 && (
+                  <>
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping"></span>
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded-full min-w- text-center">
+                      {notificationCount}
+                    </span>
+                  </>
+                )}
+              </button>
+
+                {openNotifications && (
+                <div className="absolute left-0 top-full mt-3 w- max-w- bg-[#1a1a1a] text-white shadow-2xl rounded-xl p-3 z-50 border border-white/10 max-h- overflow-y-auto">
+                  {notifications.length === 0 && (
+                    <div className="text-center py-8 text-gray-400">
+                      لا يوجد إشعارات بعد
+                    </div>
+                  )}
+
+                  {notifications.map((n, i) => (
+                    <div
+                      key={i}
+                      className={`border-b border-white/10 py-3 px-2 rounded-lg mb-2 last:border-0 ${
+                        i === 0 && hasNew? "bg-yellow-500/20 border border-yellow-500/30" : "bg-white/[0.03]"
+                      }`}
+                    >
+                      <div className={`font-bold text-sm break-words ${i === 0 && hasNew? "text-yellow-300" : "text-white"}`}>
+                        {n.title}
+                      </div>
+                      <div className={`text-sm mt-1 break-words whitespace-pre-wrap leading-relaxed ${i === 0 && hasNew? "text-yellow-100" : "text-gray-300"}`}>
+                        {n.message}
+                      </div>
+                      <div className="text- text-gray-500 mt-2">
+                        {n.date}
+                      </div>
+                    </div>
+                  ))}
+
+                </div>
               )}
-            </div>
+
+           </div>
+
+            {needsLocationUpdate? (
+              <button
+                onClick={() => setShowLocationModal(true)}
+                className="bg-red-500/30 border border-red-500/50 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/40 transition"
+              >
+                <RefreshCcw className="w-4 h-4 text-red-300" />
+                <span className="text-red-300 text-sm font-bold">تحديث الموقع</span>
+              </button>
+            ) : (
+              <button className="bg-white/10 px-3 py-2 rounded-xl text-white/50 text-sm cursor-default flex items-center gap-2">
+                <RefreshCcw className="w-4 h-4 text-white/40" />
+                موقعك محدّث
+              </button>
+            )}
+
+            <button onClick={handleLogout} className="bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl flex items-center gap-2 hover:bg-red-500/30 transition active:scale-95">
+              <LogOut className="w-4 h-4 text-red-300" />
+              <span className="text-red-300 text-sm font-bold hidden sm:block">خروج</span>
+            </button>
+
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <Link href="/stores" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-purple-500/30 active:scale-95"><Store className="w-7 h-7 text-purple-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المتاجر</h3></Link>
+      <div className="max-w-6xl mx-auto p-4 space-y-4 pb-24">
 
-          {user? (
-            <Link href="/products" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95"><Package className="w-7 h-7 text-pink-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">جميع المنتجات</h3></Link>
-          ) : (
-            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95"><Package className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 جميع المنتجات</h3></button>
-          )}
-
-          {/* هون قسمنا بوكس الطلب الخاص ل تنين */}
-          {user? (
-            <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95">
-              <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
-              <h3 className="text-white font-bold text-xs">طلب خاص</h3>
-            </button>
-          ) : (
-            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-3 text-center border border-white/10 opacity-60 active:scale-95">
-              <Sparkles className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-              <h3 className="text-white font-bold text-xs">🔒 طلب خاص</h3>
-            </button>
-          )}
-
-          {/* البوكس الجديد - الملك العام - يلمع */}
-          <button onClick={() => setShowKings(true)} className="rounded-2xl p-3 text-center active:scale-95 relative overflow-hidden group border border-yellow-400/50"
-            style={{ background: 'linear-gradient(135deg, #FFD70015, #FFA50025)', boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" style={{animation:'shine 2s infinite'}}></div>
-            <style>{`@keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}} @keyframes glow{0%,100%{box-shadow:0 0 10px gold}50%{box-shadow:0 0 25px gold}}`}</style>
-            <Crown className="w-6 h-6 text-yellow-400 mx-auto mb-1 animate-pulse drop-shadow-[0_0_8px_gold]" />
-            <h3 className="text-yellow-300 font-bold text-xs">👑 ملك المتجر</h3>
-            <p className="text- text-white/80 mt-1 truncate">{kingsData?.top1? `${kingsData.top1.display_name} - ${kingsData.top1.tier_name}` : 'جاري...'}</p>
-            <p className="text- text-yellow-200/60">اضغط للعرض</p>
-          </button>
-
-          {user && tierData? (
-            <Link href="/dashboard" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all active:scale-95 relative overflow-hidden group col-span-2 md:col-span-2" style={{ borderColor: tierData.current.color, borderWidth: '1px', background: `linear-gradient(135deg, ${tierData.current.color}15, transparent)` }}>
-              <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-20 -mr-10 -mt-10" style={{ background: tierData.current.color }}></div>
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center relative" style={{ background: tierData.current.color }}>
-                <Crown className="w-6 h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] group-hover:scale-110 transition-transform" />
-              </div>
-              <h3 className="text-white font-bold text-sm" style={{ color: tierData.current.color }}>{tierData.current.tier_name}</h3>
-              <p className="text-xs mt-1 font-bold" style={{ color: tierData.current.color }}>خصمك {tierData.actual_discount}%</p>
-              <div className="w-full bg-white/10 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div className="h-1.5 rounded-full transition-all" style={{ width: `${tierData.fill_percent}%`, background: tierData.current.color }}></div>
-              </div>
-            </Link>
-          ) : user? (
-            <div className="glass rounded-2xl p-4 text-center border border-white/10 opacity-50 col-span-2">
-              <Crown className="w-7 h-7 text-gray-400 mx-auto mb-2 animate-pulse" />
-              <h3 className="text-white font-bold text-sm">...</h3>
+        <div className={`grid gap-3 ${user?.freeDeliveries > 0? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div className="bg-gradient-to-br from-yellow-500/20 to-amber-500/20 backdrop-blur-xl border border-yellow-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Star className="w-4 h-4 text-yellow-300" />
+              <p className="text-yellow-200 text-xs">نقاطي</p>
             </div>
-          ) : (
-            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-white/10 opacity-60 active:scale-95 col-span-2"><Crown className="w-7 h-7 text-gray-400 mx-auto mb-2" /><h3 className="text-white font-bold text-sm">🔒 مرتبتي</h3></button>
+            <p className="text-white text-2xl font-bold">{balance.points}</p>
+            <p className="text-yellow-200/60 text-xs mt-1">نقطة</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur-xl border border-emerald-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className="w-4 h-4 text-emerald-300" />
+              <p className="text-emerald-200 text-xs">محفظتي</p>
+            </div>
+            <p className="text-white text-xl font-bold">{Number(balance.wallet).toLocaleString()}</p>
+            <p className="text-emerald-200/60 text-xs mt-1">ل.ل</p>
+          </div>
+
+          {user?.freeDeliveries > 0 && (
+            <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-xl border border-green-500/30 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Gift className="w-4 h-4 text-green-300" />
+                <p className="text-green-200 text-xs">فري دلفري</p>
+              </div>
+              <p className="text-white text-2xl font-bold">{user.freeDeliveries}</p>
+              <p className="text-green-200/60 text-xs mt-1">مجاني</p>
+            </div>
           )}
         </div>
 
-        <h2 className="text-white font-bold text-lg mb-4">تصفح حسب القسم</h2>
-        <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-8">
-          {categories.map((cat, index) => (
-            <Link key={cat.id} href={`/category/${cat.id}`} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all group active:scale-95">
-              <div className="relative aspect-square bg-white/5 rounded-xl mb-2 overflow-hidden flex items-center justify-center p-2">
-                {cat.image && (
-                  <Image src={cat.image} alt={cat.name} fill sizes="200px" className="object-contain p-2 group-hover:scale-110 transition-all duration-300" unoptimized loading="eager" priority={index < 3} fetchPriority={index < 3? "high" : "low"} />
-                )}
-              </div>
-              <h3 className="text-white font-semibold text-xs">{cat.name}</h3>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {showKings && kingsData && (
-        <div onClick={()=>setShowKings(false)} className="fixed inset-0 bg-black/70 z-[9999] flex justify-center items-center p-4">
-          <div onClick={e=>e.stopPropagation()} className="glass w-full max-w- max-h- overflow-auto rounded- p-5" style={{background:'#1a1a3e'}}>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-white font-bold text-lg">👑 لائحة الملوك</h2>
-              <button onClick={()=>setShowKings(false)} className="text-white/60 w-8 h-8 bg-white/10 rounded-full">✕</button>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl border border-blue-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-4 h-4 text-blue-300" />
+              <p className="text-blue-200 text-xs">إجمالي مدفوعاتي</p>
             </div>
-            {kingsData.top1 && (
-              <div className="mb-4 p-3 rounded-xl border" style={{background: `${kingsData.top1.color}20`, borderColor: kingsData.top1.color, boxShadow:`0 0 15px ${kingsData.top1.color}50`}}>
-                <p className="text-xs opacity-70 text-white">👑 ملك المتجر الحالي</p>
-                <p className="text-white font-bold">{kingsData.top1.display_name} - {kingsData.top1.tier_name} - {Math.floor(kingsData.top1.total_spent/1000000)}M</p>
+            <p className="text-white text-xl font-bold">{Number(balance.total_spent).toLocaleString()}</p>
+            <p className="text-blue-200/60 text-xs mt-1">ل.ل من الأرشيف</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-xl border rounded-2xl p-4" style={{ borderColor: tierData?.current?.color || 'rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="w-4 h-4" style={{ color: tierData?.current?.color || '#e9d5ff' }} />
+              <p className="text-purple-200 text-xs">مرتبتي</p>
+            </div>
+            <p className="text-white text-xl font-bold" style={{ color: tierData?.current?.color || '#fff' }}>
+              {tierData?.current?.tier_name || '...'}
+            </p>
+            <p className="text-purple-200/60 text-xs mt-1">خصمك: {tierData?.actual_discount || 0}%</p>
+          </div>
+        </div>
+
+        {tierData && (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-white text-sm font-bold">تقدم المرتبة</p>
+              <p className="text-white text-sm">{tierData.fill_percent}%</p>
+            </div>
+            <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
+              <div
+                className="h-3 rounded-full transition-all duration-700"
+                style={{ width: `${tierData.fill_percent}%`, background: tierData.current.color || '#a855f7' }}
+              ></div>
+            </div>
+            <div className="flex justify-between mt-2">
+              <p className="text-purple-200/60 text-xs">
+                {Number(balance.total_spent).toLocaleString()} / {Number(tierData.current.min_spent).toLocaleString()} ل.ل
+              </p>
+              <p className="text-purple-200/60 text-xs">
+                خصم {tierData.current.base_discount}% → فعلي {tierData.actual_discount}%
+              </p>
+            </div>
+            {tierData.next && (
+              <div className="mt-3 bg-white/5 rounded-xl p-3 border border-white/5">
+                <p className="text-yellow-200 text-xs">
+                  🚀 للـ {tierData.next.tier_name}: بقي {tierData.points_needed} نقطة و {Number(tierData.spent_needed).toLocaleString()} ل.ل
+                </p>
               </div>
             )}
-            {Object.entries(kingsData.grouped).map(([slug, users])=>(
-              <div key={slug} className="mb-4 pb-3 border-b border-white/10">
-                <h3 className="text-white/80 text-sm font-bold uppercase mb-2">{slug} ({users.length})</h3>
-                {users.length===0? <p className="text-white/30 text-xs">لا يوجد ملوك بعد</p> :
-                  users.map((u,i)=>(
-                    <div key={u.customer_id} className="flex justify-between py-2">
-                      <span className="text-white text-sm">{i+1}. {u.display_name}</span>
-                      <span className="text-white/60 text-xs">{Math.floor(u.total_spent/1000000)}M - {u.points} نقطة</span>
+          </div>
+        )}
+
+        {user?.lat && user?.lng? (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="w-5 h-5 text-pink-400" />
+              <h2 className="text-white font-bold">موقع التوصيل</h2>
+            </div>
+            <div className="h-48 rounded-xl overflow-hidden mb-3">
+              <Map lat={parseFloat(user.lat)} lng={parseFloat(user.lng)} />
+            </div>
+            <p className="text-purple-200 text-sm">{user?.address}, {user?.area}</p>
+          </div>
+        ) : (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="w-5 h-5 text-pink-400" />
+              <h2 className="text-white font-bold">موقع التوصيل</h2>
+            </div>
+            <p className="text-purple-200 text-sm">لم يتم تحديد الموقع بعد</p>
+          </div>
+        )}
+
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Package className="w-5 h-5 text-purple-400" />
+            <h2 className="text-white font-bold">طلباتي</h2>
+          </div>
+
+          {orders.length === 0? (
+            <div className="text-center py-8">
+              <Package className="w-12 h-12 text-purple-300/50 mx-auto mb-3" />
+              <p className="text-purple-200">لا يوجد طلبات بعد</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {orders.map(o => (
+                <div key={o.requestID} className="bg-white/5 rounded-xl p-3 border border-white/5">
+                  <div className="flex justify-between items-center">
+                    <p className="text-white font-bold text-sm">#{o.requestID.slice(-6)}</p>
+                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/20">{o.status}</span>
+                  </div>
+                  <p className="text-purple-300/60 text-xs mt-1">{o.date}</p>
+                  <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                    <div>
+                      <p className="text-white/40">قبل التوصيل</p>
+                      <p className="text-white font-bold">{Number(o.itemsCost||0).toLocaleString()}</p>
                     </div>
-                  ))
-                }
-              </div>
-            ))}
+                    <div>
+                      <p className="text-white/40">التوصيل</p>
+                      <p className="text-white">{o.freeUsed? 'مجاني' : Number(o.deliveryFee||0).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/40">المجموع</p>
+                      <p className="text-green-300 font-bold">{Number(o.total||0).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {latestApproved && latestApproved.customerLat && latestApproved.customerLng && (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 mt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="w-5 h-5 text-purple-400" />
+              <h2 className="text-white font-bold">خريطة الطلب الحالي</h2>
+            </div>
+            <div className="h-48 rounded-xl overflow-hidden mb-3">
+              <Map
+                customerLat={latestApproved.customerLat}
+                customerLng={latestApproved.customerLng}
+                driverLat={latestApproved.driverLat}
+                driverLng={latestApproved.driverLng}
+              />
+            </div>
+            <p className="text-purple-200 text-sm">
+              الطلب رقم #{latestApproved.requestID.slice(-6)}
+              {latestApproved.driverLat && latestApproved.driverLng? " - السائق في الطريق 🛵" : " - بانتظار السائق"}
+            </p>
+          </div>
+        )}
+
+        <button onClick={() => window.location.href = '/shop'} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition">
+          <ShoppingBag className="w-5 h-5" />
+          تصفح المتجر
+        </button>
+
+      </div>
+
+      {/* ================= AI WHATSAPP ASSISTANT ================= */}
+<a
+  href="https://wa.me/966558224093?text=مرحبا، بدي استفسر عن طلبي"
+  target="_blank"
+  rel="noopener noreferrer"
+  aria-label="MD-Marketplace AI على WhatsApp"
+  className="fixed bottom-6 right-6 z-50 flex flex-col items-center group"
+>
+  <div className="relative">
+
+    <div
+      className="
+        w-16 h-16
+        rounded-full
+        bg-gradient-to-br from-purple-600 via-pink-500 to-purple-700
+        flex items-center justify-center
+        shadow-[0_8px_30px_rgba(168,85,247,0.45)]
+        border-2 border-white/20
+        transition-all duration-300
+        group-hover:scale-110
+        group-active:scale-95
+      "
+    >
+      <span className="text- leading-none">
+        🤖
+      </span>
+    </div>
+
+    <span
+      className="
+        absolute
+        -top-2
+        -right-2
+        min-w-
+        h-
+        px-1.5
+        rounded-full
+        bg-white
+        text-purple-700
+        text-
+        font-black
+        flex items-center justify-center
+        shadow-md
+        border border-purple-100
+      "
+    >
+      AI
+    </span>
+
+  </div>
+
+  <div
+    className="
+      mt-2
+      px-3
+      py-1.5
+      rounded-full
+      bg-white
+      text-[#11183f]
+      text-
+      font-black
+      shadow-lg
+      whitespace-nowrap
+      border border-purple-100
+      transition-all
+      group-hover:scale-105
+    "
+  >
+    MD-Marketplace AI
+  </div>
+
+</a>
+
+      {showLocationModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-6 w-80 text-center">
+            <h2 className="text-white font-bold mb-3">تحديث موقعك</h2>
+            <p className="text-purple-200 text-sm mb-4">
+              هذا الاجراء يساعدنا في تحديد بياناتك إذا تغيّر عنوان إقامتك.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={async () => {
+                  await fetch('/api/update-location-date', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customerID: user.customerId })
+                  });
+                  setNeedsLocationUpdate(false);
+                  setShowLocationModal(false);
+                }}
+                className="bg-green-500/30 border border-green-500/50 px-4 py-2 rounded-xl text-white font-bold"
+              >
+                نعم
+              </button>
+              <button
+                onClick={async () => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(async (pos) => {
+                      await fetch('/api/update-location', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          customerID: user.customerId,
+                          lat: pos.coords.latitude,
+                          lng: pos.coords.longitude
+                        })
+                      });
+                      setNeedsLocationUpdate(false);
+                      setShowLocationModal(false);
+                    });
+                  }
+                }}
+                className="bg-red-500/30 border border-red-500/50 px-4 py-2 rounded-xl text-white font-bold"
+              >
+                لا
+              </button>
+            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
