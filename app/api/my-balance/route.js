@@ -12,7 +12,7 @@ function getSupabase() {
    // منع الكاش نهائياً
   return createClient(url, key, {
     global: {
-      fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' } as any)
+      fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' })
     }
   });
 }
@@ -80,7 +80,7 @@ export async function GET(req: Request) {
     }, {
       headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
     });
-  } catch (e: any) {
+  } catch (e) {
     return NextResponse.json({ success: true, points: 0, wallet: 0, total_spent: 0, error: e.message }, {
       headers: { 'Cache-Control': 'no-store' }
     });
