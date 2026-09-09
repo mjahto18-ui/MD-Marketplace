@@ -18,14 +18,14 @@ if (typeof window!== 'undefined') {
 
 }
 
-// هيدي ايقونة نقطة واحدة - دبوس أحمر مرتب
+// هيدي ايقونة نقطة واحدة - أحمر
 const guestIcon = new L.DivIcon({
   html: `
     <div style="position:relative; width:36px; height:48px;">
       <div style="width:36px; height:36px; background:#ef4444; border-radius:50%; border:3px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
         <div style="width:12px; height:12px; background:white; border-radius:50%;"></div>
       </div>
-      <div style="width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-top:14px solid #ef4444; margin:-4px auto 0 auto; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"></div>
+      <div style="width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-top:14px solid #ef4444; margin:-4px auto 0 auto;"></div>
     </div>
   `,
   iconSize: [36, 48],
@@ -33,18 +33,18 @@ const guestIcon = new L.DivIcon({
   className: ''
 })
 
-// هيدي ايقونة لما يكون فيه اكتر من زيارة بنفس المكان - دبوس أحمر فيه عدد
+// هيدي ايقونة الغروب - أزرق غامق و أكبر
 const guestClusterIcon = (count) => new L.DivIcon({
   html: `
-    <div style="position:relative; width:44px; height:56px;">
-      <div style="width:44px; height:44px; background:#ef4444; border-radius:50%; border:3px solid white; box-shadow:0 4px 12px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center;">
-        <span style="color:white; font-weight:800; font-size:16px;">${count}</span>
+    <div style="position:relative; width:48px; height:60px;">
+      <div style="width:48px; height:48px; background:#1e40af; border-radius:50%; border:3px solid white; box-shadow:0 4px 14px rgba(30,64,175,0.5); display:flex; align-items:center; justify-content:center;">
+        <span style="color:white; font-weight:900; font-size:18px;">${count}</span>
       </div>
-      <div style="width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent; border-top:18px solid #ef4444; margin:-6px auto 0 auto; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"></div>
+      <div style="width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent; border-top:18px solid #1e40af; margin:-6px auto 0 auto;"></div>
     </div>
   `,
-  iconSize: [44, 56],
-  iconAnchor: [22, 52],
+  iconSize: [48, 60],
+  iconAnchor: [24, 56],
   className: ''
 })
 
