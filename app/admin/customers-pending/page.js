@@ -7,13 +7,17 @@ import BackToDashboard from "@/components/BackToDashboard"
 export default function CustomersPendingPage() {
   const [customers, setCustomers] = useState([])
   const [areaNames, setAreaNames] = useState({})
+  
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
 
-  useEffect(() => { fetchPending() }, [])
+  useEffect(() => { 
+    fetchPending() 
+  }, [])
 
+  // 1. جلب العملاء المعلقين
   const fetchPending = async () => {
     const { data: pending } = await supabase
       .from('customers')
@@ -29,29 +33,103 @@ export default function CustomersPendingPage() {
     setAreaNames(aMap)
   }
 
-  const handleAction = async (customer, newStatus) => {
-    const actionText = newStatus === 'Active' ? 'قبول العميل' : 'رفض العميل'
-    if(!confirm(`${actionText} - ${customer['Name']} (${customer['Customer ID']}) ؟`)) return
+  // 2. هيدا تابع انشاء رابط الواتساب - نفس معادلة اب شيت القديمة
+  const getWhatsAppLink = (customer) => {
+    
+    // اذا ما في موبايل اصلا
+    let mobile = (customer['Mobile'] || '').toString()
+    if (!mobile) {
+      return null
+    }
 
+    // شيل كل شي مش رقم
+    mobile = mobile.replace(/\D/g, '')
+
+    // اذا بعد التنضيف فاضي
+    if (!mobile) {
+      return null
+    }
+
+    // شيل الصفر الاول وشيل 961 اذا موجودة
+    mobile = mobile.replace(/^0+/, '').replace(/^961/, '')
+
+    // اذا الرقم كتير قصير يعني غلط
+    if (mobile.length < 6) {
+      return null
+    }
+
+    const name = customer['Name'] || ''
+    const pin = customer['PIN'] || customer['New PIN'] || ''
+
+    // نص الرسالة
+    const message = `مرحبًا يا ${name} 👋
+تم تفعيل حسابك بنجاح!
+
+رمز الدخول الخاص بك: ${pin}
+
+لديك 5 توصيلات مجانية 🎁
+
+اضغط هنا للدخول مباشرة:
+https://md-marketplace.store/
+
+نتمنى لك تجربة ممتعة مع MD‑Marketplace.`
+    
+    // انشاء رابط wa.me
+    const encodedMessage = encodeURIComponent(message)
+    const finalLink = `https://wa.me/961${mobile}?text=${encodedMessage}`
+    
+    return finalLink
+  }
+
+  // 3. تابع القبول والرفض
+  const handleAction = async (customer, newStatus) => {
+    
+    // رسالة تأكيد
+    const actionText = newStatus === 'Active' ? 'قبول العميل' : 'رفض العميل'
+    const confirmed = confirm(`${actionText} - ${customer['Name']} (${customer['Customer ID']}) ؟`)
+    
+    if(!confirmed) {
+      return
+    }
+
+    // تحديث الحالة في Supabase
     const { data, error } = await supabase
       .from('customers')
       .update({
         'Status': newStatus,
         'Approved Date': new Date().toISOString(),
-        // 'Approved By': 'admin' // اذا عندك user
       })
       .eq('Customer ID', customer['Customer ID'])
       .select()
 
+    // اذا في خطأ
     if(error){
       alert("Error: " + error.message)
-    } else if(!data || data.length===0){
-      alert("ما لقى العميل - جرب بـ supa_id")
-      // fallback بـ supa_id
+      return
+    } 
+    
+    // اذا ما لقى العميل بالـ Customer ID - جرب بـ supa_id
+    if(!data || data.length===0){
       await supabase.from('customers').update({ 'Status': newStatus }).eq('supa_id', customer['supa_id'])
-    } else {
-      setCustomers(prev => prev.filter(c => c['Customer ID'] !== customer['Customer ID']))
     }
+
+    // 4. اذا قبول -> جرب افتح واتساب
+    if(newStatus === 'Active'){
+      
+      const waLink = getWhatsAppLink(customer)
+
+      // اذا في رابط صحيح
+      if(waLink){
+        window.open(waLink, '_blank')
+      } 
+      // اذا ما في رقم - لا تفشل، بس خبر
+      else {
+        alert(`تم قبول ${customer['Name']} بنجاح، بس ما في رقم واتساب صحيح فما فتحت الرسالة.`)
+      }
+    }
+
+    // 5. شيل العميل من اللستة
+    setCustomers(prev => prev.filter(c => c['Customer ID'] !== customer['Customer ID']))
   }
 
   return (
