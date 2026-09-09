@@ -28,7 +28,7 @@ export async function POST(req) {
     // نحاول نجيب الاحداثيات - اذا فشل ما منوقف شي
     try {
       if(ipRaw!== 'unknown' &&!ipRaw.startsWith('192.') &&!ipRaw.startsWith('10.') &&!ipRaw.startsWith('127.') && ipRaw!== '::1'){
-        const r = await fetch(`https://ip-api.com/json/${ipRaw}?fields=status,country,city,lat,lon`, { cache: 'no-store' });
+        const r = await fetch(`http://ip-api.com/json/${ipRaw}?fields=status,country,city,lat,lon`, { cache: 'no-store' });
         const d = await r.json();
         if(d.status === 'success'){
           geo.country = d.country;
