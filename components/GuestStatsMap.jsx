@@ -25,7 +25,7 @@ const guestIcon = new L.DivIcon({
   iconAnchor: [7, 7]
 })
 
-// هيدي ايقونة لما يكون فيه اكتر من زيارة بنفس المدينة
+// هيدي ايقونة لما يكون فيه اكتر من زيارة بنفس المكان (100 متر)
 const guestClusterIcon = (count) => new L.DivIcon({
   html: `<div style="width:36px;height:36px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 0 8px #3b82f6;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:13px">${count}</div>`,
   iconSize: [36, 36],
@@ -43,16 +43,16 @@ function FitWorld({ data }){
       return;
     }
 
-    const points = data.map(c => [c.lat, c.lng]).filter(p => p[0] && p[1]);
+    const points = data.map(c => [c.lat, c.lng]).filter(p=> p[0] && p[1]);
 
     if(points.length === 0) {
       return;
     }
 
     if(points.length === 1) {
-      map.setView(points[0], 5);
+      map.setView(points[0], 10);
     } else {
-      map.fitBounds(points, {padding:[80,80], maxZoom: 6});
+      map.fitBounds(points, {padding:[80,80], maxZoom: 12});
     }
 
   }, [data, map]);
@@ -69,7 +69,7 @@ export default function GuestStatsMap({ data = [] }) {
     return <div className="p-10 text-center text-gray-500">ما في بيانات جغرافية بعد</div>
   }
 
-  // هون منجمع الزيارات اللي من نفس المدينة بنقطة وحدة
+  // هون منجمع الزيارات اللي قريبة من بعض 100 متر بنقطة وحدة
   const grouped = {};
 
   data.forEach((item)=>{
@@ -78,23 +78,34 @@ export default function GuestStatsMap({ data = [] }) {
       return;
     }
 
-    // كنا قبل نجمع بس city-country
-    // هلأ صرنا نجمع city-region-country مشان ما نخلط طرابلس لبنان مع طرابلس ليبيا
-    const key = `${item.city || 'unknown'}-${item.region || 'unknown'}-${item.country}-${Number(item.lat).toFixed(2)}-${Number(item.lng).toFixed(2)}`;
+    // منقرب الاحداثيات لـ 3 ارقام
+    // 0.001 درجة = 100 متر تقريبا
+    // يعني كل اللي بفرق اقل من 100 متر بصيرو نقطة وحدة
+    const latKey = Number(item.lat).toFixed(3);
+    const lngKey = Number(item.lng).toFixed(3);
+
+    const key = `${latKey}---${lngKey}`;
 
     if(!grouped[key]) {
 
       grouped[key] = {
        ...item,
         count: 0,
+        lat_sum: 0,
+        lng_sum: 0,
         ips: [],
         orgs: [],
-        timezones: []
+        timezones: [],
+        cities: []
       };
 
     }
 
     grouped[key].count += 1;
+
+    grouped[key].lat_sum += Number(item.lat);
+
+    grouped[key].lng_sum += Number(item.lng);
 
     if(item.ip) {
       grouped[key].ips.push(item.ip);
@@ -108,9 +119,22 @@ export default function GuestStatsMap({ data = [] }) {
       grouped[key].timezones.push(item.timezone);
     }
 
+    if(item.city) {
+      grouped[key].cities.push(item.city);
+    }
+
   });
 
-  const points = Object.values(grouped);
+  // منحسب النقطة الوسطية لكل غروب
+  const points = Object.values(grouped).map((g)=>{
+
+    return {
+     ...g,
+      lat: g.lat_sum / g.count,
+      lng: g.lng_sum / g.count,
+    };
+
+  });
 
   if(points.length === 0) {
     return <div className="p-10 text-center text-gray-500">ما في نقاط صالحة للعرض</div>
@@ -135,7 +159,6 @@ export default function GuestStatsMap({ data = [] }) {
 
           const icon = item.count > 1? guestClusterIcon(item.count) : guestIcon;
 
-          // منطلع اكتر شركة نت بهالمدينة
           const topOrg = item.orgs.length > 0? item.orgs[0] : null;
 
           return (
@@ -146,35 +169,30 @@ export default function GuestStatsMap({ data = [] }) {
 
                 <div className="text-sm min-w-">
 
-                  {/* السطر الاول: المدينة والمنطقة والبلد */}
                   <div className="font-bold text-">
                     👁 {item.city || 'غير معروف'}
                     {item.region? `, ${item.region}` : ''}
                     {item.country? ` - ${item.country}` : ''}
                   </div>
 
-                  {/* السطر التاني: عدد الزيارات */}
                   <div className="text-xs mt-2">
-                    عدد الزيارات: <b>{item.count}</b>
+                    عدد الزيارات: <b>{item.count}</b> (بـ 100 متر)
                   </div>
 
-                  {/* السطر التالت: شركة النت - جديد */}
                   {topOrg && (
                     <div className="text-xs mt-1 text-gray-700">
                       📡 {topOrg}
                     </div>
                   )}
 
-                  {/* السطر الرابع: التوقيت - جديد */}
                   {item.timezone && (
                     <div className="text-xs mt-1 text-gray-700">
                       🕐 {item.timezone}
                     </div>
                   )}
 
-                  {/* السطر الخامس: الاحداثيات */}
                   <div className="text- text-gray-500 mt-2">
-                    {Number(item.lat).toFixed(4)}, {Number(item.lng).toFixed(4)}
+                    {Number(item.lat).toFixed(5)}, {Number(item.lng).toFixed(5)}
                   </div>
 
                 </div>
