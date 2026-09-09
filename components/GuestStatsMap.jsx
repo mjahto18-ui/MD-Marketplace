@@ -18,19 +18,50 @@ if (typeof window!== 'undefined') {
 
 }
 
-// هيدي ايقونة نقطة واحدة
+// هيدي ايقونة نقطة واحدة - دبوس أحمر مرتب
 const guestIcon = new L.DivIcon({
-  html: `<div style="width:14px;height:14px;background:#3b82f6;border-radius:50%;border:2px solid white;box-shadow:0 0 4px black"></div>`,
-  iconSize: [14, 14],
-  iconAnchor: [7, 7]
+  html: `
+    <div style="position:relative; width:36px; height:48px;">
+      <div style="width:36px; height:36px; background:#ef4444; border-radius:50%; border:3px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
+        <div style="width:12px; height:12px; background:white; border-radius:50%;"></div>
+      </div>
+      <div style="width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-top:14px solid #ef4444; margin:-4px auto 0 auto; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"></div>
+    </div>
+  `,
+  iconSize: [36, 48],
+  iconAnchor: [18, 44],
+  className: ''
 })
 
-// هيدي ايقونة لما يكون فيه اكتر من زيارة بنفس المكان (100 متر)
+// هيدي ايقونة لما يكون فيه اكتر من زيارة بنفس المكان - دبوس أحمر فيه عدد
 const guestClusterIcon = (count) => new L.DivIcon({
-  html: `<div style="width:36px;height:36px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 0 8px #3b82f6;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:13px">${count}</div>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 18]
+  html: `
+    <div style="position:relative; width:44px; height:56px;">
+      <div style="width:44px; height:44px; background:#ef4444; border-radius:50%; border:3px solid white; box-shadow:0 4px 12px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center;">
+        <span style="color:white; font-weight:800; font-size:16px;">${count}</span>
+      </div>
+      <div style="width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent; border-top:18px solid #ef4444; margin:-6px auto 0 auto; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"></div>
+    </div>
+  `,
+  iconSize: [44, 56],
+  iconAnchor: [22, 52],
+  className: ''
 })
+
+// هيدي بتحسب المسافة بين نقطتين بالمتر
+function getDistance(lat1, lon1, lat2, lon2) {
+
+  const R = 6371e3;
+
+  const dLat = (lat2-lat1) * Math.PI/180;
+
+  const dLon = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+}
 
 // هيدي بتخلي الخريطة تعمل زووم اوتوماتيك على كل النقاط
 function FitWorld({ data }){
@@ -69,8 +100,10 @@ export default function GuestStatsMap({ data = [] }) {
     return <div className="p-10 text-center text-gray-500">ما في بيانات جغرافية بعد</div>
   }
 
-  // هون منجمع الزيارات اللي قريبة من بعض 100 متر بنقطة وحدة
-  const grouped = {};
+  // هون منجمع الزيارات اللي قريبة من بعض 350 متر بنقطة وحدة
+  // 350 متر بيجمع الـ 5 تبع المدينة المنورة كلهم نقطة وحدة
+  // قبل كنا 100 متر فكان يفرق الخامسة لحالا
+  const grouped = [];
 
   data.forEach((item)=>{
 
@@ -78,63 +111,63 @@ export default function GuestStatsMap({ data = [] }) {
       return;
     }
 
-    // منقرب الاحداثيات لـ 3 ارقام
-    // 0.001 درجة = 100 متر تقريبا
-    // يعني كل اللي بفرق اقل من 100 متر بصيرو نقطة وحدة
-    const latKey = Number(item.lat).toFixed(3);
-    const lngKey = Number(item.lng).toFixed(3);
+    // ندور اذا فيه غروب قريب ضمن 350 متر
+    let found = null;
 
-    const key = `${latKey}---${lngKey}`;
+    for(let g of grouped){
 
-    if(!grouped[key]) {
+      const dist = getDistance(item.lat, item.lng, g.lat, g.lng);
 
-      grouped[key] = {
-       ...item,
-        count: 0,
-        lat_sum: 0,
-        lng_sum: 0,
-        ips: [],
-        orgs: [],
-        timezones: [],
-        cities: []
-      };
+      if(dist <= 350){
+        found = g;
+        break;
+      }
 
     }
 
-    grouped[key].count += 1;
+    if(found){
 
-    grouped[key].lat_sum += Number(item.lat);
+      found.count += 1;
 
-    grouped[key].lng_sum += Number(item.lng);
+      // نحدث المركز متوسط
+      found.lat = (found.lat * (found.count-1) + Number(item.lat)) / found.count;
 
-    if(item.ip) {
-      grouped[key].ips.push(item.ip);
-    }
+      found.lng = (found.lng * (found.count-1) + Number(item.lng)) / found.count;
 
-    if(item.org) {
-      grouped[key].orgs.push(item.org);
-    }
+      if(item.ip) {
+        found.ips.push(item.ip);
+      }
 
-    if(item.timezone) {
-      grouped[key].timezones.push(item.timezone);
-    }
+      if(item.org) {
+        found.orgs.push(item.org);
+      }
 
-    if(item.city) {
-      grouped[key].cities.push(item.city);
+      if(item.timezone) {
+        found.timezones.push(item.timezone);
+      }
+
+      if(item.city) {
+        found.cities.push(item.city);
+      }
+
+    } else {
+
+      grouped.push({
+      ...item,
+        count: 1,
+        lat: Number(item.lat),
+        lng: Number(item.lng),
+        ips: item.ip? [item.ip] : [],
+        orgs: item.org? [item.org] : [],
+        timezones: item.timezone? [item.timezone] : [],
+        cities: item.city? [item.city] : []
+      });
+
     }
 
   });
 
-  // منحسب النقطة الوسطية لكل غروب
-  const points = Object.values(grouped).map((g)=>{
-
-    return {
-     ...g,
-      lat: g.lat_sum / g.count,
-      lng: g.lng_sum / g.count,
-    };
-
-  });
+  const points = grouped;
 
   if(points.length === 0) {
     return <div className="p-10 text-center text-gray-500">ما في نقاط صالحة للعرض</div>
@@ -176,7 +209,7 @@ export default function GuestStatsMap({ data = [] }) {
                   </div>
 
                   <div className="text-xs mt-2">
-                    عدد الزيارات: <b>{item.count}</b> (بـ 100 متر)
+                    عدد الزيارات: <b>{item.count}</b> (بـ 350 متر)
                   </div>
 
                   {topOrg && (
