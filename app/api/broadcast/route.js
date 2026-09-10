@@ -12,7 +12,6 @@ function getSupabase() {
 export async function POST() {
   const supabase = getSupabase();
 
-  // 1. جيب البرودكاست الجاهز
   const { data: broadcasts } = await supabase
     .from('broadcast')
     .select('*')
@@ -23,7 +22,6 @@ export async function POST() {
     return NextResponse.json({ msg: 'No pending' })
   }
 
-  // 2. لف عليهن واحد واحد
   for (const b of broadcasts) {
     try {
       await supabase.from('broadcast').update({ Status: 'Sending' }).eq('Broadcast ID', b['Broadcast ID'])
@@ -31,7 +29,6 @@ export async function POST() {
       const audience = String(b['Audience'] || '').toLowerCase()
       const areaIds = (b['Area ID'] || []).map(x => String(x).toLowerCase().trim())
 
-      // 3. جيب اليوزرز
       const { data: users } = await supabase.from('users').select('*').not('"Subscription ID"', 'is', null)
 
       let ids = []
@@ -45,7 +42,6 @@ export async function POST() {
         const subId = u['Subscription ID']
         if (!subId) continue
 
-        // الفلترة - كل نوع لحال
         if (audience === 'all') ids.push(subId)
         if (audience === 'customer' && role === 'customer') ids.push(subId)
         if (audience === 'driver' && role === 'driver') ids.push(subId)
@@ -53,13 +49,16 @@ export async function POST() {
         if (audience === 'area' && areaIds.includes(userArea)) ids.push(subId)
       }
 
-      ids = [...new Set(ids)] // شيل التكرار
+      ids = [...new Set(ids)]
 
       if (ids.length === 0) throw new Error('ما لقيت حدا')
 
-      // 4. ابعت - كل 2000 لحال
+      // === هون كان ناقص الديب لينك ===
+      const deepLink = b['Deep Link'] || `https://www.md-marketplace.store/products/${b['Product ID']}`
+      const buttonText = b['Button Text'] || 'اطلب الان'
+
       for (let i = 0; i < ids.length; i += 2000) {
-        await fetch('https://api.onesignal.com/notifications', {
+        const res = await fetch('https://api.onesignal.com/notifications', {
           method: 'POST',
           headers: {
             Authorization: `Key ${process.env.ONESIGNAL_REST_API_KEY}`,
@@ -70,12 +69,25 @@ export async function POST() {
             include_subscription_ids: ids.slice(i, i + 2000),
             headings: { en: b['Title'] },
             contents: { en: b['Message'] },
-            big_picture: b['Image URL'] || undefined
+            big_picture: b['Image URL'] || undefined,
+            // === هيدول هنن يلي كانو ناقصين ===
+            url: deepLink,           // للويب والموبايل
+            web_url: deepLink,       // للويب تحديداً
+            app_url: deepLink,       // للتطبيق
+            buttons: [
+              { id: "order_now", text: buttonText }
+            ],
+            data: {
+              productId: b['Product ID'],
+              storeId: b['Store ID'],
+              deepLink: deepLink
+            }
           })
         })
+        const json = await res.json()
+        if (!res.ok) throw new Error(JSON.stringify(json))
       }
 
-      // 5. سجل انو انبعت
       await supabase.from('broadcast').update({
         Status: 'Sent',
         'Sent At': new Date().toISOString(),
