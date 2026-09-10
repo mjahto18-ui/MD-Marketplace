@@ -53,7 +53,13 @@ export async function POST() {
 
       if (ids.length === 0) throw new Error('ما لقيت حدا')
 
-      const deepLink = b['Deep Link'] || `https://www.md-marketplace.store/products/${b['Product ID']}`
+      // ---- تصليح الدومين هون ----
+      let rawLink = b['Deep Link'] || `https://www.md-marketplace.store/products/${b['Product ID']}`
+      let deepLink = rawLink;
+      if (!rawLink.startsWith('http')) {
+        deepLink = `https://www.md-marketplace.store${rawLink.startsWith('/') ? '' : '/'}${rawLink}`;
+      }
+
       const buttonText = b['Button Text'] || 'اطلب الان'
       const imageUrl = b['Image URL']
 
@@ -69,10 +75,9 @@ export async function POST() {
             include_subscription_ids: ids.slice(i, i + 2000),
             headings: { en: b['Title'] },
             contents: { en: b['Message'] },
-            // الصورة - بتشتغل على كلو
-            big_picture: imageUrl || undefined, // Android
-            chrome_web_image: imageUrl || undefined, // Chrome / Laptop
-            ios_attachments: imageUrl ? { id1: imageUrl } : undefined, // iPhone / iOS
+            big_picture: imageUrl || undefined,
+            chrome_web_image: imageUrl || undefined,
+            url: deepLink,
             web_url: deepLink,
             buttons: [
               { id: "order_now", text: buttonText }
