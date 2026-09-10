@@ -93,7 +93,7 @@ export default function Dashboard(){
       <div className="flex items-center gap-4 min-w-0">
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
           count > 0
-          ? 'bg-[#0052CC] text-white'
+         ? 'bg-[#0052CC] text-white'
             : 'bg-[#e6efff] text-[#0052CC]'
         }`}>
           <span className="text-lg font-black" style={{fontFamily:'Andika'}}>
@@ -102,10 +102,10 @@ export default function Dashboard(){
         </div>
 
         <div className="text-right min-w-0">
-          <div className="text-[11px] tracking-[0.12em] text-black font-bold uppercase truncate" style={{fontFamily:'Andika'}}>
+          <div className="text- tracking-[0.12em] text-black font-bold uppercase truncate" style={{fontFamily:'Andika'}}>
             {label}
           </div>
-          <div className="text-[22px] font-black text-black mt-1 leading-none tracking-tight" style={{fontFamily:'Andika'}}>
+          <div className="text- font-black text-black mt-1 leading-none tracking-tight" style={{fontFamily:'Andika'}}>
             {count}
           </div>
         </div>
@@ -113,7 +113,7 @@ export default function Dashboard(){
 
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
         count > 0
-        ? 'bg-[#0052CC] text-white'
+       ? 'bg-[#0052CC] text-white'
           : 'bg-black text-white'
       }`} style={{fontFamily:'Andika'}}>
         {count}
@@ -142,17 +142,17 @@ export default function Dashboard(){
             </div>
 
             <div className="text-right">
-              <div className="font-black text-[15px] tracking-[0.04em] text-black" style={{fontFamily:'Andika'}}>
+              <div className="font-black text- tracking-[0.04em] text-black" style={{fontFamily:'Andika'}}>
                 MD MARKETPLACE
               </div>
 
               <div className="flex items-center gap-2 mt-1.5">
 
-                <span className="inline-flex items-center rounded-full bg-[#e6efff] border border-[#b3ccff] px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-black" style={{fontFamily:'Andika'}}>
+                <span className="inline-flex items-center rounded-full bg-[#e6efff] border border-[#b3ccff] px-2.5 py-1 text- font-black tracking-[0.12em] text-black" style={{fontFamily:'Andika'}}>
                   {myRole}
                 </span>
 
-                <span className="text-[12px] font-bold text-black" style={{fontFamily:'Andika'}}>
+                <span className="text- font-bold text-black" style={{fontFamily:'Andika'}}>
                   {myName} 👤
                 </span>
 
@@ -187,13 +187,13 @@ export default function Dashboard(){
       </div>
 
       {/* CONTENT */}
-      <main className="px-5 lg:px-10 py-8 max-w-[1600px] mx-auto">
+      <main className="px-5 lg:px-10 py-8 max-w- mx-auto">
 
         {/* WELCOME */}
         <div className="mb-8 flex items-end justify-between gap-4">
 
           <div className="text-right">
-            <div className="text-[11px] font-bold tracking-[0.16em] uppercase text-white/70 mb-2" style={{fontFamily:'Andika'}}>
+            <div className="text- font-bold tracking-[0.16em] uppercase text-white/70 mb-2" style={{fontFamily:'Andika'}}>
               CONTROL CENTER
             </div>
 
@@ -208,7 +208,7 @@ export default function Dashboard(){
 
           <div className="hidden md:flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-bold text-black" style={{fontFamily:'Andika'}}>
+            <span className="text- font-bold text-black" style={{fontFamily:'Andika'}}>
               SYSTEM ONLINE
             </span>
           </div>
@@ -225,7 +225,7 @@ export default function Dashboard(){
                 حالة العمليات
               </h2>
 
-              <p className="text-[11px] text-white/70 mt-1" style={{fontFamily:'Andika'}}>
+              <p className="text- text-white/70 mt-1" style={{fontFamily:'Andika'}}>
                 Orders & Customers Overview
               </p>
             </div>
@@ -247,6 +247,7 @@ export default function Dashboard(){
             <Item label="REJECTED ORDERS" count={counts.rejectedOrders} href="/admin/rejected-orders" />
             <Item label="MAPPING CUSTOMERS" count={0} href="/admin/mapping-customers" />
             <Item label="GUEST STATS" count={counts.guestToday} href="/admin/guest-stats" />
+            <Item label="BROADCAST" count={0} href="/admin/broadcast" />
 
           </div>
 
@@ -261,7 +262,7 @@ export default function Dashboard(){
               <h2 className="text-sm font-black text-white" style={{fontFamily:'Andika'}}>
                 أدوات الإدارة
               </h2>
-              <p className="text-[11px] text-white/70 mt-1" style={{fontFamily:'Andika'}}>
+              <p className="text- text-white/70 mt-1" style={{fontFamily:'Andika'}}>
                 {myRole} · {menuTables.length} صلاحية متاحة
               </p>
             </div>
@@ -277,7 +278,7 @@ export default function Dashboard(){
               <Link
                 key={m.supa_id}
                 href={`/admin/${m.Menu}`}
-                className="group relative overflow-hidden bg-[#E5F0FF] rounded-2xl p-5 min-h-[120px] flex flex-col justify-between border border-slate-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-all duration-200"
+                className="group relative overflow-hidden bg-[#E5F0FF] rounded-2xl p-5 min-h- flex flex-col justify-between border border-slate-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-all duration-200"
               >
 
                 <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-[#0052CC]/5 group-hover:bg-[#0052CC]/10 transition-all" />
@@ -286,7 +287,7 @@ export default function Dashboard(){
 
                   <div className="flex items-center justify-between">
 
-                    <span className="text-[11px] tracking-[0.16em] text-black/50 font-black uppercase" style={{fontFamily:'Andika'}}>
+                    <span className="text- tracking-[0.16em] text-black/50 font-black uppercase" style={{fontFamily:'Andika'}}>
                       {m.Menu}
                     </span>
 
@@ -296,7 +297,7 @@ export default function Dashboard(){
 
                   </div>
 
-                  <div className="font-black text-[15px] text-black mt-5 leading-tight" style={{fontFamily:'Andika'}}>
+                  <div className="font-black text- text-black mt-5 leading-tight" style={{fontFamily:'Andika'}}>
                     {m.View}
                   </div>
 
@@ -304,15 +305,15 @@ export default function Dashboard(){
 
                 <div className="relative flex items-center justify-between mt-5">
 
-                  <span className={`inline-flex rounded-lg px-3 py-1.5 text-[11px] font-black ${
+                  <span className={`inline-flex rounded-lg px-3 py-1.5 text- font-black ${
                     m._access === 'Read & Write'
-                   ? 'bg-[#e6efff] text-black border border-[#b3ccff]'
+                  ? 'bg-[#e6efff] text-black border border-[#b3ccff]'
                       : 'bg-black/5 text-black/60 border border-black/10'
                   }`} style={{fontFamily:'Andika'}}>
                     {m._access}
                   </span>
 
-                  <span className="text-[11px] text-black/40 font-bold tracking-wider" style={{fontFamily:'Andika'}}>
+                  <span className="text- text-black/40 font-bold tracking-wider" style={{fontFamily:'Andika'}}>
                     OPEN
                   </span>
 
