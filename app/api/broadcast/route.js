@@ -53,7 +53,6 @@ export async function POST() {
 
       if (ids.length === 0) throw new Error('ما لقيت حدا')
 
-      // === هون كان ناقص الديب لينك ===
       const deepLink = b['Deep Link'] || `https://www.md-marketplace.store/products/${b['Product ID']}`
       const buttonText = b['Button Text'] || 'اطلب الان'
 
@@ -70,10 +69,7 @@ export async function POST() {
             headings: { en: b['Title'] },
             contents: { en: b['Message'] },
             big_picture: b['Image URL'] || undefined,
-            // === هيدول هنن يلي كانو ناقصين ===
-            url: deepLink,           // للويب والموبايل
-            web_url: deepLink,       // للويب تحديداً
-            app_url: deepLink,       // للتطبيق
+            web_url: deepLink,
             buttons: [
               { id: "order_now", text: buttonText }
             ],
