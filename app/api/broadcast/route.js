@@ -55,6 +55,7 @@ export async function POST() {
 
       const deepLink = b['Deep Link'] || `https://www.md-marketplace.store/products/${b['Product ID']}`
       const buttonText = b['Button Text'] || 'اطلب الان'
+      const imageUrl = b['Image URL']
 
       for (let i = 0; i < ids.length; i += 2000) {
         const res = await fetch('https://api.onesignal.com/notifications', {
@@ -68,7 +69,10 @@ export async function POST() {
             include_subscription_ids: ids.slice(i, i + 2000),
             headings: { en: b['Title'] },
             contents: { en: b['Message'] },
-            big_picture: b['Image URL'] || undefined,
+            // الصورة - بتشتغل على كلو
+            big_picture: imageUrl || undefined, // Android
+            chrome_web_image: imageUrl || undefined, // Chrome / Laptop
+            ios_attachments: imageUrl ? { id1: imageUrl } : undefined, // iPhone / iOS
             web_url: deepLink,
             buttons: [
               { id: "order_now", text: buttonText }
