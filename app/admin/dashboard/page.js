@@ -247,7 +247,7 @@ export default function Dashboard(){
             <Item label="REJECTED ORDERS" count={counts.rejectedOrders} href="/admin/rejected-orders" />
             <Item label="MAPPING CUSTOMERS" count={0} href="/admin/mapping-customers" />
             <Item label="GUEST STATS" count={counts.guestToday} href="/admin/guest-stats" />
-            <Item label="BROADCAST" count={0} href="/admin/broadcast" />
+            <Item label="BROADCAST" count={0} href="/admin/broadcasts" />
 
           </div>
 
