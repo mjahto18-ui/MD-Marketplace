@@ -5,7 +5,13 @@ import { createClient } from '@supabase/supabase-js';
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return createClient(url, key, {
+    global: {
+      fetch: (input, init) =>
+        fetch(input, {...init, cache: 'no-store' }),
+    },
+    auth: { persistSession: false },
+  });
 }
 
 export async function GET(req) {
@@ -16,11 +22,17 @@ export async function GET(req) {
     const supabase = getSupabase();
     const custIdLower = customerID.toString().trim().toLowerCase();
 
-    const { data: rows } = await supabase.from('order_requuest').select('*').order('Cerated Date', { ascending: false });
+    const { data: rows, error } = await supabase.from('order_requuest').select('*').order('Cerated Date', { ascending: false });
+
+    console.log('my-orders debug:', { customerID, custIdLower, rowsCount: rows?.length, error });
+    if (error) {
+      console.error('Supabase error in my-orders:', error);
+      return NextResponse.json({ success: false, orders: [], error: error.message, details: error });
+    }
 
     const orders = (rows||[])
-   .filter(r => String(r['customer ID'] || "").trim().toLowerCase() === custIdLower)
-   .map(r => {
+  .filter(r => String(r['customer ID'] || "").trim().toLowerCase() === custIdLower)
+  .map(r => {
         const currentLocation = String(r['Current Location'] || "").trim();
         let driverLat = null;
         let driverLng = null;
@@ -49,6 +61,7 @@ export async function GET(req) {
 
     return NextResponse.json({ success: true, orders });
   } catch (e) {
+    console.error('Catch error in my-orders:', e);
     return NextResponse.json({ success: false, orders: [], error: e.message });
   }
 }
