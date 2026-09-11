@@ -86,12 +86,8 @@ export async function GET(req) {
     });
     if (rateRow) baseDeliveryFee = Number(rateRow["Delivery Fee"] || 0);
 
-    let finalDeliveryFee;
-    if (freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate !== today) {
-      finalDeliveryFee = 0;
-    } else {
-      finalDeliveryFee = baseDeliveryFee;
-    }
+        const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate !== today;
+    const finalDeliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
 
     return NextResponse.json({
       success: true,
@@ -103,7 +99,7 @@ export async function GET(req) {
       freeDeliveryRemaining,
       lastFreeDeliveryDate,
       today,
-      isFreeDelivery: finalDeliveryFee === 0 && totalWeight > 0 && totalWeight <= 10,
+      isFreeDelivery,
     });
   } catch (err) {
     console.error(err);
