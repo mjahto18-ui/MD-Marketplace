@@ -76,7 +76,7 @@ export async function POST(req) {
     });
 
     const baseDeliveryFee = rateRow? Number(rateRow["Delivery Fee"] || 0) : 0;
-    const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
+    const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
     const deliveryFee = isFreeDelivery? 0 : baseDeliveryFee;
 
     // === هون الزيادة اللي اتفقنا عليها ===
@@ -143,7 +143,7 @@ export async function POST(req) {
       "Customer Longitude": finalLng,
       "Total Weight": totalWeight, // هيدا السطر الجديد
       "Mobile": customer["Mobile"] || "",
-      "Free Delivery Used": isFreeDelivery,
+      "Free Delivery Used": isFreeDelivery ? 'TRUE' : 'FALSE',
     };
 
     let { error: orderErr } = await supabase.from('order_requuest').insert([orderRow]);
