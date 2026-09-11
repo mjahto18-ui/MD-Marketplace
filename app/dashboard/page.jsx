@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [notificationCount, setNotificationCount] = useState(0);
   const [balance, setBalance] = useState({ points: 0, wallet: 0, total_spent: 0 });
   const [orders, setOrders] = useState([]);
+  const [pendings, setPendings] = useState([]);
   const [openNotifications, setOpenNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [hasNew, setHasNew] = useState(false);
@@ -50,8 +51,6 @@ export default function Dashboard() {
           if (diffDays >= 15) setNeedsLocationUpdate(true);
         }
 
-        // ✅ شلنا api/notifications/count القديم يلي فيه ثغرة
-
         fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
       .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 }));
 
@@ -63,6 +62,10 @@ export default function Dashboard() {
 
         fetch(`/api/my-orders?customerID=${data.user.customerId}`, { credentials: 'include' })
       .then(r => r.json()).then(o => setOrders(o.orders || []));
+
+        fetch(`/api/my-pending-overpay?customerID=${data.user.customerId}`, { credentials: 'include' })
+      .then(r => r.json()).then(p => setPendings(p.pendings || []));
+
       })
   .catch(() => { window.location.href = '/login'; });
   }, []);
@@ -111,7 +114,6 @@ export default function Dashboard() {
         }
 
         setNotifications(newNotifications);
-        // اذا البوب اب مسكر احسب العدد، اذا مفتوح خليه 0
         if (!openNotifications) {
           setNotificationCount(newNotifications.length);
         }
@@ -385,6 +387,7 @@ export default function Dashboard() {
                   else if(remaining<600) timerBg = 'bg-yellow-400';
                   else timerBg = 'bg-emerald-500';
                 }
+                const overpay = pendings.find(p => String(p["Request ID"]).trim().toLowerCase() === String(o.requestID).trim().toLowerCase());
 
                 return (
                 <div key={o.requestID} className="bg-white/5 rounded-xl p-3 border border-white/5">
@@ -400,6 +403,15 @@ export default function Dashboard() {
                       <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/20">{o.status}</span>
                     </div>
                   </div>
+
+                  {overpay && (
+                    <div className="mt-2 bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-2.5 flex justify-between items-center">
+                      <p className="text-yellow-200 text-xs font-bold">عندك {Number(overpay.Net).toLocaleString()} ل.س فرق بالفاتورة</p>
+                      <button onClick={() => router.push(`/donate/${overpay["Pending ID"]}`)} className="bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-black active:scale-95">
+                        اختار
+                      </button>
+                    </div>
+                  )}
 
                   {isActiveTimer && (
                     <div className="mt-2 bg-white/[0.07] border border-white/10 rounded-lg px-3 py-2 flex items-center justify-between">
@@ -461,7 +473,6 @@ export default function Dashboard() {
 
       </div>
 
-      {/* ================= AI WHATSAPP ASSISTANT ================= */}
 <a
   href="https://wa.me/966558224093?text=مرحبا، بدي استفسر عن طلبي"
   target="_blank"
@@ -470,7 +481,6 @@ export default function Dashboard() {
   className="fixed bottom-6 right-6 z-50 flex flex-col items-center group"
 >
   <div className="relative">
-
     <div
       className="
         w-16 h-16
@@ -488,7 +498,6 @@ export default function Dashboard() {
         🤖
       </span>
     </div>
-
     <span
       className="
         absolute
@@ -509,9 +518,7 @@ export default function Dashboard() {
     >
       AI
     </span>
-
   </div>
-
   <div
     className="
       mt-2
@@ -531,7 +538,6 @@ export default function Dashboard() {
   >
     MD-Marketplace AI
   </div>
-
 </a>
 
       {showLocationModal && (
