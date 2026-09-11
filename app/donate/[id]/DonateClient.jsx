@@ -2,11 +2,11 @@
 import { useState, useEffect } from "react"
 
 const CHARITIES = [
-  { id:'karitass', name:'كاريتاس لبنان', logo:'/charities/karitass.webp' },
-  { id:'salib_a7mar', name:'الصليب الأحمر', logo:'/charities/salib_a7mar.webp' },
-  { id:'dar_aytam', name:'دار الأيتام', logo:'/charities/dar_aytam.webp' },
-  { id:'difa3_madani', name:'الدفاع المدني', logo:'/charities/difa3_madani.webp' },
-  { id:'kafa', name:'كفى', logo:'/charities/kafa.webp' },
+  { id:'CHARITY_CARITAS', name:'كاريتاس لبنان', logo:'/charities/karitass.webp' },
+  { id:'CHARITY_RED_CROSS', name:'الصليب الأحمر', logo:'/charities/salib_a7mar.webp' },
+  { id:'CHARITY_DAR_AYTAM', name:'دار الأيتام', logo:'/charities/dar_aytam.webp' },
+  { id:'CHARITY_CIVIL_DEF', name:'الدفاع المدني', logo:'/charities/difa3_madani.webp' },
+  { id:'CHARITY_KAFA', name:'كفى', logo:'/charities/kafa.webp' },
 ]
 
 export default function DonateClient({ pendingId }){
