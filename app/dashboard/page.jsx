@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw, Gift, Crown, TrendingUp } from "lucide-react";
+import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw, Gift, Crown, TrendingUp, Clock, Timer } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 
@@ -22,10 +22,22 @@ export default function Dashboard() {
 
   const [tiers, setTiers] = useState([]);
   const [tierData, setTierData] = useState(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const formatTimer = (s) => {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  };
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-   .then(async (res) => {
+  .then(async (res) => {
         if (!res.ok) { window.location.href = '/login'; return; }
         const data = await res.json();
         setUser(data.user);
@@ -41,18 +53,18 @@ export default function Dashboard() {
         // ✅ شلنا api/notifications/count القديم يلي فيه ثغرة
 
         fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-       .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 }));
+      .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 }));
 
         fetch('/api/loyalty-tiers', { credentials: 'include' })
-       .then(r => r.json()).then(tData => {
+      .then(r => r.json()).then(tData => {
           const tiersList = tData.tiers || [];
           setTiers(tiersList);
         });
 
         fetch(`/api/my-orders?customerID=${data.user.customerId}`, { credentials: 'include' })
-       .then(r => r.json()).then(o => setOrders(o.orders || []));
+      .then(r => r.json()).then(o => setOrders(o.orders || []));
       })
-   .catch(() => { window.location.href = '/login'; });
+  .catch(() => { window.location.href = '/login'; });
   }, []);
 
   useEffect(() => {
@@ -357,12 +369,48 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {orders.map(o => (
+              {orders.map(o => {
+                const pickupTime = o.pickupAt? new Date(o.pickupAt) : null;
+                const isActiveTimer = pickupTime && (o.status === 'Picked Up' || o.status === 'On The Way');
+                let remaining = 0;
+                let expectedStr = '';
+                let timerBg = 'bg-emerald-500';
+                if(isActiveTimer){
+                  const elapsed = Math.floor((now - pickupTime.getTime())/1000);
+                  remaining = Math.max(0, 25*60 - elapsed);
+                  const expected = new Date(pickupTime.getTime() + 25*60*1000);
+                  expectedStr = expected.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true});
+                  if(remaining===0) timerBg = 'bg-red-600';
+                  else if(remaining<300) timerBg = 'bg-red-500';
+                  else if(remaining<600) timerBg = 'bg-yellow-400';
+                  else timerBg = 'bg-emerald-500';
+                }
+
+                return (
                 <div key={o.requestID} className="bg-white/5 rounded-xl p-3 border border-white/5">
                   <div className="flex justify-between items-center">
                     <p className="text-white font-bold text-sm">#{o.requestID.slice(-6)}</p>
-                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/20">{o.status}</span>
+                    <div className="flex items-center gap-2">
+                      {isActiveTimer && (
+                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/20 font-black text-xs ${timerBg} ${remaining<600 && remaining!==0? 'text-black' : 'text-white'} shadow-lg`}>
+                          <Timer className="w-3.5 h-3.5" />
+                          <span>{remaining===0? 'تأخر!' : formatTimer(remaining)}</span>
+                        </div>
+                      )}
+                      <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/20">{o.status}</span>
+                    </div>
                   </div>
+
+                  {isActiveTimer && (
+                    <div className="mt-2 bg-white/[0.07] border border-white/10 rounded-lg px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-purple-300" />
+                        <span className="text-purple-200 text-xs">الوقت المتوقع للتوصيل:</span>
+                      </div>
+                      <span className="text-white font-bold text-sm">{expectedStr}</span>
+                    </div>
+                  )}
+
                   <p className="text-purple-300/60 text-xs mt-1">{o.date}</p>
                   <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
                     <div>
@@ -379,7 +427,8 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
