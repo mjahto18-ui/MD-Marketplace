@@ -14,15 +14,18 @@ export async function GET(req) {
   const { data, error } = await supabase
     .from('pending_overpay')
     .select('*')
-    .eq('id', id) // هلا منفتش بالـ pendingId مش بالـ customerId
+    .eq('Pending ID', id)
     .eq('Status', 'Pending')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.log('ERROR:', error.message)
+    return NextResponse.json({ error: error.message, id }, { status: 500 })
+  }
   
-  // نفترض عندك عمود اسمه Net او Amount
   return NextResponse.json({ 
-    Net: data.Net || data.amount || 0,
-    CustomerId: data['Customer ID'] 
+    Net: data['Net'],
+    CustomerId: data['Customer ID'],
+    raw: data
   })
 }
