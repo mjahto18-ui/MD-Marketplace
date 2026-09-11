@@ -69,12 +69,20 @@ export default function CartPage() {
         setCart(data.cart || []);
         setTotalWeight(data.totalWeight);
         setSubtotal(data.subtotal);
+        
+        // نفس منطق الـ API بالضبط - 3 شروط
         const totalPoints = data.totalWeight;
         const freeRemaining = data.freeDeliveryRemaining || 0;
         const lastDate = data.lastFreeDeliveryDate || "";
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString("en-GB");
         const baseFee = data.baseDeliveryFee || 0;
-        let finalFee = freeRemaining === 0? baseFee : (lastDate === today? baseFee : (totalPoints <= 10? 0 : baseFee));
+
+        let finalFee;
+        if (freeRemaining > 0 && totalPoints > 0 && totalPoints <= 10 && lastDate !== today) {
+          finalFee = 0;
+        } else {
+          finalFee = baseFee;
+        }
         setDeliveryFee(finalFee);
       }
     } catch (e) { console.error(e); }
