@@ -167,16 +167,21 @@ export default function DriverDashboard(){
     load()
   },[supabase, me])
 
+  // --- التعديل الوحيد هون: نسخ الموقع لجدولين بنفس الوقت ---
   const startLiveTracking = (order, status) => {
     if(trackRef.current) clearInterval(trackRef.current)
     const send = async () => {
       navigator.geolocation.getCurrentPosition(async (pos)=>{
         const loc = `${pos.coords.latitude},${pos.coords.longitude}`
+        // 1- للـ live tracking
         await supabase.from('driver_live_tracking').upsert({ 'Driver ID': me.relatedId, 'Order Request ID': order['Request ID'], 'Current Location': loc, 'Last Update': new Date().toISOString(), 'Delivery Status': status }, { onConflict: 'Order Request ID' })
+        // 2- نسخ نفس الموقع لـ order_requuest عشان الزبون يشوفك
+        await supabase.from('order_requuest').update({ 'Current Location': loc }).eq('supa_id', order.supa_id)
       })
     }
     send(); trackRef.current = setInterval(send, 10000)
   }
+
   const updateStatus = async (row, newStatus)=>{
     const nowIso = new Date().toISOString()
     const updatedRow = {...row, 'Delivery Status': newStatus}
@@ -197,7 +202,10 @@ export default function DriverDashboard(){
     if(pickupStr) durationMin = Math.ceil((now - new Date(pickupStr))/60000)
     const { error } = await supabase.from('order_requuest').update({ 'Delivery Status':'Delivered', 'Delivered At': nowIso, 'Delivery Duration': durationMin, 'Collected Amount': collected, 'Driver Note': driverNote, 'Final Payment Method': paymentMethod }).eq('supa_id', selectedOrder.supa_id)
     if(error) setDebug(`خطأ حفظ الوقت: ${error.message}`)
-    else location.reload()
+    else {
+      if(trackRef.current) clearInterval(trackRef.current)
+      location.reload()
+    }
   }
   const openGoogleMaps = ()=>{ if(!selectedPoint) return; window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedPoint.lat},${selectedPoint.lng}&travelmode=driving`,'_blank') }
 
