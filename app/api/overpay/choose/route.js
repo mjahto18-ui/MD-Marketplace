@@ -1,19 +1,26 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(url, key);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 export async function POST(req) {
-  const { pendingId, chosenWalletId, chosenWalletName, donateAmount, charityCustomerId } = await req.json()
+  const { pendingId, donateAmount, charityId } = await req.json()
+
+  // اذا تبرع = 0 يعني بده يرجع كلو عالمحفظة
+  // اذا تبرع > 0 لازم يكون مختار جمعية
+  if (donateAmount > 0 && !charityId) {
+    return NextResponse.json({ error: 'اختر جمعية' }, { status: 400 })
+  }
 
   const { error } = await supabase.rpc('process_overpay_choice', {
     p_pending_id: pendingId,
-    p_chosen_wallet_id: chosenWalletId,
-    p_chosen_name: chosenWalletName,
+    p_chosen_wallet_id: null, // الـ RPC تبعك هو بيرجع الباقي عالمحفظة لحالو
+    p_chosen_name: charityId || 'wallet', 
     p_donate_amount: donateAmount,
-    p_charity_customer_id: charityCustomerId || chosenWalletId
+    p_charity_customer_id: charityId
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
