@@ -169,18 +169,17 @@ export default function DriverDashboard(){
 
   // --- التعديل الوحيد هون: نسخ الموقع لجدولين بنفس الوقت ---
   const startLiveTracking = (order, status) => {
-    if(trackRef.current) clearInterval(trackRef.current)
-    const send = async () => {
-      navigator.geolocation.getCurrentPosition(async (pos)=>{
-        const loc = `${pos.coords.latitude},${pos.coords.longitude}`
-        // 1- للـ live tracking
-        await supabase.from('driver_live_tracking').upsert({ 'Driver ID': me.relatedId, 'Order Request ID': order['Request ID'], 'Current Location': loc, 'Last Update': new Date().toISOString(), 'Delivery Status': status }, { onConflict: 'Order Request ID' })
-        // 2- نسخ نفس الموقع لـ order_requuest عشان الزبون يشوفك
-        await supabase.from('order_requuest').update({ 'Current Location': loc }).eq('supa_id', order.supa_id)
-      })
-    }
-    send(); trackRef.current = setInterval(send, 10000)
+  if(trackRef.current) clearInterval(trackRef.current)
+  const send = async () => {
+    navigator.geolocation.getCurrentPosition(async (pos)=>{
+      const loc = `${pos.coords.latitude},${pos.coords.longitude}`
+      const now = new Date().toISOString()
+      await supabase.from('driver_live_tracking').upsert({ 'Driver ID': me.relatedId, 'Order Request ID': order['Request ID'], 'Current Location': loc, 'Last Update': now, 'Delivery Status': status }, { onConflict: 'Order Request ID' })
+      await supabase.from('order_requuest').update({ 'Current Location': loc, 'Last Location Update': now }).eq('Request ID', order['Request ID'])
+    })
   }
+  send(); trackRef.current = setInterval(send, 10000)
+}
 
   const updateStatus = async (row, newStatus)=>{
     const nowIso = new Date().toISOString()
