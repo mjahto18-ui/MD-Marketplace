@@ -1,26 +1,33 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
 export async function POST(req) {
-  const { pendingId, donateAmount, charityId } = await req.json()
+  try {
+    const { pendingId, donateAmount, charityId } = await req.json()
 
-  // اذا تبرع = 0 يعني بده يرجع كلو عالمحفظة
-  // اذا تبرع > 0 لازم يكون مختار جمعية
-  if (donateAmount > 0 && !charityId) {
-    return NextResponse.json({ error: 'اختر جمعية' }, { status: 400 })
+    const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!url || !key) {
+      return NextResponse.json({ error: `ENV ناقص: url=${!!url} key=${!!key}` }, { status: 500 })
+    }
+
+    const supabase = createClient(url, key)
+
+    const { data, error } = await supabase.rpc('process_overpay_choice', {
+      p_pending_id: pendingId,
+      p_donate_amount: Number(donateAmount),
+      p_charity_customer_id: charityId || null
+    })
+
+    if (error) {
+      console.error('RPC ERROR:', error)
+      return NextResponse.json({ error: error.message, hint: error.hint, details: error.details }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, data })
+  } catch (e) {
+    console.error('CATCH:', e)
+    return NextResponse.json({ error: e.message }, { status: 500 })
   }
-
-  const { error } = await supabase.rpc('process_overpay_choice', {
-    p_pending_id: pendingId,
-    p_donate_amount: Number(donateAmount),
-    p_charity_customer_id: charityId
-  })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
 }
