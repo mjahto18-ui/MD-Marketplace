@@ -1,0 +1,17 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+
+export async function POST(req) {
+  const { pendingId, chosenWalletId, chosenWalletName } = await req.json()
+
+  const { error } = await supabase.rpc('process_overpay_choice', {
+    p_pending_id: pendingId,
+    p_chosen_wallet_id: chosenWalletId,
+    p_chosen_name: chosenWalletName
+  })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+}
