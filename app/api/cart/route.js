@@ -75,6 +75,8 @@ export async function GET(req) {
 
     const customerRow = (customersRows||[]).find((r) => String(r["Customer ID"] || "").trim() === String(customerID).trim());
     const freeDeliveryRemaining = customerRow ? Number(customerRow["Free Delivery Remaining"] || 0) : 0;
+    const lastFreeDeliveryDate = customerRow ? customerRow["Last Free Delivery Date"] || "" : "";
+    const today = new Date().toLocaleDateString("en-GB");
 
     let baseDeliveryFee = 0;
     const rateRow = (ratesRows||[]).find((r) => {
@@ -85,10 +87,10 @@ export async function GET(req) {
     if (rateRow) baseDeliveryFee = Number(rateRow["Delivery Fee"] || 0);
 
     let finalDeliveryFee;
-    if (freeDeliveryRemaining === 0) {
-      finalDeliveryFee = baseDeliveryFee;
+    if (freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate !== today) {
+      finalDeliveryFee = 0;
     } else {
-      finalDeliveryFee = totalWeight <= 10 ? 0 : baseDeliveryFee;
+      finalDeliveryFee = baseDeliveryFee;
     }
 
     return NextResponse.json({
@@ -99,6 +101,9 @@ export async function GET(req) {
       baseDeliveryFee,
       deliveryFee: finalDeliveryFee,
       freeDeliveryRemaining,
+      lastFreeDeliveryDate,
+      today,
+      isFreeDelivery: finalDeliveryFee === 0 && totalWeight > 0 && totalWeight <= 10,
     });
   } catch (err) {
     console.error(err);
