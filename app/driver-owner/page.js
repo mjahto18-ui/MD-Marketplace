@@ -193,13 +193,21 @@ export default function DriverDashboard(){
     if(newStatus==='Picked Up'){ startTimerForOrder(updatedRow); startLiveTracking(row,'Picked Up') }
     if(newStatus==='On The Way'){ startLiveTracking(row,'On The Way') }
   }
-  const confirmDelivery = async ()=>{
+ const confirmDelivery = async ()=>{
     const now = new Date()
     const nowIso = now.toISOString()
     const pickupStr = selectedOrder['Pickup At']
     let durationMin = null
     if(pickupStr) durationMin = Math.ceil((now - new Date(pickupStr))/60000)
-    const { error } = await supabase.from('order_requuest').update({ 'Delivery Status':'Delivered', 'Delivered At': nowIso, 'Delivery Duration': durationMin, 'Collected Amount': collected, 'Driver Note': driverNote, 'Final Payment Method': paymentMethod }).eq('supa_id', selectedOrder.supa_id)
+    const { error } = await supabase.from('order_requuest').update({ 
+      'Delivery Status':'Delivered', 
+      'Delivered At': nowIso, 
+      'Delivery Duration': durationMin, 
+      'Collected Amount': collected, 
+      'Driver Note': driverNote, 
+      'Final Payment Method': paymentMethod,
+      'Approval Status': 'Complete Orders' // <-- هاي زدتها هون
+    }).eq('supa_id', selectedOrder.supa_id)
     if(error) setDebug(`خطأ حفظ الوقت: ${error.message}`)
     else {
       if(trackRef.current) clearInterval(trackRef.current)
