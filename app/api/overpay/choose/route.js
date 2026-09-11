@@ -17,9 +17,7 @@ export async function POST(req) {
 
   const { error } = await supabase.rpc('process_overpay_choice', {
     p_pending_id: pendingId,
-    p_chosen_wallet_id: null, // الـ RPC تبعك هو بيرجع الباقي عالمحفظة لحالو
-    p_chosen_name: charityId || 'wallet', 
-    p_donate_amount: donateAmount,
+    p_donate_amount: Number(donateAmount),
     p_charity_customer_id: charityId
   })
 
