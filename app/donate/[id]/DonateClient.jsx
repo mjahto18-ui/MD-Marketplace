@@ -82,7 +82,7 @@ export default function DonateClient({ pendingId }){
             onClick={()=>send(0, null)} 
             disabled={submitting || net===0}
             className="w-full bg-white border-2 border-black p-4 rounded-xl mt-2 font-bold disabled:opacity-30">
-            لا، رجع كلو عالمحفظة
+            لا، ادخال المبلغ كله للمحفظة
           </button>
         </div>
 
