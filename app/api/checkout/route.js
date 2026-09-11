@@ -143,6 +143,7 @@ export async function POST(req) {
       "Customer Longitude": finalLng,
       "Total Weight": totalWeight, // هيدا السطر الجديد
       "Mobile": customer["Mobile"] || "",
+      "Free Delivery Used": isFreeDelivery,
     };
 
     let { error: orderErr } = await supabase.from('order_requuest').insert([orderRow]);
