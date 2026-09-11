@@ -31,8 +31,8 @@ export async function GET(req) {
     }
 
     const orders = (rows||[])
-  .filter(r => String(r['customer ID'] || "").trim().toLowerCase() === custIdLower)
-  .map(r => {
+ .filter(r => String(r['customer ID'] || "").trim().toLowerCase() === custIdLower)
+ .map(r => {
         const currentLocation = String(r['Current Location'] || "").trim();
         let driverLat = null;
         let driverLng = null;
@@ -46,6 +46,7 @@ export async function GET(req) {
         return {
           requestID: r['Request ID'],
           date: r['Cerated Date'],
+          pickupAt: r['Pickup At'], // <-- هاد السطر الوحيد اللي زدناه - هو اللي بيبلش من عند السائق
           itemsCost: r['Items Cost'],
           deliveryFee: r['Delivery Fee'],
           total: r['Total Amount'],
