@@ -9,7 +9,7 @@ const supabase = createClient(
 )
 
 export default function RatePage(){
-  const { id } = useParams() // e9f77251 - رقم الأوردر اللي انت حطيتو
+  const { id } = useParams()
   const [driverName, setDriverName] = useState("السائق")
   const [rating, setRating] = useState(0)
   const [tags, setTags] = useState([])
@@ -17,25 +17,27 @@ export default function RatePage(){
   const [done, setDone] = useState(false)
   const [loadingName, setLoadingName] = useState(true)
 
-  // هون بجيب اسم السائق من رقم الأوردر
   useEffect(()=>{
     async function getDriver(){
       const { data } = await supabase
-       .from('order_requuest')
-       .select('"Assigned Driver"')
-       .eq('Request ID', id)
-       .single()
+      .from('order_requuest')
+      .select('"Assigned Driver"')
+      .eq('Request ID', id)
+      .single()
 
       if(data){
-        let d = data['Assigned Driver']
-        // اذا d هو ID مثل DR-123 - جيب الاسم من جدول drivers
+        let d = data['Assigned Driver'] // مثلا DR-5
+
         if(d && d.startsWith('DR')){
            const { data: driverData } = await supabase
-            .from('drivers')
-            .select('"Driver Name"')
-            .eq('id', d)
-            .single()
-           if(driverData) d = driverData["Driver Name"] || driverData.full_name
+           .from('drivers')
+           .select('"Driver Name"')
+           .eq('"Driver ID"', d) // <-- هون التصحيح!
+           .single()
+
+           if(driverData){
+             d = driverData["Driver Name"]
+           }
         }
         if(d) setDriverName(d)
       }
@@ -44,9 +46,7 @@ export default function RatePage(){
     if(id) getDriver()
   }, [id])
 
-  const toggleTag = (t) => {
-    setTags(prev => prev.includes(t)? prev.filter(x=>x!==t) : [...prev, t])
-  }
+  const toggleTag = (t) => setTags(prev => prev.includes(t)? prev.filter(x=>x!==t) : [...prev, t])
 
   const submit = async () => {
     if(!rating) return
@@ -55,7 +55,6 @@ export default function RatePage(){
       'Rating': rating,
       'Note': note,
       'Tags': tags.join(","),
-      'Created At': new Date().toISOString()
     })
     setDone(true)
   }
@@ -64,7 +63,6 @@ export default function RatePage(){
     await supabase.from('reviews').insert({
       'Request ID': id,
       'Skipped': true,
-      'Created At': new Date().toISOString()
     })
     setDone(true)
   }
@@ -75,7 +73,7 @@ export default function RatePage(){
         <div style={{background:'#f3f1ec', padding:24, borderRadius:20, width:'90%', maxWidth:360, textAlign:'center'}}>
           <div style={{fontSize:32}}>❤️</div>
           <div style={{fontWeight:900, marginTop:10}}>شكراً! تم تسجيل تقييمك</div>
-          <a href="/" style={{display:'block', marginTop:16, background:'#0a1930', color:'white', padding:12, borderRadius:12, fontWeight:900, textDecoration:'none', textAlign:'center'}}>رجوع إلى الموقع</a>
+          <a href="/" style={{display:'block', marginTop:16, background:'#0a1930', color:'white', padding:12, borderRadius:12, fontWeight:900, textDecoration:'none'}}>رجوع إلى الموقع</a>
           <div style={{fontSize:10, opacity:0.4, marginTop:12}}>طلب #{id}</div>
         </div>
       </div>
@@ -88,6 +86,8 @@ export default function RatePage(){
         <div className="hidden md:flex" style={{flex:1, color:'white', flexDirection:'column', justifyContent:'center'}}>
           <div style={{fontSize:40, fontWeight:900}}>MD-Marketplace</div>
           <div style={{opacity:0.7, marginTop:10}}>{loadingName? "عم نجيب اسم السائق..." : `تقييم توصيلة ${driverName}`}</div>
+          <div style={{opacity:0.5, fontSize:12, marginTop:4}}>تقييم توصيلة السائق</div>
+          <div style={{opacity:0.3, fontSize:10, marginTop:4}}>طلب #e9f77251#</div>
         </div>
 
         <div style={{background:'#f3f1ec', borderRadius:20, padding:20, width:'100%', maxWidth:400}}>
