@@ -26,7 +26,7 @@ export default function RatePage(){
       .single()
 
       if(data){
-        let d = data['Assigned Driver'] // مثلا DR-5
+        let d = data["Assigned Driver"] // مثلا DR-5
 
         if(d && d.startsWith('DR')){
            const { data: driverData } = await supabase
