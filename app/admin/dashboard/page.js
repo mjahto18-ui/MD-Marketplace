@@ -54,7 +54,7 @@ export default function Dashboard(){
       todayOrders: orders?.filter(o=>String(o['Request Date']||'').startsWith(today)).length||0,
       cashPending: orders?.filter(o=>o['Cash Status']==='Pending' && o['Final Payment Method']==='Cash').length||0,
       cashReceived: orders?.filter(o=>o['Cash Status']==='Received').length||0,
-      completeOrders: orders?.filter(o=>o['Approval Status']==='Completed').length||0,
+      completeOrders: orders?.filter(o=>o['Approval Status']==='Complete Orders').length||0,
       rejectedOrders: orders?.filter(o=>o['Approval Status']==='Rejected').length||0,
       approvedOrders: orders?.filter(o=>o['Approval Status']==='Approved').length||0,
       guestToday: guestlogs?.filter(g=>String(g['Log Date']||g['Date Time']||'').startsWith(today)).length||0,
