@@ -32,7 +32,7 @@ export default function RatePage(){
         if(d && d.startsWith('DR')){
            const { data: driverData } = await supabase
             .from('drivers')
-            .select('Driver Name, full_name')
+            .select('"Driver Name"')
             .eq('id', d)
             .single()
            if(driverData) d = driverData.name || driverData.full_name
