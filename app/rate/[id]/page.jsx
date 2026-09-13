@@ -35,7 +35,7 @@ export default function RatePage(){
             .select('"Driver Name"')
             .eq('id', d)
             .single()
-           if(driverData) d = driverData.["Driver Name"] 
+           if(driverData) d = driverData.["Driver Name"] || driverData.full_name
         }
         if(d) setDriverName(d)
       }
