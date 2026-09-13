@@ -55,6 +55,7 @@ export default function RatePage(){
     if(!rating) return
     await supabase.from('reviews').insert({
       'Request ID': id,
+      'Driver ID': driverId,
       'Rating': rating,
       'Note': note,
       'Tags': tags.join(","),
