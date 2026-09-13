@@ -58,7 +58,8 @@ export default function RatePage(){
       'Driver ID': driverId,
       'Rating': rating,
       'Note': note,
-      'Tags': tags.join(","),
+      'Status': 'Pending',
+      'Created At': new Date().toISOString()
     })
     setDone(true)
   }
