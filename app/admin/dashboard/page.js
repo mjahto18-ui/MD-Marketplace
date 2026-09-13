@@ -86,35 +86,35 @@ export default function Dashboard(){
   const Item = ({label, count, href}) => (
     <Link
       href={href}
-      className="group relative overflow-hidden bg-[#E5F0FF] border border-slate-200/80 rounded-2xl p-5 flex items-center justify-between shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.09)] hover:border-slate-300 transition-all duration-200"
+      className="group relative overflow-hidden bg-[#fdfbf7] border border-[#0A0A0A]/[0.06] rounded-3xl p-6 flex items-center justify-between shadow-sm hover:shadow-xl/5 hover:-translate-y-1 hover:border-[#0A0A0A]/10 transition-all duration-300"
     >
-      <div className="absolute inset-y-0 right-0 w-1 bg-[#0052CC] opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="absolute inset-y-0 right-0 w- bg-[#FFD700] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-      <div className="flex items-center gap-4 min-w-0">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+      <div className="flex items-center gap-5 min-w-0">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${
           count > 0
-         ? 'bg-[#0052CC] text-white'
-            : 'bg-[#e6efff] text-[#0052CC]'
+        ? 'bg-[#0A0A0A] text-[#FFD700]'
+            : 'bg-white border border-[#0A0A0A]/5 text-[#0A0A0A]'
         }`}>
-          <span className="text-lg font-black" style={{fontFamily:'Andika'}}>
+          <span className="text- font-black tracking-widest" style={{fontFamily:'Andika'}}>
             {count > 0? '!' : '✓'}
           </span>
         </div>
 
-        <div className="text-right min-w-0">
-          <div className="text- tracking-[0.12em] text-black font-bold uppercase truncate" style={{fontFamily:'Andika'}}>
+        <div className="text-right min-w-0 space-y-1">
+          <div className="text- tracking-[0.18em] text-[#0A0A0A]/40 font-bold uppercase truncate" style={{fontFamily:'Andika'}}>
             {label}
           </div>
-          <div className="text- font-black text-black mt-1 leading-none tracking-tight" style={{fontFamily:'Andika'}}>
+          <div className="text- font-black text-[#0A0A0A] leading-none tracking-tight" style={{fontFamily:'Andika'}}>
             {count}
           </div>
         </div>
       </div>
 
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text- font-black shrink-0 shadow-sm ${
         count > 0
-       ? 'bg-[#0052CC] text-white'
-          : 'bg-black text-white'
+      ? 'bg-[#FFD700] text-[#0A0A0A]'
+          : 'bg-[#0A0A0A] text-[#fdfbf7]'
       }`} style={{fontFamily:'Andika'}}>
         {count}
       </div>
@@ -122,17 +122,17 @@ export default function Dashboard(){
   )
 
   return (
-    <div className="min-h-screen bg-[#0052CC] text-slate-900">
+    <div className="min-h-screen bg-[#fdfbf7] text-[#0A0A0A]">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap');`}</style>
 
-      {/* HEADER - خلفية 3385FF */}
-      <div className="sticky top-0 z-30 bg-[#E5F0FF] backdrop-blur-xl border-b border-slate-200/80">
+      {/* HEADER - نيومينيمالزم حليبي */}
+      <div className="sticky top-0 z-30 bg-[#fdfbf7]/80 backdrop-blur-xl border-b border-[#0A0A0A]/[0.06]">
 
-        <div className="px-6 lg:px-10 py-4 flex justify-between items-center">
+        <div className="px-6 lg:px-10 py-6 flex justify-between items-center">
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
 
-            <div className="w-11 h-11 rounded-2xl bg-[#0052CC] flex items-center justify-center shadow-lg shadow-slate-900/10 overflow-hidden">
+            <div className="w-12 h-12 rounded-2xl bg-[#0A0A0A] flex items-center justify-center shadow-sm overflow-hidden border border-[#FFD700]/30">
               <img
                 src="/logo.png"
                 alt="logo"
@@ -141,18 +141,18 @@ export default function Dashboard(){
               />
             </div>
 
-            <div className="text-right">
-              <div className="font-black text- tracking-[0.04em] text-black" style={{fontFamily:'Andika'}}>
+            <div className="text-right space-y-2">
+              <div className="font-black text- tracking-[0.08em] text-[#0A0A0A]" style={{fontFamily:'Andika'}}>
                 MD MARKETPLACE
               </div>
 
-              <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex items-center gap-2.5">
 
-                <span className="inline-flex items-center rounded-full bg-[#e6efff] border border-[#b3ccff] px-2.5 py-1 text- font-black tracking-[0.12em] text-black" style={{fontFamily:'Andika'}}>
+                <span className="inline-flex items-center rounded-full bg-white border border-[#0A0A0A]/10 px-3 py-1 text- font-black tracking-[0.14em] text-[#0A0A0A] shadow-sm" style={{fontFamily:'Andika'}}>
                   {myRole}
                 </span>
 
-                <span className="text- font-bold text-black" style={{fontFamily:'Andika'}}>
+                <span className="text- font-bold text-[#0A0A0A]/70" style={{fontFamily:'Andika'}}>
                   {myName} 👤
                 </span>
 
@@ -161,11 +161,11 @@ export default function Dashboard(){
 
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
 
             <button
               onClick={load}
-              className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-black text-xs font-bold hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all"
+              className="h-11 px-5 rounded-2xl border border-[#0A0A0A]/10 bg-white text-[#0A0A0A] text-xs font-bold hover:bg-[#fdfbf7] hover:border-[#0A0A0A]/20 active:scale-[0.98] shadow-sm transition-all"
               style={{fontFamily:'Andika'}}
             >
               <span className="mr-1.5">↻</span>
@@ -174,7 +174,7 @@ export default function Dashboard(){
 
             <button
               onClick={logout}
-              className="h-10 px-5 rounded-xl bg-black text-white text-xs font-black hover:bg-slate-800 active:scale-[0.98] shadow-lg shadow-slate-900/10 transition-all"
+              className="h-11 px-6 rounded-2xl bg-[#0A0A0A] text-[#fdfbf7] text-xs font-black hover:bg-black active:scale-[0.98] shadow-sm hover:shadow-xl/5 transition-all border border-[#FFD700]/20"
               style={{fontFamily:'Andika'}}
             >
               خروج
@@ -187,28 +187,28 @@ export default function Dashboard(){
       </div>
 
       {/* CONTENT */}
-      <main className="px-5 lg:px-10 py-8 max-w- mx-auto">
+      <main className="px-6 lg:px-10 py-10 max-w- mx-auto space-y-12">
 
         {/* WELCOME */}
-        <div className="mb-8 flex items-end justify-between gap-4">
+        <div className="flex items-end justify-between gap-6">
 
-          <div className="text-right">
-            <div className="text- font-bold tracking-[0.16em] uppercase text-white/70 mb-2" style={{fontFamily:'Andika'}}>
+          <div className="text-right space-y-3">
+            <div className="text- font-bold tracking-[0.22em] uppercase text-[#0A0A0A]/40" style={{fontFamily:'Andika'}}>
               CONTROL CENTER
             </div>
 
-            <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-white" style={{fontFamily:'Andika'}}>
+            <h1 className="text-4xl lg:text-5xl font-black tracking-tight text-[#0A0A0A]" style={{fontFamily:'Andika'}}>
               لوحة التحكم
             </h1>
 
-            <p className="text-sm text-white/80 font-medium mt-2" style={{fontFamily:'Andika'}}>
+            <p className="text- text-[#0A0A0A]/60 font-medium" style={{fontFamily:'Andika'}}>
               مرحباً {myName}، إليك ملخص عمليات المنصة.
             </p>
           </div>
 
-          <div className="hidden md:flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text- font-bold text-black" style={{fontFamily:'Andika'}}>
+          <div className="hidden md:flex items-center gap-3 rounded-full bg-white border border-[#0A0A0A]/10 px-5 py-2.5 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-[#FFD700] shadow-sm animate-pulse" />
+            <span className="text- font-bold tracking-widest text-[#0A0A0A]" style={{fontFamily:'Andika'}}>
               SYSTEM ONLINE
             </span>
           </div>
@@ -216,25 +216,25 @@ export default function Dashboard(){
         </div>
 
         {/* MAIN STATUS CARDS */}
-        <section>
+        <section className="space-y-6">
 
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
 
-            <div className="text-right">
-              <h2 className="text-sm font-black text-white" style={{fontFamily:'Andika'}}>
+            <div className="text-right space-y-1">
+              <h2 className="text- font-black text-[#0A0A0A]" style={{fontFamily:'Andika'}}>
                 حالة العمليات
               </h2>
 
-              <p className="text- text-white/70 mt-1" style={{fontFamily:'Andika'}}>
+              <p className="text- text-[#0A0A0A]/50" style={{fontFamily:'Andika'}}>
                 Orders & Customers Overview
               </p>
             </div>
 
-            <div className="h-px flex-1 bg-white/20 mx-5" />
+            <div className="h-px flex-1 bg-[#0A0A0A]/10 mx-6" />
 
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
 
             <Item label="CUSTOMERS PENDING" count={counts.customersPending} href="/admin/customers-pending" />
             <Item label="PENDING ORDERS" count={counts.pendingOrders} href="/admin/pending" />
@@ -254,66 +254,66 @@ export default function Dashboard(){
         </section>
 
         {/* MENU */}
-        <section className="mt-12">
+        <section className="space-y-6">
 
-          <div className="flex items-end justify-between mb-4">
+          <div className="flex items-end justify-between">
 
-            <div className="text-right">
-              <h2 className="text-sm font-black text-white" style={{fontFamily:'Andika'}}>
+            <div className="text-right space-y-1">
+              <h2 className="text- font-black text-[#0A0A0A]" style={{fontFamily:'Andika'}}>
                 أدوات الإدارة
               </h2>
-              <p className="text- text-white/70 mt-1" style={{fontFamily:'Andika'}}>
+              <p className="text- text-[#0A0A0A]/50" style={{fontFamily:'Andika'}}>
                 {myRole} · {menuTables.length} صلاحية متاحة
               </p>
             </div>
 
-            <div className="h-px flex-1 bg-white/20 mx-5" />
+            <div className="h-px flex-1 bg-[#0A0A0A]/10 mx-6" />
 
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
             {menuTables.map(m=>(
 
               <Link
                 key={m.supa_id}
                 href={`/admin/${m.Menu}`}
-                className="group relative overflow-hidden bg-[#E5F0FF] rounded-2xl p-5 min-h- flex flex-col justify-between border border-slate-200 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition-all duration-200"
+                className="group relative overflow-hidden bg-white rounded-3xl p-6 min-h- flex flex-col justify-between border border-[#0A0A0A]/[0.06] shadow-sm hover:shadow-xl/5 hover:-translate-y-1 hover:border-[#FFD700]/40 transition-all duration-300"
               >
 
-                <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-[#0052CC]/5 group-hover:bg-[#0052CC]/10 transition-all" />
+                <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full bg-[#FFD700]/[0.06] group-hover:bg-[#FFD700]/[0.12] transition-all duration-300" />
 
-                <div className="relative">
+                <div className="relative space-y-6">
 
                   <div className="flex items-center justify-between">
 
-                    <span className="text- tracking-[0.16em] text-black/50 font-black uppercase" style={{fontFamily:'Andika'}}>
+                    <span className="text- tracking-[0.18em] text-[#0A0A0A]/40 font-black uppercase" style={{fontFamily:'Andika'}}>
                       {m.Menu}
                     </span>
 
-                    <span className="w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center text-black/50 group-hover:text-black group-hover:bg-black/10 transition-all">
+                    <span className="w-8 h-8 rounded-xl bg-[#fdfbf7] border border-[#0A0A0A]/5 flex items-center justify-center text-[#0A0A0A]/40 group-hover:text-[#0A0A0A] group-hover:border-[#FFD700]/40 transition-all shadow-sm">
                       →
                     </span>
 
                   </div>
 
-                  <div className="font-black text- text-black mt-5 leading-tight" style={{fontFamily:'Andika'}}>
+                  <div className="font-black text- text-[#0A0A0A] leading-tight" style={{fontFamily:'Andika'}}>
                     {m.View}
                   </div>
 
                 </div>
 
-                <div className="relative flex items-center justify-between mt-5">
+                <div className="relative flex items-center justify-between mt-6">
 
-                  <span className={`inline-flex rounded-lg px-3 py-1.5 text- font-black ${
+                  <span className={`inline-flex rounded-full px-3.5 py-1.5 text- font-black shadow-sm ${
                     m._access === 'Read & Write'
-                  ? 'bg-[#e6efff] text-black border border-[#b3ccff]'
-                      : 'bg-black/5 text-black/60 border border-black/10'
+                 ? 'bg-[#0A0A0A] text-[#FFD700] border border-[#FFD700]/30'
+                      : 'bg-[#fdfbf7] text-[#0A0A0A]/60 border border-[#0A0A0A]/10'
                   }`} style={{fontFamily:'Andika'}}>
                     {m._access}
                   </span>
 
-                  <span className="text- text-black/40 font-bold tracking-wider" style={{fontFamily:'Andika'}}>
+                  <span className="text- text-[#0A0A0A]/30 font-bold tracking-widest" style={{fontFamily:'Andika'}}>
                     OPEN
                   </span>
 
