@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID = process.env.WHATSAPP_PHONE_ID || "1183824331491327";
-const GROQ_KEY = process.env.GROQ_API_KEY;
-const VOICE_KEY = process.env.GROQ_API_KEY_2;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const BOT2_URL = process.env.BOT2_URL || "https://www.md-marketplace.store/api/whatsapp-bot2";
 const BOT2_BRIDGE_KEY = process.env.BOT2_BRIDGE_KEY || "MDM_BOT1_TO_BOT2_ORDER";
@@ -154,6 +153,7 @@ async function sendImageMessage(to, imageUrl, caption) {
   } catch (e) { console.error("❌ خطأ إرسال صورة:", e); return false; }
 }
 
+// ===== GEMINI TRANSCRIBE - بدل Groq Whisper =====
 async function transcribeVoice(mediaId) {
   try {
     const metaRes = await fetch(`https://graph.facebook.com/v26.0/${mediaId}`, {
@@ -165,20 +165,27 @@ async function transcribeVoice(mediaId) {
       headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
     });
     const buffer = await audioFile.arrayBuffer();
-    const form = new FormData();
-    form.append("file", new Blob([buffer], { type: "audio/ogg" }), "voice.ogg");
-    form.append("model", "whisper-large-v3");
-    form.append("language", "ar");
-    form.append("prompt", "لبناني، كانديا، سوبرماركت، بدي، وين بلاقي");
-    const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    const base64Audio = Buffer.from(buffer).toString('base64');
+
+    // Gemini 2.5 Flash بيفهم الصوت دغري!
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${VOICE_KEY}` },
-      body: form
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: "Transcribe this Lebanese Arabic voice note to Lebanese dialect text. Only return the transcription, no extra text. The user might say words like كانديا، سوبرماركت، بدي، وين بلاقي" },
+            { inline_data: { mime_type: "audio/ogg", data: base64Audio } }
+          ]
+        }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 500 }
+      })
     });
     const data = await res.json();
-    console.log("🎤 Whisper full response:", JSON.stringify(data));
-    console.log("🎤 Whisper result:", data.text);
-    return data.text || null;
+    console.log("🎤 Gemini Whisper full:", JSON.stringify(data));
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    console.log("🎤 Gemini result:", text);
+    return text;
   } catch (e) {
     console.log("❌ فويس فشل:", e.message);
     return null;
@@ -258,19 +265,18 @@ async function decodeBarcodeFromImage(mediaId) {
 async function getCaloriesFromNet(barcode, productName) {
   const p = await getProductFromOFF(barcode);
   if (p) return buildCaloriesText(p);
-  if (!GROQ_KEY) return null;
+  if (!GEMINI_API_KEY) return null;
   try {
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
-      headers: {"Authorization": `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
-        messages: [{ role: "system", content: `انت خبير تغذية. اعطي سعرات حرارية تقديرية لـ ${productName} بشكل مختصر و مفيد بالعربي بلبناني.` }, { role: "user", content: `سعرات ${productName} لكل 100غ` }],
-        temperature: 0.3
+        contents: [{ parts: [{ text: `انت خبير تغذية. اعطي سعرات حرارية تقديرية لـ ${productName} بشكل مختصر و مفيد بالعربي بلبناني. سعرات ${productName} لكل 100غ` }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 400 }
       })
     });
     const d = await r.json();
-    return d.choices?.[0]?.message?.content || null;
+    return d.candidates?.[0]?.content?.parts?.[0]?.text || null;
   } catch(e) { return null; }
 }
 
@@ -445,9 +451,7 @@ async function openBot2Session(phone) {
     Phone: normalizeWhatsAppNumber(phone),
     "Active Bot": "BOT2",
     Status: "ACTIVE",
-    //"Request ID": "",
     "Started At": beirutString,
-    //"Closed At": "",
     "Last Activity": beirutString
   }]);
 }
@@ -522,7 +526,6 @@ async function searchProducts(userMessage) {
   const stopWords = ["بدي","بدّي","اريد","أريد","اعرف","موجود","وين","باي","متجر","سوبرماركت","لاقي","بلاقي","لاقيلي","عندك","عندكن","عندكم","دور","ببرم","ابحث","ابحثلي","برملي","دورلي","فتشلي","شفلي","شوفلي","جبلي","بدور","عم دور","على","بلاقيه","بلاقيها","الاقي","ميني","ماركت","بقالة","محل","عند","شو","عن","المنتج","منتج","في","منو","فيه"];
   const words = message.split(" ").filter(w => w.length >= 2 &&!stopWords.includes(w));
   console.log(`📦 عدد المنتجات الكلي: ${products.length}`); console.log("كلمة الزبون بعد الفلترة:", words);
-  if (products[0]) { console.log(`🔑 اسماء الاعمدة: ${Object.keys(products[0]).join(" | ")}`); console.log(`📝 اول منتج كامل: ${JSON.stringify(products[0])}`); }
   let mentionedStoreId = null;
   for (const store of stores) {
     const storeNameNorm = normalizeText(store["Store Name"]);
@@ -557,7 +560,7 @@ async function searchProducts(userMessage) {
   console.log("عدد النتائج للبن:", results.length);
   let finalResults = results;
   if (mentionedStoreId) finalResults = results.filter(r => String(r.storeId) === String(mentionedStoreId));
-  return finalResults.slice(0, 5);
+  return finalResults.slice(0, 3);
 }
 async function getUserOrders(user) {
   if (!user) return [];
@@ -618,26 +621,51 @@ async function buildOrderContext(user, userMessage) {
     details, driver
   };
 }
+
+// ===== GEMINI - بدل Groq - مع تقليل توكن =====
 async function getAIReply(userMessage, user, productResults, orderContext, history, persona, smartMemory) {
-  if (!GROQ_KEY) { return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"; }
+  if (!GEMINI_API_KEY) { return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"; }
   try {
-    let userContext = "المستخدم غير معروف في نظام Users.";
+    // === توفير توكن: ما منبعت الا يلي لازمو ===
+    const needsOrder = /طلب|اوردر|وين|حالة|توصيل/.test(normalizeText(userMessage));
+    const needsProduct = productResults.length > 0;
+
+    let userContext = "";
     if (user) {
-      userContext = `بيانات المستخدم الموثوقة:\nالاسم: ${user.name || "غير معروف"}\nالدور: ${user.role || "غير معروف"}\nCustomer ID: ${user.customerId || "غير موجود"}\nUser ID: ${user.userId || "غير موجود"}\nرقم WhatsApp: ${user.whatsappNumber || "غير موجود"}\nالجنس: ${user.gender || "غير معروف"}\nالشخصية المربوطة: ${user.assignedPersona || "غير مربوط بعد"}\n`;
+      userContext = `الزبون: ${user.name || ""} - ${user.gender || ""} - Customer: ${user.customerId || "زائر"}`;
+    } else {
+      userContext = "زائر غير مسجل";
     }
-    const productContext = productResults.length? JSON.stringify(productResults) : "لا توجد نتائج منتجات مؤكدة.";
-    const orderData = orderContext.orders.length? JSON.stringify(orderContext.orders) : "لا توجد طلبات متاحة لهذا المستخدم.";
-    const selectedOrder = orderContext.selectedOrder? JSON.stringify(orderContext.selectedOrder) : "لا يوجد طلب محدد.";
-    const orderDetails = orderContext.details.length? JSON.stringify(orderContext.details) : "لا توجد تفاصيل للطلب المحدد.";
-    const historyText = history.length? history.map(m => `العميل: ${m["CustomerMessage"] || ""}\nالبوت: ${m["AIReply"] || ""}`).join("\n") : "لا توجد محادثة سابقة.";
-    const driverContext = orderContext.driver? `اسم السائق: ${orderContext.driver.name}\nرقم السائق: ${orderContext.driver.phone}` : "لا يوجد سائق معين بعد - الطلب قيد الانتظار";
-    let personaLayer = ""; let smartMemoryLayer = "";
+
+    // فقط اذا سأل عن طلب نبعتلو الطلبات - توفير 600 توكن!
+    let orderData = "";
+    let selectedOrder = "";
+    let orderDetails = "";
+    let driverContext = "";
+    if (needsOrder && orderContext.orders.length) {
+      orderData = `طلباته: ${JSON.stringify(orderContext.orders.slice(-1))}`;
+      selectedOrder = orderContext.selectedOrder? JSON.stringify(orderContext.selectedOrder) : "";
+      orderDetails = orderContext.details.length? JSON.stringify(orderContext.details.slice(0,3)) : "";
+      driverContext = orderContext.driver? `${orderContext.driver.name}` : "";
+    }
+
+    let productContext = "لا يوجد منتج";
+    if (needsProduct) {
+      // بس 3 منتجات مش كلشي - توفير 400 توكن!
+      productContext = JSON.stringify(productResults.slice(0,3));
+    }
+
+    let personaLayer = "";
+    let smartMemoryLayer = "";
     if (persona && user) {
-      personaLayer = `=== PERSONA LAYER - التزم به 100% ===\nأنت ${persona.Name}، موظف/ة في MD-Marketplace.\nالصفة: ${persona.Personality}\nالجنس: ${persona.Gender} - العمر: ${persona.Age} (لا تذكره أبداً إلا إذا سألك الزبون مباشرة "قديش عمرك")\nمهمتك: تكون حد الزبون وتساعده، تحكي بلهجة لبنانية طبيعية جداً كأنك شخص حقيقي.\nقواعد الشخصية:\n- التزم بصفة ${persona.Personality} فقط.\n- اذا كان في محادثة سابقة (history) لا تعيد الترحيب "أنا ${persona.Name} كيف بقدر ساعدك" - احكي بشكل طبيعي ومتابعة للحديث.\n- أول مرة فقط (اذا ما في history) عرّف عن حالك: "هاي أنا ${persona.Name} موظفة/موظف بـ MD-Marketplace ومهمتي كون حدك وساعدك"\n- لا تقل أبداً أنك ذكاء اصطناعي.\n- لا تذكر عمرك إلا إذا انسألت.\n`;
-      if (smartMemory?.lastProducts?.length) {
-        smartMemoryLayer = `=== SMART MEMORY - ذاكرة ذكية ===\nآخر منتجات طلبها الزبون: ${smartMemory.lastOrderText}\nتعليمات: اذا هاي تاني محادثة أو أكثر وموجود history، استخدم هالمعلومة بطريقة ذكية وطبيعية في الترحيب الثاني. مثال: "أهلا ${user.name || ""} كيفك؟ شو بدنا اليوم متل المرة الماضية ${smartMemory.lastProducts[0]} ولا بتحب تغير؟" - لا تذكرها كل مرة، فقط عندما يكون مناسب وطبيعي.\n`;
+      personaLayer = `أنت ${persona.Name} - ${persona.Personality} - ${persona.Gender} - من MD-Marketplace. احكي لبناني طبيعي.`;
+      if (smartMemory?.lastProducts?.length && history.length > 0) {
+        smartMemoryLayer = `آخر طلباته: ${smartMemory.lastOrderText}`;
       }
     }
+
+    const historyText = history.length? history.map(m => `عميل: ${m["CustomerMessage"] || ""}\nبوت: ${m["AIReply"] || ""}`).join("\n").slice(-500) : "";
+
     const systemPrompt = `
 ${persona? personaLayer : "أنت مساعدك الذكي من MD-Marketplace."}
 تحدث باللهجة اللبنانية الودودة والطبيعية، خليك مهضوم وطبيعي مش روبوت.
@@ -737,15 +765,52 @@ ${orderDetails}
 بيانات السائق
 ${driverContext}
 `;
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST", headers: { Authorization: `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }], temperature: 0.5 })
+
+    console.log(`📊 Gemini Input chars: ${systemPrompt.length} + user ${userMessage.length}`);
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          { role: "user", parts: [{ text: `${systemPrompt}\n\nرسالة الزبون: ${userMessage}` }] }
+        ],
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 600
+        }
+      })
     });
+
     const data = await res.json();
-    if (data.error ||!data.choices?.[0]?.message?.content) { console.error("❌ Groq Error:", JSON.stringify(data.error)); return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏"; }
-    return data.choices?.[0]?.message?.content || "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
-  } catch (error) { console.error("❌ خطأ اتصال Groq:", error); return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية."; }
+    
+    if (data.error) {
+      console.error("❌ Gemini Error:", JSON.stringify(data.error));
+      if (data.error.code === 429) {
+        return "شوي شوي 😊 ضغط شوي، جرب بعد ثانية";
+      }
+      return "صار ضغط شوي على السيرفر، جرب تبعتلي بعد وقت قصير 🙏";
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      console.error("❌ Gemini no text:", JSON.stringify(data));
+      return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊";
+    }
+
+    // Log tokens
+    const usage = data.usageMetadata;
+    if (usage) {
+      console.log(`✅ Gemini Tokens: Input ${usage.promptTokenCount} | Output ${usage.candidatesTokenCount} | Total ${usage.totalTokenCount}`);
+    }
+
+    return text;
+  } catch (error) { 
+    console.error("❌ خطأ اتصال Gemini:", error); 
+    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية."; 
+  }
 }
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("hub.mode");
@@ -772,51 +837,32 @@ export async function POST(req) {
     const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from || Mobile;
     if (!from) return Response.json({ status: "ok" }, { status: 200 });
-     // ==== زر اطلب من new-arrivals -> ينادي /api/offer/add ====
     if (message?.type === "interactive") {
       const buttonId = message?.interactive?.button_reply?.id || "";
-
       if (buttonId.startsWith("order_")) {
         const productID = buttonId.replace("order_", "").trim();
         const cleanPhone = normalizeWhatsAppNumber(from);
         console.log(`🔘 زر اطلب: ${productID} من ${cleanPhone}`);
-
         try {
           const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.md-marketplace.store";
-
           const addRes = await fetch(`${siteUrl}/api/offer/add`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              phone: cleanPhone,
-              productID: productID
-            })
+            body: JSON.stringify({ phone: cleanPhone, productID: productID })
           });
-
           const addData = await addRes.json();
           console.log("🛒 Offer/Add result:", addData);
-
           if (addData.success) {
             await sendMessage(from, `✅ انضاف *${addData.product || "المنتج"}* عالسلة 🛒`);
-
-            await saveToAppSheet(cleanPhone, `كبس اطلب ${productID}`, `انضاف ${productID}`, {
-              botSession: BOT1_SESSION,
-              bot: "BOT1",
-              messageType: "NEW_ARRIVALS_ORDER"
-            });
-
-            // فتح سيشن BOT2 - هون كان الغلط
+            await saveToAppSheet(cleanPhone, `كبس اطلب ${productID}`, `انضاف ${productID}`, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "NEW_ARRIVALS_ORDER" });
             await openBot2Session(cleanPhone);
-
           } else {
             await sendMessage(from, `❌ ${addData.message || "ما انضاف"}`);
           }
-
         } catch (e) {
           console.log("Offer/Add error", e.message);
           await sendMessage(from, "صار خطأ - جرب مرة تانية 🙏");
         }
-
         return Response.json({ status: "ok", forwarded_to: "OFFER_ADD" }, { status: 200 });
       }
     }
@@ -864,14 +910,12 @@ export async function POST(req) {
     } else { userText = body.text || ""; }
     if (!userText) return Response.json({ status: "ok" }, { status: 200 });
 
-    // ===== هون الحارس بيفحص قبل كلشي - بالرسالة ======
     const rate = await checkRate(whatsappNumber, userText);
     if (!rate.ok) {
       if (!rate.silent && rate.msg) await sendMessage(from, rate.msg);
       console.log(`🚫 Rate limited: ${whatsappNumber} - ${rate.msg || 'silent'}`);
       return Response.json({ status: "ok", rate_limited: true }, { status: 200 });
     }
-    // ===== خلص الفحص ======
 
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
     const rawText = String(userText || "").trim();
@@ -907,7 +951,7 @@ export async function POST(req) {
           const reassAt = lastRow["Reassurance_At"] || lastRow["Date"];
           const diffMin = (new Date() - new Date(reassAt)) / (1000 * 60);
           if (diffMin >= 0 && diffMin <= 30) {
-            hasYesForOffers = true; // <-- هيدا ناقص عندك
+            hasYesForOffers = true;
             console.log(`🔑 YES diff ${diffMin.toFixed(1)} -> new-arrivals`);
             const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.md-marketplace.store";
             await fetch(`${siteUrl}/api/whatsapp/new-arrivals`, {
@@ -921,7 +965,7 @@ export async function POST(req) {
     } catch(e) { console.log("YES check error", e.message) }
 
     const normalizedMsg = normalizeText(rawText);
-    if (!hasYesForOffers && /^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) { // <-- رجع!hasYesForOffers هون للامان
+    if (!hasYesForOffers && /^(ايه|اي|نعم|اه|yes|ok|yep|بدي|اكيد)$/i.test(normalizedMsg)) {
       const lastProduct = globalThis._lastProduct.get(whatsappNumber);
       if (lastProduct) {
         console.log(`🔥 طلب سعرات لـ ${lastProduct.code}`);
