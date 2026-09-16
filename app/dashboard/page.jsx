@@ -440,7 +440,7 @@ export default function Dashboard() {
                           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-[0_2px_8px_rgba(234,179,8,0.4)]">
                             <Star className="w-4 h-4 text-black fill-black" />
                           </div>
-                          <p className="text-yellow-100 text-xs font-bold">قيّم تجربتك و اربح نقاط</p>
+                          <p className="text-yellow-100 text-xs font-bold">قيّم السائق  لتجربة قادمة احسن</p>
                         </div>
                         <button onClick={() => router.push(`/rate/${o.requestID}`)} className="bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-4 py-1.5 rounded-full text-xs font-black active:scale-95 shadow-[0_0_15px_rgba(251,191,36,0.5)] hover:shadow-[0_0_20px_rgba(251,191,36,0.7)] transition-all">
                           قيّم ⭐
