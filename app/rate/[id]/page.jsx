@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(
@@ -9,7 +9,11 @@ const supabase = createClient(
 )
 
 export default function RatePage(){
-  const { id } = useParams()
+  const params = useParams()
+  const searchParams = useSearchParams()
+  // بتدعم /rate/[id] و /rate?orderId=xxx التنين
+  const id = params?.id || searchParams.get('orderId') || searchParams.get('id')
+
   const [driverName, setDriverName] = useState("السائق")
   const [driverId, setDriverId] = useState(null)
   const [rating, setRating] = useState(0)
@@ -20,11 +24,12 @@ export default function RatePage(){
 
   useEffect(()=>{
     async function getDriver(){
+      if(!id) { setLoadingName(false); return; }
       const { data } = await supabase
-    .from('order_requuest')
-    .select('"Assigned Driver"')
-    .eq('Request ID', id)
-    .single()
+        .from('order_requuest')
+        .select('"Assigned Driver"')
+        .eq('Request ID', id)
+        .single()
 
       if(data){
         let driverIdFetched = data["Assigned Driver"]
@@ -46,10 +51,22 @@ export default function RatePage(){
       setLoadingName(false)
     }
     if(id) getDriver()
+    else setLoadingName(false)
   }, [id])
 
   const toggleTag = (t) => {
     setTags(prev => prev.includes(t)? prev.filter(x=>x!==t) : [...prev, t])
+  }
+
+  // هيدي الدالة يلي بتسكر الطلب - مهمة كتير
+  const markAsRated = async () => {
+    if(!id) return
+    const { error } = await supabase
+      .from('order_requuest')
+      .update({ 'Is Rated': true }) // هون true سمول بالكود، هي FALSE كابيتال بالجدول
+      .eq('Request ID', id)
+    
+    if(error) console.log('markAsRated error', error)
   }
 
   const submit = async () => {
@@ -69,6 +86,8 @@ export default function RatePage(){
       alert(error.message)
       return
     }
+    // سكّر الطلب بعد التقييم
+    await markAsRated()
     setDone(true)
   }
 
@@ -88,7 +107,17 @@ export default function RatePage(){
       alert(error.message)
       return
     }
+    // حتى لو عمل سكيب منسكرو مشان ما يرجع يطلعلو
+    await markAsRated()
     setDone(true)
+  }
+
+  if(!id){
+    return (
+      <div style={{minHeight:'100vh', background:'#0a1930', display:'flex', alignItems:'center', justifyContent:'center', direction:'rtl'}}>
+        <div style={{background:'#f3f1ec', padding:24, borderRadius:20}}>ما في Request ID</div>
+      </div>
+    )
   }
 
   if(done){
@@ -97,7 +126,7 @@ export default function RatePage(){
         <div style={{background:'#f3f1ec', padding:24, borderRadius:20, width:'90%', maxWidth:360, textAlign:'center'}}>
           <div style={{fontSize:32}}>❤</div>
           <div style={{fontWeight:900, marginTop:10}}>شكراً! تم تسجيل تقييمك</div>
-          <a href="/" style={{display:'block', marginTop:16, background:'#0a1930', color:'white', padding:12, borderRadius:12, fontWeight:900, textDecoration:'none', textAlign:'center'}}>رجوع إلى الموقع</a>
+          <a href="/shop" style={{display:'block', marginTop:16, background:'#0a1930', color:'white', padding:12, borderRadius:12, fontWeight:900, textDecoration:'none', textAlign:'center'}}>رجوع إلى المتجر</a>
           <div style={{fontSize:10, opacity:0.4, marginTop:12}}>طلب #{id}</div>
         </div>
       </div>
