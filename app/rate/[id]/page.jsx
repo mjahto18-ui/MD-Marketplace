@@ -11,6 +11,7 @@ const supabase = createClient(
 export default function RatePage(){
   const { id } = useParams()
   const [driverName, setDriverName] = useState("السائق")
+  const [driverId, setDriverId] = useState(null)
   const [rating, setRating] = useState(0)
   const [tags, setTags] = useState([])
   const [note, setNote] = useState("")
@@ -20,25 +21,25 @@ export default function RatePage(){
   useEffect(()=>{
     async function getDriver(){
       const { data } = await supabase
-     .from('order_requuest')
-     .select('"Assigned Driver"')
-     .eq('Request ID', id)
-     .single()
+    .from('order_requuest')
+    .select('"Assigned Driver"')
+    .eq('Request ID', id)
+    .single()
 
       if(data){
-        let driverId = data["Assigned Driver"]
-
-        if(driverId){
+        let driverIdFetched = data["Assigned Driver"]
+        if(driverIdFetched){
+           setDriverId(driverIdFetched)
            const { data: driverData } = await supabase
-          .from('drivers')
-          .select('"Driver Name"')
-          .eq('"Driver ID"', driverId)
-          .single()
+         .from('drivers')
+         .select('"Driver Name"')
+         .eq('"Driver ID"', driverIdFetched)
+         .single()
 
            if(driverData && driverData["Driver Name"]){
              setDriverName(driverData["Driver Name"])
            } else {
-             setDriverName(driverId)
+             setDriverName(driverIdFetched)
            }
         }
       }
@@ -53,22 +54,40 @@ export default function RatePage(){
 
   const submit = async () => {
     if(!rating) return
-    await supabase.from('reviews').insert({
+    const { error } = await supabase.from('reviews').insert({
       'Request ID': id,
       'Driver ID': driverId,
-      'Rating': rating,
-      'Note': note,
-      'Status': 'Pending',
+      'Rating': String(rating),
+      'Tags': tags.join(','),
+      'Comment': note,
+      'Status': rating <= 2? 'Pending' : 'Approved',
+      'Skipped': 'FALSE',
       'Created At': new Date().toISOString()
     })
+    if(error){
+      console.log(error)
+      alert(error.message)
+      return
+    }
     setDone(true)
   }
 
   const skip = async () => {
-    await supabase.from('reviews').insert({
+    const { error } = await supabase.from('reviews').insert({
       'Request ID': id,
-      'Skipped': true,
+      'Driver ID': driverId,
+      'Rating': '0',
+      'Tags': '',
+      'Comment': 'Skipped by user',
+      'Status': 'Rejected',
+      'Skipped': 'TRUE',
+      'Created At': new Date().toISOString()
     })
+    if(error){
+      console.log(error)
+      alert(error.message)
+      return
+    }
     setDone(true)
   }
 
@@ -76,7 +95,7 @@ export default function RatePage(){
     return (
       <div style={{minHeight:'100vh', background:'#0a1930', display:'flex', alignItems:'center', justifyContent:'center', direction:'rtl'}}>
         <div style={{background:'#f3f1ec', padding:24, borderRadius:20, width:'90%', maxWidth:360, textAlign:'center'}}>
-          <div style={{fontSize:32}}>❤️</div>
+          <div style={{fontSize:32}}>❤</div>
           <div style={{fontWeight:900, marginTop:10}}>شكراً! تم تسجيل تقييمك</div>
           <a href="/" style={{display:'block', marginTop:16, background:'#0a1930', color:'white', padding:12, borderRadius:12, fontWeight:900, textDecoration:'none', textAlign:'center'}}>رجوع إلى الموقع</a>
           <div style={{fontSize:10, opacity:0.4, marginTop:12}}>طلب #{id}</div>
@@ -109,11 +128,11 @@ export default function RatePage(){
           {rating>0 && (
             <>
               <div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:14}}>
-                {(rating<=3? ["تأخر","الطلب مكبوب","أسلوب"] : ["محترم","سريع","مرتب"]).map(t=>(
+                {(rating<=2? ["تأخر","الطلب مكبوب","أسلوب"] : ["محترم","سريع","مرتب"]).map(t=>(
                   <button key={t} onClick={()=>toggleTag(t)} style={{padding:'6px 12px', borderRadius:20, border:'1px solid #111', background: tags.includes(t)? '#111':'white', color: tags.includes(t)? 'white':'#111', fontSize:12}}>{t}</button>
                 ))}
               </div>
-              <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder={rating<=3? "شو صار؟ احكيلنا" : "شو عجبك؟ (اختياري)"} style={{width:'100%', marginTop:12, padding:10, borderRadius:10, border:'1px solid #ccc', minHeight:80}} />
+              <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder={rating<=2? "شو صار؟ احكيلنا" : "شو عجبك؟ (اختياري)"} style={{width:'100%', marginTop:12, padding:10, borderRadius:10, border:'1px solid #ccc', minHeight:80}} />
               <button onClick={submit} style={{width:'100%', marginTop:12, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>إرسال التقييم</button>
               <button onClick={skip} style={{width:'100%', marginTop:8, background:'#e5e7eb', padding:10, borderRadius:10, fontSize:12}}>تخطي / إغلاق</button>
             </>
