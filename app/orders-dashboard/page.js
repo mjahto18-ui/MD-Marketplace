@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 
-// --- صفحة كل الطلبات /orders ---
+// --- صفحة كل الطلبات /orders-dashboard ---
 export default function AllOrdersPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -14,7 +14,7 @@ export default function AllOrdersPage() {
   const [pendingRatingIds, setPendingRatingIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
-  const [filter, setFilter] = useState('all'); // all | active | delivered | rating
+  const [filter, setFilter] = useState('all');
   const [visibleCount, setVisibleCount] = useState(10);
 
   useEffect(() => {
@@ -61,8 +61,13 @@ export default function AllOrdersPage() {
     );
   }
 
-  // ترتيب الأجدد فوق
-  const sorted = [...orders].reverse();
+  // --- FIX: ترتيب صحيح بالتاريخ - الأجدد فوق ---
+  // بدل [...orders].reverse() يلي كان يقلب الترتيب الصحيح
+  const sorted = [...orders].sort((a, b) => {
+    const dateA = new Date(a.date || a.RequestDate || a.CeratedDate || a.requestDate || 0);
+    const dateB = new Date(b.date || b.RequestDate || b.CeratedDate || b.requestDate || 0);
+    return dateB - dateA; // الأجدد فوق
+  });
 
   const filtered = sorted.filter(o => {
     if (filter === 'all') return true;
@@ -80,14 +85,13 @@ export default function AllOrdersPage() {
         <div className="flex items-center justify-between mb-6 pt-2">
           <div>
             <h1 className="text-white text-2xl font-black">كل طلباتي</h1>
-            <p className="text-purple-200/60 text-sm mt-1">{orders.length} طلب</p>
+            <p className="text-purple-200/60 text-sm mt-1">{orders.length} طلب - الأجدد فوق</p>
           </div>
           <button onClick={() => router.push('/dashboard')} className="bg-white/10 px-4 py-2 rounded-xl text-white text-sm">
             رجوع
           </button>
         </div>
 
-        {/* فلتر */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
           {[
             { id: 'all', label: 'الكل' },
