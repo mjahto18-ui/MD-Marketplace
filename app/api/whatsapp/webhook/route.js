@@ -42,6 +42,53 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+// ===== الحارس - Rate Limit - الديفولت 10 ======
+const DEFAULT_MAX_PER_MINUTE = 10;
+const MAX_PER_HOUR = 30;
+
+async function checkRate(phone, text) {
+  try {
+    const key = String(phone || "").replace(/\D/g, "");
+    if (!key) return { ok: true };
+    const supabase = getSupabase();
+    const now = new Date();
+    const { data: row } = await supabase.from('rate_limits').select('*').eq('phone', key).maybeSingle();
+
+    if (!row) {
+      await supabase.from('rate_limits').insert({ phone: key, minute_count: 1, hour_count: 1, max_per_minute: DEFAULT_MAX_PER_MINUTE, last_message: text, last_minute_reset: now.toISOString(), last_hour_reset: now.toISOString(), updated_at: now.toISOString() });
+      return { ok: true };
+    }
+    if (row.is_vip) return { ok: true };
+    if (row.is_permanent) return { ok: false, silent: true };
+    if (row.blocked_until && new Date(row.blocked_until) > now) return { ok: false, silent: true };
+
+    const minutePassed = (now - new Date(row.last_minute_reset)) > 60*1000;
+    const hourPassed = (now - new Date(row.last_hour_reset)) > 60*60*1000;
+    let mCount = minutePassed? 1 : (row.minute_count || 0) + 1;
+    let hCount = hourPassed? 1 : (row.hour_count || 0) + 1;
+    let rCount = (row.last_message === text)? (row.repeat_count || 0) + 1 : 0;
+    const allowed = row.max_per_minute || DEFAULT_MAX_PER_MINUTE;
+
+    if (rCount >= 3) {
+      await supabase.from('rate_limits').update({ blocked_until: new Date(now.getTime() + 5*60*1000).toISOString(), repeat_count: rCount, reason: 'repeat', updated_at: now.toISOString() }).eq('phone', key);
+      return { ok: false, silent: true };
+    }
+    if (mCount > allowed) {
+      await supabase.from('rate_limits').update({ minute_count: mCount, blocked_until: new Date(now.getTime() + 60*1000).toISOString(), reason: `${mCount}/${allowed} per min`, updated_at: now.toISOString() }).eq('phone', key);
+      return { ok: false, silent: false, msg: `شوي شوي 😊 مسموح ${allowed} رسائل بالدقيقة، طول بالك دقيقة وبرجعلك 🙏` };
+    }
+    if (hCount > MAX_PER_HOUR) {
+      await supabase.from('rate_limits').update({ hour_count: hCount, blocked_until: new Date(now.getTime() + 15*60*1000).toISOString(), reason: `${hCount}/hour`, updated_at: now.toISOString() }).eq('phone', key);
+      return { ok: false, silent: false, msg: `لاحظت عم تبعت كتير اليوم 🙏 ريح 15 دقيقة وبرجعلك` };
+    }
+    await supabase.from('rate_limits').update({ minute_count: mCount, hour_count: hCount, last_minute_reset: minutePassed? now.toISOString() : row.last_minute_reset, last_hour_reset: hourPassed? now.toISOString() : row.last_hour_reset, last_message: text, repeat_count: rCount, blocked_until: null, reason: null, updated_at: now.toISOString() }).eq('phone', key);
+    return { ok: true };
+  } catch (e) {
+    console.log("Rate check error", e.message);
+    return { ok: true };
+  }
+}
+
 function mapTable(sheetName) {
   const n = String(sheetName || "").toLowerCase().trim();
   if (n === "products") return "products";
@@ -728,7 +775,7 @@ export async function POST(req) {
      // ==== زر اطلب من new-arrivals -> ينادي /api/offer/add ====
     if (message?.type === "interactive") {
       const buttonId = message?.interactive?.button_reply?.id || "";
-      
+
       if (buttonId.startsWith("order_")) {
         const productID = buttonId.replace("order_", "").trim();
         const cleanPhone = normalizeWhatsAppNumber(from);
@@ -736,11 +783,11 @@ export async function POST(req) {
 
         try {
           const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.md-marketplace.store";
-          
+
           const addRes = await fetch(`${siteUrl}/api/offer/add`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               phone: cleanPhone,
               productID: productID
             })
@@ -751,7 +798,7 @@ export async function POST(req) {
 
           if (addData.success) {
             await sendMessage(from, `✅ انضاف *${addData.product || "المنتج"}* عالسلة 🛒`);
-            
+
             await saveToAppSheet(cleanPhone, `كبس اطلب ${productID}`, `انضاف ${productID}`, {
               botSession: BOT1_SESSION,
               bot: "BOT1",
@@ -773,7 +820,7 @@ export async function POST(req) {
         return Response.json({ status: "ok", forwarded_to: "OFFER_ADD" }, { status: 200 });
       }
     }
-   
+
     const whatsappNumber = normalizeWhatsAppNumber(from);
     try {
       const { getGlobalConfig } = await import('@/lib/getGlobalConfig');
@@ -816,6 +863,16 @@ export async function POST(req) {
       else { await sendMessage(from, "ما سمعت منيح حبيبي 🙏 فيك ترجع تحكي أو تكتبلي؟"); return Response.json({ status: "ok" }, { status: 200 }); }
     } else { userText = body.text || ""; }
     if (!userText) return Response.json({ status: "ok" }, { status: 200 });
+
+    // ===== هون الحارس بيفحص قبل كلشي - بالرسالة ======
+    const rate = await checkRate(whatsappNumber, userText);
+    if (!rate.ok) {
+      if (!rate.silent && rate.msg) await sendMessage(from, rate.msg);
+      console.log(`🚫 Rate limited: ${whatsappNumber} - ${rate.msg || 'silent'}`);
+      return Response.json({ status: "ok", rate_limited: true }, { status: 200 });
+    }
+    // ===== خلص الفحص ======
+
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
     const rawText = String(userText || "").trim();
     const userEarly = await getUserByWhatsAppNumber(whatsappNumber);
@@ -841,10 +898,10 @@ export async function POST(req) {
       if (simpleYes.includes(first) || simpleYes.includes(low)) {
         const supabase = getSupabase();
         const { data: allMsgs } = await supabase.from('messages')
-       .select('*')
-       .eq('Phone', whatsappNumber)
-       .order('_supa_synced_at', { ascending: false })
-       .limit(1);
+      .select('*')
+      .eq('Phone', whatsappNumber)
+      .order('_supa_synced_at', { ascending: false })
+      .limit(1);
         const lastRow = allMsgs?.[0];
         if (lastRow && String(lastRow["Reassurance_Sent"] || "").toUpperCase() === "YES") {
           const reassAt = lastRow["Reassurance_At"] || lastRow["Date"];
