@@ -156,8 +156,12 @@ export default function Dashboard() {
 .filter(o => o.approvalStatus === "Approved")
 .slice(-1)[0];
 
-  // --- تعديل بسيط: آخر 5 فقط، الأجدد فوق ---
-  const sortedOrders = [...orders].reverse();
+    // --- FIX: الأجدد فوق بالتاريخ ---
+  const sortedOrders = [...orders].sort((a, b) => {
+    const da = new Date(a.date || a.RequestDate || a.CeratedDate || 0);
+    const db = new Date(b.date || b.RequestDate || b.CeratedDate || 0);
+    return db - da;
+  });
   const last5Orders = sortedOrders.slice(0, 5);
 
   return (
