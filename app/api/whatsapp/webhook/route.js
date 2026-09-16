@@ -168,7 +168,7 @@ async function transcribeVoice(mediaId) {
     const base64Audio = Buffer.from(buffer).toString('base64');
 
     // Gemini 2.5 Flash بيفهم الصوت دغري!
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -267,7 +267,7 @@ async function getCaloriesFromNet(barcode, productName) {
   if (p) return buildCaloriesText(p);
   if (!GEMINI_API_KEY) return null;
   try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`, {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/modelsgemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {"Content-Type": "application/json" },
       body: JSON.stringify({
@@ -782,7 +782,7 @@ ${driverContext}
 
     console.log(`📊 Gemini Input chars: ${systemPrompt.length} + user ${userMessage.length}`);
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
