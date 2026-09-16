@@ -3,7 +3,37 @@ import { useEffect, useState, useRef } from "react"
 import { createClient } from "@supabase/supabase-js"
 import dynamic from "next/dynamic"
 import CashPending from "./CashPending"
-const DriverMap = dynamic(() => import("./DriverMap"), { ssr: false })
+import { Star } from "lucide-react"
+const DriverMap = dynamic(() => import("@/components/Stars"), { ssr: false })
+
+// --- كومبوننت النجوم - نص نجمة ---
+function Stars({ rating = 0, size = 14 }) {
+  const r = parseFloat(rating) || 0;
+  let full = Math.floor(r);
+  let half = false;
+  const dec = r - full;
+  if (dec >= 0.75) full += 1;
+  else if (dec >= 0.25) half = true;
+  const empty = Math.max(0, 5 - full - (half? 1 : 0));
+  return (
+    <div style={{display:'flex', alignItems:'center'}}>
+      {[...Array(full)].map((_, i) => (
+        <Star key={`f-${i}`} size={size} style={{fill:'#facc15', color:'#facc15'}} />
+      ))}
+      {half && (
+        <div style={{position:'relative', width:size, height:size}}>
+          <Star size={size} style={{position:'absolute', color:'rgba(255,255,255,0.2)'}} />
+          <div style={{position:'absolute', overflow:'hidden', width:'50%'}}>
+            <Star size={size} style={{fill:'#facc15', color:'#facc15'}} />
+          </div>
+        </div>
+      )}
+      {[...Array(empty)].map((_, i) => (
+        <Star key={`e-${i}`} size={size} style={{color:'rgba(255,255,255,0.2)'}} />
+      ))}
+    </div>
+  );
+}
 
 export default function DriverDashboard(){
   const [supabase, setSupabase] = useState(null)
@@ -27,6 +57,7 @@ export default function DriverDashboard(){
   const [activeTab, setActiveTab] = useState('orders')
   const [cashPendingCount, setCashPendingCount] = useState(0)
   const [cashPendingTotal, setCashPendingTotal] = useState(0)
+  const [driverStats, setDriverStats] = useState(null) // <-- جديد
   const timersRef = useRef({})
   const trackRef = useRef(null)
   const driverLocationRef = useRef(null)
@@ -106,6 +137,11 @@ export default function DriverDashboard(){
     if(!supabase ||!me) return
     const load = async ()=>{
       const driverId = me.relatedId || me.userId
+
+      // --- جديد: جيب تقييم الدرايفر ---
+      const { data: drv } = await supabase.from('drivers').select('"Avg Rating", "Rating Count", "Total Delivered"').eq('"Driver ID"', driverId).single()
+      if(drv) setDriverStats(drv)
+
       const { data } = await supabase.from('order_requuest').select('*').eq('Assigned Driver', driverId).eq('Approval Status','Approved').in('Delivery Status',['Pending','Picked Up','On The Way']).limit(100)
       setRequests(data||[])
       if(data && data.length>0){
@@ -157,7 +193,6 @@ export default function DriverDashboard(){
         if(active){ setSelectedOrder(active); setPaymentMethod(active['Final Payment Method']||'Cash') }
         setDebug(`OK: ${data.length} اوردر - ${det?.length||0} منتج`)
       }
-      // كاش بندينغ كاونت
       const { data: cashData } = await supabase.from('order_requuest').select('Total Amount').eq('Assigned Driver', driverId).eq('Final Payment Method','Cash').eq('Cash Status','Pending')
       if(cashData){
         setCashPendingCount(cashData.length)
@@ -167,7 +202,6 @@ export default function DriverDashboard(){
     load()
   },[supabase, me])
 
-  // --- التعديل الوحيد هون: نسخ الموقع لجدولين بنفس الوقت ---
   const startLiveTracking = (order, status) => {
   if(trackRef.current) clearInterval(trackRef.current)
   const send = async () => {
@@ -199,14 +233,14 @@ export default function DriverDashboard(){
     const pickupStr = selectedOrder['Pickup At']
     let durationMin = null
     if(pickupStr) durationMin = Math.ceil((now - new Date(pickupStr))/60000)
-    const { error } = await supabase.from('order_requuest').update({ 
-      'Delivery Status':'Delivered', 
-      'Delivered At': nowIso, 
-      'Delivery Duration': durationMin, 
-      'Collected Amount': collected, 
-      'Driver Note': driverNote, 
+    const { error } = await supabase.from('order_requuest').update({
+      'Delivery Status':'Delivered',
+      'Delivered At': nowIso,
+      'Delivery Duration': durationMin,
+      'Collected Amount': collected,
+      'Driver Note': driverNote,
       'Final Payment Method': paymentMethod,
-      'Approval Status': 'Complete Orders' // <-- هاي زدتها هون
+      'Approval Status': 'Complete Orders'
     }).eq('supa_id', selectedOrder.supa_id)
     if(error) setDebug(`خطأ حفظ الوقت: ${error.message}`)
     else {
@@ -227,6 +261,16 @@ export default function DriverDashboard(){
       <div style={{background:'#0e2242', padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:20}}>
         <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
           <span>أهلاً {me.name}</span>
+
+          {/* --- هون بس التعديل: النجوم بالهيدر --- */}
+          {driverStats && (
+            <div style={{display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.1)', padding:'4px 10px', borderRadius:20}}>
+              <Stars rating={driverStats["Avg Rating"]} size={14} />
+              <span style={{fontSize:12, color:'#facc15', fontWeight:900}}>{Number(driverStats["Avg Rating"]||0).toFixed(1)}</span>
+              <span style={{fontSize:11, opacity:0.6}}>({driverStats["Rating Count"]||0}) • {driverStats["Total Delivered"]||0} توصيلة</span>
+            </div>
+          )}
+
           <button onClick={toggleOnline} style={{background: isOnline? '#22c55e' : '#ef4444', color:'white', padding:'6px 14px', borderRadius:20, fontWeight:900, fontSize:12, border:'none'}}>{isOnline? '🟢 Online' : '🔴 Offline'}</button>
           {Object.entries(timers).map(([reqId, sec])=>(
             <span key={reqId} style={{background: sec===0? '#ef4444' : sec<300? '#ef4444' : sec<600? '#facc15' : '#22c55e', color:'white', padding:'6px 16px', borderRadius:20, fontWeight:900, fontSize:12, border:'2px solid white'}}>⏱ {reqId}: {sec===0? 'تأخر!' : formatTimer(sec)}</span>
