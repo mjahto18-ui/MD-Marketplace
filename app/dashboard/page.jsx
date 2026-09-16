@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [openNotifications, setOpenNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [hasNew, setHasNew] = useState(false);
+  const [pendingRatingIds, setPendingRatingIds] = useState([]);
 
   const [needsLocationUpdate, setNeedsLocationUpdate] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -65,6 +66,9 @@ export default function Dashboard() {
 
         fetch(`/api/my-pending-overpay?customerID=${data.user.customerId}`, { credentials: 'include' })
       .then(r => r.json()).then(p => setPendings(p.pendings || []));
+
+        fetch(`/api/check-pending-rating?customerID=${data.user.customerId}`, { credentials: 'include' })
+      .then(r => r.json()).then(d => setPendingRatingIds(d.pendingIds || []));
 
       })
   .catch(() => { window.location.href = '/login'; });
@@ -409,6 +413,20 @@ export default function Dashboard() {
                       <p className="text-yellow-200 text-xs font-bold">عندك {Number(overpay.Net).toLocaleString()} ل.س فرق بالفاتورة</p>
                       <button onClick={() => router.push(`/donate/${overpay["Pending ID"]}`)} className="bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-black active:scale-95">
                         اختار
+                      </button>
+                    </div>
+                  )}
+
+                  {pendingRatingIds.includes(o.requestID) && (
+                    <div className="mt-2 bg-gradient-to-r from-yellow-500/20 via-amber-400/20 to-yellow-500/20 border border-yellow-500/40 rounded-xl p-2.5 flex justify-between items-center shadow-[0_0_20px_rgba(234,179,8,0.15)]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-[0_2px_8px_rgba(234,179,8,0.4)]">
+                          <Star className="w-4 h-4 text-black fill-black" />
+                        </div>
+                        <p className="text-yellow-100 text-xs font-bold">قيّم تجربتك و اربح نقاط</p>
+                      </div>
+                      <button onClick={() => router.push(`/rate/${o.requestID}`)} className="bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-4 py-1.5 rounded-full text-xs font-black active:scale-95 shadow-[0_0_15px_rgba(251,191,36,0.5)] hover:shadow-[0_0_20px_rgba(251,191,36,0.7)] transition-all">
+                        قيّم ⭐
                       </button>
                     </div>
                   )}
