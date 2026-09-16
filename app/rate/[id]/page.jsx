@@ -11,11 +11,12 @@ const supabase = createClient(
 export default function RatePage(){
   const params = useParams()
   const searchParams = useSearchParams()
-  // بتدعم /rate/[id] و /rate?orderId=xxx التنين
   const id = params?.id || searchParams.get('orderId') || searchParams.get('id')
 
   const [driverName, setDriverName] = useState("السائق")
   const [driverId, setDriverId] = useState(null)
+  const [customerIdForReview, setCustomerIdForReview] = useState(null)
+  const [storeIdForReview, setStoreIdForReview] = useState(null)
   const [rating, setRating] = useState(0)
   const [tags, setTags] = useState([])
   const [note, setNote] = useState("")
@@ -27,11 +28,18 @@ export default function RatePage(){
       if(!id) { setLoadingName(false); return; }
       const { data } = await supabase
         .from('order_requuest')
-        .select('"Assigned Driver"')
+        .select('"Assigned Driver", "customer ID", "Store ID", "store ID"')
         .eq('Request ID', id)
         .single()
 
       if(data){
+        // هون العامود c صغيرة - من order_requuest
+        const cId = data["customer ID"]
+        if(cId) setCustomerIdForReview(String(cId))
+
+        const sId = data["Store ID"] || data["store ID"]
+        if(sId) setStoreIdForReview(String(sId))
+
         let driverIdFetched = data["Assigned Driver"]
         if(driverIdFetched){
            setDriverId(driverIdFetched)
@@ -58,12 +66,11 @@ export default function RatePage(){
     setTags(prev => prev.includes(t)? prev.filter(x=>x!==t) : [...prev, t])
   }
 
-  // هيدي الدالة يلي بتسكر الطلب - مهمة كتير
   const markAsRated = async () => {
     if(!id) return
     const { error } = await supabase
       .from('order_requuest')
-      .update({ 'Is Rated': true }) // هون true سمول بالكود، هي FALSE كابيتال بالجدول
+      .update({ 'Is Rated': true })
       .eq('Request ID', id)
     
     if(error) console.log('markAsRated error', error)
@@ -74,6 +81,8 @@ export default function RatePage(){
     const { error } = await supabase.from('reviews').insert({
       'Request ID': id,
       'Driver ID': driverId,
+      'Customer ID': customerIdForReview, // هون C كبيرة - من reviews
+      'Store ID': storeIdForReview,
       'Rating': String(rating),
       'Tags': tags.join(','),
       'Comment': note,
@@ -86,7 +95,6 @@ export default function RatePage(){
       alert(error.message)
       return
     }
-    // سكّر الطلب بعد التقييم
     await markAsRated()
     setDone(true)
   }
@@ -95,6 +103,8 @@ export default function RatePage(){
     const { error } = await supabase.from('reviews').insert({
       'Request ID': id,
       'Driver ID': driverId,
+      'Customer ID': customerIdForReview, // هون C كبيرة
+      'Store ID': storeIdForReview,
       'Rating': '0',
       'Tags': '',
       'Comment': 'Skipped by user',
@@ -107,7 +117,6 @@ export default function RatePage(){
       alert(error.message)
       return
     }
-    // حتى لو عمل سكيب منسكرو مشان ما يرجع يطلعلو
     await markAsRated()
     setDone(true)
   }
@@ -126,7 +135,7 @@ export default function RatePage(){
         <div style={{background:'#f3f1ec', padding:24, borderRadius:20, width:'90%', maxWidth:360, textAlign:'center'}}>
           <div style={{fontSize:32}}>❤</div>
           <div style={{fontWeight:900, marginTop:10}}>شكراً! تم تسجيل تقييمك</div>
-          <a href="/shop" style={{display:'block', marginTop:16, background:'#0a1930', color:'white', padding:12, borderRadius:12, fontWeight:900, textDecoration:'none', textAlign:'center'}}>رجوع إلى المتجر</a>
+          <a href="/dashboard" style={{display:'block', marginTop:16, background:'#0a1930', color:'white', padding:12, borderRadius:12, fontWeight:900, textDecoration:'none', textAlign:'center'}}>رجوع إلى حسابي</a>
           <div style={{fontSize:10, opacity:0.4, marginTop:12}}>طلب #{id}</div>
         </div>
       </div>
