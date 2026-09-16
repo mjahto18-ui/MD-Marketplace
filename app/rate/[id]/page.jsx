@@ -16,7 +16,6 @@ export default function RatePage(){
   const [driverName, setDriverName] = useState("السائق")
   const [driverId, setDriverId] = useState(null)
   const [customerIdForReview, setCustomerIdForReview] = useState(null)
-  const [storeIdForReview, setStoreIdForReview] = useState(null)
   const [rating, setRating] = useState(0)
   const [tags, setTags] = useState([])
   const [note, setNote] = useState("")
@@ -26,30 +25,35 @@ export default function RatePage(){
   useEffect(()=>{
     async function getDriver(){
       if(!id) { setLoadingName(false); return; }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('order_requuest')
-        .select('"Assigned Driver", "customer ID", "Store ID", "store ID"')
+        .select('"Assigned Driver", "customer ID"')
         .eq('Request ID', id)
         .single()
 
+      if(error){
+        console.log('order_requuest error', error)
+        setLoadingName(false)
+        return
+      }
+
       if(data){
-        // هون العامود c صغيرة - من order_requuest
         const cId = data["customer ID"]
         if(cId) setCustomerIdForReview(String(cId))
-
-        const sId = data["Store ID"] || data["store ID"]
-        if(sId) setStoreIdForReview(String(sId))
 
         let driverIdFetched = data["Assigned Driver"]
         if(driverIdFetched){
            setDriverId(driverIdFetched)
-           const { data: driverData } = await supabase
+           const { data: driverData, error: driverError } = await supabase
          .from('drivers')
          .select('"Driver Name"')
          .eq('"Driver ID"', driverIdFetched)
          .single()
 
-           if(driverData && driverData["Driver Name"]){
+           if(driverError){
+             console.log('driver error', driverError)
+             setDriverName(driverIdFetched)
+           } else if(driverData && driverData["Driver Name"]){
              setDriverName(driverData["Driver Name"])
            } else {
              setDriverName(driverIdFetched)
@@ -81,8 +85,7 @@ export default function RatePage(){
     const { error } = await supabase.from('reviews').insert({
       'Request ID': id,
       'Driver ID': driverId,
-      'Customer ID': customerIdForReview, // هون C كبيرة - من reviews
-      'Store ID': storeIdForReview,
+      'Customer ID': customerIdForReview,
       'Rating': String(rating),
       'Tags': tags.join(','),
       'Comment': note,
@@ -103,8 +106,7 @@ export default function RatePage(){
     const { error } = await supabase.from('reviews').insert({
       'Request ID': id,
       'Driver ID': driverId,
-      'Customer ID': customerIdForReview, // هون C كبيرة
-      'Store ID': storeIdForReview,
+      'Customer ID': customerIdForReview,
       'Rating': '0',
       'Tags': '',
       'Comment': 'Skipped by user',
