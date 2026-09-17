@@ -29,7 +29,7 @@ function getWeek(d) {
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const period = searchParams.get('period') || 'daily'; // daily | weekly | monthly | all
+  const period = searchParams.get('period') || 'daily';
   const storeID = searchParams.get('store_id');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
@@ -47,8 +47,9 @@ export async function GET(req) {
     storeNameMap[String(s["Store ID"]).trim()] = s["Store Name"] || String(s["Store ID"]);
   });
 
-  // فلترة تاريخ - مصلحة مشان Invalid Date
+  // اذا all = ما بقى نفلتر تواريخ ابدا
   let filteredHistory = (history || []).filter(h => {
+    if (period === 'all') return true; // هون التغيير المهم
     const d = parseAnyDate(h);
     if (!d) return true;
     if (from && d < new Date(from)) return false;
@@ -70,39 +71,38 @@ export async function GET(req) {
   const totalDelivery = filteredHistory.reduce((s, h) => s + Number(h["Delivery Fee"] || 0), 0);
   const totalAmount = filteredHistory.reduce((s, h) => s + Number(h["Total Amount"] || 0), 0);
 
-  // تجميع حسب التاريخ
+  // تجميع حسب التاريخ - صار يشتغل حتى مع all
   const group = {};
-  if (period!== 'all') {
-    filteredHistory.forEach(h => {
-      const date = parseAnyDate(h);
-      if (!date) return;
-      let key;
-      if (period === 'daily') key = date.toLocaleDateString('en-GB');
-      if (period === 'weekly') key = `اسبوع ${getWeek(date)} - ${date.getFullYear()}`;
-      if (period === 'monthly') key = `${date.getMonth() + 1}/${date.getFullYear()}`;
-      if (!group[key]) group[key] = { date: key, sortDate: date, orders: 0, items: 0, delivery: 0, commission: 0, total: 0 };
-      group[key].orders++;
-      group[key].delivery += Number(h["Delivery Fee"] || 0);
-      group[key].total += Number(h["Total Amount"] || 0);
-    });
+  const effectivePeriod = period === 'all'? 'daily' : period;
 
-    filteredDetails.forEach(d => {
-      const h = filteredHistory.find(x => x["Request ID"] === d["Request ID"]);
-      if (!h) return;
-      const date = parseAnyDate(h);
-      if (!date) return;
-      let key;
-      if (period === 'daily') key = date.toLocaleDateString('en-GB');
-      if (period === 'weekly') key = `اسبوع ${getWeek(date)} - ${date.getFullYear()}`;
-      if (period === 'monthly') key = `${date.getMonth() + 1}/${date.getFullYear()}`;
-      if (group[key]) {
-        group[key].items += Number(d["Line Total"] || 0);
-        group[key].commission += Number(d["Commission Amount"] || 0);
-      }
-    });
-  }
+  filteredHistory.forEach(h => {
+    const date = parseAnyDate(h);
+    if (!date) return;
+    let key;
+    if (effectivePeriod === 'daily') key = date.toLocaleDateString('en-GB');
+    if (effectivePeriod === 'weekly') key = `اسبوع ${getWeek(date)} - ${date.getFullYear()}`;
+    if (effectivePeriod === 'monthly') key = `${date.getMonth() + 1}/${date.getFullYear()}`;
+    if (!group[key]) group[key] = { date: key, sortDate: date, orders: 0, items: 0, delivery: 0, commission: 0, total: 0 };
+    group[key].orders++;
+    group[key].delivery += Number(h["Delivery Fee"] || 0);
+    group[key].total += Number(h["Total Amount"] || 0);
+  });
 
-  // تجميع حسب المتجر - القسم الجديد
+  filteredDetails.forEach(d => {
+    const h = filteredHistory.find(x => x["Request ID"] === d["Request ID"]);
+    if (!h) return;
+    const date = parseAnyDate(h);
+    if (!date) return;
+    let key;
+    if (effectivePeriod === 'daily') key = date.toLocaleDateString('en-GB');
+    if (effectivePeriod === 'weekly') key = `اسبوع ${getWeek(date)} - ${date.getFullYear()}`;
+    if (effectivePeriod === 'monthly') key = `${date.getMonth() + 1}/${date.getFullYear()}`;
+    if (group[key]) {
+      group[key].items += Number(d["Line Total"] || 0);
+      group[key].commission += Number(d["Commission Amount"] || 0);
+    }
+  });
+
   const storesGroup = {};
   filteredDetails.forEach(d => {
     const sid = String(d["Store ID"]).trim();
@@ -129,9 +129,9 @@ export async function GET(req) {
       commission: totalCommission,
       total_amount: totalAmount,
       net_for_stores: totalItems - totalCommission,
-      my_net: totalCommission + totalDelivery, // صافي ربحك انت
+      my_net: totalCommission + totalDelivery,
     },
-    breakdown: period === 'all'? [] : Object.values(group).sort((a, b) => a.sortDate - b.sortDate).map(({ sortDate,...rest }) => rest),
+    breakdown: Object.values(group).sort((a, b) => a.sortDate - b.sortDate).map(({ sortDate,...rest }) => rest),
     stores_breakdown
   });
 }
