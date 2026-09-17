@@ -31,6 +31,7 @@ export default function ReportsPage() {
       <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-3 mb-6">
         <div className="flex gap-2">
           <button onClick={()=>setPeriod("daily")} className={`px-4 py-2 rounded ${period==="daily"?"bg-green-600 text-white":"bg-gray-200"}`}>يومي</button>
+          <button onClick={()=>setPeriod("weekly")} className={`px-4 py-2 rounded ${period==="weekly"?"bg-green-600 text-white":"bg-gray-200"}`}>اسبوعي</button>
           <button onClick={()=>setPeriod("monthly")} className={`px-4 py-2 rounded ${period==="monthly"?"bg-green-600 text-white":"bg-gray-200"}`}>شهري</button>
           <button onClick={()=>setPeriod("all")} className={`px-4 py-2 rounded ${period==="all"?"bg-green-600 text-white":"bg-gray-200"}`}>الكل</button>
         </div>
@@ -44,18 +45,20 @@ export default function ReportsPage() {
 
       {data && (
         <>
-          {/* ملخص */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          {/* ملخص - 7 كروت */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">الطلبات</div><div className="text-2xl font-bold">{data.summary.orders}</div></div>
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">المبيعات</div><div className="text-2xl font-bold">{data.summary.items_cost}</div></div>
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">التوصيل</div><div className="text-2xl font-bold">{data.summary.delivery_fee}</div></div>
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">العمولة {data.summary.commission===0 && "(تجربة)"}</div><div className="text-2xl font-bold">{data.summary.commission}</div></div>
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">الاجمالي</div><div className="text-2xl font-bold">{data.summary.total_amount}</div></div>
             <div className="bg-green-50 p-4 rounded-xl shadow border border-green-200"><div className="text-gray-500 text-sm">الصافي للتجار</div><div className="text-2xl font-bold text-green-700">{data.summary.net_for_stores}</div></div>
+            <div className="bg-black text-white p-4 rounded-xl shadow"><div className="text-gray-300 text-sm">صافي ربحي (عمولة+توصيل)</div><div className="text-2xl font-bold">{data.summary.my_net}</div></div>
           </div>
 
-          {/* جدول */}
-          <div className="bg-white rounded-xl shadow overflow-auto">
+          {/* جدول حسب التاريخ */}
+          <div className="bg-white rounded-xl shadow overflow-auto mb-8">
+            <div className="p-4 font-bold border-b">تفصيل حسب التاريخ - {period}</div>
             <table className="w-full text-right">
               <thead className="bg-gray-100">
                 <tr><th className="p-3">التاريخ</th><th className="p-3">طلبات</th><th className="p-3">مبيعات</th><th className="p-3">توصيل</th><th className="p-3">عمولة</th><th className="p-3">اجمالي</th></tr>
@@ -70,6 +73,28 @@ export default function ReportsPage() {
                     <td className="p-3">{r.delivery}</td>
                     <td className="p-3">{r.commission}</td>
                     <td className="p-3 font-bold">{r.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* قسم التجار - نفس سيستم التاريخ */}
+          <div className="bg-white rounded-xl shadow overflow-auto">
+            <div className="p-4 font-bold border-b">تفصيل المتاجر - {period} {from||to ? `(${from} الى ${to})` : ""}</div>
+            <table className="w-full text-right">
+              <thead className="bg-gray-100">
+                <tr><th className="p-3">المتجر</th><th className="p-3">طلبات</th><th className="p-3">اجمالي المبيع</th><th className="p-3">عمولة المنصة</th><th className="p-3">الصافي للدفع</th></tr>
+              </thead>
+              <tbody>
+                {!data.stores_breakdown || data.stores_breakdown.length===0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">ما في متاجر بهالفترة</td></tr>}
+                {data.stores_breakdown?.map((s,i)=>(
+                  <tr key={i} className="border-t hover:bg-gray-50">
+                    <td className="p-3 font-bold">{s.store_name} <span className="text-xs text-gray-400">({s.store_id})</span></td>
+                    <td className="p-3">{s.orders}</td>
+                    <td className="p-3">{s.items}</td>
+                    <td className="p-3">{s.commission} {s.commission===0 && <span className="text-green-600 text-xs">(تجربة)</span>}</td>
+                    <td className="p-3 font-bold text-green-700">{s.net_to_pay}</td>
                   </tr>
                 ))}
               </tbody>
