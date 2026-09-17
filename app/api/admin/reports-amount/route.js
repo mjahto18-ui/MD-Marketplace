@@ -9,12 +9,11 @@ function getSupabase() {
 }
 
 function parseAnyDate(h) {
-  const iso = h["Request Date"];
-  if (iso) { const d = new Date(iso); if (!isNaN(d.getTime())) return d; }
-  const txt = h["Cerated Date"] || h["Created Date"] || "";
-  if (txt.includes('/')) {
-    const [day, month, year] = txt.split('/').map(n => parseInt(n));
-    if (day && month && year) return new Date(year, month - 1, day);
+  // هون التصحيح - عم نمشي عال Completed Date
+  const comp = h["Completed Date"] || h["Order Date"];
+  if (comp) {
+    const d = new Date(comp);
+    if (!isNaN(d.getTime())) return d;
   }
   return null;
 }
@@ -47,9 +46,8 @@ export async function GET(req) {
     storeNameMap[String(s["Store ID"]).trim()] = s["Store Name"] || String(s["Store ID"]);
   });
 
-  // اذا all = ما بقى نفلتر تواريخ ابدا
   let filteredHistory = (history || []).filter(h => {
-    if (period === 'all') return true; // هون التغيير المهم
+    if (period === 'all') return true;
     const d = parseAnyDate(h);
     if (!d) return true;
     if (from && d < new Date(from)) return false;
@@ -71,13 +69,11 @@ export async function GET(req) {
   const totalDelivery = filteredHistory.reduce((s, h) => s + Number(h["Delivery Fee"] || 0), 0);
   const totalAmount = filteredHistory.reduce((s, h) => s + Number(h["Total Amount"] || 0), 0);
 
-  // تجميع حسب التاريخ - صار يشتغل حتى مع all
   const group = {};
   const effectivePeriod = period === 'all'? 'daily' : period;
 
   filteredHistory.forEach(h => {
-    const date = parseAnyDate(h);
-    if (!date) return;
+    const date = parseAnyDate(h) || new Date();
     let key;
     if (effectivePeriod === 'daily') key = date.toLocaleDateString('en-GB');
     if (effectivePeriod === 'weekly') key = `اسبوع ${getWeek(date)} - ${date.getFullYear()}`;
@@ -91,8 +87,7 @@ export async function GET(req) {
   filteredDetails.forEach(d => {
     const h = filteredHistory.find(x => x["Request ID"] === d["Request ID"]);
     if (!h) return;
-    const date = parseAnyDate(h);
-    if (!date) return;
+    const date = parseAnyDate(h) || new Date();
     let key;
     if (effectivePeriod === 'daily') key = date.toLocaleDateString('en-GB');
     if (effectivePeriod === 'weekly') key = `اسبوع ${getWeek(date)} - ${date.getFullYear()}`;
@@ -113,9 +108,7 @@ export async function GET(req) {
   });
 
   const stores_breakdown = Object.values(storesGroup).map(s => ({
-   ...s,
-    orders: s.orders.size,
-    net_to_pay: s.items - s.commission
+  ...s, orders: s.orders.size, net_to_pay: s.items - s.commission
   })).sort((a, b) => b.items - a.items);
 
   return NextResponse.json({
