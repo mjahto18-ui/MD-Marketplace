@@ -18,8 +18,11 @@ const destIcon = L.icon({
 
 function MapController({ center, flyTo }) {
   const map = useMap();
-  useEffect(() => { if (center) map.setView(center, 14); }, [center]);
-  useEffect(() => { if (flyTo) map.flyTo(flyTo, 16); }, [flyTo]);
+  useEffect(() => {
+    setTimeout(() => map.invalidateSize(), 300);
+  }, []);
+  useEffect(() => { if (center) map.setView(center, 15); }, [center, map]);
+  useEffect(() => { if (flyTo) map.flyTo(flyTo, 16, { duration: 1 }); }, [flyTo, map]);
   return null;
 }
 function ClickHandler({ onPick, selecting }) {
@@ -29,12 +32,14 @@ function ClickHandler({ onPick, selecting }) {
 
 async function searchNominatim(q) {
   if (!q || q.length < 3) return [];
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=lb&limit=5&addressdetails=1`;
-  const res = await fetch(url);
-  return await res.json();
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=lb&limit=5&addressdetails=1`;
+    const res = await fetch(url);
+    return await res.json();
+  } catch { return []; }
 }
 
-export default function TaxiMap({ onDistanceCalculated }) {
+export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
   const [origin, setOrigin] = useState(null);
   const [dest, setDest] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
@@ -47,19 +52,24 @@ export default function TaxiMap({ onDistanceCalculated }) {
   const [toQuery, setToQuery] = useState('');
   const [fromResults, setFromResults] = useState([]);
   const [toResults, setToResults] = useState([]);
-  const [gpsReady, setGpsReady] = useState(false);
+  const [gpsTried, setGpsTried] = useState(false);
 
+  // صلح GPS - يشتغل عالتلفون واللابتوب
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const c = [pos.coords.latitude, pos.coords.longitude];
-          setMapCenter(c);
-          setGpsReady(true);
-        },
-        () => setGpsReady(true)
-      );
-    }
+    if (!navigator.geolocation) { setGpsTried(true); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const c = [pos.coords.latitude, pos.coords.longitude];
+        setMapCenter(c);
+        setFlyTo(c); // بيطير عالتلفون عالGPS فورا
+        setGpsTried(true);
+      },
+      (err) => {
+        console.log('GPS denied', err);
+        setGpsTried(true);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   }, []);
 
   const handlePick = (latlng, mode) => {
@@ -72,15 +82,15 @@ export default function TaxiMap({ onDistanceCalculated }) {
   };
 
   const handleCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setOrigin(p);
-        setMapCenter([p.lat, p.lng]);
-        setFlyTo([p.lat, p.lng]);
-        setSelecting('dest');
-      });
-    }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setOrigin(p);
+      const c = [p.lat, p.lng];
+      setMapCenter(c);
+      setFlyTo(c);
+      setSelecting('dest');
+    }, null, { enableHighAccuracy: true });
   };
 
   const handleSearchSelect = (item, type) => {
@@ -132,7 +142,8 @@ export default function TaxiMap({ onDistanceCalculated }) {
             totalKm: Number(totalKm.toFixed(2)),
             cityKm: Number(cityKm.toFixed(2)),
             highwayKm: Number(highwayKm.toFixed(2)),
-            durationMin: Math.round(route.duration / 60)
+            durationMin: Math.round(route.duration / 60),
+            origin, dest
           };
           setInfo(result);
           onDistanceCalculated?.(result);
@@ -144,23 +155,24 @@ export default function TaxiMap({ onDistanceCalculated }) {
   }, [origin, dest]);
 
   return (
-    <div className="w-full h-[100dvh] flex flex-col bg-white md:h-auto">
-      <div className="p-3 space-y-2 bg-white shadow-sm z-[1000]">
+    <div className="w-full flex flex-col bg-white" style={{ height: '100dvh', maxHeight: '-webkit-fill-available' }}>
+      {/* بحث */}
+      <div className="p-3 space-y-2 bg-white shadow z-[1000] shrink-0">
         <div className="relative">
           <div className="flex gap-2">
-            <button onClick={handleCurrentLocation} className="shrink-0 px-3 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold">📍 موقعي</button>
+            <button onClick={handleCurrentLocation} className="shrink-0 px-3 py-3 bg-green-600 text-white rounded-xl text-sm font-bold active:scale-95">📍 موقعي</button>
             <input
               value={fromQuery}
               onChange={e => { setFromQuery(e.target.value); setSelecting('origin'); }}
               onFocus={() => setSelecting('origin')}
               placeholder="من: موقعي الحالي + بحث"
-              className={`flex-1 px-3 py-2.5 border rounded-xl text-sm ${selecting==='origin' ? 'border-green-600 ring-1 ring-green-600' : 'border-gray-300'}`}
+              className={`flex-1 px-3 py-3 border rounded-xl text-sm outline-none ${selecting==='origin' ? 'border-green-600 ring-1 ring-green-600' : 'border-gray-300'}`}
             />
           </div>
           {fromResults.length > 0 && selecting==='origin' && (
             <div className="absolute top-full mt-1 w-full bg-white border rounded-xl shadow-lg z-[1001] max-h-40 overflow-auto">
               {fromResults.map((r,i) => (
-                <div key={i} onClick={() => handleSearchSelect(r,'from')} className="p-2.5 text-sm border-b last:border-0 active:bg-gray-100">{r.display_name}</div>
+                <div key={i} onClick={() => handleSearchSelect(r,'from')} className="p-3 text-sm border-b last:border-0 active:bg-gray-100">{r.display_name}</div>
               ))}
             </div>
           )}
@@ -171,21 +183,23 @@ export default function TaxiMap({ onDistanceCalculated }) {
             onChange={e => { setToQuery(e.target.value); setSelecting('dest'); }}
             onFocus={() => setSelecting('dest')}
             placeholder="إلى: وين بدك تروح؟ (بحث بس)"
-            className={`w-full px-3 py-2.5 border rounded-xl text-sm ${selecting==='dest' ? 'border-red-600 ring-1 ring-red-600' : 'border-gray-300'}`}
+            className={`w-full px-3 py-3 border rounded-xl text-sm outline-none ${selecting==='dest' ? 'border-red-600 ring-1 ring-red-600' : 'border-gray-300'}`}
           />
           {toResults.length > 0 && selecting==='dest' && (
             <div className="absolute top-full mt-1 w-full bg-white border rounded-xl shadow-lg z-[1001] max-h-40 overflow-auto">
               {toResults.map((r,i) => (
-                <div key={i} onClick={() => handleSearchSelect(r,'to')} className="p-2.5 text-sm border-b last:border-0 active:bg-gray-100">{r.display_name}</div>
+                <div key={i} onClick={() => handleSearchSelect(r,'to')} className="p-3 text-sm border-b last:border-0 active:bg-gray-100">{r.display_name}</div>
               ))}
             </div>
           )}
         </div>
-        <p className="text-[11px] text-gray-500 text-center">البحث بيقرب الخريطة بس — الدبوس بتحطو انت بإيدك عالخريطة</p>
+        {!gpsTried && <p className="text-[11px] text-orange-500 text-center">عم جيب موقعك...</p>}
+        {gpsTried && <p className="text-[11px] text-gray-500 text-center">البحث بيقرب الخريطة بس — الدبوس بتحطو انت بإيدك</p>}
       </div>
 
-      <div className="flex-1 relative">
-        <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+      {/* الخريطة - صلحناها للابتوب والتلفون */}
+      <div className="flex-1 relative min-h-[300px] bg-gray-100">
+        <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false} dragging={true} scrollWheelZoom={true}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapController center={mapCenter} flyTo={flyTo} />
           <ClickHandler onPick={handlePick} selecting={selecting} />
@@ -199,16 +213,28 @@ export default function TaxiMap({ onDistanceCalculated }) {
         </div>
       </div>
 
-      <div className="p-3 bg-white border-t rounded-t-2xl -mt-4 z-[600] shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
-        {loading && <p className="text-sm text-center">عم بحسب المسافة...</p>}
-        {!origin && <p className="text-sm text-center text-gray-500">كبوس 📍 موقعي أو حط دبوس الانطلاق الأخضر</p>}
-        {origin && !dest && <p className="text-sm text-center text-gray-500">هلأ حط دبوس الوصول الأحمر وين بدك تروح</p>}
+      {/* التفاصيل فوق زر اطلب تاكسي - Bottom sheet ثابت */}
+      <div className="bg-white border-t rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] z-[600] shrink-0 p-4 space-y-3">
+        {loading && <p className="text-sm text-center animate-pulse">عم بحسب المسافة...</p>}
+        {!origin && <p className="text-sm text-center text-gray-600">📍 كبوس <b>موقعي</b> أو حط دبوس الانطلاق الأخضر عالخريطة</p>}
+        {origin && !dest && <p className="text-sm text-center text-gray-600">🎯 هلأ حط دبوس الوصول الأحمر وين بدك تروح</p>}
         {info && (
-          <div className="text-sm">
-            <div className="flex justify-between"><span>📏 المسافة:</span><b>{info.totalKm} كم</b></div>
-            <div className="flex justify-between text-xs text-gray-500"><span>بلد {info.cityKm} + أوتوستراد {info.highwayKm}</span><span>⏱️ {info.durationMin}د</span></div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm"><span>📏 المسافة الكلية</span><b>{info.totalKm} كم</b></div>
+            <div className="flex justify-between text-xs text-gray-500"><span>🏘️ بلد {info.cityKm} كم + 🛣️ أوتوستراد {info.highwayKm} كم</span><span>⏱️ {info.durationMin} دقيقة</span></div>
+            <div className="h-px bg-gray-200 my-2" />
+            {/* السعر رح يجي من pricingEngine بعدين */}
+            <div className="text-xs text-gray-400 text-center">التفاصيل رح تظهر هون + السعر باللبناني</div>
           </div>
         )}
+        {/* زر اطلب تاكسي - التفاصيل فوقو */}
+        <button
+          disabled={!origin || !dest}
+          onClick={() => onConfirm?.({ origin, dest, ...info })}
+          className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${origin && dest ? 'bg-black text-white active:scale-[0.98]' : 'bg-gray-200 text-gray-400'}`}
+        >
+          {origin && dest ? '🚕 اطلب تاكسي' : 'حدد الانطلاق والوصول'}
+        </button>
       </div>
     </div>
   );
