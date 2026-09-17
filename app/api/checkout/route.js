@@ -24,11 +24,13 @@ export async function POST(req) {
       { data: customerRows },
       { data: deliveryRatesRows },
       { data: areasRows },
+      { data: storesRows },
     ] = await Promise.all([
       supabase.from('cart').select('*'),
       supabase.from('customers').select('*'),
       supabase.from('delivery_rates').select('*'),
       supabase.from('areas').select('*'),
+      supabase.from('stores').select('"Store ID", "Commission Rate"'),
     ]);
 
     // سلة الزبون
@@ -83,6 +85,14 @@ export async function POST(req) {
     const itemsCost = cartWithProducts.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
     const totalAmount = itemsCost + deliveryFee;
     // === نهاية الزيادة ===
+    
+    const storesMap = {};
+    (storesRows||[]).forEach(s => {
+    let raw = s["Commission Rate"];
+    let r = raw === null || raw === "" ? "0" : String(raw).replace('%','').trim();
+    storesMap[String(s["Store ID"]).trim()] = r === "" ? 0 : Number(r);
+    if (isNaN(storesMap[String(s["Store ID"]).trim()])) storesMap[String(s["Store ID"]).trim()] = 0;
+    });
 
     // تجهيز ID وتواريخ
     const requestID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
@@ -167,7 +177,7 @@ export async function POST(req) {
       "Store ID": item.storeID,
       "Costumer ID": customerID, // Costumer بدون t حسب جدولك
       "Area": finalAreaID, // fr7455fr5
-      "Commission Amount": String(item.lineTotal * 0.1),
+      "Commission Amount": String(item.lineTotal * (storesMap[String(item.storeID).trim()] ?? 0) / 100),
     }));
 
     if (detailRows.length > 0) {
