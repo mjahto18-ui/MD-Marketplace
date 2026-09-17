@@ -38,12 +38,16 @@ export default function Dashboard(){
     }
     setMyName(realName || sess.email || role)
 
-    const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}] = await Promise.all([
+    const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
       supabase.from('asceses').select('*').eq('role', role),
       supabase.from('guestlogs').select('*').limit(5000),
+      // === الجداول الجديدة يلي زدناهن ===
+      supabase.from('protection_cases').select('*').limit(2000),
+      supabase.from('pending_overpay').select('*').limit(2000),
+      supabase.from('pending_reviews').select('*').limit(2000),
     ])
 
     const today = new Date().toISOString().split('T')[0]
@@ -59,6 +63,13 @@ export default function Dashboard(){
       approvedOrders: orders?.filter(o=>o['Approval Status']==='Approved').length||0,
       guestToday: guestlogs?.filter(g=>String(g['Log Date']||g['Date Time']||'').startsWith(today)).length||0,
       guestTotal: guestlogs?.length||0,
+      // === العدادات الجديدة ===
+      protectionPending: protectionCases?.filter(c=>c['Status']==='Pending').length||0,
+      protectionUnderReview: protectionCases?.filter(c=>c['Status']==='Under Review').length||0,
+      protectionTotal: protectionCases?.length||0,
+      overpayPending: pendingOverpay?.filter(c=>c['Status']==='Pending').length||0,
+      overpayTotal: pendingOverpay?.length||0,
+      pendingReviewsCount: pendingReviews?.filter(c=>c['Status']==='Pending' || c['status']==='pending').length|| pendingReviews?.length||0,
     })
 
     const specialViews = ["Customers Pending","Pending Orders","Today Orders","Active Orders","Approved Orders","Complete Orders","Cash Pending","Cash Received","Rejected Orders","Mapping Customers"]
@@ -93,7 +104,7 @@ export default function Dashboard(){
       <div className="flex items-center gap-5 min-w-0">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${
           count > 0
-        ? 'bg-[#0A0A0A] text-[#FFD700]'
+       ? 'bg-[#0A0A0A] text-[#FFD700]'
             : 'bg-white border border-[#0A0A0A]/5 text-[#0A0A0A]'
         }`}>
           <span className="text- font-black tracking-widest" style={{fontFamily:'Andika'}}>
@@ -113,7 +124,7 @@ export default function Dashboard(){
 
       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text- font-black shrink-0 shadow-sm ${
         count > 0
-      ? 'bg-[#FFD700] text-[#0A0A0A]'
+     ? 'bg-[#FFD700] text-[#0A0A0A]'
           : 'bg-[#0A0A0A] text-[#fdfbf7]'
       }`} style={{fontFamily:'Andika'}}>
         {count}
@@ -249,6 +260,12 @@ export default function Dashboard(){
             <Item label="GUEST STATS" count={counts.guestToday} href="/admin/guest-stats" />
             <Item label="BROADCAST" count={0} href="/admin/broadcasts" />
 
+            {/* === الكروت الجديدة يلي طلبتا - ما انمحى شي قديم === */}
+            <Item label="PROTECTION PENDING" count={counts.protectionPending} href="/admin/protection-cases" />
+            <Item label="PROTECTION UNDER REVIEW" count={counts.protectionUnderReview} href="/admin/protection-cases" />
+            <Item label="OVERPAY PENDING" count={counts.overpayPending} href="/admin/pending-overpay" />
+            <Item label="PENDING REVIEWS" count={counts.pendingReviewsCount} href="/admin/pending-reviews" />
+
           </div>
 
         </section>
@@ -307,7 +324,7 @@ export default function Dashboard(){
 
                   <span className={`inline-flex rounded-full px-3.5 py-1.5 text- font-black shadow-sm ${
                     m._access === 'Read & Write'
-                 ? 'bg-[#0A0A0A] text-[#FFD700] border border-[#FFD700]/30'
+                ? 'bg-[#0A0A0A] text-[#FFD700] border border-[#FFD700]/30'
                       : 'bg-[#fdfbf7] text-[#0A0A0A]/60 border border-[#0A0A0A]/10'
                   }`} style={{fontFamily:'Andika'}}>
                     {m._access}
