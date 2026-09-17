@@ -5,38 +5,37 @@ import { createClient } from "@supabase/supabase-js"
 import BackToDashboard from "@/components/BackToDashboard"
 
 export default function PendingReviewsPage() {
-  const [reviews, setReviews] = useState<any[]>([])
-  const [names, setNames] = useState({ customers: {}, stores: {}, drivers: {} } as any)
+  const [reviews, setReviews] = useState([])
+  const [names, setNames] = useState({ customers: {}, stores: {}, drivers: {} })
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
 
   const fetchReviews = async () => {
     setLoading(true)
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('reviews')
       .select('*')
       .eq('Status', 'Pending')
       .order('Created At', { ascending: false })
 
-    if (!error) setReviews(data || [])
+    setReviews(data || [])
 
-    // نجيب الاسماء للعرض
     const [cRes, sRes, dRes] = await Promise.all([
-      supabase.from('customers').select('"Customer ID", "Name"'),
-      supabase.from('stores').select('"Store ID", "Store Name"'),
-      supabase.from('drivers').select('"Driver ID", "Name"')
+      supabase.from('customers').select('*'),
+      supabase.from('stores').select('*'),
+      supabase.from('drivers').select('*')
     ])
 
-    const cMap: any = {}
-    cRes.data?.forEach((c: any) => cMap[c['Customer ID']] = c['Name'])
-    const sMap: any = {}
-    sRes.data?.forEach((s: any) => sMap[s['Store ID']] = s['Store Name'])
-    const dMap: any = {}
-    dRes.data?.forEach((d: any) => dMap[d['Driver ID']] = d['Name'])
+    const cMap = {}
+    cRes.data?.forEach(c => cMap[c['Customer ID']] = c['Name'])
+    const sMap = {}
+    sRes.data?.forEach(s => sMap[s['Store ID']] = s['Store Name'] || s['Name'])
+    const dMap = {}
+    dRes.data?.forEach(d => dMap[d['Driver ID']] = d['Name'])
 
     setNames({ customers: cMap, stores: sMap, drivers: dMap })
     setLoading(false)
@@ -44,7 +43,7 @@ export default function PendingReviewsPage() {
 
   useEffect(() => { fetchReviews() }, [])
 
-  const updateStatus = async (reviewId: string, newStatus: 'Approved' | 'Rejected') => {
+  const updateStatus = async (reviewId, newStatus) => {
     const { error } = await supabase
       .from('reviews')
       .update({ Status: newStatus })
@@ -57,7 +56,7 @@ export default function PendingReviewsPage() {
     }
   }
 
-  const updateComment = async (reviewId: string, newComment: string) => {
+  const updateComment = async (reviewId, newComment) => {
     await supabase.from('reviews').update({ Comment: newComment }).eq('Review ID', reviewId)
   }
 
@@ -70,7 +69,7 @@ export default function PendingReviewsPage() {
 
       <div className="grid gap-4">
         {reviews.map(review => {
-          const customerName = names.customers[review['Customer ID']] || review['Customer ID']
+          const customerName = names.customers[review['Customer ID']] || review['Customer ID'] || '-'
           const storeName = names.stores[review['Store ID']] || review['Store ID'] || '-'
           const driverName = names.drivers[review['Driver ID']] || review['Driver ID'] || '-'
           const isSkipped = review['Skipped'] === 'TRUE'
