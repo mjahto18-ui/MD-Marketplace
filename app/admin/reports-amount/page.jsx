@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import BackToDashboard from "@/components/BackToDashboard"
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -58,7 +59,8 @@ export default function ReportsPage() {
 
   return (
     <div dir="rtl" className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6">لوحة التقارير - Admin / Accounting Only</h1>
+      <BackToDashboard />
+      <h1 className="text-2xl font-bold mb-6 mt-4">لوحة التقارير - Admin / Accounting Only</h1>
 
       <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-3 mb-6">
         <div className="flex gap-2">
