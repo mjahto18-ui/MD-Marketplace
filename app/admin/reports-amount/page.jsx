@@ -1,13 +1,16 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ReportsPage() {
+  const router = useRouter();
   const [period, setPeriod] = useState("daily");
   const [storeId, setStoreId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   const fetchData = async () => {
     setLoading(true);
@@ -15,17 +18,47 @@ export default function ReportsPage() {
     if (storeId) url += `&store_id=${storeId}`;
     if (from) url += `&from=${from}`;
     if (to) url += `&to=${to}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { credentials: 'include' });
+    if(res.status === 401 || res.status === 403){
+      router.push('/admin/dashboard');
+      return;
+    }
     const json = await res.json();
     setData(json);
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    // === حماية Admin / Accounting فقط - مربوطة بـ api/admin/me تبعك ===
+    const checkRole = async () => {
+      try{
+        const r = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' });
+        if(!r.ok){
+          router.push('/admin/dashboard');
+          return;
+        }
+        const sess = await r.json();
+        const role = String(sess.role || sess.Role || "").trim();
+        if(!['Admin','Accounting'].includes(role)){
+          router.push('/admin/dashboard');
+          return;
+        }
+        setChecking(false);
+        fetchData();
+      }catch{
+        router.push('/admin/dashboard');
+      }
+    };
+    checkRole();
+  }, []);
+
+  if(checking){
+    return <div dir="rtl" className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">عم نتأكد من الصلاحيات...</div>;
+  }
 
   return (
     <div dir="rtl" className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6">لوحة التقارير</h1>
+      <h1 className="text-2xl font-bold mb-6">لوحة التقارير - Admin / Accounting Only</h1>
 
       <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-3 mb-6">
         <div className="flex gap-2">
