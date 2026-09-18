@@ -9,8 +9,8 @@ export default function AdminBank(){
   const [myId, setMyId] = useState('')
   const [myName, setMyName] = useState('')
   const [myRole, setMyRole] = useState('')
-  const [myWallet, setMyWallet] = useState(null) // محفظتك انت
-  const [filterId, setFilterId] = useState('c37302f0-1ab6-4d47-b6b4-38c4a7fcfbf8')
+  const [myWallet, setMyWallet] = useState(null)
+  const [filterId, setFilterId] = useState('c37302f0')
   const [target, setTarget] = useState(null)
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
@@ -34,11 +34,7 @@ export default function AdminBank(){
       setMyId(id)
       setMyName(sess.name || '')
       setMyRole(sess.role || '')
-
-      // 1- جيب محفظتي عطول
-      if(id){
-        fetchMyWallet(id)
-      }
+      if(id){ fetchMyWallet(id) }
     } catch(e){
       router.push('/admin/login')
     } finally{
@@ -59,40 +55,49 @@ export default function AdminBank(){
   const search = async()=>{
     if(!filterId) return
     setLoading(true)
-    const res = await fetch(`/api/wallet/me?userId=${filterId}`, {credentials:'include'}).then(r=>r.json())
-    // جيب سحوبات الكاش كمان
-    const { data: cash } = await supabase.from('cash_payouts').select('*').eq('Owner ID', filterId).order('Created At', {ascending:false}).limit(20)
+    try{
+      const res = await fetch(`/api/wallet/me?userId=${filterId}`, {credentials:'include'}).then(r=>r.json())
+      
+      // FIX 1: Owner User ID مش Owner ID
+      // FIX 2: ilike مشان اذا حطيت ID قصير c37302f0
+      const { data: cash, error: cashErr } = await supabase
+        .from('cash_payouts')
+        .select('*')
+        .ilike('Owner User ID', `${filterId}%`)
+        .order('Created At', {ascending:false})
+        .limit(20)
+      
+      console.log('CASH RESULT:', cash, cashErr)
 
-    if(res.success){
-      const { data: u } = await supabase.from('users').select('Role, Name').eq('User ID', filterId).maybeSingle()
-      let userData = u
-      if(!u){
-        const { data: u2 } = await supabase.from('users').select('Role, Name').ilike('User ID', `${filterId}%`).maybeSingle()
-        userData = u2
+      if(res.success){
+        const { data: u } = await supabase.from('users').select('Role, Name').eq('User ID', filterId).maybeSingle()
+        let userData = u
+        if(!u){
+          const { data: u2 } = await supabase.from('users').select('Role, Name').ilike('User ID', `${filterId}%`).maybeSingle()
+          userData = u2
+        }
+        setTarget({
+          id:filterId,
+          role:userData?.Role||'Driver',
+          name:userData?.Name||'',
+          balance:res.wallet,
+          tx:res.transactions||[],
+          cash: cash||[]
+        })
       }
-      setTarget({
-        id:filterId,
-        role:userData?.Role||'Driver',
-        name:userData?.Name||'',
-        balance:res.wallet,
-        tx:res.transactions||[],
-        cash: cash||[]
-      })
+    }catch(e){
+      console.error(e)
     }
     setLoading(false)
   }
 
   const doTransfer = async()=>{
     if(!target ||!form.amount) return alert('حط المبلغ')
-
-    // 2- تأكيد
     const ok = confirm(`بدك تحول ${formatLBP(form.amount)} ${form.type === 'ADD'? 'لـ' : 'من'} ${target.name || target.id.slice(0,8)} ؟\nالسبب: ${form.reason}`)
     if(!ok) return
-
     const isAdd = form.type === 'ADD'
     const from = isAdd? myId : target.id
     const to = isAdd? target.id : myId
-
     const res = await fetch('/api/admin/wallet/transfer', {
       method:'POST', credentials:'include',
       headers:{'Content-Type':'application/json'},
@@ -104,9 +109,8 @@ export default function AdminBank(){
     }).then(r=>r.json())
     if(res.success){
       alert('تم التحويل '+res.transferId);
-      // 3- مسح العملية من الواجهة
       setForm({ type:'ADD', reason:'BONUS', amount:'', orderId:'', notes:'' })
-      fetchMyWallet(myId) // حدث محفظتي
+      fetchMyWallet(myId)
       search();
     }
     else alert(res.error)
@@ -116,7 +120,6 @@ export default function AdminBank(){
     if(!target ||!cashForm.amount) return alert('حط مبلغ السحب')
     const ok = confirm(`تأكيد سحب كاش ${formatLBP(cashForm.amount)} لـ ${target.name}? تسليم يد - ${cashForm.method}`)
     if(!ok) return
-
     const res = await fetch('/api/admin/wallet/cash-out', {
       method:'POST', credentials:'include',
       headers:{'Content-Type':'application/json'},
@@ -139,11 +142,9 @@ export default function AdminBank(){
   return (
     <div className="min-h-screen bg-[#0F0F0F] text-[#EAEAEA] p-6">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap');`}</style>
-
       <h1 className="text-3xl font-black tracking-tight" style={{fontFamily:'Andika'}}>البنك - Admin Bank</h1>
       <p className="text-white/40 text-xs mt-2 tracking-widest">انا: {myName} - {myRole} - {myId?.slice(0,8)}</p>
 
-      {/* 1- محفظتي انا */}
       <div className="bg-gradient-to-br from-[#FFD700]/20 to-[#1A1A1A] border border-[#FFD700]/30 rounded-3xl p-5 mt-6 flex justify-between items-center">
         <div>
           <div className="text- text-[#FFD700]/70 tracking-widest">محفظتي - WALLET ME</div>
@@ -154,7 +155,7 @@ export default function AdminBank(){
       </div>
 
       <div className="bg-[#1A1A1A] border border-white/10 rounded-3xl p-5 mt-4 flex gap-3">
-        <input value={filterId} onChange={e=>setFilterId(e.target.value)} placeholder="Owner User ID" className="flex-1 p-3 rounded-xl bg-[#0F0F0F] border border-white/10 text-white placeholder:text-white/30 outline-none"/>
+        <input value={filterId} onChange={e=>setFilterId(e.target.value)} placeholder="Owner User ID - مثلا c37302f0" className="flex-1 p-3 rounded-xl bg-[#0F0F0F] border border-white/10 text-white placeholder:text-white/30 outline-none"/>
         <button onClick={search} className="px-6 rounded-xl bg-[#FFD700] text-black font-black">بحث</button>
       </div>
 
@@ -163,7 +164,7 @@ export default function AdminBank(){
           <div>
             <div className="text- opacity-40 tracking-[0.2em]">{target.role} - {target.name}</div>
             <div className="text-3xl font-black mt-2 text-[#FFD700]">{formatLBP(target.balance)}</div>
-            <div className="text- text-white/30 mt-1 font-mono">{target.id.slice(0,16)}...</div>
+            <div className="text- text-white/30 mt-1 font-mono">{target.id}...</div>
           </div>
           <div className="w-14 h-14 bg-[#FFD700]/10 border border-[#FFD700]/20 rounded-2xl flex items-center justify-center text-xl">💳</div>
         </div>
@@ -203,13 +204,13 @@ export default function AdminBank(){
             ))}
           </div>
           <div className="bg-[#1A1A1A] border border-[#FFD700]/10 rounded-3xl p-5">
-            <div className="font-black mb-3 text-[#FFD700]/60 text-sm">آخر سحوبات الكاش - cash_payouts</div>
+            <div className="font-black mb-3 text-[#FFD700]/60 text-sm">آخر سحوبات الكاش - cash_payouts ({target.cash?.length||0})</div>
             {target.cash?.length? target.cash.map((c,i)=>(
               <div key={i} className="flex justify-between py-2 border-b border-white/5 text-xs">
-                <div className="text-[#FFD700]">{formatLBP(c.Amount)} - {c.Method}</div>
+                <div className="text-[#FFD700]">{formatLBP(c.Amount)} - {c.Method} - {c.Status}</div>
                 <div className="opacity-30">{c.Notes} - {new Date(c['Created At']).toLocaleTimeString('ar-LB')}</div>
               </div>
-            )) : <div className="text-white/20 text-xs">ما في سحوبات بعد</div>}
+            )) : <div className="text-white/20 text-xs">ما في سحوبات بعد - دوس بحث</div>}
           </div>
         </div>
       )}
