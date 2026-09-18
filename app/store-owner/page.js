@@ -10,12 +10,16 @@ export default function StoreDashboard(){
   const [products, setProducts] = useState([])
   const [reqOrders, setReqOrders] = useState([])
   const [details, setDetails] = useState([])
-  const [tab, setTab] = useState('orders') // خليتو orders لتجرب دغري
+  const [tab, setTab] = useState('orders')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showBarcode, setShowBarcode] = useState({})
   const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:''}])
   const [priceReq, setPriceReq] = useState({code:'', newPrice:''})
+  // --- محفظة ---
+  const [wallet, setWallet] = useState(0)
+  const [walletTx, setWalletTx] = useState([])
+  const [showWallet, setShowWallet] = useState(false)
 
   useEffect(()=>{
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
@@ -28,6 +32,15 @@ export default function StoreDashboard(){
     if(!supabase ||!me?.storeId) return
     const load = async ()=>{
       setLoading(true)
+      // --- جيب المحفظة حسب User ID تبع التاجر ---
+      try{
+        const w = await fetch(`/api/wallet/me?userId=${me.userId}`, {cache:'no-store'}).then(r=>r.json())
+        if(w.success){
+          setWallet(w.wallet||0)
+          setWalletTx(w.transactions||[])
+        }
+      }catch{}
+
       const { data: storeData } = await supabase.from('stores').select('*').eq('Store ID', me.storeId).maybeSingle()
       setStore(storeData)
       const { data: prodData } = await supabase.from('products').select('*').eq('Store ID', me.storeId).order('Product Name').limit(300)
@@ -45,6 +58,12 @@ export default function StoreDashboard(){
     }
     load()
   },[supabase, me])
+
+  const formatLBP = (n) => {
+    if(!n && n!==0) return '0 ل.ل'
+    const num = parseFloat(String(n).replace(/,/g,'')) || 0
+    return new Intl.NumberFormat('en-LB').format(num) + ' ل.ل'
+  }
 
   const toggleActive = async (p)=>{
     const newVal =!p.Active
@@ -84,7 +103,17 @@ export default function StoreDashboard(){
       </div>
 
       <div style={{maxWidth:1150, margin:'0 auto'}}>
-        <div style={{display:'flex', gap:8, padding:12, overflowX:'auto'}}>
+        {/* --- كرت المحفظة --- */}
+        <div onClick={()=>setShowWallet(true)} style={{margin:12, background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', border:'2px solid rgba(255,255,255,0.2)'}}>
+          <div>
+            <div style={{fontSize:11, opacity:0.8}}>👛 محفظتي</div>
+            <div style={{fontSize:26, fontWeight:900, marginTop:2}}>{formatLBP(wallet)}</div>
+            <div style={{fontSize:11, opacity:0.7, marginTop:2}}>اضغط لعرض التفاصيل - مبلغ + ADD/حسم + نوت</div>
+          </div>
+          <div style={{fontSize:32}}>💳</div>
+        </div>
+
+        <div style={{display:'flex', gap:8, padding:'0 12px 12px', overflowX:'auto'}}>
           <button onClick={()=>setTab('store')} style={{padding:'9px 16px', borderRadius:10, border:'none', background:tab==='store'?'#2563eb':'rgba(255,255,255,0.08)', color:'white'}}>المتجر</button>
           <button onClick={()=>setTab('products')} style={{padding:'9px 16px', borderRadius:10, border:'none', background:tab==='products'?'#2563eb':'rgba(255,255,255,0.08)', color:'white'}}>منتجاتي ({filteredProducts.length})</button>
           <button onClick={()=>setTab('orders')} style={{padding:'9px 16px', borderRadius:10, border:'none', background:tab==='orders'?'#2563eb':'rgba(255,255,255,0.08)', color:'white'}}>الطلبات ({preparing.length})</button>
@@ -177,29 +206,47 @@ export default function StoreDashboard(){
                   ))}
                   <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:''}])} style={{padding:'6px 12px', borderRadius:8, border:'1px solid #ccc'}}> + منتج</button>
                   <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, border:'none', background:'#2563eb', color:'white', marginLeft:8}}>إرسال للمراجعة</button>
-                  <div style={{marginTop:20, borderTop:'1px solid #ddd', paddingTop:14}}>
-                    <div style={{fontWeight:900, fontSize:14, marginBottom:8}}>طلب تغيير سعر - بيتغير دغري</div>
-                    <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-                      <input placeholder="كود المنتج / باركود" value={priceReq.code} onChange={e=>setPriceReq({...priceReq, code:e.target.value})} style={{padding:10, borderRadius:8, border:'1px solid #ccc', flex:1, minWidth:140}} />
-                      <div style={{padding:'10px 12px', background:'#e5e7eb', borderRadius:8, fontSize:13, minWidth:130}}>قديم: {products.find(p=>p['Product ID']===priceReq.code)?.Price? Number(products.find(p=>p['Product ID']===priceReq.code).Price).toLocaleString() + ' ل.ل' : '-'}</div>
-                      <input placeholder="سعر جديد ل.ل" value={priceReq.newPrice} onChange={e=>setPriceReq({...priceReq, newPrice:e.target.value})} style={{padding:10, borderRadius:8, border:'1px solid #ccc', width:130}} />
-                      <button onClick={async()=>{
-                        const prod = products.find(p=>p['Product ID']===priceReq.code)
-                        if(!prod) return alert('كود غلط')
-                        if(!priceReq.newPrice) return alert('حط السعر الجديد')
-                        const { error } = await supabase.from('products').update({Price: priceReq.newPrice}).eq('Product ID', priceReq.code)
-                        if(error) return alert(error.message)
-                        setProducts(prev=>prev.map(x=> x['Product ID']===priceReq.code? {...x, Price: priceReq.newPrice}:x))
-                        setPriceReq({code:'', newPrice:''})
-                      }} style={{padding:'10px 16px', borderRadius:8, background:'#16a34a', color:'white', border:'none', fontWeight:700}}>موافق</button>
-                    </div>
-                  </div>
                 </div>
               )}
             </>
           )}
         </div>
       </div>
+
+      {/* مودال المحفظة: مبلغ + ADD/حسم + نوت */}
+      {showWallet && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:60, padding:12}}>
+          <div style={{background:'white', color:'black', borderRadius:16, width:'100%', maxWidth:400, maxHeight:'80vh', overflow:'hidden', display:'flex', flexDirection:'column'}}>
+            <div style={{padding:16, background:'#0a1930', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div>
+                <div style={{fontSize:12, opacity:0.7}}>محفظتي</div>
+                <div style={{fontSize:22, fontWeight:900}}>{formatLBP(wallet)}</div>
+              </div>
+              <button onClick={()=>setShowWallet(false)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', width:32, height:32, borderRadius:8}}>✕</button>
+            </div>
+            <div style={{flex:1, overflowY:'auto', padding:10}}>
+              {walletTx.length===0 && <div style={{textAlign:'center', padding:20, color:'#999'}}>لا يوجد حركات</div>}
+              {walletTx.map((t,i)=>{
+                const amt = Number(t.Amount||0)
+                const type = String(t.Type||'').toUpperCase()
+                const isDeduct = type==='DEDUCT' || type==='CASH_OUT' || type==='COMMISSION'
+                return (
+                  <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px', borderBottom:'1px solid #eee'}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                        <span style={{background: isDeduct?'#fee2e2':'#dcfce7', color: isDeduct?'#ef4444':'#16a34a', padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:900}}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
+                        <span style={{fontWeight:900, fontSize:14, color: isDeduct?'#ef4444':'#16a34a'}}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
+                      </div>
+                      <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || '-'}</div>
+                      <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB'): (t['Created At']? new Date(t['Created At']).toLocaleString('ar-LB'):'')}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
