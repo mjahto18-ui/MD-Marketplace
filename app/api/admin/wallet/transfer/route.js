@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 export const dynamic = "force-dynamic";
 
 function getSupabase(){
@@ -9,6 +10,20 @@ function getSupabase(){
 }
 
 export async function POST(req){
+  // === حماية Admin/Accounting فقط ===
+  try{
+    const cookieStore = await cookies();
+    const sessionRaw = cookieStore.get('admin_session')?.value;
+    if(!sessionRaw) return NextResponse.json({success:false, error:'Unauthorized'}, {status:401});
+    const session = JSON.parse(sessionRaw);
+    const role = String(session.role || session.Role || "").trim();
+    if(!['Admin','Accounting'].includes(role)){
+      return NextResponse.json({success:false, error:'Forbidden - بس ادمن/محاسب'}, {status:403});
+    }
+  }catch(e){
+    return NextResponse.json({success:false, error:'Invalid session'}, {status:401});
+  }
+
   try{
     const { fromUserId, toUserId, amount, reason, notes, orderId, triggeredBy } = await req.json();
     if(!fromUserId || !toUserId || !amount) return NextResponse.json({success:false, error:'ناقص'}, {status:400});
