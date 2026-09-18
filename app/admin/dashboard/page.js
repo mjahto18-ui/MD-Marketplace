@@ -15,6 +15,7 @@ export default function Dashboard(){
   const [wallet, setWallet] = useState(0)
   const [walletTx, setWalletTx] = useState([])
   const [showWallet, setShowWallet] = useState(false)
+  const [showBalance, setShowBalance] = useState(false)
 
   const router = useRouter()
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
@@ -284,14 +285,27 @@ export default function Dashboard(){
 
         </div>
 
-        {/* === كرت المحفظة - مين ما فتح يوزرو بيشوف محفظتو بس - تركناه متل ما هو === */}
-        <div onClick={()=>setShowWallet(true)} className="bg-[#0A0A0A] text-[#fdfbf7] rounded-3xl p-6 flex items-center justify-between cursor-pointer hover:-translate-y-1 transition-all shadow-sm border border-[#FFD700]/20">
-          <div>
+        {/* === كرت المحفظة - ديفولت ****** مع عين - اختيار الزبون بس === */}
+        <div className="bg-[#0A0A0A] text-[#fdfbf7] rounded-3xl p-6 flex items-center justify-between shadow-sm border border-[#FFD700]/20">
+          <div className="flex-1">
             <div className="text-xs tracking-[0.2em] text-[#fdfbf7]/50 font-bold" style={{fontFamily:'Andika'}}>WALLET - محفظتي</div>
-            <div className="text-3xl font-black mt-2" style={{fontFamily:'Andika'}}>{formatLBP(wallet)}</div>
+            <div className="text-3xl font-black mt-2 tracking-widest" style={{fontFamily:'Andika'}}>
+              {showBalance ? formatLBP(wallet) : '•••••••• ل.ل'}
+            </div>
             <div className="text-xs text-[#FFD700] mt-2 font-bold" style={{fontFamily:'Andika'}}>اضغط لعرض التفاصيل - مبلغ + ADD/حسم + نوت - {myUserId? String(myUserId).slice(0,8):''}</div>
+            <button onClick={()=>setShowWallet(true)} className="mt-3 text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl">عرض التفاصيل</button>
           </div>
-          <div className="w-16 h-16 rounded-2xl bg-[#FFD700] flex items-center justify-center text-2xl">💳</div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={()=>setShowBalance(!showBalance)}
+              className="h-14 px-6 rounded-2xl bg-[#FFD700] text-black font-black text-sm hover:bg-white transition-all"
+              style={{fontFamily:'Andika'}}
+            >
+              {showBalance ? 'اخفاء' : 'اظهار'}
+            </button>
+            <div className="w-16 h-16 rounded-2xl bg-[#FFD700] flex items-center justify-center text-2xl">💳</div>
+          </div>
         </div>
 
         {/* MAIN STATUS CARDS */}
