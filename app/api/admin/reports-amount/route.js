@@ -9,14 +9,14 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-function parseAnyDate(h: any) {
+function parseAnyDate(h) {
   const comp = h["Completed Date"] || h["Order Date"];
   if (!comp) return null;
   const d = new Date(comp);
   return isNaN(d.getTime())? null : d;
 }
 
-function getWeek(d: Date) {
+function getWeek(d) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
@@ -24,7 +24,7 @@ function getWeek(d: Date) {
   return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
-export async function GET(req: Request) {
+export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const period = searchParams.get('period') || 'daily';
   const storeID = searchParams.get('store_id');
@@ -41,14 +41,13 @@ export async function GET(req: Request) {
     supabase.from('cash_payouts').select('*').eq('Status','Completed').eq('Owner Role','Store Owner'),
   ]);
 
-  const storeNameMap: Record<string,string> = {};
-  (stores || []).forEach((s: any) => {
+  const storeNameMap = {};
+  (stores || []).forEach((s) => {
     storeNameMap[String(s["Store ID"]).trim()] = s["Store Name"] || String(s["Store ID"]);
   });
 
-  // users."User ID" -> users."Store ID"
-  const userIdToStoreId: Record<string,string> = {};
-  (users || []).forEach((u: any) => {
+  const userIdToStoreId = {};
+  (users || []).forEach((u) => {
     const uid = String(u["User ID"] || "").trim();
     const sid = String(u["Store ID"] || "").trim();
     if(uid && sid) userIdToStoreId[uid] = sid;
@@ -72,8 +71,7 @@ export async function GET(req: Request) {
     filteredHistory = filteredHistory.filter(h => ids.has(h["Request ID"]));
   }
 
-  // فلتر الدفعات حسب التاريخ + حسب المتجر اذا مختار
-  let filteredPayouts = (payouts || []).filter((p: any) => {
+  let filteredPayouts = (payouts || []).filter((p) => {
     const d = p["Created At"]? new Date(p["Created At"]) : null;
     if (from && d && d < new Date(from)) return false;
     if (to && d && d > new Date(to + "T23:59:59")) return false;
@@ -90,7 +88,7 @@ export async function GET(req: Request) {
   const totalDelivery = filteredHistory.reduce((s, h) => s + Number(h["Delivery Fee"] || 0), 0);
   const totalAmount = filteredHistory.reduce((s, h) => s + Number(h["Total Amount"] || 0), 0);
 
-  const group: any = {};
+  const group = {};
   const effectivePeriod = period === 'all'? 'daily' : period;
 
   filteredHistory.forEach(h => {
@@ -119,7 +117,7 @@ export async function GET(req: Request) {
     }
   });
 
-  const storesGroup: any = {};
+  const storesGroup = {};
   filteredDetails.forEach(d => {
     const sid = String(d["Store ID"]).trim();
     if (!storesGroup[sid]) storesGroup[sid] = { store_id: sid, store_name: storeNameMap[sid] || sid, orders: new Set(), items: 0, commission: 0, paid: 0 };
@@ -128,31 +126,29 @@ export async function GET(req: Request) {
     storesGroup[sid].commission += Number(d["Commission Amount"] || 0);
   });
 
-  // وزع الدفعات على المتاجر عن طريق جدول users
-  filteredPayouts.forEach((p: any) => {
+  filteredPayouts.forEach((p) => {
     const ownerUid = String(p["Owner User ID"]).trim();
     const storeId = userIdToStoreId[ownerUid];
     if (!storeId) return;
     if (!storesGroup[storeId]) {
-      // متجر ما باع بهالفترة بس اندفعله - منضيفو ليبين المدفوع
       storesGroup[storeId] = { store_id: storeId, store_name: storeNameMap[storeId] || p["Owner Name"] || storeId, orders: new Set(), items: 0, commission: 0, paid: 0 };
     }
     storesGroup[storeId].paid += Number(p["Amount"] || 0);
   });
 
-  const stores_breakdown = Object.values(storesGroup).map((s: any) => {
-    const net = s.items - s.commission; // 135000 يلي بالصورة
+  const stores_breakdown = Object.values(storesGroup).map((s) => {
+    const net = s.items - s.commission;
     const paid = s.paid || 0;
     return {
      ...s,
       orders: s.orders.size,
       net_to_pay: net,
       paid: paid,
-      remaining: net - paid // المستحق
+      remaining: net - paid
     };
-  }).sort((a: any, b: any) => b.items - a.items);
+  }).sort((a, b) => b.items - a.items);
 
-  const totalPaid = filteredPayouts.reduce((sum: number, p: any) => sum + Number(p["Amount"]||0), 0);
+  const totalPaid = filteredPayouts.reduce((sum, p) => sum + Number(p["Amount"]||0), 0);
 
   return NextResponse.json({
     success: true,
@@ -169,7 +165,7 @@ export async function GET(req: Request) {
       total_remaining: (totalItems - totalCommission) - totalPaid,
       my_net: totalCommission + totalDelivery,
     },
-    breakdown: Object.values(group).sort((a: any, b: any) => a.sortDate - b.sortDate).map(({ sortDate,...rest }: any) => rest),
+    breakdown: Object.values(group).sort((a, b) => a.sortDate - b.sortDate).map(({ sortDate,...rest }) => rest),
     stores_breakdown
   });
 }
