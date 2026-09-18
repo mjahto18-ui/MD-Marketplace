@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -25,6 +26,22 @@ function getWeek(d) {
 }
 
 export async function GET(req) {
+  // === حماية Admin / Accounting فقط - مربوطة بـ api/admin/me تبعك ===
+  try {
+    const cookieStore = await cookies();
+    const sessionRaw = cookieStore.get('admin_session')?.value;
+    if(!sessionRaw){
+      return NextResponse.json({ success:false, error:"Unauthorized" }, { status:401 });
+    }
+    const session = JSON.parse(sessionRaw);
+    const role = String(session.role || session.Role || "").trim();
+    if(!['Admin','Accounting'].includes(role)){
+      return NextResponse.json({ success:false, error:"Forbidden - Admin/Accounting only" }, { status:403 });
+    }
+  } catch(e){
+    return NextResponse.json({ success:false, error:"Invalid session" }, { status:401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const period = searchParams.get('period') || 'daily';
   const storeID = searchParams.get('store_id');
@@ -140,7 +157,7 @@ export async function GET(req) {
     const net = s.items - s.commission;
     const paid = s.paid || 0;
     return {
-     ...s,
+    ...s,
       orders: s.orders.size,
       net_to_pay: net,
       paid: paid,
