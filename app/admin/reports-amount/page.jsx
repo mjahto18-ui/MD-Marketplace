@@ -6,7 +6,7 @@ export default function ReportsPage() {
   const [storeId, setStoreId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchData = async () => {
@@ -27,7 +27,6 @@ export default function ReportsPage() {
     <div dir="rtl" className="p-6 bg-gray-50 min-h-screen">
       <h1 className="text-2xl font-bold mb-6">لوحة التقارير</h1>
 
-      {/* فلاتر */}
       <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-3 mb-6">
         <div className="flex gap-2">
           <button onClick={()=>setPeriod("daily")} className={`px-4 py-2 rounded ${period==="daily"?"bg-green-600 text-white":"bg-gray-200"}`}>يومي</button>
@@ -45,14 +44,16 @@ export default function ReportsPage() {
 
       {data && (
         <>
-          {/* ملخص - 7 كروت */}
+          {/* ملخص - 9 كروت صاروا */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">الطلبات</div><div className="text-2xl font-bold">{data.summary.orders}</div></div>
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">المبيعات</div><div className="text-2xl font-bold">{data.summary.items_cost}</div></div>
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">التوصيل</div><div className="text-2xl font-bold">{data.summary.delivery_fee}</div></div>
-            <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">العمولة {data.summary.commission===0 && "(تجربة)"}</div><div className="text-2xl font-bold">{data.summary.commission}</div></div>
+            <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">العمولة</div><div className="text-2xl font-bold">{data.summary.commission}</div></div>
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">الاجمالي</div><div className="text-2xl font-bold">{data.summary.total_amount}</div></div>
             <div className="bg-green-50 p-4 rounded-xl shadow border border-green-200"><div className="text-gray-500 text-sm">الصافي للتجار</div><div className="text-2xl font-bold text-green-700">{data.summary.net_for_stores}</div></div>
+            <div className="bg-blue-50 p-4 rounded-xl shadow border border-blue-200"><div className="text-gray-500 text-sm">المدفوع (cash_payouts)</div><div className="text-2xl font-bold text-blue-700">{data.summary.total_paid || 0}</div></div>
+            <div className={`p-4 rounded-xl shadow border ${ (data.summary.total_remaining||0) <=0 ? 'bg-gray-100 border-gray-200' : 'bg-red-50 border-red-200'}`}><div className="text-gray-500 text-sm">الباقي المستحق</div><div className={`text-2xl font-bold ${ (data.summary.total_remaining||0) <=0 ? 'text-gray-600' : 'text-red-600'}`}>{data.summary.total_remaining || 0}</div></div>
             <div className="bg-black text-white p-4 rounded-xl shadow"><div className="text-gray-300 text-sm">صافي ربحي (عمولة+توصيل)</div><div className="text-2xl font-bold">{data.summary.my_net}</div></div>
           </div>
 
@@ -65,7 +66,7 @@ export default function ReportsPage() {
               </thead>
               <tbody>
                 {data.breakdown.length===0 && <tr><td colSpan={6} className="p-6 text-center text-gray-400">ما في داتا بهالفترة</td></tr>}
-                {data.breakdown.map((r,i)=>(
+                {data.breakdown.map((r:any,i:number)=>(
                   <tr key={i} className="border-t">
                     <td className="p-3">{r.date}</td>
                     <td className="p-3">{r.orders}</td>
@@ -79,22 +80,32 @@ export default function ReportsPage() {
             </table>
           </div>
 
-          {/* قسم التجار - نفس سيستم التاريخ */}
+          {/* قسم التجار - مع المدفوع والباقي */}
           <div className="bg-white rounded-xl shadow overflow-auto">
             <div className="p-4 font-bold border-b">تفصيل المتاجر - {period} {from||to ? `(${from} الى ${to})` : ""}</div>
             <table className="w-full text-right">
               <thead className="bg-gray-100">
-                <tr><th className="p-3">المتجر</th><th className="p-3">طلبات</th><th className="p-3">اجمالي المبيع</th><th className="p-3">عمولة المنصة</th><th className="p-3">الصافي للدفع</th></tr>
+                <tr>
+                  <th className="p-3">المتجر</th>
+                  <th className="p-3">طلبات</th>
+                  <th className="p-3">اجمالي المبيع</th>
+                  <th className="p-3">عمولة المنصة</th>
+                  <th className="p-3">الصافي للدفع</th>
+                  <th className="p-3 bg-blue-50">المدفوع</th>
+                  <th className="p-3 bg-red-50">الباقي المستحق</th>
+                </tr>
               </thead>
               <tbody>
-                {!data.stores_breakdown || data.stores_breakdown.length===0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">ما في متاجر بهالفترة</td></tr>}
-                {data.stores_breakdown?.map((s,i)=>(
+                {!data.stores_breakdown || data.stores_breakdown.length===0 && <tr><td colSpan={7} className="p-6 text-center text-gray-400">ما في متاجر بهالفترة</td></tr>}
+                {data.stores_breakdown?.map((s:any,i:number)=>(
                   <tr key={i} className="border-t hover:bg-gray-50">
-                    <td className="p-3 font-bold">{s.store_name} <span className="text-xs text-gray-400">({s.store_id})</span></td>
+                    <td className="p-3 font-bold">{s.store_name} <span className="text-xs text-gray-400">({s.store_id.slice(0,8)})</span></td>
                     <td className="p-3">{s.orders}</td>
                     <td className="p-3">{s.items}</td>
-                    <td className="p-3">{s.commission} {s.commission===0 && <span className="text-green-600 text-xs">(تجربة)</span>}</td>
+                    <td className="p-3">{s.commission}</td>
                     <td className="p-3 font-bold text-green-700">{s.net_to_pay}</td>
+                    <td className="p-3 font-bold text-blue-700 bg-blue-50/30">{s.paid || 0}</td>
+                    <td className={`p-3 font-bold ${s.remaining>0 ? 'text-red-600 bg-red-50/30' : 'text-gray-500'}`}>{s.remaining}</td>
                   </tr>
                 ))}
               </tbody>
