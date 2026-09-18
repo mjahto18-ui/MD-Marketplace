@@ -6,7 +6,6 @@ import CashPending from "./CashPending"
 import { Star } from "lucide-react"
 const DriverMap = dynamic(() => import("@/components/Stars"), { ssr: false })
 
-// --- كومبوننت النجوم - نص نجمة ---
 function Stars({ rating = 0, size = 14 }) {
   const r = parseFloat(rating) || 0;
   let full = Math.floor(r);
@@ -57,7 +56,11 @@ export default function DriverDashboard(){
   const [activeTab, setActiveTab] = useState('orders')
   const [cashPendingCount, setCashPendingCount] = useState(0)
   const [cashPendingTotal, setCashPendingTotal] = useState(0)
-  const [driverStats, setDriverStats] = useState(null) // <-- جديد
+  const [driverStats, setDriverStats] = useState(null)
+  // --- جديد: محفظة ---
+  const [wallet, setWallet] = useState(0)
+  const [walletTx, setWalletTx] = useState([])
+  const [showWallet, setShowWallet] = useState(false)
   const timersRef = useRef({})
   const trackRef = useRef(null)
   const driverLocationRef = useRef(null)
@@ -80,7 +83,6 @@ export default function DriverDashboard(){
     const driverId = me.relatedId || me.userId
     if(!driverId) return
     if(!navigator.geolocation) return
-
     driverLocationRef.current = navigator.geolocation.watchPosition(async (pos)=>{
       const lat = pos.coords.latitude
       const lng = pos.coords.longitude
@@ -92,7 +94,6 @@ export default function DriverDashboard(){
         "Status": "Online"
       }).eq('"Driver ID"', driverId)
     }, ()=>{}, {enableHighAccuracy:true, maximumAge:0})
-
     return ()=>{ if(driverLocationRef.current) navigator.geolocation.clearWatch(driverLocationRef.current) }
   },[supabase, me, isOnline])
 
@@ -137,10 +138,20 @@ export default function DriverDashboard(){
     if(!supabase ||!me) return
     const load = async ()=>{
       const driverId = me.relatedId || me.userId
+      const userIdForWallet = me.userId
 
-      // --- جديد: جيب تقييم الدرايفر ---
+      // --- تقييم + محفظة ---
       const { data: drv } = await supabase.from('drivers').select('"Avg Rating", "Rating Count", "Total Delivered"').eq('"Driver ID"', driverId).single()
       if(drv) setDriverStats(drv)
+
+      // --- هون جيب المحفظة حسب User ID (مربوط برقم التلفون) ---
+      try{
+        const w = await fetch(`/api/wallet/me?userId=${userIdForWallet}`, {cache:'no-store'}).then(r=>r.json())
+        if(w.success){
+          setWallet(w.wallet||0)
+          setWalletTx(w.transactions||[])
+        }
+      }catch{}
 
       const { data } = await supabase.from('order_requuest').select('*').eq('Assigned Driver', driverId).eq('Approval Status','Approved').in('Delivery Status',['Pending','Picked Up','On The Way']).limit(100)
       setRequests(data||[])
@@ -261,8 +272,6 @@ export default function DriverDashboard(){
       <div style={{background:'#0e2242', padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:20}}>
         <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
           <span>أهلاً {me.name}</span>
-
-          {/* --- هون بس التعديل: النجوم بالهيدر --- */}
           {driverStats && (
             <div style={{display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.1)', padding:'4px 10px', borderRadius:20}}>
               <Stars rating={driverStats["Avg Rating"]} size={14} />
@@ -270,7 +279,6 @@ export default function DriverDashboard(){
               <span style={{fontSize:11, opacity:0.6}}>({driverStats["Rating Count"]||0}) • {driverStats["Total Delivered"]||0} توصيلة</span>
             </div>
           )}
-
           <button onClick={toggleOnline} style={{background: isOnline? '#22c55e' : '#ef4444', color:'white', padding:'6px 14px', borderRadius:20, fontWeight:900, fontSize:12, border:'none'}}>{isOnline? '🟢 Online' : '🔴 Offline'}</button>
           {Object.entries(timers).map(([reqId, sec])=>(
             <span key={reqId} style={{background: sec===0? '#ef4444' : sec<300? '#ef4444' : sec<600? '#facc15' : '#22c55e', color:'white', padding:'6px 16px', borderRadius:20, fontWeight:900, fontSize:12, border:'2px solid white'}}>⏱ {reqId}: {sec===0? 'تأخر!' : formatTimer(sec)}</span>
@@ -280,6 +288,16 @@ export default function DriverDashboard(){
       </div>
 
       <div style={{padding:12, maxWidth:900, margin:'0 auto'}}>
+        {/* --- كرت المحفظة الجديد - ما بينحشر عالتلفون --- */}
+        <div onClick={()=>setShowWallet(true)} style={{background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, marginBottom:12, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', border:'2px solid rgba(255,255,255,0.2)'}}>
+          <div>
+            <div style={{fontSize:11, opacity:0.8}}>👛 محفظتي</div>
+            <div style={{fontSize:26, fontWeight:900, marginTop:2}}>{formatLBP(wallet)}</div>
+            <div style={{fontSize:11, opacity:0.7, marginTop:2}}>اضغط لعرض التفاصيل</div>
+          </div>
+          <div style={{fontSize:32}}>💳</div>
+        </div>
+
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:8, marginBottom:12}}>
           <div style={{background:'#f3f1ec', color:'#111', borderRadius:12, padding:12, textAlign:'center'}}><div style={{fontSize:22, fontWeight:900}}>{requests.length}</div><div style={{fontSize:10}}>الكل</div></div>
           <div style={{background:'#fef3c7', color:'#111', borderRadius:12, padding:12, textAlign:'center'}}><div style={{fontSize:22, fontWeight:900}}>{pending}</div><div style={{fontSize:10}}>Pending</div></div>
@@ -331,7 +349,6 @@ export default function DriverDashboard(){
                   <span style={{fontSize:12, padding:'3px 8px', borderRadius:20, background: isPending? '#ddd' : '#111', color: isPending? '#333' : 'white'}}>{r['Delivery Status']}</span>
                 </div>
               </div>
-
               {isPending? (
                 <div style={{marginTop:8, fontSize:12}}>السعر: {formatLBP(r['Total Amount'])} - {prods.length} منتج - مخفي حتى القبول</div>
               ) : (
@@ -345,7 +362,6 @@ export default function DriverDashboard(){
                       return <div key={sid} style={{fontSize:13, marginTop:6, padding:'6px', background:'#f3f3f3', borderRadius:8}}><b>{storeName}</b> / {areaName} / {s['Adress'] || ''}</div>
                     })}
                   </div>
-
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🛒 المنتجات - {prods.length} منتج</div>
                     {prods.map((p,i)=>{
@@ -366,7 +382,6 @@ export default function DriverDashboard(){
                     })}
                     <div style={{display:'flex', justifyContent:'space-between', fontWeight:900, fontSize:14, marginTop:10, paddingTop:8, borderTop:'2px solid #111'}}><span>قيمة الاوردر:</span><span>{formatLBP(orderTotal)}</span></div>
                   </div>
-
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>🏠 قسم الزبون</div>
                     <div style={{fontSize:13, marginTop:4}}>{r['Delivery Adress'] || '-'}</div>
@@ -376,12 +391,10 @@ export default function DriverDashboard(){
                       <a href={`tel:${customerPhone}`} style={{background:'#111', color:'white', padding:'8px 12px', borderRadius:6, textDecoration:'none', fontWeight:900, fontSize:12}}>اتصال</a>
                     </div>
                   </div>
-
                   <div style={{background:'white', borderRadius:10, padding:10, marginTop:8}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5}}>💳 الدفع</div>
                     <div style={{fontSize:13}}>الطريقة: <b>{r['Final Payment Method']||'Cash'}</b> - المبلغ: <b>{formatLBP(r['Total Amount']||'')}</b></div>
                   </div>
-
                   {(() => {
                     const stores = storeIds.map(sid => storesMap[sid] || storesMap[sid.toLowerCase()]).filter(s => s && s['Current Latitude'] && s['Current Longitude']).map(s => ({ lat: parseFloat(s['Current Latitude']), lng: parseFloat(s['Current Longitude']), name: s['Store Name'] || 'متجر' }))
                     const cLat = r['Customer Latitude']? parseFloat(r['Customer Latitude']) : null
@@ -398,7 +411,6 @@ export default function DriverDashboard(){
                   })()}
                 </>
               )}
-
               <div style={{display:'flex', gap:8, marginTop:10}}>
                 {r['Delivery Status']==='Pending' && <button onClick={()=>updateStatus(r,'Picked Up')} style={{flex:1, background:'#2563eb', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>استلام - Pickup</button>}
                 {r['Delivery Status']==='Picked Up' && <button onClick={()=>updateStatus(r,'On The Way')} style={{flex:1, background:'#f59e0b', color:'white', padding:'12px', borderRadius:10, fontWeight:900}}>الانتقال الى الزبون {timers[r['Request ID']]!==undefined? `- ${formatTimer(timers[r['Request ID']])}` : ''}</button>}
@@ -409,6 +421,41 @@ export default function DriverDashboard(){
         })
         )}
       </div>
+
+      {/* --- مودال المحفظة: مبلغ + ADD/حسم + نوت بس --- */}
+      {showWallet && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:60, padding:12}}>
+          <div style={{background:'white', color:'black', borderRadius:16, width:'100%', maxWidth:400, maxHeight:'80vh', overflow:'hidden', display:'flex', flexDirection:'column'}}>
+            <div style={{padding:16, background:'#0a1930', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div>
+                <div style={{fontSize:12, opacity:0.7}}>محفظتي</div>
+                <div style={{fontSize:22, fontWeight:900}}>{formatLBP(wallet)}</div>
+              </div>
+              <button onClick={()=>setShowWallet(false)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', width:32, height:32, borderRadius:8}}>✕</button>
+            </div>
+            <div style={{flex:1, overflowY:'auto', padding:10}}>
+              {walletTx.length===0 && <div style={{textAlign:'center', padding:20, color:'#999'}}>لا يوجد حركات</div>}
+              {walletTx.map((t,i)=>{
+                const amt = Number(t.Amount||0)
+                const type = String(t.Type||'').toUpperCase()
+                const isDeduct = type==='DEDUCT' || type==='CASH_OUT' || type==='PENALTY'
+                return (
+                  <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px', borderBottom:'1px solid #eee'}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                        <span style={{background: isDeduct?'#fee2e2':'#dcfce7', color: isDeduct?'#ef4444':'#16a34a', padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:900}}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
+                        <span style={{fontWeight:900, fontSize:14, color: isDeduct?'#ef4444':'#16a34a'}}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
+                      </div>
+                      <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || '-'}</div>
+                      <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB'):''}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showConfirm && (
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
