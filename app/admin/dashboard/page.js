@@ -156,6 +156,40 @@ export default function Dashboard(){
     </Link>
   )
 
+  // === كرت مالي - لون مختلف للبنك والتقارير - بس Admin / Accounting ===
+  const FinanceItem = ({label, count, href, icon}) => (
+    <Link
+      href={href}
+      className="group relative overflow-hidden bg-[#0A0A0A] border border-[#FFD700]/30 rounded-3xl p-6 flex items-center justify-between shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-[#FFD700]/60 transition-all duration-300"
+    >
+      <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-[#FFD700]/10 group-hover:bg-[#FFD700]/20 transition-all duration-300" />
+
+      <div className="flex items-center gap-5 min-w-0 relative">
+        <div className="w-12 h-12 rounded-2xl bg-[#FFD700] text-[#0A0A0A] flex items-center justify-center shrink-0 shadow-sm text-xl">
+          {icon}
+        </div>
+
+        <div className="text-right min-w-0 space-y-1">
+          <div className="text- tracking-[0.18em] text-[#FFD700]/70 font-black uppercase truncate" style={{fontFamily:'Andika'}}>
+            FINANCE
+          </div>
+          <div className="text-sm font-black text-[#fdfbf7] leading-tight tracking-tight" style={{fontFamily:'Andika'}}>
+            {label}
+          </div>
+          <div className="text-xs font-bold text-[#fdfbf7]/50" style={{fontFamily:'Andika'}}>
+            Admin / Accounting Only
+          </div>
+        </div>
+      </div>
+
+      <div className="w-10 h-10 rounded-2xl bg-white/10 group-hover:bg-[#FFD700] group-hover:text-[#0A0A0A] text-[#fdfbf7] flex items-center justify-center font-black shrink-0 shadow-sm transition-all" style={{fontFamily:'Andika'}}>
+        →
+      </div>
+    </Link>
+  )
+
+  const isFinanceRole = ['Admin','Accounting'].includes(myRole)
+
   return (
     <div className="min-h-screen bg-[#fdfbf7] text-[#0A0A0A]">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap');`}</style>
@@ -250,7 +284,7 @@ export default function Dashboard(){
 
         </div>
 
-        {/* === كرت المحفظة - مين ما فتح يوزرو بيشوف محفظتو بس === */}
+        {/* === كرت المحفظة - مين ما فتح يوزرو بيشوف محفظتو بس - تركناه متل ما هو === */}
         <div onClick={()=>setShowWallet(true)} className="bg-[#0A0A0A] text-[#fdfbf7] rounded-3xl p-6 flex items-center justify-between cursor-pointer hover:-translate-y-1 transition-all shadow-sm border border-[#FFD700]/20">
           <div>
             <div className="text-xs tracking-[0.2em] text-[#fdfbf7]/50 font-bold" style={{fontFamily:'Andika'}}>WALLET - محفظتي</div>
@@ -300,6 +334,14 @@ export default function Dashboard(){
             <Item label="OVERPAY PENDING" count={counts.overpayPending} href="/admin/pending-overpay" />
             <Item label="PENDING REVIEWS" count={counts.pendingReviewsCount} href="/admin/pending-reviews" />
             <Item label="PENDING PRODUCTS" count={counts.pendingProducts} href="/admin/pending-products" />
+
+            {/* === كروت المالية - بس Admin / Accounting - لون اسود وذهبي === */}
+            {isFinanceRole && (
+              <>
+                <FinanceItem label="REPORTS AMOUNT - التقارير المالية" count={0} href="/admin/reports-amount" icon="📊" />
+                <FinanceItem label="WALLET - إدارة البنك والمحافظ" count={0} href="/admin/wallet" icon="🏦" />
+              </>
+            )}
 
           </div>
 
