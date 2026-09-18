@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
+import BackToDashboard from "@/components/BackToDashboard"
 
 export default function AdminBank(){
   const router = useRouter()
@@ -25,15 +26,16 @@ export default function AdminBank(){
   const init = async()=>{
     try{
       const sess = await fetch('/api/admin/me', {credentials:'include'}).then(r=>r.json())
-      if(sess.role!== 'Admin'){
-        alert('ممنوع - بس للأدمن')
+      const role = String(sess.role || sess.Role || "").trim()
+      if(!['Admin','Accounting'].includes(role)){
+        alert('ممنوع - بس للادمن والمحاسب')
         router.push('/admin')
         return
       }
       const id = sess.userId || sess.id || ''
       setMyId(id)
       setMyName(sess.name || '')
-      setMyRole(sess.role || '')
+      setMyRole(role)
       if(id){ fetchMyWallet(id) }
     } catch(e){
       router.push('/admin/login')
@@ -58,8 +60,6 @@ export default function AdminBank(){
     try{
       const res = await fetch(`/api/wallet/me?userId=${filterId}`, {credentials:'include'}).then(r=>r.json())
       
-      // FIX 1: Owner User ID مش Owner ID
-      // FIX 2: ilike مشان اذا حطيت ID قصير c37302f0
       const { data: cash, error: cashErr } = await supabase
         .from('cash_payouts')
         .select('*')
@@ -142,7 +142,8 @@ export default function AdminBank(){
   return (
     <div className="min-h-screen bg-[#0F0F0F] text-[#EAEAEA] p-6">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap');`}</style>
-      <h1 className="text-3xl font-black tracking-tight" style={{fontFamily:'Andika'}}>البنك - Admin Bank</h1>
+      <BackToDashboard />
+      <h1 className="text-3xl font-black tracking-tight mt-4" style={{fontFamily:'Andika'}}>البنك - Admin Bank</h1>
       <p className="text-white/40 text-xs mt-2 tracking-widest">انا: {myName} - {myRole} - {myId?.slice(0,8)}</p>
 
       <div className="bg-gradient-to-br from-[#FFD700]/20 to-[#1A1A1A] border border-[#FFD700]/30 rounded-3xl p-5 mt-6 flex justify-between items-center">
