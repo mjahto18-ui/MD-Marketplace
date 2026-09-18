@@ -10,10 +10,21 @@ export default function Dashboard(){
   const [menuTables, setMenuTables] = useState([])
   const [myRole, setMyRole] = useState('')
   const [myName, setMyName] = useState('')
+  // --- المحفظة - زدناها بدون ما نلمس شي ---
+  const [myUserId, setMyUserId] = useState('')
+  const [wallet, setWallet] = useState(0)
+  const [walletTx, setWalletTx] = useState([])
+  const [showWallet, setShowWallet] = useState(false)
+
   const router = useRouter()
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
   useEffect(()=>{ load() },[])
+
+  const formatLBP = (n) => {
+    const num = parseFloat(String(n).replace(/,/g,''))||0
+    return new Intl.NumberFormat('en-LB').format(num)+' ل.ل'
+  }
 
   const load = async () => {
     const sessRes = await fetch('/api/admin/me', { credentials: 'include', cache: 'no-store' })
@@ -25,18 +36,29 @@ export default function Dashboard(){
 
     // جيب الاسم الحقيقي من جدول users
     let realName = sess.name || sess.username || sess.user || ''
+    let uid = sess.userId || sess.user_id || sess.id || ''
     if(!realName || realName === role){
       const email = sess.email || sess.user_email || ''
       if(email){
-        const { data: u } = await supabase.from('users').select('Name, Email, User').eq('Email', email).maybeSingle()
-        if(u) realName = u.Name || u.User || email
+        const { data: u } = await supabase.from('users').select('*').eq('Email', email).maybeSingle()
+        if(u){
+          realName = u.Name || u.User || email
+          uid = u['User ID'] || u['User_ID'] || u['ID'] || u.id || uid
+        }
       }
       if(!realName || realName === role){
-        const { data: u2 } = await supabase.from('users').select('Name').eq('Role', role).maybeSingle()
+        const { data: u2 } = await supabase.from('users').select('*').eq('Role', role).maybeSingle()
         if(u2) realName = u2.Name
       }
     }
     setMyName(realName || sess.email || role)
+    if(uid){
+      setMyUserId(uid)
+      try{
+        const w = await fetch(`/api/wallet/me?userId=${uid}`, {cache:'no-store'}).then(r=>r.json())
+        if(w.success){ setWallet(w.wallet||0); setWalletTx(w.transactions||[]) }
+      }catch{}
+    }
 
     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
@@ -228,6 +250,16 @@ export default function Dashboard(){
 
         </div>
 
+        {/* === كرت المحفظة - مين ما فتح يوزرو بيشوف محفظتو بس === */}
+        <div onClick={()=>setShowWallet(true)} className="bg-[#0A0A0A] text-[#fdfbf7] rounded-3xl p-6 flex items-center justify-between cursor-pointer hover:-translate-y-1 transition-all shadow-sm border border-[#FFD700]/20">
+          <div>
+            <div className="text-xs tracking-[0.2em] text-[#fdfbf7]/50 font-bold" style={{fontFamily:'Andika'}}>WALLET - محفظتي</div>
+            <div className="text-3xl font-black mt-2" style={{fontFamily:'Andika'}}>{formatLBP(wallet)}</div>
+            <div className="text-xs text-[#FFD700] mt-2 font-bold" style={{fontFamily:'Andika'}}>اضغط لعرض التفاصيل - مبلغ + ADD/حسم + نوت - {myUserId? String(myUserId).slice(0,8):''}</div>
+          </div>
+          <div className="w-16 h-16 rounded-2xl bg-[#FFD700] flex items-center justify-center text-2xl">💳</div>
+        </div>
+
         {/* MAIN STATUS CARDS */}
         <section className="space-y-6">
 
@@ -348,6 +380,37 @@ export default function Dashboard(){
         </section>
 
       </main>
+
+      {/* مودال المحفظة - مبلغ + ADD/حسم + نوت */}
+      {showWallet && (
+        <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md max-h- overflow-hidden flex flex-col">
+            <div className="p-5 bg-[#0A0A0A] text-[#fdfbf7] flex justify-between items-center">
+              <div><div className="text-xs opacity-50">محفظتي - {myUserId}</div><div className="text-2xl font-black mt-1">{formatLBP(wallet)}</div></div>
+              <button onClick={()=>setShowWallet(false)} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {walletTx.length===0 && <div className="text-center p-8 text-black/40">لا يوجد حركات</div>}
+              {walletTx.map((t,i)=>{
+                const amt = Number(t.Amount||0)
+                const isDeduct = String(t.Type).toUpperCase()!=='ADD'
+                return (
+                  <div key={i} className="flex justify-between items-center p-3 border-b border-black/5">
+                    <div className="flex-1">
+                      <div className="flex gap-2 items-center">
+                        <span className={`px-2 py-1 rounded-full text- font-black ${isDeduct?'bg-red-100 text-red-600':'bg-green-100 text-green-600'}`}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
+                        <span className={`font-black text-sm ${isDeduct?'text-red-600':'text-green-600'}`}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
+                      </div>
+                      <div className="text-xs mt-1 text-black/80">{t.Notes || t.Reason || '-'}</div>
+                      <div className="text- opacity-40 mt-1">{t['Created At']? new Date(t['Created At']).toLocaleString('ar-LB'):''} {t['Order ID']? `| ${t['Order ID']}`:''}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
