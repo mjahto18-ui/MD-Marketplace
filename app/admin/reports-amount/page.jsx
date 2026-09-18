@@ -6,7 +6,7 @@ export default function ReportsPage() {
   const [storeId, setStoreId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const fetchData = async () => {
@@ -44,7 +44,6 @@ export default function ReportsPage() {
 
       {data && (
         <>
-          {/* ملخص - 9 كروت صاروا */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">الطلبات</div><div className="text-2xl font-bold">{data.summary.orders}</div></div>
             <div className="bg-white p-4 rounded-xl shadow"><div className="text-gray-500 text-sm">المبيعات</div><div className="text-2xl font-bold">{data.summary.items_cost}</div></div>
@@ -57,7 +56,6 @@ export default function ReportsPage() {
             <div className="bg-black text-white p-4 rounded-xl shadow"><div className="text-gray-300 text-sm">صافي ربحي (عمولة+توصيل)</div><div className="text-2xl font-bold">{data.summary.my_net}</div></div>
           </div>
 
-          {/* جدول حسب التاريخ */}
           <div className="bg-white rounded-xl shadow overflow-auto mb-8">
             <div className="p-4 font-bold border-b">تفصيل حسب التاريخ - {period}</div>
             <table className="w-full text-right">
@@ -66,7 +64,7 @@ export default function ReportsPage() {
               </thead>
               <tbody>
                 {data.breakdown.length===0 && <tr><td colSpan={6} className="p-6 text-center text-gray-400">ما في داتا بهالفترة</td></tr>}
-                {data.breakdown.map((r:any,i:number)=>(
+                {data.breakdown.map((r,i)=>(
                   <tr key={i} className="border-t">
                     <td className="p-3">{r.date}</td>
                     <td className="p-3">{r.orders}</td>
@@ -80,7 +78,6 @@ export default function ReportsPage() {
             </table>
           </div>
 
-          {/* قسم التجار - مع المدفوع والباقي */}
           <div className="bg-white rounded-xl shadow overflow-auto">
             <div className="p-4 font-bold border-b">تفصيل المتاجر - {period} {from||to ? `(${from} الى ${to})` : ""}</div>
             <table className="w-full text-right">
@@ -97,9 +94,9 @@ export default function ReportsPage() {
               </thead>
               <tbody>
                 {!data.stores_breakdown || data.stores_breakdown.length===0 && <tr><td colSpan={7} className="p-6 text-center text-gray-400">ما في متاجر بهالفترة</td></tr>}
-                {data.stores_breakdown?.map((s:any,i:number)=>(
+                {data.stores_breakdown?.map((s,i)=>(
                   <tr key={i} className="border-t hover:bg-gray-50">
-                    <td className="p-3 font-bold">{s.store_name} <span className="text-xs text-gray-400">({s.store_id.slice(0,8)})</span></td>
+                    <td className="p-3 font-bold">{s.store_name} <span className="text-xs text-gray-400">({String(s.store_id).slice(0,8)})</span></td>
                     <td className="p-3">{s.orders}</td>
                     <td className="p-3">{s.items}</td>
                     <td className="p-3">{s.commission}</td>
