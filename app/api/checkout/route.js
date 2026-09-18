@@ -69,7 +69,8 @@ export async function POST(req) {
     const freeDeliveryRemaining = Number(customer["Free Delivery Remaining"] || 0);
     // ملاحظة: Last Free Delivery Date مو موجود بجدول customers اللي بعته، تركته متل ما هو اذا ضفته انت
     const lastFreeDeliveryDate = customer["Last Free Delivery Date"] || "";
-    const today = new Date().toLocaleDateString("en-GB");
+    const today = new Date().toISOString().split('T')[0];
+
 
     const rateRow = (deliveryRatesRows||[]).find((row) => {
       const min = Number(row["Min Points"] || 0);
@@ -98,7 +99,7 @@ export async function POST(req) {
     const requestID = crypto.randomUUID().replace(/-/g, "").substring(0, 8);
     const now = new Date();
     const requestDate = now.toISOString(); // Request Date هو timestamp with time zone
-    const createdDate = now.toLocaleDateString("en-GB"); // Cerated Date هو text
+    const createdDate = now.toISOString().split('T')[0]; // Cerated Date هو text
 
     // تحديد المنطقة والعنوان واللوكيشن
     let finalAreaID = String(areaID || "").trim();
