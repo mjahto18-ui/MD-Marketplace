@@ -17,22 +17,50 @@ export async function POST(req) {
 
     if (!draft_id) return Response.json({ error: 'draft_id required' }, { status: 400 });
 
-    // جيب الدرافت قبل ما تحدث
     const { data: draft, error: draftErr } = await supabase.from('taxi_orders').select('*').eq('id', draft_id).single();
     if (draftErr) throw draftErr;
     if (!draft) return Response.json({ error: 'draft not found' }, { status: 404 });
 
-    // خلق سكرت كود مع الطلب - مش لما يوافق السايق
     const secret_code = draft.secret_code || Math.floor(1000 + Math.random() * 9000).toString();
 
-    // حول draft -> pending + سكرت كود
+    // هل هو حجز مسبق بالمستقبل؟
+    const isScheduledFuture = draft.requested_start_at && new Date(draft.requested_start_at) > new Date();
+
+    if (isScheduledFuture) {
+      // مسبق: بيضل draft وما مندور على سواقين هلأ
+      const { data: order, error: orderErr } = await supabase
+        .from('taxi_orders')
+        .update({ 
+          secret_code: secret_code,
+          is_code_verified: false,
+          origin_lat: draft.origin_lat || origin_lat,
+          origin_lng: draft.origin_lng || origin_lng,
+          taxi_vehicle_type: draft.taxi_vehicle_type || vehicle_type || 'car',
+          status: 'draft', // بيضل draft لحد ما يجي وقت التنفيذ
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', draft_id)
+        .select()
+        .single();
+      if (orderErr) throw orderErr;
+
+      return Response.json({ 
+        success: true, 
+        order: { ...order, secret_code },
+        isScheduled: true,
+        nearby_count: 0, 
+        radius_used_km: 0,
+        message: 'تم حجز الطلب المسبق - سيتم البحث عن سائق قبل الموعد بساعة'
+      });
+    }
+
+    // فوري: حول لـ pending + دور على سواقين
     const { data: order, error: orderErr } = await supabase
       .from('taxi_orders')
       .update({ 
         status: 'pending',
         secret_code: secret_code,
         is_code_verified: false,
-        // تأكد الاحداثيات موجودة
         origin_lat: draft.origin_lat || origin_lat,
         origin_lng: draft.origin_lng || origin_lng,
         taxi_vehicle_type: draft.taxi_vehicle_type || vehicle_type || 'car',
@@ -44,7 +72,6 @@ export async function POST(req) {
     
     if (orderErr) throw orderErr;
 
-    // فلتر 5 كيلو + محفظة + اونلاين مثل الدلفري
     let nearby = await getNearbyDrivers(supabase, { 
       origin_lat: order.origin_lat, 
       origin_lng: order.origin_lng, 
@@ -52,7 +79,6 @@ export async function POST(req) {
       radiusKm: 5 
     });
     
-    // اذا ما لقينا ب 5 كم منوسع ل 10
     let radius = 5;
     if (nearby.length === 0) {
       nearby = await getNearbyDrivers(supabase, { 
@@ -64,7 +90,6 @@ export async function POST(req) {
       radius = 10;
     }
 
-    // ابعت Push للسواقين
     if (nearby.length > 0) {
       const pushRows = nearby.map(d => ({
         Title: 'طلب تاكسي جديد قريب منك',
@@ -74,14 +99,13 @@ export async function POST(req) {
         'Order ID': order.id,
         'Customer ID': d.Taxi_ID
       }));
-      
-      // حاول push_queue - اذا فشل ما منوقف الطلب
       await supabase.from('push_queue').insert(pushRows).then(()=>{},(e)=>{ console.log('push_queue error', e.message) });
     }
 
     return Response.json({ 
       success: true, 
-      order: { ...order, secret_code }, // رجع الكود للزبون دغري
+      order: { ...order, secret_code },
+      isScheduled: false,
       nearby_count: nearby.length, 
       radius_used_km: radius, 
       drivers: nearby.map(d => ({ id: d.Taxi_ID, name: d.full_name, distance_km: d.distance_km.toFixed(2) })) 
