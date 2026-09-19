@@ -27,7 +27,7 @@ export default function Page() {
   const [vehicleType, setVehicleType] = useState('car');
   const [tripType, setTripType] = useState('now');
   const [scheduledAt, setScheduledAt] = useState('');
-  const [orders, setOrders] = useState([]); // كل الطلبات النشطة
+  const [orders, setOrders] = useState([]);
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [meLoading, setMeLoading] = useState(true);
@@ -36,6 +36,11 @@ export default function Page() {
   const activeOrder = orders.find(o => o.id === activeOrderId) || orders[0] || null;
 
   useEffect(() => {
+    // تنظيف localStorage القديم نهائيا
+    localStorage.removeItem('taxi_pending_order');
+    localStorage.removeItem('taxi_pending_orders');
+    localStorage.removeItem('taxi_pending');
+
     fetch('/api/me').then(r=>{ if(!r.ok) throw new Error(); return r.json(); }).then(d=>{
       if(d.user) {
         setCustomer(d.user);
@@ -48,12 +53,12 @@ export default function Page() {
     const id = cid || customer?.customerId || customer?.id;
     if(!id) return;
     const res = await fetch(`/api/taxi/my-orders?customer_id=${id}`).then(r=>r.json()).catch(()=>({orders:[]}));
-    if(res.orders?.length){
-      setOrders(res.orders);
-      if(res.orders.length > 0 && step === 'form') {
-        // اذا في طلبات نشطة خليك تشوفها
-      }
-      // ابدأ polling لكل الطلبات
+    // FIX: حتى لو فاضي لازم نحدثه
+    setOrders(res.orders || []);
+    if((res.orders || []).length === 0){
+      setStep('form');
+      if(intervalRef.current) clearInterval(intervalRef.current);
+    } else {
       startPolling(id);
     }
   };
@@ -64,12 +69,16 @@ export default function Page() {
   const startPolling = (cid) => {
     if(intervalRef.current) clearInterval(intervalRef.current);
     const customerId = cid || customer?.customerId || customer?.id;
+    if(!customerId) return;
     intervalRef.current = setInterval(async () => {
-      if(!customerId) return;
       const res = await fetch(`/api/taxi/my-orders?customer_id=${customerId}`).then(r=>r.json()).catch(()=>null);
-      if(res?.orders){
-        setOrders(res.orders);
-        // اذا طلب انقبل روح ل accepted
+      if(res){
+        setOrders(res.orders || []);
+        if((res.orders || []).length === 0){
+          setStep('form');
+          clearInterval(intervalRef.current);
+          return;
+        }
         const accepted = res.orders.find(o => ['accepted','on_the_way','arrived'].includes(o.status));
         if(accepted){ setActiveOrderId(accepted.id); setStep('accepted'); }
       }
@@ -116,11 +125,7 @@ export default function Page() {
       if (confirmRes.success) {
         await fetchMyOrders();
         setActiveOrderId(confirmRes.order.id);
-        if (confirmRes.isScheduled) {
-          setStep('scheduled');
-        } else {
-          setStep('searching');
-        }
+        setStep(confirmRes.isScheduled? 'scheduled' : 'searching');
         startPolling();
       }
     } catch(e){ console.error(e); alert(e.message); }
@@ -132,7 +137,7 @@ export default function Page() {
     if(!id ||!confirm('متأكد بدك تلغي الرحلة؟')) return;
     await fetch('/api/taxi/cancel', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({order_id: id}) });
     setOrders(prev => prev.filter(o => o.id!== id));
-    if(activeOrderId === id){ setActiveOrderId(null); setStep('form'); }
+    if(activeOrderId === id || orders.length <= 1){ setActiveOrderId(null); setStep('form'); }
     await fetchMyOrders();
   };
 
@@ -145,7 +150,7 @@ export default function Page() {
   const draftOrders = orders.filter(o => o.status === 'draft' && o.requested_start_at);
   const acceptedOrders = orders.filter(o => ['accepted','on_the_way','arrived'].includes(o.status));
 
-  const pendingBanner = (pendingOrders.length > 0 || acceptedOrders.length > 0) && step === 'form'? (
+  const pendingBanner = (pendingOrders.length > 0 || acceptedOrders.length > 0 || draftOrders.length > 0) && step === 'form'? (
     <div style={{background:'#FFC107', padding:'8px 12px', display:'flex', flexDirection:'column', gap:6}}>
       {[...acceptedOrders,...pendingOrders,...draftOrders].map(o=>(
         <div key={o.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12, fontWeight:900, background:'rgba(0,0,0,0.08)', padding:'6px 8px', borderRadius:8}}>
@@ -167,7 +172,7 @@ export default function Page() {
         <span>{o.status === 'draft'? 'حجز مسبق' : 'السعر التقريبي'}</span><span>{o.total_amount?.toLocaleString()} ل.ل - {o.distance_traveled} كم</span>
       </div>
       {o.status === 'draft' && <div style={{fontSize:11, marginTop:4}}>🕒 الموعد: {new Date(o.requested_start_at).toLocaleString('ar-LB')}</div>}
-      <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠️ احتمال السعر يتغير عند الموافقة حسب المسار الفعلي والانتظار والمنطقة</div>
+      <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠ احتمال السعر يتغير عند الموافقة حسب المسار الفعلي والانتظار والمنطقة</div>
       <div style={{marginTop:10, background:'#0a1930', color:'white', borderRadius:10, padding:10, textAlign:'center'}}>
         <div style={{fontSize:9, opacity:0.7}}>🔒 كود الرحلة - لا تشارك الرمز مع أحد إلا السائق عندما يصل</div>
         <div style={{fontSize:28, fontWeight:900, letterSpacing:6, marginTop:4}}>{o.secret_code}</div>
@@ -190,16 +195,14 @@ export default function Page() {
                 </div>
               </div>
             ))}
-            {pendingOrders.length===0 && <div style={{textAlign:'center', opacity:0.5, fontSize:12}}>ما في طلبات pending</div>}
+            {pendingOrders.length===0 && <div style={{textAlign:'center', opacity:0.5, fontSize:12}}>ما في طلبات pending - رجاع للخريطة</div>}
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
-              <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900, fontSize:13}}>⬅️ الرجوع للخريطة</button>
+              <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900, fontSize:13}}>⬅ الرجوع للخريطة</button>
               <button onClick={()=>window.location.href='/shop'} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900, fontSize:13}}>🛒 المتجر</button>
             </div>
-            {draftOrders.length>0 && <button onClick={()=>setStep('scheduled')} style={{width:'100%', marginTop:8, padding:10, borderRadius:10, background:'#e0f2fe', fontWeight:900, fontSize:12}}>🕒 عندك {draftOrders.length} حجز مسبق - عرض</button>}
           </div>
         )}
-
         {step === 'scheduled' && (
           <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, margin:'12px auto'}}>
             <div style={{textAlign:'center'}}><div style={{fontSize:32}}>🕒</div><h3 style={{fontWeight:900}}>حجوزاتك المسبقة ({draftOrders.length})</h3></div>
@@ -209,20 +212,20 @@ export default function Page() {
                 <button onClick={()=>handleCancel(o.id)} style={{width:'100%', marginTop:8, padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11}}>❌ إلغاء هيدا الحجز</button>
               </div>
             ))}</div>
+            {draftOrders.length===0 && <div style={{textAlign:'center', opacity:0.5, fontSize:12}}>ما في حجوزات مسبقة</div>}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
-              <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900}}>⬅️ الخريطة</button>
+              <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900}}>⬅ الخريطة</button>
               <button onClick={()=>setStep('searching')} style={{padding:12, borderRadius:12, background:'#FFC107', fontWeight:900}}>🔍 طلبات فورية</button>
             </div>
           </div>
         )}
-
         {step === 'accepted' && (
           <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, margin:'12px auto'}}>
             <div style={{background:'#dcfce7', padding:12, borderRadius:12, textAlign:'center', fontWeight:900, color:'#16a34a'}}>✅ تم قبول طلبك - {activeOrder?.taxi_name || acceptedOrders[0]?.taxi_name || 'السائق في الطريق'}</div>
             {acceptedOrders.map(o=> renderOrderCard(o))}
             {pendingOrders.length>0 && <div style={{fontSize:11, opacity:0.6, marginTop:8}}>عندك كمان {pendingOrders.length} طلب قيد البحث</div>}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
-              <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900}}>⬅️ الخريطة</button>
+              <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900}}>⬅ الخريطة</button>
               <button onClick={()=>handleCancel(activeOrder?.id || acceptedOrders[0]?.id)} style={{padding:12, borderRadius:12, background:'#fee2e2', color:'#dc2626', fontWeight:900, border:'1px solid #fecaca'}}>❌ إلغاء</button>
             </div>
           </div>
