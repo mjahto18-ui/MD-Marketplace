@@ -1,4 +1,4 @@
-// components/taxi/TaxiMap.jsx - نهائي مع pickup للمناطق - مزبوط
+// components/taxi/TaxiMap.jsx - نهائي مع اسم تقريبي + احداثيات
 'use client';
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
@@ -31,10 +31,23 @@ function ClickHandler({ onPick, selecting }) {
 async function searchNominatim(q) {
   if (!q || q.length < 3) return [];
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=lb&limit=5&addressdetails=1`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=lb&limit=5&addressdetails=1&accept-language=ar`;
     const res = await fetch(url);
     return await res.json();
   } catch { return []; }
+}
+
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=ar`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data ||!data.address) return null;
+    const a = data.address;
+    // اسم تقريبي - اذا ما لقى شارع بيحط منطقة
+    const name = data.display_name || `${a.village || a.town || a.city || a.county || 'منطقة'} - ${a.state || a.city || 'لبنان'}`;
+    return { full: data.display_name, short: name, area: a.city || a.town || a.village || a.state || 'default' };
+  } catch { return null; }
 }
 
 export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
@@ -65,9 +78,19 @@ export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
         setPermission('granted');
         setGpsTried(true);
         if (withMarker) {
-          setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          const o = { lat: pos.coords.latitude, lng: pos.coords.longitude, name: 'موقعي الحالي', display_name: 'موقعي الحالي' };
+          setOrigin(o);
+          setFromQuery('موقعي الحالي');
           setSelecting('dest');
           setShowFromList(false);
+          // جيب اسم تقريبي بالخلفية
+          reverseGeocode(pos.coords.latitude, pos.coords.longitude).then(r => {
+            if (r) {
+              const updated = {...o, name: r.short, display_name: r.full };
+              setOrigin(updated);
+              setFromQuery(r.short);
+            }
+          });
         }
       },
       (err) => {
@@ -100,27 +123,48 @@ export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
     }
   }, []);
 
-  const handlePick = (latlng, mode) => {
-    if (mode === 'origin') { setOrigin(latlng); setSelecting('dest'); }
-    else { setDest(latlng); }
+  const handlePick = async (latlng, mode) => {
+    let name = 'نقطة على الخريطة';
+    let full = `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+    const rev = await reverseGeocode(latlng.lat, latlng.lng);
+    if (rev) {
+      name = rev.short;
+      full = rev.full;
+    }
+
+    if (mode === 'origin') {
+      const o = { lat: latlng.lat, lng: latlng.lng, name, display_name: full };
+      setOrigin(o);
+      setFromQuery(name);
+      setSelecting('dest');
+    } else {
+      const d = { lat: latlng.lat, lng: latlng.lng, name, display_name: full };
+      setDest(d);
+      setToQuery(name);
+    }
   };
 
   const handleCurrentLocation = () => { requestLocation(true); };
 
   const handleSearchSelect = (item, type) => {
-    const pos = [parseFloat(item.lat), parseFloat(item.lon)];
+    const lat = parseFloat(item.lat);
+    const lon = parseFloat(item.lon);
+    const pos = [lat, lon];
     setFlyTo(pos);
     setMapCenter(pos);
     if (type === 'from') {
+      const o = { lat, lng: lon, name: item.display_name, display_name: item.display_name };
+      setOrigin(o);
       setFromQuery(item.display_name);
       setFromResults([]);
       setShowFromList(false);
-      setSelecting('origin');
+      setSelecting('dest');
     } else {
+      const d = { lat, lng: lon, name: item.display_name, display_name: item.display_name };
+      setDest(d);
       setToQuery(item.display_name);
       setToResults([]);
       setShowToList(false);
-      setSelecting('dest');
     }
   };
 
@@ -258,6 +302,8 @@ export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
             <div className="space-y-1">
               <div className="flex justify-between text-sm font-medium"><span>📏 الكلية</span><b>{info.totalKm} كم</b></div>
               <div className="flex justify-between text-xs text-gray-500"><span>🏘 {info.cityKm} بلد + 🛣 {info.highwayKm} أوتوستراد</span><span>⏱ {info.durationMin} د</span></div>
+              {origin?.name && <div className="text- text-gray-400 truncate">من: {origin.name}</div>}
+              {dest?.name && <div className="text- text-gray-400 truncate">إلى: {dest.name}</div>}
             </div>
           )}
         </div>
