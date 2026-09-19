@@ -39,7 +39,8 @@ export default function Page() {
     localStorage.removeItem('taxi_pending_order');
     localStorage.removeItem('taxi_pending_orders');
     localStorage.removeItem('taxi_pending');
-    fetch('/api/me').then(r=>{ if(!r.ok) throw new Error(); return r.json(); }).then(d=>{
+    localStorage.removeItem('taxi_orders');
+    fetch('/api/me', { cache: 'no-store' }).then(r=>{ if(!r.ok) throw new Error(); return r.json(); }).then(d=>{
       if(d.user) {
         setCustomer(d.user);
         fetchMyOrders(d.user.customerId || d.user.id);
@@ -50,8 +51,7 @@ export default function Page() {
   const fetchMyOrders = async (cid) => {
     const id = cid || customer?.customerId || customer?.id;
     if(!id) return;
-    const res = await fetch(`/api/taxi/my-orders?customer_id=${id}`).then(r=>r.json()).catch(()=>({orders:[]}));
-    // فلتر نهائي - لو cancelled رجع بالغلط ما بينعرض
+    const res = await fetch(`/api/taxi/my-orders?customer_id=${id}&t=${Date.now()}`, { cache: 'no-store' }).then(r=>r.json()).catch(()=>({orders:[]}));
     const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','code_verified','expired'].includes(o.status));
     setOrders(activeOnly);
     if(activeOnly.length === 0){
@@ -70,7 +70,7 @@ export default function Page() {
     const customerId = cid || customer?.customerId || customer?.id;
     if(!customerId) return;
     intervalRef.current = setInterval(async () => {
-      const res = await fetch(`/api/taxi/my-orders?customer_id=${customerId}`).then(r=>r.json()).catch(()=>null);
+      const res = await fetch(`/api/taxi/my-orders?customer_id=${customerId}&t=${Date.now()}`, { cache: 'no-store' }).then(r=>r.json()).catch(()=>null);
       if(res){
         const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','code_verified','expired'].includes(o.status));
         setOrders(activeOnly);
@@ -225,7 +225,6 @@ export default function Page() {
       <div style={{background:'#0a1930', color:'white', padding:'10px 16px', display:'flex', justifyContent:'space-between', position:'sticky', top:0, zIndex:20}}>
         <b>🚕 طلب تاكسي</b><span style={{fontSize:11, opacity:0.8}}>{customer.name} {orders.length>0?`(${orders.length} نشط)`:''}</span>
       </div>
-      {/* البانر انلغى نهائي - ما بقى يطلع فوق */}
       <div style={{maxWidth:480, margin:'0 auto', padding:12}}>
         <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb'}}>📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/><span style={{fontSize:10, opacity:0.5}}>ثابت من customers</span></div>
         <div style={{background:'white', borderRadius:16, padding:12, marginBottom:12}}>
