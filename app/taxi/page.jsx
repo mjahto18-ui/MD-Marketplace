@@ -1,6 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { getPricingConfig, calculateFare } from '@/lib/taxi/pricingEngine';
 
 const TaxiMap = dynamic(() => import('@/components/taxi/TaxiMap'), { ssr: false });
@@ -27,21 +27,17 @@ export default function Page() {
   const [vehicleType, setVehicleType] = useState('car');
   const [tripType, setTripType] = useState('now');
   const [scheduledAt, setScheduledAt] = useState('');
-  const [draftId, setDraftId] = useState(null);
   const [order, setOrder] = useState(null);
   const [secretCode, setSecretCode] = useState(null);
   const [loading, setLoading] = useState(false);
   const [meLoading, setMeLoading] = useState(true);
 
-  // سيزن من /api/me
   useEffect(() => {
     fetch('/api/me').then(r=>{
       if(!r.ok) throw new Error('not logged');
       return r.json();
     }).then(data=>{
-      if(data.user){
-        setCustomer(data.user);
-      }
+      if(data.user) setCustomer(data.user);
     }).catch(()=>{ window.location.href='/login'; })
     .finally(()=>setMeLoading(false));
   }, []);
@@ -71,23 +67,23 @@ export default function Page() {
   };
 
   const handleConfirmMap = async (mapData) => {
-    // mapData = { origin, dest, pickup, drop, totalKm, cityKm, highwayKm }
     if (!customer || !mapData.origin || !mapData.dest) return;
     setLoading(true);
     try {
+      // 1. create-draft - هون بيننسخ الاسم التقريبي
       const draftRes = await fetch('/api/taxi/create-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customer_id: customer.customerId || customer.phone,
+          customer_id: (customer.customerId || customer.id)?.toString(), // text "5555"
           customer_name: customer.name,
           customer_phone: customer.phone,
-          // هون بينحفظ بس بـ taxi_orders مش بـ customers
-          origin_name: mapData.origin?.display_name || `${mapData.origin.lat},${mapData.origin.lng}`,
+          origin_name: mapData.origin?.name || mapData.origin?.display_name, // الاسم القصير من الخريطة
+          origin_display_name: mapData.origin?.display_name,
           origin_lat: mapData.origin.lat,
           origin_lng: mapData.origin.lng,
-          origin_is_current: true,
-          dest_name: mapData.dest?.display_name || `${mapData.dest.lat},${mapData.dest.lng}`,
+          dest_name: mapData.dest?.name || mapData.dest?.display_name,
+          dest_display_name: mapData.dest?.display_name,
           dest_lat: mapData.dest.lat,
           dest_lng: mapData.dest.lng,
           vehicle_type: vehicleType,
@@ -96,13 +92,12 @@ export default function Page() {
           totalKm: mapData.totalKm,
           area: area,
           scheduled_at: tripType === 'scheduled' ? scheduledAt : null,
-          pricing: pricing
         })
       }).then(r=>r.json());
 
       if (!draftRes.success) { alert(draftRes.error); setLoading(false); return; }
-      setDraftId(draftRes.draft.id);
 
+      // 2. confirm - هون بينخلق السكرت كود مع الطلب
       const confirmRes = await fetch('/api/taxi/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,19 +111,25 @@ export default function Page() {
 
       if (confirmRes.success) {
         setOrder(confirmRes.order);
+        setSecretCode(confirmRes.order.secret_code); // الكود الحقيقي من السيرفر
         setStep('searching');
+        
+        // polling حقيقي - ما منعمل fake accepted
         const interval = setInterval(async () => {
           const check = await fetch(`/api/taxi/order?id=${confirmRes.order.id}`).then(r=>r.json()).catch(()=>null);
-          if (check?.order?.status === 'accepted' && check?.order?.secret_code) {
+          if (!check?.order) return;
+          setOrder(check.order);
+          if (check.order.secret_code) setSecretCode(check.order.secret_code);
+          if (check.order.status === 'accepted') {
             clearInterval(interval);
-            setSecretCode(check.order.secret_code);
-            setOrder(check.order);
             setStep('accepted');
           }
+          if (check.order.status === 'completed' || check.order.status === 'cancelled') {
+            clearInterval(interval);
+          }
         }, 3000);
-        setTimeout(()=>{ setStep('accepted'); setSecretCode(confirmRes.order.secret_code || '4829'); }, 8000);
       }
-    } catch(e){ console.error(e); }
+    } catch(e){ console.error(e); alert(e.message); }
     setLoading(false);
   };
 
@@ -138,11 +139,31 @@ export default function Page() {
   if (step !== 'form') {
     return (
       <div dir="rtl" style={{minHeight:'100vh', background:'#f8fafc', fontFamily:'Cairo'}}>
-        {step === 'searching' && <div style={{background:'white', borderRadius:16, padding:24, textAlign:'center', maxWidth:480, margin:'20px auto'}}><div style={{fontSize:40}}>🔍</div><h3 style={{fontWeight:900}}>عم ندور على سايق ضمن 5 كم...</h3><p style={{fontSize:12, opacity:0.6}}>{area} - {vehicleType}</p></div>}
+        {step === 'searching' && (
+          <div style={{background:'white', borderRadius:16, padding:24, textAlign:'center', maxWidth:480, margin:'20px auto'}}>
+            <div style={{fontSize:40}}>🔍</div>
+            <h3 style={{fontWeight:900}}>عم ندور على سايق ضمن 5 كم...</h3>
+            <p style={{fontSize:12, opacity:0.6, marginTop:8}}>{area} - {vehicleType} - {distanceData?.totalKm} كم</p>
+            <div style={{marginTop:16, background:'#0a1930', color:'white', borderRadius:12, padding:16, textAlign:'center'}}>
+              <div style={{fontSize:11, opacity:0.7}}>كود الرحلة (اعطيه للسايق لما يوصل)</div>
+              <div style={{fontSize:36, fontWeight:900, letterSpacing:8}}>{secretCode}</div>
+            </div>
+            <p style={{fontSize:11, marginTop:12, opacity:0.5}}>من: {order?.origin_name}</p>
+          </div>
+        )}
         {step === 'accepted' && (
           <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, margin:'20px auto'}}>
-            <div style={{background:'#dcfce7', padding:12, borderRadius:12, textAlign:'center', fontWeight:900, color:'#16a34a'}}>✅ تم قبول طلبك - {order?.taxi_name || 'السائق'}</div>
-            <div style={{marginTop:16, background:'#0a1930', color:'white', borderRadius:12, padding:16, textAlign:'center'}}><div style={{fontSize:11, opacity:0.7}}>كود الرحلة</div><div style={{fontSize:36, fontWeight:900, letterSpacing:8}}>{secretCode}</div></div>
+            <div style={{background:'#dcfce7', padding:12, borderRadius:12, textAlign:'center', fontWeight:900, color:'#16a34a'}}>✅ تم قبول طلبك - {order?.taxi_name || 'السائق في الطريق'}</div>
+            <div style={{marginTop:16, background:'#0a1930', color:'white', borderRadius:12, padding:16, textAlign:'center'}}>
+              <div style={{fontSize:11, opacity:0.7}}>كود الرحلة</div>
+              <div style={{fontSize:36, fontWeight:900, letterSpacing:8}}>{secretCode}</div>
+              <div style={{fontSize:11, opacity:0.7, marginTop:8}}>لا تعطي الكود الا للسايق لما يوصل</div>
+            </div>
+            <div style={{marginTop:12, fontSize:12}}>
+              <div>من: {order?.origin_name}</div>
+              <div>إلى: {order?.dest_name}</div>
+              <div style={{fontWeight:900, marginTop:8}}>{order?.total_amount?.toLocaleString()} ل.ل - {order?.distance_traveled} كم</div>
+            </div>
           </div>
         )}
       </div>
@@ -157,7 +178,6 @@ export default function Page() {
       </div>
 
       <div style={{maxWidth:480, margin:'0 auto', padding:12}}>
-        {/* عرض العنوان الثابت فقط - ما بيتغير */}
         <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb'}}>
           📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/>
           <span style={{fontSize:10, opacity:0.5}}>ثابت من customers - ما بيتغير بطلب التاكسي</span>
@@ -183,7 +203,7 @@ export default function Page() {
 
         {pricing && distanceData && (
           <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12, maxWidth:480}}>
-            <div style={{fontSize:11, opacity:0.7}}>منطقة {area} - {distanceData.totalKm} كم</div>
+            <div style={{fontSize:11, opacity:0.7}}>منطقة {area} - {distanceData.totalKm} كم - من {distanceData.origin?.name}</div>
             <div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div>
             <div style={{fontSize:11}}>قاعدة {pricing.breakdown.base.toLocaleString()} + وقود - {pricing.isNight?'🌙 ليل':'☀ نهار'}</div>
           </div>
