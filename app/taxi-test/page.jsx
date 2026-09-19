@@ -19,7 +19,7 @@ export default function TaxiTest() {
     setDistance(data);
     if (!cfg) return;
 
-    // 2. هلأ احسب لبناني من الجدول
+    // 2. هلأ احسب لبناني  من الجدول
     const result = calculateFare({
      ...data,
       pricingConfig: cfg,
