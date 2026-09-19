@@ -20,11 +20,10 @@ export async function POST(req) {
       return Response.json({ error: 'رصيد المحفظة غير كافي - اشحن قبل قبول الطلب' }, { status: 402 });
     }
 
-    // شيك اذا الطلب لسا pending
-    const { data: order } = await supabase.from('taxi_orders').select('status').eq('id', order_id).single();
+    // شيك اذا الطلب لسا pending و جيب الكود القديم
+    const { data: order } = await supabase.from('taxi_orders').select('status, secret_code, customer_id').eq('id', order_id).single();
     if (!order || order.status !== 'pending') return Response.json({ error: 'الطلب لم يعد متاح' }, { status: 409 });
-
-    const secret_code = Math.floor(1000 + Math.random() * 9000).toString(); // 4 ارقام
+    if (!order.secret_code) return Response.json({ error: 'الطلب بدون كود - خلل' }, { status: 500 });
 
     const { data: driver } = await supabase.from('taxi_drivers').select('full_name, phone, plate_number, car_type, vehicle_type').eq('Taxi_ID', taxi_id).single();
 
@@ -35,7 +34,7 @@ export async function POST(req) {
       taxi_plate_number: driver?.plate_number,
       taxi_car_type: driver?.car_type,
       taxi_vehicle_type: driver?.vehicle_type,
-      secret_code,
+      // ما منغير secret_code - منترك الكود يلي انخلق مع الطلب
       status: 'accepted',
       taxi_status: 'on_the_way',
       updated_at: new Date().toISOString()
@@ -43,16 +42,16 @@ export async function POST(req) {
 
     if (error) throw error;
 
-    // ابعت للزبونة انو السايق قبل
+    // ابعت للزبونة انو السايق قبل - بنبعت الكود القديم نفسو
     await supabase.from('push_queue').insert({
       'Customer ID': updated.customer_id,
       Title: 'تم قبول طلبك',
-      Message: `السائق ${driver?.full_name} في الطريق اليك - كود الرحلة ${secret_code}`,
+      Message: `السائق ${driver?.full_name} في الطريق اليك - كود الرحلة ${order.secret_code}`,
       Status: 'Pending',
       Code: 'TAXI_ACCEPTED'
     }).then(()=>{},()=>{});
 
-    return Response.json({ success: true, order: updated, secret_code }); // secret_code نرجعو بس للتست - بالانتاج ما منرجعو للسايق الا بعد الوصول
+    return Response.json({ success: true, order: updated, secret_code: order.secret_code });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
