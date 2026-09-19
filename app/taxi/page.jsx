@@ -36,11 +36,9 @@ export default function Page() {
   const activeOrder = orders.find(o => o.id === activeOrderId) || orders[0] || null;
 
   useEffect(() => {
-    // تنظيف localStorage القديم نهائيا
     localStorage.removeItem('taxi_pending_order');
     localStorage.removeItem('taxi_pending_orders');
     localStorage.removeItem('taxi_pending');
-
     fetch('/api/me').then(r=>{ if(!r.ok) throw new Error(); return r.json(); }).then(d=>{
       if(d.user) {
         setCustomer(d.user);
@@ -53,9 +51,10 @@ export default function Page() {
     const id = cid || customer?.customerId || customer?.id;
     if(!id) return;
     const res = await fetch(`/api/taxi/my-orders?customer_id=${id}`).then(r=>r.json()).catch(()=>({orders:[]}));
-    // FIX: حتى لو فاضي لازم نحدثه
-    setOrders(res.orders || []);
-    if((res.orders || []).length === 0){
+    // فلتر نهائي - لو cancelled رجع بالغلط ما بينعرض
+    const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','code_verified','expired'].includes(o.status));
+    setOrders(activeOnly);
+    if(activeOnly.length === 0){
       setStep('form');
       if(intervalRef.current) clearInterval(intervalRef.current);
     } else {
@@ -73,13 +72,14 @@ export default function Page() {
     intervalRef.current = setInterval(async () => {
       const res = await fetch(`/api/taxi/my-orders?customer_id=${customerId}`).then(r=>r.json()).catch(()=>null);
       if(res){
-        setOrders(res.orders || []);
-        if((res.orders || []).length === 0){
+        const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','code_verified','expired'].includes(o.status));
+        setOrders(activeOnly);
+        if(activeOnly.length === 0){
           setStep('form');
           clearInterval(intervalRef.current);
           return;
         }
-        const accepted = res.orders.find(o => ['accepted','on_the_way','arrived'].includes(o.status));
+        const accepted = activeOnly.find(o => ['accepted','on_the_way','arrived'].includes(o.status));
         if(accepted){ setActiveOrderId(accepted.id); setStep('accepted'); }
       }
     }, 3000);
@@ -149,20 +149,6 @@ export default function Page() {
   const pendingOrders = orders.filter(o => o.status === 'pending');
   const draftOrders = orders.filter(o => o.status === 'draft' && o.requested_start_at);
   const acceptedOrders = orders.filter(o => ['accepted','on_the_way','arrived'].includes(o.status));
-
-  const pendingBanner = (pendingOrders.length > 0 || acceptedOrders.length > 0 || draftOrders.length > 0) && step === 'form'? (
-    <div style={{background:'#FFC107', padding:'8px 12px', display:'flex', flexDirection:'column', gap:6}}>
-      {[...acceptedOrders,...pendingOrders,...draftOrders].map(o=>(
-        <div key={o.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12, fontWeight:900, background:'rgba(0,0,0,0.08)', padding:'6px 8px', borderRadius:8}}>
-          <span>{o.status === 'draft'? `🕒 مسبق ${new Date(o.requested_start_at).toLocaleString('ar-LB')} - كود ${o.secret_code}` : `🔍 ${o.status === 'accepted'? 'انقبل' : 'قيد البحث'} - ${o.origin_name?.slice(0,25)} - كود ${o.secret_code}`}</span>
-          <div style={{display:'flex', gap:6}}>
-            <button onClick={()=>{ setActiveOrderId(o.id); setStep(o.status==='draft'?'scheduled': o.status==='pending'?'searching':'accepted'); }} style={{background:'black', color:'white', padding:'4px 8px', borderRadius:6}}>عرض</button>
-            <button onClick={()=>handleCancel(o.id)} style={{background:'#fee2e2', color:'#dc2626', padding:'4px 8px', borderRadius:6}}>الغاء</button>
-          </div>
-        </div>
-      ))}
-    </div>
-  ) : null;
 
   const renderOrderCard = (o) => (
     <div key={o.id} style={{background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:12, padding:10, fontSize:12, marginBottom:10}}>
@@ -239,7 +225,7 @@ export default function Page() {
       <div style={{background:'#0a1930', color:'white', padding:'10px 16px', display:'flex', justifyContent:'space-between', position:'sticky', top:0, zIndex:20}}>
         <b>🚕 طلب تاكسي</b><span style={{fontSize:11, opacity:0.8}}>{customer.name} {orders.length>0?`(${orders.length} نشط)`:''}</span>
       </div>
-      {pendingBanner}
+      {/* البانر انلغى نهائي - ما بقى يطلع فوق */}
       <div style={{maxWidth:480, margin:'0 auto', padding:12}}>
         <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb'}}>📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/><span style={{fontSize:10, opacity:0.5}}>ثابت من customers</span></div>
         <div style={{background:'white', borderRadius:16, padding:12, marginBottom:12}}>
