@@ -28,29 +28,34 @@ export async function POST(req) {
 
     if (!order_id ||!taxi_id) return Response.json({ error: 'order_id & taxi_id required' }, { status: 400 });
 
-    // ✅ التعديل هون - مناخد taxi_id منجيب يوزر ايدي من جدول users
-    let realUserId = userId || null;
+    // ✅ 1- taxi_id جاي uuid من taxi_drivers
+    // منجيب اليوزر الي مربوط فيه من جدول users."Taxi_ID"
+    let ownerUserId = userId || null;
 
-    if (!realUserId) {
-      const { data: userRow } = await supabase
-       .from('users')
-       .select('id, Taxi_ID, taxi_id')
-       .or(`Taxi_ID.eq.${taxi_id},taxi_id.eq.${taxi_id}`)
-       .maybeSingle();
+    if (!ownerUserId) {
+      const { data: userRow, error: userErr } = await supabase
+      .from('users')
+      .select('"User ID", "Taxi_ID"')
+      .eq('"Taxi_ID"', taxi_id)
+      .maybeSingle();
+
+      if (userErr) throw userErr;
 
       if (userRow) {
-        realUserId = userRow.id;
-      } else {
-        realUserId = taxi_id;
+        ownerUserId = userRow["User ID"];
       }
     }
 
-    // ✅ منحسب المحفظة دغري من wallet_transactions بدون fetch
+    if (!ownerUserId) {
+      return Response.json({ error: `ما لقيت يوزر مربوط بهالتاكسي ${taxi_id} بجدول users` }, { status: 404 });
+    }
+
+    // ✅ 2- منحسب المحفظة من wallet_transactions."Owner User ID" = users."User ID"
     const { data: transData, error: transError } = await supabase
-     .from('wallet_transactions')
-     .select('*')
-     .eq('"Owner User ID"', realUserId)
-     .order('"Created At"', { ascending: false });
+    .from('wallet_transactions')
+    .select('"Amount", "Type"')
+    .eq('"Owner User ID"', ownerUserId)
+    .order('"Created At"', { ascending: false });
 
     if (transError) throw transError;
 
@@ -74,10 +79,10 @@ export async function POST(req) {
     if (!order.secret_code) return Response.json({ error: 'الطلب بدون كود - خلل' }, { status: 500 });
 
     const { data: driver } = await supabase
-   .from('taxi_drivers')
-   .select('Taxi_ID, full_name, phone, plate_number, car_type, vehicle_type, Taxi_Engine, engine_cc')
-   .eq('Taxi_ID', taxi_id)
-   .single();
+  .from('taxi_drivers')
+  .select('Taxi_ID, full_name, phone, plate_number, car_type, vehicle_type, Taxi_Engine, engine_cc')
+  .eq('Taxi_ID', taxi_id)
+  .single();
 
     if (!driver) return Response.json({ error: 'السائق غير موجود' }, { status: 404 });
 
@@ -170,7 +175,8 @@ export async function POST(req) {
       old_total: order.total_amount,
       new_total: finalTotal,
       price_dropped: finalTotal < order.total_amount,
-      driver_engine: realEngine
+      driver_engine: realEngine,
+      wallet: walletBalance
     });
   } catch (e) {
     console.error('accept error', e);
