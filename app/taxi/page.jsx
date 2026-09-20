@@ -1,6 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { getPricingConfig, calculateFare } from '@/lib/taxi/pricingEngine';
 
 const TaxiMap = dynamic(() => import('@/components/taxi/TaxiMap'), { ssr: false });
@@ -8,8 +9,8 @@ const TaxiMap = dynamic(() => import('@/components/taxi/TaxiMap'), { ssr: false 
 const ENGINE_MAP = {
   car: '1500',
   van: '2500',
-  moto: '150', // عندك بالجدول الكود 150 للموتو
-  toktok: '200', // والكود 200 للتوكتوك - اذا عندك الكود هو 'moto'/'toktok' الكود تحت رح يلاقيه لحالو
+  moto: '150',
+  toktok: '200',
 };
 
 const ENGINE_FALLBACK = {
@@ -25,7 +26,6 @@ function getEngineCode(vehicleType, bundle) {
   if (!bundle?.engines) return primary || '1500';
   if (bundle.engines[primary]) return primary;
   if (bundle.engines[fallback]) return fallback;
-  // دور على اي محرك بنفس الـ vehicle_type
   const found = Object.values(bundle.engines).find(e => e.vehicle_type === vehicleType);
   if (found) return found.code;
   return '1500';
@@ -44,6 +44,7 @@ async function getAreaFromLatLng(lat, lng) {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [step, setStep] = useState('form');
   const [customer, setCustomer] = useState(null);
   const [bundle, setBundle] = useState(null);
@@ -58,6 +59,7 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [meLoading, setMeLoading] = useState(true);
   const intervalRef = useRef(null);
+  const hasRedirected = useRef(false);
 
   const activeOrder = orders.find(o => o.id === activeOrderId) || orders[0] || null;
 
@@ -66,18 +68,42 @@ export default function Page() {
     localStorage.removeItem('taxi_pending_orders');
     localStorage.removeItem('taxi_pending');
     localStorage.removeItem('taxi_orders');
-    fetch('/api/me', { cache: 'no-store' }).then(r=>{ if(!r.ok) throw new Error(); return r.json(); }).then(d=>{
-      if(d.user) {
-        setCustomer(d.user);
-        fetchMyOrders(d.user.customerId || d.user.id);
-      }
-    }).catch(()=>{ window.location.href='/login'; }).finally(()=>setMeLoading(false));
-  }, []);
+    let cancelled = false;
+    fetch('/api/me', { cache: 'no-store', credentials: 'include' })
+     .then(async (res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          if (!hasRedirected.current) {
+            hasRedirected.current = true;
+            router.replace('/login');
+          }
+          return;
+        }
+        const d = await res.json();
+        if (d.user?.customerId) {
+          setCustomer(d.user);
+          fetchMyOrders(d.user.customerId);
+        } else {
+          if (!hasRedirected.current) {
+            hasRedirected.current = true;
+            router.replace('/shop');
+          }
+        }
+      })
+     .catch(() => {
+        if (!hasRedirected.current) {
+          hasRedirected.current = true;
+          router.replace('/login');
+        }
+      })
+     .finally(() => { if (!cancelled) setMeLoading(false); });
+    return () => { cancelled = true; };
+  }, [router]);
 
   const fetchMyOrders = async (cid) => {
     const id = cid || customer?.customerId || customer?.id;
     if(!id) return;
-    const res = await fetch(`/api/taxi/my-orders?customer_id=${id}&t=${Date.now()}`, { cache: 'no-store' }).then(r=>r.json()).catch(()=>({orders:[]}));
+    const res = await fetch(`/api/taxi/my-orders?customer_id=${id}&t=${Date.now()}`, { cache: 'no-store', credentials: 'include' }).then(r=>r.json()).catch(()=>({orders:[]}));
     const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','code_verified','expired'].includes(o.status));
     setOrders(activeOnly);
     if(activeOnly.length === 0){
@@ -91,7 +117,6 @@ export default function Page() {
   useEffect(() => { getPricingConfig().then(setBundle).catch(console.error); }, []);
   useEffect(() => { return () => { if(intervalRef.current) clearInterval(intervalRef.current); }; }, []);
 
-  // ✅ هيدا الجديد - بس تغير نوع المركبة بيرجع يحسب السعر بدون ما ترجع تحرك الخريطة
   useEffect(() => {
     if (!distanceData ||!bundle) return;
     try {
@@ -114,7 +139,7 @@ export default function Page() {
     const customerId = cid || customer?.customerId || customer?.id;
     if(!customerId) return;
     intervalRef.current = setInterval(async () => {
-      const res = await fetch(`/api/taxi/my-orders?customer_id=${customerId}&t=${Date.now()}`, { cache: 'no-store' }).then(r=>r.json()).catch(()=>null);
+      const res = await fetch(`/api/taxi/my-orders?customer_id=${customerId}&t=${Date.now()}`, { cache: 'no-store', credentials: 'include' }).then(r=>r.json()).catch(()=>null);
       if(res){
         const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','code_verified','expired'].includes(o.status));
         setOrders(activeOnly);
@@ -148,10 +173,8 @@ export default function Page() {
     try {
       const engineCode = getEngineCode(vehicleType, bundle);
       const draftRes = await fetch('/api/taxi/create-draft', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({
-          customer_id: (customer.customerId || customer.id)?.toString(),
-          customer_name: customer.name, customer_phone: customer.phone,
           origin_name: mapData.origin?.name || mapData.origin?.display_name,
           origin_display_name: mapData.origin?.display_name,
           origin_lat: mapData.origin.lat, origin_lng: mapData.origin.lng,
@@ -165,10 +188,10 @@ export default function Page() {
           scheduled_at: tripType === 'scheduled'? scheduledAt : null,
         })
       }).then(r=>r.json());
-      if (!draftRes.success) { alert(draftRes.error); setLoading(false); return; }
+      if (!draftRes.success) { alert(draftRes.error || draftRes.message); setLoading(false); return; }
 
       const confirmRes = await fetch('/api/taxi/confirm', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({
           draft_id: draftRes.draft.id,
           origin_lat: mapData.origin.lat,
@@ -193,8 +216,8 @@ export default function Page() {
 
   const handleCancel = async (orderId) => {
     const id = orderId || activeOrder?.id;
-    if(!id ||!confirm('متأكد بدك تلغي الرحلة؟')) return;
-    await fetch('/api/taxi/cancel', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({order_id: id}) });
+    if(!id ||!confirm('تأكيد إلغاء الرحلة!')) return;
+    await fetch('/api/taxi/cancel', { method:'POST', headers:{'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({order_id: id}) });
     setOrders(prev => prev.filter(o => o.id!== id));
     if(activeOrderId === id || orders.length <= 1){ setActiveOrderId(null); setStep('form'); }
     await fetchMyOrders();
@@ -202,7 +225,7 @@ export default function Page() {
 
   const handleBackToMap = () => setStep('form');
 
-  if (meLoading) return <div style={{padding:20, textAlign:'center'}}>عم يحمل...</div>;
+  if (meLoading) return <div style={{padding:20, textAlign:'center'}}>يتم التحميل...</div>;
   if (!customer) return null;
 
   const pendingOrders = orders.filter(o => o.status === 'pending');
@@ -217,9 +240,9 @@ export default function Page() {
         <span>{o.status === 'draft'? 'حجز مسبق' : 'السعر التقريبي'}</span><span>{o.total_amount?.toLocaleString()} ل.ل - {o.distance_traveled} كم</span>
       </div>
       {o.status === 'draft' && <div style={{fontSize:11, marginTop:4}}>🕒 الموعد: {new Date(o.requested_start_at).toLocaleString('ar-LB')}</div>}
-      <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠ احتمال السعر يتغير عند الموافقة حسب المسار الفعلي والانتظار والمنطقة</div>
+      <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠ احتمالية تغيير السعر عند موافقة السائق حسب المسار الفعلي والانتظار والمنطقة</div>
       <div style={{marginTop:10, background:'#0a1930', color:'white', borderRadius:10, padding:10, textAlign:'center'}}>
-        <div style={{fontSize:9, opacity:0.7}}>🔒 كود الرحلة - لا تشارك الرمز مع أحد إلا السائق عندما يصل</div>
+        <div style={{fontSize:9, opacity:0.7}}>🔒 كود الرحلة - لا تشارك الرمز مع أحد فقط السائق عندما يصل</div>
         <div style={{fontSize:28, fontWeight:900, letterSpacing:6, marginTop:4}}>{o.secret_code}</div>
       </div>
     </div>
@@ -240,7 +263,7 @@ export default function Page() {
                 </div>
               </div>
             ))}
-            {pendingOrders.length===0 && <div style={{textAlign:'center', opacity:0.5, fontSize:12}}>ما في طلبات pending - رجاع للخريطة</div>}
+            {pendingOrders.length===0 && <div style={{textAlign:'center', opacity:0.5, fontSize:12}}>لا يوجد طلبات pending - الرجوع للخريطة</div>}
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
               <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900, fontSize:13}}>⬅ الرجوع للخريطة</button>
@@ -257,7 +280,7 @@ export default function Page() {
                 <button onClick={()=>handleCancel(o.id)} style={{width:'100%', marginTop:8, padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11}}>❌ إلغاء هيدا الحجز</button>
               </div>
             ))}</div>
-            {draftOrders.length===0 && <div style={{textAlign:'center', opacity:0.5, fontSize:12}}>ما في حجوزات مسبقة</div>}
+            {draftOrders.length===0 && <div style={{textAlign:'center', opacity:0.5, fontSize:12}}>لا يوجد حجز مسبق</div>}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
               <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900}}>⬅ الخريطة</button>
               <button onClick={()=>setStep('searching')} style={{padding:12, borderRadius:12, background:'#FFC107', fontWeight:900}}>🔍 طلبات فورية</button>
@@ -300,7 +323,7 @@ export default function Page() {
         </div>
         <div style={{height:'60vh', borderRadius:16, overflow:'hidden', border:'1px solid #ddd'}}><TaxiMap onDistanceCalculated={handleDistanceCalculated} onConfirm={handleConfirmMap} /></div>
         {pricing && distanceData && (
-          <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12}}><div style={{fontSize:11, opacity:0.7}}>منطقة {area} - {distanceData.totalKm} كم - محرك {getEngineCode(vehicleType, bundle)} - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمال السعر يتغير عند الموافقة</div></div>
+          <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12}}><div style={{fontSize:11, opacity:0.7}}>منطقة {area} - {distanceData.totalKm} كم - محرك {getEngineCode(vehicleType, bundle)} - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمالية تغيير السعر عند الموافقة</div></div>
         )}
         {orders.length>0 && <div style={{marginTop:8, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}><button onClick={()=>setStep('searching')} style={{padding:10, borderRadius:10, background:'white', border:'1px solid #ddd', fontWeight:900, fontSize:12}}>🔍 طلباتي الفورية ({pendingOrders.length})</button><button onClick={()=>setStep('scheduled')} style={{padding:10, borderRadius:10, background:'white', border:'1px solid #ddd', fontWeight:900, fontSize:12}}>🕒 حجوزاتي المسبقة ({draftOrders.length})</button></div>}
       </div>
