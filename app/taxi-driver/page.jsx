@@ -78,7 +78,7 @@ export default function TaxiDriverDashboard(){
         "Current Longitude": lng,
         "Last Location Update": new Date().toISOString(),
         is_online: true
-      }).eq('Taxi_ID', driverId)
+      }).eq('"Taxi_ID"', driverId)
 
       if(selectedOrderRef.current){
         await supabase.from('taxi_orders').update({
@@ -116,7 +116,7 @@ export default function TaxiDriverDashboard(){
       }catch{}
 
       // ✅ نجوم و تقييم متل الدرايفر
-      const { data: drv } = await supabase.from('taxi_drivers').select('average_rating, total_orders, rating_level').eq('Taxi_ID', driverId).single()
+      const { data: drv } = await supabase.from('taxi_drivers').select('average_rating, total_orders, rating_level').eq('"Taxi_ID"', driverId).single()
       if(drv) setDriverStats(drv)
 
       const { data: myOrders } = await supabase.from('taxi_orders').select('*')
@@ -150,7 +150,7 @@ export default function TaxiDriverDashboard(){
   const toggleOnline = async ()=>{
     const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
     const newVal =!isOnline
-    await supabase.from('taxi_drivers').update({ is_online: newVal, "Last Location Update": new Date().toISOString() }).eq('Taxi_ID', driverId)
+    await supabase.from('taxi_drivers').update({ is_online: newVal, "Last Location Update": new Date().toISOString() }).eq('"Taxi_ID"', driverId)
     setIsOnline(newVal)
   }
 
