@@ -50,7 +50,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: `الحساب غير مفعل - Status = ${status}` }, { status: 403 });
     }
 
-    const allowedRoles = ['Admin','Store Owner','Driver','Assistant Admin','Accounting']
+    const allowedRoles = ['Admin','Store Owner','Driver','Taxi Driver','Assistant Admin','Accounting']
     if(!allowedRoles.includes(role)){
       return NextResponse.json({ success: false, message: `دورك ${role} غير مسموح حاليا` }, { status: 403 });
     }
