@@ -5,6 +5,32 @@ import { getPricingConfig, calculateFare } from '@/lib/taxi/pricingEngine';
 
 const TaxiMap = dynamic(() => import('@/components/taxi/TaxiMap'), { ssr: false });
 
+const ENGINE_MAP = {
+  car: '1500',
+  van: '2500',
+  moto: '150', // عندك بالجدول الكود 150 للموتو
+  toktok: '200', // والكود 200 للتوكتوك - اذا عندك الكود هو 'moto'/'toktok' الكود تحت رح يلاقيه لحالو
+};
+
+const ENGINE_FALLBACK = {
+  car: '1500',
+  van: '2500',
+  moto: 'moto',
+  toktok: 'toktok',
+};
+
+function getEngineCode(vehicleType, bundle) {
+  const primary = ENGINE_MAP[vehicleType];
+  const fallback = ENGINE_FALLBACK[vehicleType];
+  if (!bundle?.engines) return primary || '1500';
+  if (bundle.engines[primary]) return primary;
+  if (bundle.engines[fallback]) return fallback;
+  // دور على اي محرك بنفس الـ vehicle_type
+  const found = Object.values(bundle.engines).find(e => e.vehicle_type === vehicleType);
+  if (found) return found.code;
+  return '1500';
+}
+
 async function getAreaFromLatLng(lat, lng) {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ar`);
@@ -65,6 +91,24 @@ export default function Page() {
   useEffect(() => { getPricingConfig().then(setBundle).catch(console.error); }, []);
   useEffect(() => { return () => { if(intervalRef.current) clearInterval(intervalRef.current); }; }, []);
 
+  // ✅ هيدا الجديد - بس تغير نوع المركبة بيرجع يحسب السعر بدون ما ترجع تحرك الخريطة
+  useEffect(() => {
+    if (!distanceData ||!bundle) return;
+    try {
+      const engineCode = getEngineCode(vehicleType, bundle);
+      const fare = calculateFare({
+        cityKm: distanceData.cityKm,
+        highwayKm: distanceData.highwayKm,
+        totalKm: distanceData.totalKm,
+        pricingBundle: bundle,
+        engineCode,
+        area,
+        vehicle_type: vehicleType
+      });
+      setPricing(fare);
+    } catch(e) { console.error('recalc fare error', e); }
+  }, [vehicleType, area, distanceData, bundle]);
+
   const startPolling = (cid) => {
     if(intervalRef.current) clearInterval(intervalRef.current);
     const customerId = cid || customer?.customerId || customer?.id;
@@ -90,8 +134,11 @@ export default function Page() {
     if (!bundle) return;
     let currentArea = area;
     if (data.pickup?.lat) { currentArea = await getAreaFromLatLng(data.pickup.lat, data.pickup.lng); setArea(currentArea); }
-    const fare = calculateFare({ cityKm: data.cityKm, highwayKm: data.highwayKm, totalKm: data.totalKm, pricingBundle: bundle, engineCode: '1500', area: currentArea, vehicle_type: vehicleType });
-    setPricing(fare);
+    try {
+      const engineCode = getEngineCode(vehicleType, bundle);
+      const fare = calculateFare({ cityKm: data.cityKm, highwayKm: data.highwayKm, totalKm: data.totalKm, pricingBundle: bundle, engineCode, area: currentArea, vehicle_type: vehicleType });
+      setPricing(fare);
+    } catch(e) { console.error('calc fare error', e); }
   };
 
   const handleConfirmMap = async (mapData) => {
@@ -99,6 +146,7 @@ export default function Page() {
     if (tripType === 'scheduled' &&!scheduledAt) { alert('اختار تاريخ ووقت الحجز المسبق'); return; }
     setLoading(true);
     try {
+      const engineCode = getEngineCode(vehicleType, bundle);
       const draftRes = await fetch('/api/taxi/create-draft', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -110,7 +158,9 @@ export default function Page() {
           dest_name: mapData.dest?.name || mapData.dest?.display_name,
           dest_display_name: mapData.dest?.display_name,
           dest_lat: mapData.dest.lat, dest_lng: mapData.dest.lng,
-          vehicle_type: vehicleType, cityKm: mapData.cityKm, highwayKm: mapData.highwayKm, totalKm: mapData.totalKm, area,
+          vehicle_type: vehicleType,
+          engine_code: engineCode,
+          cityKm: mapData.cityKm, highwayKm: mapData.highwayKm, totalKm: mapData.totalKm, area,
           trip_type: tripType,
           scheduled_at: tripType === 'scheduled'? scheduledAt : null,
         })
@@ -119,7 +169,14 @@ export default function Page() {
 
       const confirmRes = await fetch('/api/taxi/confirm', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draft_id: draftRes.draft.id, origin_lat: mapData.origin.lat, origin_lng: mapData.origin.lng, vehicle_type: vehicleType })
+        body: JSON.stringify({
+          draft_id: draftRes.draft.id,
+          origin_lat: mapData.origin.lat,
+          origin_lng: mapData.origin.lng,
+          vehicle_type: vehicleType,
+          engine_code: engineCode,
+          area
+        })
       }).then(r=>r.json());
 
       if (confirmRes.success) {
@@ -127,6 +184,8 @@ export default function Page() {
         setActiveOrderId(confirmRes.order.id);
         setStep(confirmRes.isScheduled? 'scheduled' : 'searching');
         startPolling();
+      } else {
+        alert(confirmRes.error || 'فشل التأكيد');
       }
     } catch(e){ console.error(e); alert(e.message); }
     setLoading(false);
@@ -241,7 +300,7 @@ export default function Page() {
         </div>
         <div style={{height:'60vh', borderRadius:16, overflow:'hidden', border:'1px solid #ddd'}}><TaxiMap onDistanceCalculated={handleDistanceCalculated} onConfirm={handleConfirmMap} /></div>
         {pricing && distanceData && (
-          <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12}}><div style={{fontSize:11, opacity:0.7}}>منطقة {area} - {distanceData.totalKm} كم - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمال السعر يتغير عند الموافقة</div></div>
+          <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12}}><div style={{fontSize:11, opacity:0.7}}>منطقة {area} - {distanceData.totalKm} كم - محرك {getEngineCode(vehicleType, bundle)} - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمال السعر يتغير عند الموافقة</div></div>
         )}
         {orders.length>0 && <div style={{marginTop:8, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}><button onClick={()=>setStep('searching')} style={{padding:10, borderRadius:10, background:'white', border:'1px solid #ddd', fontWeight:900, fontSize:12}}>🔍 طلباتي الفورية ({pendingOrders.length})</button><button onClick={()=>setStep('scheduled')} style={{padding:10, borderRadius:10, background:'white', border:'1px solid #ddd', fontWeight:900, fontSize:12}}>🕒 حجوزاتي المسبقة ({draftOrders.length})</button></div>}
       </div>
