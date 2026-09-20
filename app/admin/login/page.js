@@ -21,9 +21,16 @@ export default function AdminLogin(){
       })
       const j = await res.json()
       if(j.success){ 
-        if(j.role === 'Store Owner') router.push('/store-owner')
-        else if(j.role === 'Driver') router.push('/driver-owner')
-        else router.push('/admin/dashboard')
+        // ✅ صار يقرا من الـ API وين يروح
+        if(j.redirectTo){
+          router.push(j.redirectTo)
+        } else {
+          // fallback قديم
+          if(j.role === 'Store Owner') router.push('/store-owner')
+          else if(j.role === 'Driver') router.push('/driver-owner')
+          else if(j.role === 'Taxi Driver') router.push('/taxi-driver')
+          else router.push('/admin')
+        }
       } else setErr(j.message || "فشل الدخول")
     }catch(e){ setErr("خطأ اتصال") }
     setLoading(false)
@@ -48,7 +55,6 @@ export default function AdminLogin(){
         border:'1px solid rgba(255,255,255,0.08)', 
         boxShadow:'0 25px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)'
       }}>
-        {/* Logo */}
         <div style={{display:'flex', justifyContent:'center', marginBottom:'28px'}}>
           <div style={{
             width:'140px', 
