@@ -33,8 +33,8 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // 3. حماية السائق وصاحب المتجر
-  if (pathname.startsWith('/driver-owner') || pathname.startsWith('/store-owner')) {
+  // 3. حماية السائق وصاحب المتجر والتاكسي
+  if (pathname.startsWith('/driver-owner') || pathname.startsWith('/store-owner') || pathname.startsWith('/admin/taxi-driver')) {
 
     const adminSession = request.cookies.get('admin_session');
 
