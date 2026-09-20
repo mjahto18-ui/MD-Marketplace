@@ -11,38 +11,49 @@ function getSupabase() {
 
 function getEstimateEngineCode(vehicle_type, bundle) {
   const engines = bundle?.engines? Object.values(bundle.engines) : [];
+  const vt = vehicle_type;
 
-  if (vehicle_type === 'car') {
-    // سيارة = أعلى محرك سيارة (2500) للسعر التقديري العالي
+  if (vt === 'car') {
+    // ✅ سيارة = أعلى محرك سيارة (2500) للسعر التقديري العالي
     const carEngines = engines.filter(e => e.vehicle_type === 'car');
     if (carEngines.length > 0) {
-      carEngines.sort((a,b) => Number(b.factor) - Number(a.factor));
+      carEngines.sort((a,b) => Number(b.factor) - Number(a.factor) || Number(b.consumption_l_per_km) - Number(a.consumption_l_per_km));
       return carEngines[0].code;
     }
-    return '2500'; // fallback لو الجدول فاضي
+    return '2500';
   }
 
-  if (vehicle_type === 'van') {
+  if (vt === 'van') {
+    const vanEngines = engines.filter(e => e.vehicle_type === 'van');
+    if (vanEngines.length > 0) {
+      vanEngines.sort((a,b) => Number(b.factor) - Number(a.factor));
+      return vanEngines[0].code;
+    }
     if (bundle?.engines?.['2500']) return '2500';
-    const van = engines.find(e => e.vehicle_type === 'van');
-    return van? van.code : '2500';
+    return '2500';
   }
 
-  if (vehicle_type === 'moto') {
+  if (vt === 'moto') {
+    const motoEngines = engines.filter(e => e.vehicle_type === 'moto' || e.code === '150' || e.code === 'moto');
+    if (motoEngines.length > 0) {
+      motoEngines.sort((a,b) => Number(b.factor) - Number(a.factor));
+      return motoEngines[0].code;
+    }
     if (bundle?.engines?.['150']) return '150';
-    if (bundle?.engines?.['moto']) return 'moto';
-    const moto = engines.find(e => e.vehicle_type === 'moto');
-    return moto? moto.code : '150';
+    return '150';
   }
 
-  if (vehicle_type === 'toktok') {
+  if (vt === 'toktok') {
+    const ttEngines = engines.filter(e => e.vehicle_type === 'toktok' || e.code === '200' || e.code === 'toktok');
+    if (ttEngines.length > 0) {
+      ttEngines.sort((a,b) => Number(b.factor) - Number(a.factor));
+      return ttEngines[0].code;
+    }
     if (bundle?.engines?.['200']) return '200';
-    if (bundle?.engines?.['toktok']) return 'toktok';
-    const tt = engines.find(e => e.vehicle_type === 'toktok');
-    return tt? tt.code : '200';
+    return '200';
   }
 
-  return '1500';
+  return '2500';
 }
 
 export async function POST(req) {
@@ -54,7 +65,7 @@ export async function POST(req) {
       origin_name, origin_display_name, origin_lat, origin_lng,
       dest_name, dest_display_name, dest_lat, dest_lng,
       vehicle_type = 'car',
-      engine_code, // جاي من الفرونت
+      // engine_code, // ❌ ما بقا نستعملو للدرافت - دايما أعلى
       area = 'default',
       cityKm = 0, highwayKm = 0, totalKm = 0,
       scheduled_at, trip_type
@@ -66,12 +77,9 @@ export async function POST(req) {
 
     const bundle = await getPricingConfig();
 
-    // ✅ المنطق الجديد
-    let finalEngineCode = engine_code;
-    if (!finalEngineCode) {
-      finalEngineCode = getEstimateEngineCode(vehicle_type, bundle);
-    }
-
+    // ✅ المنطق الجديد - دايما أعلى CC للدرافت
+    // حتى لو الفرونت بعت 1500، منجبر 2500
+    const finalEngineCode = getEstimateEngineCode(vehicle_type, bundle);
     const finalArea = body.area || area || 'default';
 
     const fare = calculateFare({
@@ -80,8 +88,10 @@ export async function POST(req) {
       totalKm: Number(totalKm) || 0,
       engineCode: finalEngineCode,
       area: finalArea,
+      vehicle_type: vehicle_type,
       routeKey: 'default',
-      pricingBundle: bundle
+      pricingBundle: bundle,
+      isDriverAcceptance: false // ✅ درافت = أعلى سعر
     });
 
     const finalOriginName = origin_name || origin_display_name || `${Number(origin_lat).toFixed(5)}, ${Number(origin_lng).toFixed(5)}`;
@@ -101,12 +111,11 @@ export async function POST(req) {
       dest_lat: Number(dest_lat),
       dest_lng: Number(dest_lng),
       taxi_vehicle_type: vehicle_type,
-      // منخزن الكود يلي انحسب عليه السعر التقديري
-      taxi_engine_cc: finalEngineCode,
+      taxi_engine_cc: null, // ✅ مهم - ما في شوفير بعد، خليه null مش 1500
       status: 'draft',
       total_amount: fare.customer_pays_lbp,
       distance_traveled: Number(totalKm) || 0,
-      customer_notes: `pricing: ${JSON.stringify(fare.breakdown)} | trip_type:${trip_type || 'now'} | engine:${finalEngineCode} | area:${finalArea}`,
+      customer_notes: `pricing: ${JSON.stringify(fare.breakdown)} | trip_type:${trip_type || 'now'} | engine:${fare.breakdown.engineCode} | area:${finalArea}`,
       customer_lat: Number(origin_lat),
       customer_lng: Number(origin_lng),
       requested_start_at: requested_start_at,
@@ -114,7 +123,14 @@ export async function POST(req) {
     }).select().single();
 
     if (error) throw error;
-    return Response.json({ success: true, draft: data, pricing: fare, isScheduled, engine_used: finalEngineCode, area_used: finalArea });
+    return Response.json({
+      success: true,
+      draft: data,
+      pricing: fare,
+      isScheduled,
+      engine_used: fare.breakdown.engineCode,
+      area_used: finalArea
+    });
   } catch (e) {
     console.error('create-draft error', e);
     return Response.json({ error: e.message }, { status: 500 });
