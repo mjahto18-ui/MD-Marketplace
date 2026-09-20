@@ -1,7 +1,7 @@
 "use client"
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { ShoppingCart, User, LogOut, Store, Package, Sparkles, Crown, Lock } from "lucide-react";
+import { ShoppingCart, User, LogOut, Store, Package, Sparkles, Crown, Lock, Taxi } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -75,7 +75,7 @@ export default function ShopPage() {
         if (data.user) {
           setUser(data.user);
           fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-       .then(r=>r.json()).then(b=>{
+      .then(r=>r.json()).then(b=>{
             fetch('/api/loyalty-tiers').then(r=>r.json()).then(tData=>{
               const tiersList = tData.tiers || [];
               if(tiersList.length){
@@ -161,25 +161,39 @@ export default function ShopPage() {
           )}
 
           {user? (
-            <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
+            <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
               <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
               <h3 className="text-white font-bold text-xs">طلب خاص</h3>
             </button>
           ) : (
-            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-3 text-center border border-yellow-500/30 active:scale-95 relative">
+            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center border border-yellow-500/30 active:scale-95 relative">
               <LockBadge />
               <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
               <h3 className="text-white font-bold text-xs">طلب خاص</h3>
             </button>
           )}
 
-          <button onClick={() => user? setShowKings(true) : router.push('/login')} className="rounded-2xl p-3 text-center active:scale-95 relative overflow-hidden group border border-yellow-400/50"
+          {/* بوكس التاكسي الجديد - نفس الحجم ونفس القفل */}
+          {user? (
+            <Link href="/taxi" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
+              <Taxi className="w-7 h-7 text-yellow-400 mx-auto mb-2" />
+              <h3 className="text-white font-bold text-sm">تاكسي</h3>
+            </Link>
+          ) : (
+            <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
+              <LockBadge />
+              <Taxi className="w-7 h-7 text-yellow-400 mx-auto mb-2" />
+              <h3 className="text-white font-bold text-sm">تاكسي</h3>
+            </button>
+          )}
+
+          <button onClick={() => user? setShowKings(true) : router.push('/login')} className="rounded-2xl p-4 text-center active:scale-95 relative overflow-hidden group border border-yellow-400/50"
             style={{ background: 'linear-gradient(135deg, #FFD70015, #FFA50025)', boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}>
             {!user && <LockBadge />}
             <Crown className="w-6 h-6 text-yellow-400 mx-auto mb-1 animate-pulse drop-shadow-[0_0_8px_gold]" />
             <h3 className="text-yellow-300 font-bold text-xs">👑 ملك المتجر</h3>
-            <p className="text- text-white/80 mt-1 truncate">{kingsData?.top1? `${kingsData.top1.display_name} - ${kingsData.top1.tier_name}` : 'جاري...'}</p>
-            <p className="text- text-yellow-200/60">{user? 'اضغط للعرض' : 'سجل دخول'}</p>
+            <p className="text-white/80 mt-1 truncate text-xs">{kingsData?.top1? `${kingsData.top1.display_name} - ${kingsData.top1.tier_name}` : 'جاري...'}</p>
+            <p className="text-yellow-200/60 text-xs">{user? 'اضغط للعرض' : 'سجل دخول'}</p>
           </button>
 
           {user && tierData? (
