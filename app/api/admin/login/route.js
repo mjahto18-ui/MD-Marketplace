@@ -65,7 +65,10 @@ export async function POST(req) {
       role: role,
       storeId: finalUser['Store ID'] || finalUser.Store_ID || null,
       area: finalUser.Area || null,
-      relatedId: finalUser['Related ID'] || null
+      relatedId: finalUser['Related ID'] || null,
+      Taxi_ID: finalUser['Taxi_ID'] || null,
+       taxiId: finalUser['Taxi_ID'] || null
+      
     }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
 
     return NextResponse.json({ success: true, role });
