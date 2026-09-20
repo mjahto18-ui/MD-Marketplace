@@ -13,7 +13,7 @@ export async function POST(req) {
   try {
     const supabase = getSupabase();
     const body = await req.json();
-    const { draft_id, origin_lat, origin_lng, vehicle_type, area, engine_code } = body;
+    const { draft_id, origin_lat, origin_lng, vehicle_type, area } = body;
 
     if (!draft_id) return Response.json({ error: 'draft_id required' }, { status: 400 });
 
@@ -26,28 +26,48 @@ export async function POST(req) {
     // هل هو حجز مسبق بالمستقبل؟
     const isScheduledFuture = draft.requested_start_at && new Date(draft.requested_start_at) > new Date();
 
-    // ✅ ما منرجع نحسب السعر هون - منخلي السعر التقديري العالي يلي انحسب بـ create-draft
-    // للسيارة = 2500 (عالي) و للموتو/توكتوك = من الجدول
     const finalVehicleType = draft.taxi_vehicle_type || vehicle_type || 'car';
-    const finalArea = draft.customer_notes?.includes('area:')
-     ? draft.customer_notes.match(/area:([^|]+)/)?.[1]?.trim() || area || 'default'
+
+    // ✅ صلح الـ customer_notes هون - خد الـ engineCode الصح من الـ pricing JSON
+    let updatedNotes = draft.customer_notes || '';
+    try {
+      const pricingMatch = updatedNotes.match(/pricing:\s*(\{.*?\})/);
+      if (pricingMatch) {
+        const pricingObj = JSON.parse(pricingMatch[1]);
+        const realEngine = pricingObj.engineCode || '2500';
+        // استبدل أي engine: رقم بالرقم الصحيح
+        if (updatedNotes.includes('engine:')) {
+          updatedNotes = updatedNotes.replace(/engine:\s*\d+/g, `engine:${realEngine}`);
+        } else {
+          updatedNotes = `${updatedNotes} | engine:${realEngine}`;
+        }
+      }
+    } catch (e) {
+      console.log('notes parse error', e.message);
+    }
+
+    // استخراج المنطقة
+    const finalArea = updatedNotes.includes('area:')
+    ? updatedNotes.match(/area:([^|]+)/)?.[1]?.trim() || area || 'default'
       : area || 'default';
 
     if (isScheduledFuture) {
       const { data: order, error: orderErr } = await supabase
-       .from('taxi_orders')
-       .update({
+      .from('taxi_orders')
+      .update({
           secret_code: secret_code,
           is_code_verified: false,
           origin_lat: draft.origin_lat || origin_lat,
           origin_lng: draft.origin_lng || origin_lng,
           taxi_vehicle_type: finalVehicleType,
+          taxi_engine_cc: null, // ✅ ما في شوفير بعد - خليه null مش 1500
+          customer_notes: updatedNotes, // ✅ مصلح
           status: 'draft',
           updated_at: new Date().toISOString()
         })
-       .eq('id', draft_id)
-       .select()
-       .single();
+      .eq('id', draft_id)
+      .select()
+      .single();
       if (orderErr) throw orderErr;
 
       return Response.json({
@@ -60,21 +80,23 @@ export async function POST(req) {
       });
     }
 
-    // فوري: حول لـ pending + دور على سواقين - السعر بيضل عالي لحد ما السايق يقبل
+    // فوري: حول لـ pending + دور على سواقين - السعر بيضل عالي 2500 لحد ما السايق يقبل
     const { data: order, error: orderErr } = await supabase
-     .from('taxi_orders')
-     .update({
+    .from('taxi_orders')
+    .update({
         status: 'pending',
         secret_code: secret_code,
         is_code_verified: false,
         origin_lat: draft.origin_lat || origin_lat,
         origin_lng: draft.origin_lng || origin_lng,
         taxi_vehicle_type: finalVehicleType,
+        taxi_engine_cc: null, // ✅ مهم جدا - كان هون المشكل، كنت تاركو 1500 قديم
+        customer_notes: updatedNotes, // ✅
         updated_at: new Date().toISOString()
       })
-     .eq('id', draft_id)
-     .select()
-     .single();
+    .eq('id', draft_id)
+    .select()
+    .single();
 
     if (orderErr) throw orderErr;
 
