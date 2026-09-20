@@ -28,14 +28,44 @@ export async function POST(req) {
 
     if (!order_id ||!taxi_id) return Response.json({ error: 'order_id & taxi_id required' }, { status: 400 });
 
-    // ✅ نفس الصفحة بالزبط - wallet/me?userId=
-    const walletOwnerId = userId || taxi_id;
-    const origin = new URL(req.url).origin;
-    const wr = await fetch(`${origin}/api/wallet/me?userId=${walletOwnerId}`, { cache: 'no-store' }).then(r=>r.json()).catch(()=>null);
+    // ✅ التعديل هون - مناخد taxi_id منجيب يوزر ايدي من جدول users
+    let realUserId = userId || null;
 
-    const walletBalance = wr?.wallet || 0;
+    if (!realUserId) {
+      const { data: userRow } = await supabase
+       .from('users')
+       .select('id, Taxi_ID, taxi_id')
+       .or(`Taxi_ID.eq.${taxi_id},taxi_id.eq.${taxi_id}`)
+       .maybeSingle();
 
-    if (!wr?.success || walletBalance < 50000) {
+      if (userRow) {
+        realUserId = userRow.id;
+      } else {
+        realUserId = taxi_id;
+      }
+    }
+
+    // ✅ منحسب المحفظة دغري من wallet_transactions بدون fetch
+    const { data: transData, error: transError } = await supabase
+     .from('wallet_transactions')
+     .select('*')
+     .eq('"Owner User ID"', realUserId)
+     .order('"Created At"', { ascending: false });
+
+    if (transError) throw transError;
+
+    let walletBalance = 0;
+    (transData || []).forEach(r => {
+      const amt = Number(r.Amount || 0);
+      const type = String(r.Type || "").toUpperCase();
+      if (type === 'DEDUCT' || type === 'CASH_OUT') {
+        walletBalance -= amt;
+      } else {
+        walletBalance += amt;
+      }
+    });
+
+    if (walletBalance < 50000) {
       return Response.json({ error: `رصيد المحفظة غير كافي - عندك ${walletBalance.toLocaleString()} ل.ل ولازم 50,000` }, { status: 402 });
     }
 
@@ -44,10 +74,10 @@ export async function POST(req) {
     if (!order.secret_code) return Response.json({ error: 'الطلب بدون كود - خلل' }, { status: 500 });
 
     const { data: driver } = await supabase
-    .from('taxi_drivers')
-    .select('Taxi_ID, full_name, phone, plate_number, car_type, vehicle_type, Taxi_Engine, engine_cc')
-    .eq('"Taxi_ID"', taxi_id)
-    .single();
+   .from('taxi_drivers')
+   .select('Taxi_ID, full_name, phone, plate_number, car_type, vehicle_type, Taxi_Engine, engine_cc')
+   .eq('Taxi_ID', taxi_id)
+   .single();
 
     if (!driver) return Response.json({ error: 'السائق غير موجود' }, { status: 404 });
 
