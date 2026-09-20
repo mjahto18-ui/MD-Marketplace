@@ -24,13 +24,19 @@ function getDriverEngineCode(driver, bundle) {
 export async function POST(req) {
   try {
     const supabase = getSupabase();
-    const { order_id, taxi_id } = await req.json();
+    const { order_id, taxi_id, userId } = await req.json();
 
     if (!order_id ||!taxi_id) return Response.json({ error: 'order_id & taxi_id required' }, { status: 400 });
 
-    const { data: wallet } = await supabase.from('wallets').select('balance').eq('taxi_id', taxi_id).single();
-    if (!wallet || wallet.balance < 50000) {
-      return Response.json({ error: 'رصيد المحفظة غير كافي - اشحن قبل قبول الطلب' }, { status: 402 });
+    // ✅ نفس الصفحة بالزبط - wallet/me?userId=
+    const walletOwnerId = userId || taxi_id;
+    const origin = new URL(req.url).origin;
+    const wr = await fetch(`${origin}/api/wallet/me?userId=${walletOwnerId}`, { cache: 'no-store' }).then(r=>r.json()).catch(()=>null);
+
+    const walletBalance = wr?.wallet || 0;
+
+    if (!wr?.success || walletBalance < 50000) {
+      return Response.json({ error: `رصيد المحفظة غير كافي - عندك ${walletBalance.toLocaleString()} ل.ل ولازم 50,000` }, { status: 402 });
     }
 
     const { data: order } = await supabase.from('taxi_orders').select('*').eq('id', order_id).single();
@@ -38,10 +44,10 @@ export async function POST(req) {
     if (!order.secret_code) return Response.json({ error: 'الطلب بدون كود - خلل' }, { status: 500 });
 
     const { data: driver } = await supabase
-     .from('taxi_drivers')
-     .select('Taxi_ID, full_name, phone, plate_number, car_type, vehicle_type, Taxi_Engine, engine_cc')
-     .eq('Taxi_ID', taxi_id)
-     .single();
+    .from('taxi_drivers')
+    .select('Taxi_ID, full_name, phone, plate_number, car_type, vehicle_type, Taxi_Engine, engine_cc')
+    .eq('"Taxi_ID"', taxi_id)
+    .single();
 
     if (!driver) return Response.json({ error: 'السائق غير موجود' }, { status: 404 });
 
