@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState, useRef } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { Star } from "lucide-react"
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -8,6 +9,23 @@ function haversine(lat1, lon1, lat2, lon2) {
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function Stars({ rating = 0, size = 14 }) {
+  const r = parseFloat(rating) || 0;
+  let full = Math.floor(r);
+  let half = false;
+  const dec = r - full;
+  if (dec >= 0.75) full += 1;
+  else if (dec >= 0.25) half = true;
+  const empty = Math.max(0, 5 - full - (half? 1 : 0));
+  return (
+    <div style={{display:'flex', alignItems:'center'}}>
+      {[...Array(full)].map((_, i) => <Star key={`f-${i}`} size={size} style={{fill:'#facc15', color:'#facc15'}} />)}
+      {half && <div style={{position:'relative', width:size, height:size}}><Star size={size} style={{position:'absolute', color:'rgba(255,255,255,0.2)'}} /><div style={{position:'absolute', overflow:'hidden', width:'50%'}}><Star size={size} style={{fill:'#facc15', color:'#facc15'}} /></div></div>}
+      {[...Array(empty)].map((_, i) => <Star key={`e-${i}`} size={size} style={{color:'rgba(255,255,255,0.2)'}} />)}
+    </div>
+  );
 }
 
 export default function TaxiDriverDashboard(){
@@ -19,9 +37,12 @@ export default function TaxiDriverDashboard(){
   const [myLocation, setMyLocation] = useState(null)
   const [isOnline, setIsOnline] = useState(true)
   const [wallet, setWallet] = useState(0)
+  const [walletTx, setWalletTx] = useState([])
+  const [showWallet, setShowWallet] = useState(false)
   const [showCodePad, setShowCodePad] = useState(false)
   const [codeInput, setCodeInput] = useState("")
   const [amountReceived, setAmountReceived] = useState("")
+  const [driverStats, setDriverStats] = useState(null)
 
   const locationWatchRef = useRef(null)
   const selectedOrderRef = useRef(null)
@@ -33,10 +54,16 @@ export default function TaxiDriverDashboard(){
     fetch('/api/admin/me', {cache:'no-store'}).then(r=>r.json()).then(d=>{ setMe(d); setIsOnline(d.is_online?? true) })
   },[])
 
+  const formatLBP = (n) => {
+    if(!n && n!==0) return '0 ل.ل'
+    const num = parseFloat(String(n).replace(/,/g,'')) || 0
+    return new Intl.NumberFormat('en-LB').format(num) + ' ل.ل'
+  }
+
   // تتبع حي + كتابة بـ live_tracking
   useEffect(()=>{
     if(!supabase ||!me ||!isOnline) return
-    const driverId = me.relatedId || me.userId
+    const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
     if(!driverId) return
 
     locationWatchRef.current = navigator.geolocation.watchPosition(async pos=>{
@@ -45,7 +72,6 @@ export default function TaxiDriverDashboard(){
       setMyLocation({lat,lng})
       const now = Date.now()
 
-      // حدث جدول السواقين كل مرة
       await supabase.from('taxi_drivers').update({
         lat, lng,
         "Current Latitude": lat,
@@ -54,16 +80,13 @@ export default function TaxiDriverDashboard(){
         is_online: true
       }).eq('Taxi_ID', driverId)
 
-      // اذا في طلب مقبول
       if(selectedOrderRef.current){
-        // حدث live بالاوردر (للأدمن)
         await supabase.from('taxi_orders').update({
           taxi_lat_live: lat,
           taxi_lng_live: lng,
           updated_at: new Date().toISOString()
         }).eq('id', selectedOrderRef.current.id)
 
-        // ✅ اكتب بـ taxi_live_tracking كل 5 ثواني بس مشان ما تفلل الجدول
         if(now - lastTrackTime.current > 5000){
           lastTrackTime.current = now
           await supabase.from('taxi_live_tracking').insert({
@@ -83,32 +106,38 @@ export default function TaxiDriverDashboard(){
   useEffect(()=>{
     if(!supabase ||!me) return
     const load = async ()=>{
-      const driverId = me.relatedId || me.userId
+      const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
       if(!driverId) return
 
-      const { data: w } = await supabase.from('wallets').select('balance').eq('taxi_id', driverId).single()
-      if(w) setWallet(w.balance)
+      // ✅ محفظة متل الدرايفر والستور - من wallet_transactions
+      try{
+        const wr = await fetch(`/api/wallet/me?userId=${me.userId}`, {cache:'no-store'}).then(r=>r.json())
+        if(wr.success){ setWallet(wr.wallet||0); setWalletTx(wr.transactions||[]) }
+      }catch{}
+
+      // ✅ نجوم و تقييم متل الدرايفر
+      const { data: drv } = await supabase.from('taxi_drivers').select('average_rating, total_orders, rating_level').eq('Taxi_ID', driverId).single()
+      if(drv) setDriverStats(drv)
 
       const { data: myOrders } = await supabase.from('taxi_orders').select('*')
-     .eq('taxi_id', driverId)
-     .in('status',['accepted','on_the_way','arrived','in_progress'])
-     .order('created_at',{ascending:false})
+    .eq('taxi_id', driverId)
+    .in('status',['accepted','on_the_way','arrived','in_progress'])
+    .order('created_at',{ascending:false})
       setOrders(myOrders||[])
       if(myOrders?.[0] &&!selectedOrderRef.current) setSelectedOrder(myOrders[0])
 
       if(myLocation){
         const { data: pending } = await supabase.from('taxi_orders').select('*')
-       .eq('status','pending')
-       .gte('created_at', new Date(Date.now() - 30*60*1000).toISOString())
-       .order('created_at',{ascending:false}).limit(50)
+      .eq('status','pending')
+      .gte('created_at', new Date(Date.now() - 30*60*1000).toISOString())
+      .order('created_at',{ascending:false}).limit(50)
 
         const filtered = (pending||[]).filter(o=>{
           if(!o.origin_lat ||!o.origin_lng) return false
           if(o.taxi_vehicle_type && me.vehicle_type && o.taxi_vehicle_type!== me.vehicle_type) return false
           return haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)) <= 5
         }).map(o=>({...o, distance_km: haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)).toFixed(1)}))
-     .sort((a,b)=>parseFloat(a.distance_km) - parseFloat(b.distance_km))
-
+    .sort((a,b)=>parseFloat(a.distance_km) - parseFloat(b.distance_km))
         setNearby(filtered)
       }
     }
@@ -119,52 +148,40 @@ export default function TaxiDriverDashboard(){
   },[supabase, me, myLocation])
 
   const toggleOnline = async ()=>{
-    const driverId = me.relatedId || me.userId
+    const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
     const newVal =!isOnline
-    await supabase.from('taxi_drivers').update({
-      is_online: newVal,
-      "Last Location Update": new Date().toISOString()
-    }).eq('Taxi_ID', driverId)
+    await supabase.from('taxi_drivers').update({ is_online: newVal, "Last Location Update": new Date().toISOString() }).eq('Taxi_ID', driverId)
     setIsOnline(newVal)
   }
 
   const handleAccept = async (order)=>{
-    const res = await fetch('/api/taxi/accept',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ order_id: order.id, taxi_id: me.relatedId || me.userId })
-    }).then(r=>r.json())
+    const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
+    const res = await fetch('/api/taxi/accept',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ order_id: order.id, taxi_id: driverId }) }).then(r=>r.json())
     if(res.error) alert(res.error)
-    else {
-      setSelectedOrder(res.order)
-      setOrders([res.order])
-      setNearby(prev=>prev.filter(o=>o.id!==order.id))
-    }
+    else { setSelectedOrder(res.order); setOrders([res.order]); setNearby(prev=>prev.filter(o=>o.id!==order.id)) }
   }
 
   const handleVerifyCode = async ()=>{
     if(codeInput.length!== 4) return
-    const res = await fetch('/api/taxi/verify-code',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ order_id: selectedOrder.id, taxi_id: me.relatedId || me.userId, code: codeInput })
-    }).then(r=>r.json())
+    const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
+    const res = await fetch('/api/taxi/verify-code',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ order_id: selectedOrder.id, taxi_id: driverId, code: codeInput }) }).then(r=>r.json())
     if(res.error) alert(res.error)
     else {
       alert(`تم التأكيد - الرحلة انطلقت - السعر ${res.order.total_amount?.toLocaleString()}`)
-      setShowCodePad(false); setCodeInput("");
-      setSelectedOrder(res.order)
-      const { data: w } = await supabase.from('wallets').select('balance').eq('taxi_id', me.relatedId || me.userId).single()
-      if(w) setWallet(w.balance)
+      setShowCodePad(false); setCodeInput(""); setSelectedOrder(res.order)
+      const wr = await fetch(`/api/wallet/me?userId=${me.userId}`, {cache:'no-store'}).then(r=>r.json())
+      if(wr.success) setWallet(wr.wallet||0)
     }
   }
 
   const handleComplete = async ()=>{
-    const res = await fetch('/api/taxi/complete',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ order_id: selectedOrder.id, taxi_id: me.relatedId || me.userId, amount_received: amountReceived || selectedOrder.total_amount })
-    }).then(r=>r.json())
+    const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
+    const res = await fetch('/api/taxi/complete',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ order_id: selectedOrder.id, taxi_id: driverId, amount_received: amountReceived || selectedOrder.total_amount }) }).then(r=>r.json())
     if(res.error) alert(res.error)
     else location.reload()
   }
+
+  const logout = async ()=>{ await fetch('/api/admin/logout',{method:'POST'}); window.location.href='/admin/login' }
 
   const Numpad = ()=>(
     <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
@@ -188,11 +205,34 @@ export default function TaxiDriverDashboard(){
 
   return (
     <div style={{minHeight:'100vh', background:'#0a1930', color:'white', padding:12}}>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0e2242', padding:10, borderRadius:12}}>
-        <span>أهلاً {me.name} - {me.engine_cc || ''} - محفظتي {wallet.toLocaleString()} ل.ل</span>
-        <button onClick={toggleOnline} style={{background:isOnline?'#22c55e':'#ef4444', padding:'6px 14px', borderRadius:20, fontWeight:900, border:'none', color:'white'}}>{isOnline?'🟢 Online':'🔴 Offline'}</button>
+      {/* هيدر متل الدرايفر */}
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0e2242', padding:10, borderRadius:12, position:'sticky', top:0, zIndex:20}}>
+        <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
+          <span>أهلاً {me.name} - {me.engine_cc || ''}</span>
+          {driverStats && (
+            <div style={{display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.1)', padding:'4px 10px', borderRadius:20}}>
+              <Stars rating={driverStats.average_rating} size={14} />
+              <span style={{fontSize:12, color:'#facc15', fontWeight:900}}>{Number(driverStats.average_rating||0).toFixed(1)}</span>
+              <span style={{fontSize:11, opacity:0.6}}>({driverStats.rating_level}) • {driverStats.total_orders||0} رحلة</span>
+            </div>
+          )}
+          <button onClick={toggleOnline} style={{background:isOnline?'#22c55e':'#ef4444', padding:'6px 14px', borderRadius:20, fontWeight:900, border:'none', color:'white'}}>{isOnline?'🟢 Online':'🔴 Offline'}</button>
+        </div>
+        <button onClick={logout} style={{background:'#ef444444', border:'1px solid #ef4444', color:'#fca5a5', padding:'6px 12px', borderRadius:8}}>خروج</button>
       </div>
-      {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:6}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
+
+      {/* كرت المحفظة متل الستور */}
+      <div onClick={()=>setShowWallet(true)} style={{marginTop:12, background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', border:'2px solid rgba(255,255,255,0.2)'}}>
+        <div>
+          <div style={{fontSize:11, opacity:0.8}}>👛 محفظتي</div>
+          <div style={{fontSize:26, fontWeight:900, marginTop:2}}>{formatLBP(wallet)}</div>
+          <div style={{fontSize:11, opacity:0.7, marginTop:2}}>اضغط لعرض التفاصيل</div>
+        </div>
+        <div style={{fontSize:32}}>💳</div>
+      </div>
+
+      {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:8}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
+
       {selectedOrder && (
         <div style={{background:'white', color:'black', borderRadius:14, padding:14, marginTop:12}}>
           <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name}</b>
@@ -205,6 +245,7 @@ export default function TaxiDriverDashboard(){
           </div>
         </div>
       )}
+
       <div style={{marginTop:16}}>
         <h3 style={{fontWeight:900}}>🔍 طلبات قريبة 5 كم ({nearby.length})</h3>
         {nearby.map(o=>(
@@ -216,7 +257,39 @@ export default function TaxiDriverDashboard(){
           </div>
         ))}
       </div>
+
       {showCodePad && <Numpad/>}
+
+      {showWallet && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:60, padding:12}}>
+          <div style={{background:'white', color:'black', borderRadius:16, width:'100%', maxWidth:400, maxHeight:'80vh', overflow:'hidden', display:'flex', flexDirection:'column'}}>
+            <div style={{padding:16, background:'#0a1930', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div><div style={{fontSize:12, opacity:0.7}}>محفظتي</div><div style={{fontSize:22, fontWeight:900}}>{formatLBP(wallet)}</div></div>
+              <button onClick={()=>setShowWallet(false)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', width:32, height:32, borderRadius:8}}>✕</button>
+            </div>
+            <div style={{flex:1, overflowY:'auto', padding:10}}>
+              {walletTx.length===0 && <div style={{textAlign:'center', padding:20, color:'#999'}}>لا يوجد حركات</div>}
+              {walletTx.map((t,i)=>{
+                const amt = Number(t.Amount||0)
+                const type = String(t.Type||'').toUpperCase()
+                const isDeduct = type==='DEDUCT' || type==='CASH_OUT' || type==='PENALTY'
+                return (
+                  <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px', borderBottom:'1px solid #eee'}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                        <span style={{background: isDeduct?'#fee2e2':'#dcfce7', color: isDeduct?'#ef4444':'#16a34a', padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:900}}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
+                        <span style={{fontWeight:900, fontSize:14, color: isDeduct?'#ef4444':'#16a34a'}}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
+                      </div>
+                      <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || '-'}</div>
+                      <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB'):''}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
