@@ -34,7 +34,7 @@ export async function middleware(request) {
   }
 
   // 3. حماية السائق وصاحب المتجر والتاكسي
-  if (pathname.startsWith('/driver-owner') || pathname.startsWith('/store-owner') || pathname.startsWith('/admin/taxi-driver')) {
+  if (pathname.startsWith('/driver-owner') || pathname.startsWith('/store-owner') || pathname.startsWith('/taxi-driver')) {
 
     const adminSession = request.cookies.get('admin_session');
 
