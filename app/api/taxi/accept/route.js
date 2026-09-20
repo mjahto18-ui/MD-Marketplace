@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import { createClient } from "@supabase/supabase-js";
+import { getPricingConfig, calculateFare } from "@/lib/taxi/pricingEngine";
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -7,25 +8,110 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+function getDriverEngineCode(driver, bundle) {
+  // جرب كل الأسماء المحتملة عندك بالجدول
+  const raw = driver?.Taxi_Engine || driver?.engine_cc || driver?.taxi_engine_cc || driver?.engine_code || driver?.Taxi_Engine_CC;
+  if (!raw) return null;
+  const code = String(raw).trim();
+
+  if (bundle?.engines?.[code]) return code;
+
+  // اذا مخزن 1500cc -> 1500
+  const num = code.replace(/[^0-9]/g, '');
+  if (bundle?.engines?.[num]) return num;
+
+  // اذا مخزن car/moto... دور على نفس النوع
+  const engines = bundle? Object.values(bundle.engines) : [];
+  const byType = engines.find(e => e.vehicle_type === driver.vehicle_type);
+  if (byType) return byType.code;
+
+  return code;
+}
+
 export async function POST(req) {
   try {
     const supabase = getSupabase();
     const { order_id, taxi_id } = await req.json();
 
-    if (!order_id || !taxi_id) return Response.json({ error: 'order_id & taxi_id required' }, { status: 400 });
+    if (!order_id ||!taxi_id) return Response.json({ error: 'order_id & taxi_id required' }, { status: 400 });
 
-    // شيك رصيد قبل القبول
+    // شيك رصيد
     const { data: wallet } = await supabase.from('wallets').select('balance').eq('taxi_id', taxi_id).single();
     if (!wallet || wallet.balance < 50000) {
       return Response.json({ error: 'رصيد المحفظة غير كافي - اشحن قبل قبول الطلب' }, { status: 402 });
     }
 
-    // شيك اذا الطلب لسا pending و جيب الكود القديم
-    const { data: order } = await supabase.from('taxi_orders').select('status, secret_code, customer_id').eq('id', order_id).single();
-    if (!order || order.status !== 'pending') return Response.json({ error: 'الطلب لم يعد متاح' }, { status: 409 });
+    // جيب الطلب كامل
+    const { data: order } = await supabase
+    .from('taxi_orders')
+    .select('*')
+    .eq('id', order_id)
+    .single();
+
+    if (!order || order.status!== 'pending') return Response.json({ error: 'الطلب لم يعد متاح' }, { status: 409 });
     if (!order.secret_code) return Response.json({ error: 'الطلب بدون كود - خلل' }, { status: 500 });
 
-    const { data: driver } = await supabase.from('taxi_drivers').select('full_name, phone, plate_number, car_type, vehicle_type').eq('Taxi_ID', taxi_id).single();
+    const { data: driver } = await supabase
+    .from('taxi_drivers')
+    .select('Taxi_ID, full_name, phone, plate_number, car_type, vehicle_type, Taxi_Engine, engine_cc')
+    .eq('Taxi_ID', taxi_id)
+    .single();
+
+    // ✅ هون بتنزل القيمة
+    let finalTotal = order.total_amount;
+    let finalPricing = null;
+    try {
+      const bundle = await getPricingConfig();
+      const realEngine = getDriverEngineCode(driver, bundle) || order.taxi_engine_cc || '1500';
+
+      // استرجع المنطقة والمسافة من الطلب القديم
+      let area = 'default';
+      let cityKm = 0, highwayKm = 0, totalKm = 0;
+
+      // المسافة من الطلب
+      totalKm = Number(order.distance_traveled) || 0;
+
+      // المنطقة والمسافات اذا مخزنة بالـ notes
+      try {
+        const notes = order.customer_notes || '';
+        const areaMatch = notes.match(/area:([^|]+)/);
+        if (areaMatch) area = areaMatch[1].trim();
+
+        const breakdownMatch = notes.match(/pricing:\s*(\{.*\})/);
+        if (breakdownMatch) {
+          const br = JSON.parse(breakdownMatch[1]);
+          if (br.cityKm) cityKm = br.cityKm;
+          if (br.highwayKm) highwayKm = br.highwayKm;
+        }
+      } catch {}
+
+      // اذا ما عنا تقسيم مدينة/أوتوستراد، اعتبر كلو مدينة
+      if (!cityKm &&!highwayKm && totalKm) {
+        cityKm = totalKm;
+        highwayKm = 0;
+      }
+
+      finalPricing = calculateFare({
+        cityKm,
+        highwayKm,
+        totalKm,
+        engineCode: realEngine,
+        area,
+        routeKey: 'default',
+        pricingBundle: bundle
+      });
+
+      finalTotal = finalPricing.customer_pays_lbp;
+
+      // للسيارة: اذا السعر الجديد أعلى من القديم (مستحيل) منخلي القديم
+      // بس للسيارة منخلي ينزل بس
+      if (order.taxi_vehicle_type === 'car' && finalTotal > order.total_amount) {
+        finalTotal = order.total_amount;
+      }
+
+    } catch (e) {
+      console.log('recalc fare failed, keep old total', e.message);
+    }
 
     const { data: updated, error } = await supabase.from('taxi_orders').update({
       taxi_id,
@@ -33,26 +119,36 @@ export async function POST(req) {
       taxi_phone: driver?.phone,
       taxi_plate_number: driver?.plate_number,
       taxi_car_type: driver?.car_type,
-      taxi_vehicle_type: driver?.vehicle_type,
-      // ما منغير secret_code - منترك الكود يلي انخلق مع الطلب
+      taxi_vehicle_type: driver?.vehicle_type || order.taxi_vehicle_type,
+      taxi_engine_cc: getDriverEngineCode(driver, null) || order.taxi_engine_cc,
+      total_amount: finalTotal,
+      // ما منغير secret_code
       status: 'accepted',
       taxi_status: 'on_the_way',
+      customer_notes: `${order.customer_notes || ''} | accepted_with_engine:${getDriverEngineCode(driver, null)} | final_fare:${finalTotal}`,
       updated_at: new Date().toISOString()
     }).eq('id', order_id).select().single();
 
     if (error) throw error;
 
-    // ابعت للزبونة انو السايق قبل - بنبعت الكود القديم نفسو
     await supabase.from('push_queue').insert({
       'Customer ID': updated.customer_id,
       Title: 'تم قبول طلبك',
-      Message: `السائق ${driver?.full_name} في الطريق اليك - كود الرحلة ${order.secret_code}`,
+      Message: `السائق ${driver?.full_name} في الطريق اليك - السعر النهائي ${finalTotal.toLocaleString()} ل.ل - كود الرحلة ${order.secret_code}`,
       Status: 'Pending',
       Code: 'TAXI_ACCEPTED'
     }).then(()=>{},()=>{});
 
-    return Response.json({ success: true, order: updated, secret_code: order.secret_code });
+    return Response.json({
+      success: true,
+      order: updated,
+      secret_code: order.secret_code,
+      old_total: order.total_amount,
+      new_total: finalTotal,
+      price_dropped: finalTotal < order.total_amount
+    });
   } catch (e) {
+    console.error('accept error', e);
     return Response.json({ error: e.message }, { status: 500 });
   }
 }
