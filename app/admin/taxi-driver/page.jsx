@@ -25,6 +25,7 @@ export default function TaxiDriverDashboard(){
 
   const locationWatchRef = useRef(null)
   const selectedOrderRef = useRef(null)
+  const lastTrackTime = useRef(0)
   useEffect(()=>{ selectedOrderRef.current = selectedOrder }, [selectedOrder])
 
   useEffect(()=>{
@@ -32,7 +33,7 @@ export default function TaxiDriverDashboard(){
     fetch('/api/admin/me', {cache:'no-store'}).then(r=>r.json()).then(d=>{ setMe(d); setIsOnline(d.is_online?? true) })
   },[])
 
-  // تتبع حي - مصلح يحدث كل الأعمدة
+  // تتبع حي + كتابة بـ live_tracking
   useEffect(()=>{
     if(!supabase ||!me ||!isOnline) return
     const driverId = me.relatedId || me.userId
@@ -42,8 +43,9 @@ export default function TaxiDriverDashboard(){
       const lat = pos.coords.latitude
       const lng = pos.coords.longitude
       setMyLocation({lat,lng})
+      const now = Date.now()
 
-      // ✅ حدث كل الأعمدة يلي بيقرا منها nearby.js
+      // حدث جدول السواقين كل مرة
       await supabase.from('taxi_drivers').update({
         lat, lng,
         "Current Latitude": lat,
@@ -52,14 +54,28 @@ export default function TaxiDriverDashboard(){
         is_online: true
       }).eq('Taxi_ID', driverId)
 
+      // اذا في طلب مقبول
       if(selectedOrderRef.current){
+        // حدث live بالاوردر (للأدمن)
         await supabase.from('taxi_orders').update({
           taxi_lat_live: lat,
           taxi_lng_live: lng,
           updated_at: new Date().toISOString()
         }).eq('id', selectedOrderRef.current.id)
+
+        // ✅ اكتب بـ taxi_live_tracking كل 5 ثواني بس مشان ما تفلل الجدول
+        if(now - lastTrackTime.current > 5000){
+          lastTrackTime.current = now
+          await supabase.from('taxi_live_tracking').insert({
+            order_id: selectedOrderRef.current.id,
+            taxi_id: driverId,
+            lat, lng,
+            speed: pos.coords.speed || 0,
+            heading: pos.coords.heading || 0
+          })
+        }
       }
-    }, (err)=>{ console.log('geo error', err) }, {enableHighAccuracy:true, maximumAge:5000, timeout:10000})
+    }, (err)=>{ console.log('geo error', err) }, {enableHighAccuracy:true, maximumAge:3000, timeout:10000})
 
     return ()=>{ if(locationWatchRef.current) navigator.geolocation.clearWatch(locationWatchRef.current) }
   },[supabase, me, isOnline])
@@ -74,33 +90,31 @@ export default function TaxiDriverDashboard(){
       if(w) setWallet(w.balance)
 
       const { data: myOrders } = await supabase.from('taxi_orders').select('*')
-      .eq('taxi_id', driverId)
-      .in('status',['accepted','on_the_way','arrived','in_progress'])
-      .order('created_at',{ascending:false})
+     .eq('taxi_id', driverId)
+     .in('status',['accepted','on_the_way','arrived','in_progress'])
+     .order('created_at',{ascending:false})
       setOrders(myOrders||[])
       if(myOrders?.[0] &&!selectedOrderRef.current) setSelectedOrder(myOrders[0])
 
       if(myLocation){
-        // ✅ جيب بس pending من آخر 10 دقايق
         const { data: pending } = await supabase.from('taxi_orders').select('*')
-        .eq('status','pending')
-        .gte('created_at', new Date(Date.now() - 30*60*1000).toISOString())
-        .order('created_at',{ascending:false}).limit(50)
+       .eq('status','pending')
+       .gte('created_at', new Date(Date.now() - 30*60*1000).toISOString())
+       .order('created_at',{ascending:false}).limit(50)
 
         const filtered = (pending||[]).filter(o=>{
           if(!o.origin_lat ||!o.origin_lng) return false
-          // اذا في طلبات car وانت car بس
-          if(o.taxi_vehicle_type && o.taxi_vehicle_type!== me.vehicle_type && me.vehicle_type) return false
+          if(o.taxi_vehicle_type && me.vehicle_type && o.taxi_vehicle_type!== me.vehicle_type) return false
           return haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)) <= 5
         }).map(o=>({...o, distance_km: haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)).toFixed(1)}))
-      .sort((a,b)=>parseFloat(a.distance_km) - parseFloat(b.distance_km))
+     .sort((a,b)=>parseFloat(a.distance_km) - parseFloat(b.distance_km))
 
         setNearby(filtered)
       }
     }
     load()
     const interval = setInterval(load, 5000)
-    const channel = supabase.channel('taxi_orders_live').on('postgres_changes',{event:'*',schema:'public',table:'taxi_orders', filter: 'status=eq.pending'},()=>load()).subscribe()
+    const channel = supabase.channel('taxi_orders_live').on('postgres_changes',{event:'*',schema:'public',table:'taxi_orders'},()=>load()).subscribe()
     return ()=>{ clearInterval(interval); supabase.removeChannel(channel) }
   },[supabase, me, myLocation])
 
@@ -155,7 +169,7 @@ export default function TaxiDriverDashboard(){
   const Numpad = ()=>(
     <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
       <div style={{background:'white', color:'black', borderRadius:16, width:320, padding:16}}>
-        <h3 style={{textAlign:'center', fontWeight:900}}>أدخل كود الزبون {selectedOrder?.secret_code? '' : ''}</h3>
+        <h3 style={{textAlign:'center', fontWeight:900}}>أدخل كود الزبون</h3>
         <div style={{display:'flex', gap:8, justifyContent:'center', margin:'12px 0'}}>
           {[0,1,2,3].map(i=><div key={i} style={{width:40,height:50,border:'2px solid #111',borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:20}}>{codeInput[i]||''}</div>)}
         </div>
@@ -178,40 +192,30 @@ export default function TaxiDriverDashboard(){
         <span>أهلاً {me.name} - {me.engine_cc || ''} - محفظتي {wallet.toLocaleString()} ل.ل</span>
         <button onClick={toggleOnline} style={{background:isOnline?'#22c55e':'#ef4444', padding:'6px 14px', borderRadius:20, fontWeight:900, border:'none', color:'white'}}>{isOnline?'🟢 Online':'🔴 Offline'}</button>
       </div>
-
-      {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:6}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر كل 5 ث</div>}
-
+      {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:6}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
       {selectedOrder && (
         <div style={{background:'white', color:'black', borderRadius:14, padding:14, marginTop:12}}>
-          <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name} - {selectedOrder.customer_phone}</b>
+          <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name}</b>
           <div style={{fontSize:12, marginTop:4}}>📍 من: {selectedOrder.origin_name}</div>
           <div style={{fontSize:12}}>🎯 إلى: {selectedOrder.dest_name}</div>
-          <div style={{marginTop:6, fontWeight:900}}>💰 {selectedOrder.total_amount?.toLocaleString()} ل.ل - {selectedOrder.distance_traveled} كم - {selectedOrder.taxi_vehicle_type} - {selectedOrder.taxi_engine_cc || ''}</div>
+          <div style={{marginTop:6, fontWeight:900}}>💰 {selectedOrder.total_amount?.toLocaleString()} - {selectedOrder.distance_traveled} كم - {selectedOrder.taxi_engine_cc}</div>
           <div style={{marginTop:10, display:'flex', gap:8}}>
-            {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الرحلة - أدخل كود الزبون</button>}
-            {selectedOrder.status === 'in_progress' && (
-              <>
-                <input placeholder="المبلغ المستلم كاش" value={amountReceived} onChange={e=>setAmountReceived(e.target.value)} style={{flex:1, padding:10, border:'2px solid #111', borderRadius:10, color:'black'}}/>
-                <button onClick={handleComplete} style={{background:'#22c55e', color:'white', padding:10, borderRadius:10, fontWeight:900, border:'none'}}>انهاء الرحلة</button>
-              </>
-            )}
+            {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الكود</button>}
+            {selectedOrder.status === 'in_progress' && (<><input placeholder="المبلغ المستلم" value={amountReceived} onChange={e=>setAmountReceived(e.target.value)} style={{flex:1, padding:10, border:'2px solid #111', borderRadius:10, color:'black'}}/><button onClick={handleComplete} style={{background:'#22c55e', color:'white', padding:10, borderRadius:10, fontWeight:900, border:'none'}}>انهاء</button></>)}
           </div>
         </div>
       )}
-
       <div style={{marginTop:16}}>
         <h3 style={{fontWeight:900}}>🔍 طلبات قريبة 5 كم ({nearby.length})</h3>
         {nearby.map(o=>(
           <div key={o.id} style={{background:'#132a54', borderRadius:12, padding:12, marginTop:8, border:'1px solid #1e3a6e'}}>
-            <div style={{display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12}}>#{o.order_code || o.id.slice(0,6)} - {o.origin_name?.slice(0,30)}</span><span style={{background:'#FFC107', color:'black', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:900}}>{o.distance_km} كم</span></div>
+            <div style={{display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12}}>#{o.order_code || o.id.slice(0,6)}</span><span style={{background:'#FFC107', color:'black', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:900}}>{o.distance_km} كم</span></div>
             <div style={{fontSize:11, opacity:0.7, marginTop:2}}>→ {o.dest_name?.slice(0,40)}</div>
-            <div style={{display:'flex', justifyContent:'space-between', marginTop:6, fontWeight:900, fontSize:12}}><span>{o.customer_name} - {o.taxi_vehicle_type} - {o.customer_notes?.includes('2500')?'2500':''}</span><span>{o.total_amount?.toLocaleString()} ل.ل</span></div>
-            <button onClick={()=>handleAccept(o)} style={{width:'100%', marginTop:8, background:'#22c55e', padding:10, borderRadius:10, fontWeight:900, border:'none', color:'white'}}>✅ قبول الطلب - {o.total_amount?.toLocaleString()} ل.ل</button>
+            <div style={{display:'flex', justifyContent:'space-between', marginTop:6, fontWeight:900, fontSize:12}}><span>{o.customer_name} - {o.taxi_vehicle_type}</span><span>{o.total_amount?.toLocaleString()} ل.ل</span></div>
+            <button onClick={()=>handleAccept(o)} style={{width:'100%', marginTop:8, background:'#22c55e', padding:10, borderRadius:10, fontWeight:900, border:'none', color:'white'}}>✅ قبول</button>
           </div>
         ))}
-        {nearby.length===0 &&!selectedOrder && <div style={{opacity:0.5, fontSize:12, marginTop:8, textAlign:'center'}}>ما في طلبات قريبة - خليك Online وعم تتحرك - تأكد انك حدثت Last Location Update</div>}
       </div>
-
       {showCodePad && <Numpad/>}
     </div>
   )
