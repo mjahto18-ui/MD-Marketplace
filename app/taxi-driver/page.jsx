@@ -70,7 +70,7 @@ export default function TaxiDriverDashboard(){
     if(!phone) return null
     let clean = String(phone).replace(/[^0-9]/g,'').replace(/^0+/,'')
     if(!clean) return null
-    const full = clean.startsWith('961') ? clean : `961${clean}`
+    const full = clean.startsWith('961')? clean : `961${clean}`
     const msg = `مرحبا انا السائق ${driverName} من MD-TAXI رحلة رقم ${orderCode}`
     return `https://wa.me/${full}?text=${encodeURIComponent(msg)}`
   }
@@ -211,6 +211,8 @@ export default function TaxiDriverDashboard(){
 
   if(!me) return <div style={{padding:20, background:'#0a1930', color:'white'}}>تحميل...</div>
 
+  const isTripStarted = selectedOrder? (selectedOrder.is_code_verified || ['code_verified','in_progress'].includes(selectedOrder.status)) : false
+
   return (
     <div style={{minHeight:'100vh', background:'#0a1930', color:'white', padding:12}}>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0e2242', padding:10, borderRadius:12, position:'sticky', top:0, zIndex:20}}>
@@ -242,7 +244,6 @@ export default function TaxiDriverDashboard(){
       {selectedOrder && (
         <div style={{background:'white', color:'black', borderRadius:14, padding:12, marginTop:12, border:'3px solid #22c55e'}}>
           <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name} - {selectedOrder.customer_phone}</b>
-          {/* بوكس اتصال و واتساب جديد */}
           <div style={{display:'flex', gap:8, marginTop:10}}>
             <a href={`tel:${selectedOrder.customer_phone}`} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>📞 اتصال {selectedOrder.customer_phone}</a>
             <a href={getWhatsappLink(selectedOrder.customer_phone, me.name, selectedOrder.order_code)} target="_blank" style={{flex:1, background:'#25D366', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>💬 واتساب</a>
@@ -254,10 +255,15 @@ export default function TaxiDriverDashboard(){
           <div style={{marginTop:10, borderRadius:12, overflow:'hidden', border:'2px solid #e5e7eb', position:'relative', zIndex:0}}>
             <TaxiActiveMap myLocation={myLocation} origin_lat={selectedOrder.origin_lat} origin_lng={selectedOrder.origin_lng} dest_lat={selectedOrder.dest_lat} dest_lng={selectedOrder.dest_lng} />
           </div>
+
           <div style={{display:'flex', gap:8, marginTop:10}}>
-            <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.origin_lat},${selectedOrder.origin_lng}`} target="_blank" style={{flex:1, background:'#3b82f6', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>🔵 خذني لعند الزبون</a>
-            <a href={`https://www.google.com/maps/dir/?api=1&origin=${selectedOrder.origin_lat},${selectedOrder.origin_lng}&destination=${selectedOrder.dest_lat},${selectedOrder.dest_lng}`} target="_blank" style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:700, textDecoration:'none'}}>🗺 كامل الرحلة</a>
+            {!isTripStarted? (
+              <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.origin_lat},${selectedOrder.origin_lng}`} target="_blank" style={{flex:1, background:'#3b82f6', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🔵 خذني لعند الزبونة</a>
+            ) : (
+              <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.dest_lat},${selectedOrder.dest_lng}`} target="_blank" style={{flex:1, background:'#111', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🎯 الذهاب الى الوجهة - المرسل اليه</a>
+            )}
           </div>
+
           <div style={{marginTop:10, fontWeight:900, fontSize:14}}>💰 {selectedOrder.total_amount?.toLocaleString()} ل.ل - {selectedOrder.distance_traveled} كم - {selectedOrder.taxi_engine_cc}</div>
           <div style={{marginTop:10, display:'flex', gap:8}}>
             {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الكود</button>}
@@ -267,7 +273,7 @@ export default function TaxiDriverDashboard(){
         </div>
       )}
 
-      {!selectedOrder? (
+      {!selectedOrder && (
       <div style={{marginTop:16}}>
         <h3 style={{fontWeight:900}}>🔍 طلبات قريبة 5 كم ({nearby.length})</h3>
         {nearby.map(o=>(
@@ -289,8 +295,6 @@ export default function TaxiDriverDashboard(){
           </div>
         ))}
       </div>
-      ) : (
-        <div style={{marginTop:16, background:'#f59e0b22', border:'1px dashed #f59e0b', padding:16, borderRadius:12, textAlign:'center'}}><b>🚕 عندك طلب شغال</b><div style={{fontSize:12, marginTop:4}}>ما فيك تشوف طلبات جديدة حتى تخلص الحالي</div></div>
       )}
 
       {showCodePad && <Numpad/>}
