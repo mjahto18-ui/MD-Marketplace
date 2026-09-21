@@ -162,15 +162,48 @@ export async function POST(req) {
       updated_at: new Date().toISOString()
     }).eq('id', order_id).select().single();
 
-    if (error) throw error;
+       if (error) throw error;
 
+    // --- هون الفيكس تبعك ---
+    // 1- منجيب User ID تبع الزبون من Customer ID
+    let customerUserId = null;
+    try {
+      // جرب من جدول users
+      const { data: custUser } = await supabase.from('users').select('"User ID"').eq('"Customer ID"', updated.customer_id).maybeSingle();
+      if (custUser) customerUserId = custUser["User ID"];
+      if (!customerUserId) {
+        // جرب من جدول customers اذا فيه عمود User ID
+        const { data: custRow } = await supabase.from('customers').select('"User ID"').eq('"Customer ID"', updated.customer_id).maybeSingle();
+        if (custRow) customerUserId = custRow["User ID"];
+      }
+      // اذا بعده فاضي، جرب مباشرة User ID = Customer ID (مثل ما عندك بالداتا 5555 مربوط ب b530c8aa لازم يلاقيه فوق)
+      if (!customerUserId) {
+        const { data: directUser } = await supabase.from('users').select('"User ID"').eq('"User ID"', updated.customer_id).maybeSingle();
+        if (directUser) customerUserId = directUser["User ID"];
+      }
+    } catch(e){ console.log('get customer user id failed', e.message) }
+
+    const fullMsg = `السائق ${driver?.full_name} في الطريق اليك - السعر النهائي ${finalTotal.toLocaleString()} ل.ل - كود الرحلة ${order.secret_code}`;
+
+    // 2- push_queue = بس الكود + مع User ID مشان توصل
     await supabase.from('push_queue').insert({
       'Customer ID': updated.customer_id,
-      Title: 'تم قبول طلبك',
-      Message: `السائق ${driver?.full_name} في الطريق اليك - السعر النهائي ${finalTotal.toLocaleString()} ل.ل - كود الرحلة ${order.secret_code}`,
-      Status: 'Pending',
-      Code: 'TAXI_ACCEPTED'
-    }).then(()=>{},()=>{});
+      'User ID': customerUserId, // هون صار ينسخ User ID
+      'Title': 'تم قبول طلبك',
+      'Message': order.secret_code, // هون بس الكود
+      'Status': 'Pending',
+      'Code': 'TAXI_ACCEPTED'
+    }).then(()=>{},(e)=>{ console.log('push_queue insert err', e.message) });
+
+    // 3- webhook = المسج الكامل + بس Customer ID
+    await supabase.from('webhook').insert({
+      'Customer ID': updated.customer_id,
+      'Title': 'تم قبول طلبك',
+      'Message': fullMsg,
+      'Date': new Date().toISOString()
+    }).then(()=>{},(e)=>{ console.log('webhook insert err', e.message) });
+
+    
 
     return Response.json({
       success: true,
