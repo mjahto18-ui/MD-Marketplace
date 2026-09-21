@@ -336,9 +336,9 @@ export default function Page() {
           </div>
         )}
         {step === 'in_progress' && (
-          <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, margin:'12px auto'}}>
-            <div style={{background:'#0a1930', color:'white', padding:12, borderRadius:12, textAlign:'center', fontWeight:900}}>🚕 الرحلة جارية - {activeOrder?.taxi_name} - {activeOrder?.taxi_plate_number} {activeOrder?.taxi_car_color}</div>
-            <div style={{marginTop:12, height:320, borderRadius:12, overflow:'hidden', border:'1px solid #ddd}}>
+          <div style={{background:"white", borderRadius:16, padding:16, maxWidth:480, margin:"12px auto"}}>
+          <div style={{background:"#0a1930", color:"white", padding:12, borderRadius:12, textAlign:"center", fontWeight:900}}>🚕 الرحلة جارية - {activeOrder?.taxi_name} - {activeOrder?.taxi_plate_number}</div>
+          <div style={{marginTop:12, height:320, borderRadius:12, overflow:"hidden", border:"1px solid #ddd"}}>
               <TaxiActiveMap myLocation={activeOrder?.taxi_lat_live? {lat: Number(activeOrder.taxi_lat_live), lng: Number(activeOrder.taxi_lng_live)} : null} origin_lat={activeOrder?.origin_lat} origin_lng={activeOrder?.origin_lng} dest_lat={activeOrder?.dest_lat} dest_lng={activeOrder?.dest_lng} />
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
