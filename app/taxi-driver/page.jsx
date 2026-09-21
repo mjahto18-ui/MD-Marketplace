@@ -1,4 +1,7 @@
 "use client"
+export const dynamic = 'force-dynamic'
+export const dynamicParams = true
+
 import { useEffect, useState, useRef } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { Star } from "lucide-react"
