@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getPricingConfig, calculateFare } from '@/lib/taxi/pricingEngine';
 
 const TaxiMap = dynamic(() => import('@/components/taxi/TaxiMap'), { ssr: false });
-const TaxiActiveMap = dynamic(() => import('@/components/taxi/TaxiActiveMap'), { ssr: false }); // ✅ ضفناها للرحلة الجارية
+const TaxiActiveMap = dynamic(() => import('@/components/taxi/TaxiActiveMap'), { ssr: false });
 
 const ENGINE_MAP = {
   car: '1500',
@@ -59,10 +59,12 @@ export default function Page() {
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [meLoading, setMeLoading] = useState(true);
-  const [showSos, setShowSos] = useState(false); // ✅ جديد للـ SOS
-  const [sosComment, setSosComment] = useState(''); // ✅ جديد للـ SOS
+  const [showSos, setShowSos] = useState(false);
+  const [sosComment, setSosComment] = useState('');
+  const [nearbyDrivers, setNearbyDrivers] = useState([]); // ✅ جديد - ليستة السيارات القريبة
+  const [nearbyLoading, setNearbyLoading] = useState(false); // ✅ جديد
   const intervalRef = useRef(null);
-  const isManualBackRef = useRef(false); // ✅ هيدا حل مشكلة الرجوع - اذا true البولينغ ما بيرجعك
+  const isManualBackRef = useRef(false);
   const hasRedirected = useRef(false);
 
   const activeOrder = orders.find(o => o.id === activeOrderId) || orders[0] || null;
@@ -74,7 +76,7 @@ export default function Page() {
     localStorage.removeItem('taxi_orders');
     let cancelled = false;
     fetch('/api/me', { cache: 'no-store', credentials: 'include' })
-    .then(async (res) => {
+   .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -94,13 +96,13 @@ export default function Page() {
           }
         }
       })
-    .catch(() => {
+   .catch(() => {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
-    .finally(() => { if (!cancelled) setMeLoading(false); });
+   .finally(() => { if (!cancelled) setMeLoading(false); });
     return () => { cancelled = true; };
   }, [router]);
 
@@ -108,14 +110,12 @@ export default function Page() {
     const id = cid || customer?.customerId || customer?.id;
     if(!id) return;
     const res = await fetch(`/api/taxi/my-orders?customer_id=${id}&t=${Date.now()}`, { cache: 'no-store', credentials: 'include' }).then(r=>r.json()).catch(()=>({orders:[]}));
-    // ✅ تعديل 1: قبل كنت شايل code_verified فكان يختفي بعد الكود - هلق شلنا بس الملغى والمنتهي
     const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','expired'].includes(o.status));
     setOrders(activeOnly);
     if(activeOnly.length === 0){
       setStep('form');
       if(intervalRef.current) clearInterval(intervalRef.current);
     } else {
-      // ✅ تعديل 2: اذا في رحلة موثقة افتح in_progress مش accepted
       const inProg = activeOnly.find(o => ['code_verified','in_progress'].includes(o.status));
       if(inProg &&!isManualBackRef.current){
         setActiveOrderId(inProg.id);
@@ -150,10 +150,9 @@ export default function Page() {
     const customerId = cid || customer?.customerId || customer?.id;
     if(!customerId) return;
     intervalRef.current = setInterval(async () => {
-      if(isManualBackRef.current) return; // ✅ اذا كبس رجوع ما ترجعو تلقائيا
+      if(isManualBackRef.current) return;
       const res = await fetch(`/api/taxi/my-orders?customer_id=${customerId}&t=${Date.now()}`, { cache: 'no-store', credentials: 'include' }).then(r=>r.json()).catch(()=>null);
       if(res){
-        // ✅ نفس التعديل هون
         const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','expired'].includes(o.status));
         setOrders(activeOnly);
         if(activeOnly.length === 0){
@@ -161,7 +160,6 @@ export default function Page() {
           clearInterval(intervalRef.current);
           return;
         }
-        // ✅ اول شي دور على رحلة جارية
         const inProg = activeOnly.find(o => ['code_verified','in_progress'].includes(o.status));
         if(inProg){ setActiveOrderId(inProg.id); setStep('in_progress'); return; }
         const accepted = activeOnly.find(o => ['accepted','on_the_way','arrived'].includes(o.status));
@@ -170,17 +168,40 @@ export default function Page() {
     }, 3000);
   };
 
+  // ✅ جديد - جيب السيارات القريبة
+  const fetchNearby = async (lat, lng, vType) => {
+    if(!lat ||!lng) return;
+    setNearbyLoading(true);
+    try {
+      const res = await fetch(`/api/taxi/nearby?lat=${lat}&lng=${lng}&vehicle_type=${vType}&t=${Date.now()}`, { cache: 'no-store' }).then(r=>r.json()).catch(()=>({drivers:[]}));
+      setNearbyDrivers(res.drivers || []);
+    } catch { setNearbyDrivers([]); }
+    setNearbyLoading(false);
+  };
+
   const handleDistanceCalculated = async (data) => {
     setDistanceData(data);
     if (!bundle) return;
     let currentArea = area;
-    if (data.pickup?.lat) { currentArea = await getAreaFromLatLng(data.pickup.lat, data.pickup.lng); setArea(currentArea); }
+    if (data.pickup?.lat) {
+      currentArea = await getAreaFromLatLng(data.pickup.lat, data.pickup.lng);
+      setArea(currentArea);
+      // ✅ كل ما حسب المسافة جيب القريبين
+      fetchNearby(data.pickup.lat, data.pickup.lng, vehicleType);
+    }
     try {
       const engineCode = getEngineCode(vehicleType, bundle);
       const fare = calculateFare({ cityKm: data.cityKm, highwayKm: data.highwayKm, totalKm: data.totalKm, pricingBundle: bundle, engineCode, area: currentArea, vehicle_type: vehicleType });
       setPricing(fare);
     } catch(e) { console.error('calc fare error', e); }
   };
+
+  // ✅ اذا غير نوع السيارة ارجع جيب القريبين
+  useEffect(() => {
+    if(distanceData?.pickup?.lat) {
+      fetchNearby(distanceData.pickup.lat, distanceData.pickup.lng, vehicleType);
+    }
+  }, [vehicleType]);
 
   const handleConfirmMap = async (mapData) => {
     if (!customer ||!mapData.origin ||!mapData.dest) return;
@@ -239,22 +260,19 @@ export default function Page() {
     await fetchMyOrders();
   };
 
-  // ✅ تعديل 3: هون كان الغلط - كنت عامل setStep('form') بس، هلق بنوقف البولينغ
   const handleBackToMap = () => {
-    isManualBackRef.current = true; // وقف الرجوع التلقائي
+    isManualBackRef.current = true;
     if(intervalRef.current) clearInterval(intervalRef.current);
     setStep('form');
-    setTimeout(()=>{ isManualBackRef.current = false; startPolling(); }, 5000); // ارجع شغل بعد 5 ثواني
+    setTimeout(()=>{ isManualBackRef.current = false; startPolling(); }, 5000);
   };
 
-  // ✅ جديد - SOS
   const handleSos = async () => {
     if(!activeOrder ||!sosComment) return alert('اكتب شو صار');
     await fetch('/api/taxi/sos', { method:'POST', headers:{'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ order_id: activeOrder.id, comment: sosComment }) });
     alert('تم ارسال بلاغ SOS'); setShowSos(false); setSosComment('');
   };
 
-  // ✅ جديد - مشاركة واتساب
   const handleShare = () => {
     const code = activeOrder.order_code || activeOrder.secret_code || activeOrder.id;
     const text = `تابع رحلتي 🚕 رقم: ${activeOrder.order_code} - السائق: ${activeOrder.taxi_name} ${activeOrder.taxi_phone} - السيارة: ${activeOrder.taxi_car_type} ${activeOrder.taxi_plate_number} ${activeOrder.taxi_car_color} - الرابط: ${window.location.origin}/taxi/share/${code}`;
@@ -267,7 +285,7 @@ export default function Page() {
   const pendingOrders = orders.filter(o => o.status === 'pending');
   const draftOrders = orders.filter(o => o.status === 'draft' && o.requested_start_at);
   const acceptedOrders = orders.filter(o => ['accepted','on_the_way','arrived'].includes(o.status));
-  const inProgressOrders = orders.filter(o => ['code_verified','in_progress'].includes(o.status)); // ✅ جديد
+  const inProgressOrders = orders.filter(o => ['code_verified','in_progress'].includes(o.status));
 
   const renderOrderCard = (o) => (
     <div key={o.id} style={{background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:12, padding:10, fontSize:12, marginBottom:10}}>
@@ -378,6 +396,25 @@ export default function Page() {
           </div>
         </div>
         <div style={{height:'60vh', borderRadius:16, overflow:'hidden', border:'1px solid #ddd'}}><TaxiMap onDistanceCalculated={handleDistanceCalculated} onConfirm={handleConfirmMap} /></div>
+
+        {/* ✅ جديد - ليستة السيارات القريبة - عرض بس */}
+        <div style={{marginTop:12, background:'white', borderRadius:16, padding:12, border:'1px solid #e5e7eb'}}>
+          <div style={{fontWeight:900, fontSize:13, marginBottom:8}}>🚕 السيارات القريبة ضمن 3 كم {nearbyLoading? '(جاري البحث...)': `(${nearbyDrivers.length})`}</div>
+          {nearbyDrivers.length === 0 &&!nearbyLoading && <div style={{fontSize:12, opacity:0.5, textAlign:'center', padding:10}}>لا يوجد سيارات {vehicleType} قريبة حاليا - جرب نوع تاني</div>}
+          {nearbyDrivers.map((d, idx) => (
+            <div key={d.Taxi_ID || idx} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom: idx!== nearbyDrivers.length-1? '1px solid #f3f4f6' : 'none', fontSize:12}}>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:900}}>{idx+1}. {d.full_name} - {d.car_type || d.vehicle_type}</div>
+                <div style={{fontSize:11, opacity:0.7}}>المحرك: {d.engine_cc || '1500'} - اللوحة: {d.plate_number || '-'}</div>
+              </div>
+              <div style={{textAlign:'left'}}>
+                <div style={{fontWeight:900, color:'#0a1930'}}>{d.distance_km?.toFixed(2)} كم</div>
+                <div style={{fontSize:10, color: d.is_online? '#16a34a' : '#9ca3af'}}>{d.is_online? '● متاح' : 'غير متاح'}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {pricing && distanceData && (
           <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12}}><div style={{fontSize:11, opacity:0.7}}>منطقة {area} - {distanceData.totalKm} كم - محرك {getEngineCode(vehicleType, bundle)} - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمالية تغيير السعر عند الموافقة</div></div>
         )}
