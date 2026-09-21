@@ -32,6 +32,16 @@ function Stars({ rating = 0, size = 14 }) {
   );
 }
 
+// --- منطق التسعيرة الشفاف مع fallback ---
+function normalizeVehicleType(t) {
+  if (!t) return 'car';
+  const v = String(t).toLowerCase();
+  if (v === 'tuktuk') return 'toktok';
+  if (v === 'touristic_van' || v === 'touristic_van_11') return 'van';
+  if (v === 'moto' || v === 'motor' || v === 'motorcycle') return 'moto';
+  return v;
+}
+
 export default function TaxiDriverDashboard(){
   const [supabase, setSupabase] = useState(null)
   const [me, setMe] = useState(null)
@@ -43,12 +53,14 @@ export default function TaxiDriverDashboard(){
   const [wallet, setWallet] = useState(0)
   const [walletTx, setWalletTx] = useState([])
   const [showWallet, setShowWallet] = useState(false)
+  const [showBalance, setShowBalance] = useState(false) // عين الخصوصية
   const [showCodePad, setShowCodePad] = useState(false)
   const [codeInput, setCodeInput] = useState("")
   const [amountReceived, setAmountReceived] = useState("")
   const [driverStats, setDriverStats] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [expandedRoutes, setExpandedRoutes] = useState({})
+  const [pricingBundle, setPricingBundle] = useState(null) // كاش التسعيرة
 
   const locationWatchRef = useRef(null)
   const selectedOrderRef = useRef(null)
@@ -59,6 +71,31 @@ export default function TaxiDriverDashboard(){
     setSupabase(createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))
     fetch('/api/admin/me', {cache:'no-store'}).then(r=>r.json()).then(d=>{ setMe(d); setIsOnline(d.is_online?? true) })
   },[])
+
+  // تحميل كونفيغ التسعيرة مرة وحدة مع كاش - ما بعلق اذا فشل
+  useEffect(()=>{
+    if(!supabase) return
+    const loadPricing = async () => {
+      try {
+        const [pricingRes, fuelRes, enginesRes, baseFaresRes] = await Promise.all([
+          supabase.from('taxi_pricing_config').select('*').eq('is_active', true).order('created_at', {ascending:false}).limit(1).single(),
+          supabase.from('taxi_fuel_config').select('*').eq('is_active', true).order('effective_date', {ascending:false}).limit(1).single(),
+          supabase.from('taxi_engines').select('*').eq('is_active', true),
+          supabase.from('taxi_base_fares').select('*').eq('is_active', true)
+        ])
+        if(pricingRes.data && fuelRes.data && enginesRes.data){
+          setPricingBundle({
+            pricing: pricingRes.data,
+            fuel: fuelRes.data,
+            engines: Object.fromEntries(enginesRes.data.map(e => [e.code, e])),
+            enginesList: enginesRes.data,
+            baseFares: baseFaresRes.data || []
+          })
+        }
+      } catch(e){ console.log('pricing bundle fallback to default', e.message) }
+    }
+    loadPricing()
+  }, [supabase])
 
   const formatLBP = (n) => {
     if(!n && n!==0) return '0 ل.ل'
@@ -73,6 +110,29 @@ export default function TaxiDriverDashboard(){
     const full = clean.startsWith('961')? clean : `961${clean}`
     const msg = `مرحبا انا السائق ${driverName} من MD-TAXI رحلة رقم ${orderCode}`
     return `https://wa.me/${full}?text=${encodeURIComponent(msg)}`
+  }
+
+  // حساب تسعيرة السائق مع fallback للديفولت
+  const getDriverPreviewPrice = (order) => {
+    try {
+      if(!pricingBundle ||!me) return null
+      const rawEngine = me.Taxi_Engine || me.engine_cc || me.taxi_engine_cc || me.engine_code || '1500'
+      const code = String(rawEngine).trim()
+      const engine = pricingBundle.engines[code] || pricingBundle.enginesList.find(e=> normalizeVehicleType(e.vehicle_type) === normalizeVehicleType(me.vehicle_type))
+      if(!engine) return null
+      // حساب مبسط - نفس منطق accept - اذا فشل بيرجع null
+      const totalKm = Number(order.distance_traveled) || 0
+      const fuelPerLiter = Number(pricingBundle.fuel.tank_price_lbp) / Number(pricingBundle.fuel.tank_liters)
+      const fuelPerKm = Number(engine.consumption_l_per_km) * fuelPerLiter
+      const vt = normalizeVehicleType(me.vehicle_type || order.taxi_vehicle_type)
+      let baseRow = pricingBundle.baseFares.find(r=> r.area === 'default' && normalizeVehicleType(r.vehicle_type) === vt)
+      const base = baseRow?.base_fare_lbp || (vt==='moto'?80000: vt==='toktok'?90000: vt==='van'?250000:150000)
+      const cityProfit = pricingBundle.pricing.city_per_km_day_lbp
+      let fare = base + totalKm * (cityProfit * Number(engine.factor) + fuelPerKm)
+      const minFare = baseRow?.min_fare_lbp || pricingBundle.pricing.min_fare_lbp
+      if(fare < minFare) fare = minFare
+      return Math.round(fare)
+    } catch { return null }
   }
 
   useEffect(()=>{
@@ -133,7 +193,10 @@ export default function TaxiDriverDashboard(){
           if(!o.origin_lat ||!o.origin_lng) return false
           if(o.taxi_vehicle_type && me.vehicle_type && o.taxi_vehicle_type!== me.vehicle_type) return false
           return haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)) <= 5
-        }).map(o=>({...o, distance_km: haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)).toFixed(1)})).sort((a,b)=>parseFloat(a.distance_km) - parseFloat(b.distance_km))
+        }).map(o=>{
+          const preview = getDriverPreviewPrice(o)
+          return {...o, distance_km: haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)).toFixed(1), preview_price: preview}
+        }).sort((a,b)=>parseFloat(a.distance_km) - parseFloat(b.distance_km))
         setNearby(filtered)
       }
     }
@@ -141,7 +204,7 @@ export default function TaxiDriverDashboard(){
     const interval = setInterval(load, 5000)
     const channel = supabase.channel('taxi_orders_live').on('postgres_changes',{event:'*',schema:'public',table:'taxi_orders'},()=>load()).subscribe()
     return ()=>{ clearInterval(interval); supabase.removeChannel(channel) }
-  },[supabase, me, myLocation])
+  },[supabase, me, myLocation, pricingBundle])
 
   const toggleOnline = async ()=>{
     const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
@@ -230,13 +293,16 @@ export default function TaxiDriverDashboard(){
         <button onClick={logout} style={{background:'#ef444444', border:'1px solid #ef4444', color:'#fca5a5', padding:'6px 12px', borderRadius:8}}>خروج</button>
       </div>
 
-      <div onClick={()=>setShowWallet(true)} style={{marginTop:12, background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', border:'2px solid rgba(255,255,255,0.2)'}}>
-        <div>
-          <div style={{fontSize:11, opacity:0.8}}>👛 محفظتي</div>
-          <div style={{fontSize:26, fontWeight:900, marginTop:2}}>{formatLBP(wallet)}</div>
-          <div style={{fontSize:11, opacity:0.7, marginTop:2}}>اضغط لعرض التفاصيل</div>
+      <div style={{marginTop:12, background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', border:'2px solid rgba(255,255,255,0.2)'}}>
+        <div onClick={()=>setShowWallet(true)} style={{flex:1, cursor:'pointer'}}>
+          <div style={{fontSize:11, opacity:0.8}}>👛 محفظتي - اضغط للتفاصيل</div>
+          <div style={{fontSize:26, fontWeight:900, marginTop:2}}>{showBalance? formatLBP(wallet) : '•••••••• ل.ل'}</div>
+          <div style={{fontSize:11, opacity:0.7, marginTop:2}}>{showBalance? 'الرصيد ظاهر':'الرصيد مخفي - احترام للخصوصية'}</div>
         </div>
-        <div style={{fontSize:32}}>💳</div>
+        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <button onClick={()=>setShowBalance(!showBalance)} style={{background:'white', color:'#059669', padding:'8px 14px', borderRadius:20, fontWeight:900, border:'none'}}>{showBalance?'🙈 اخفاء':'👁 اظهار'}</button>
+          <div style={{fontSize:32}}>💳</div>
+        </div>
       </div>
 
       {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:8}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
@@ -276,14 +342,25 @@ export default function TaxiDriverDashboard(){
       {!selectedOrder && (
       <div style={{marginTop:16}}>
         <h3 style={{fontWeight:900}}>🔍 طلبات قريبة 5 كم ({nearby.length})</h3>
-        {nearby.map(o=>(
+        {nearby.map(o=>{
+          const preview = o.preview_price
+          const isDifferent = preview && preview!== o.total_amount
+          return (
           <div key={o.id} style={{background:'#132a54', borderRadius:12, padding:12, marginTop:8, border: expandedId===o.id?'2px solid #22c55e':'1px solid #1e3a6e'}}>
             <div style={{display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12}}>#{o.order_code || o.id.slice(0,6)}</span><span style={{background:'#FFC107', color:'black', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:900}}>{o.distance_km} كم</span></div>
             <div style={{fontSize:11, opacity:0.7, marginTop:2}}>📍 {o.origin_name?.slice(0,50)} → {o.dest_name?.slice(0,40)}</div>
-            <div style={{display:'flex', justifyContent:'space-between', marginTop:6, fontWeight:900, fontSize:12}}><span>{o.customer_name} - {o.taxi_vehicle_type} - {o.distance_traveled} كم</span><span>{o.total_amount?.toLocaleString()} ل.ل</span></div>
+            <div style={{display:'flex', justifyContent:'space-between', marginTop:6, fontWeight:900, fontSize:12}}>
+              <span>{o.customer_name} - {o.taxi_vehicle_type} - {o.distance_traveled} كم</span>
+              <span>{o.total_amount?.toLocaleString()} ل.ل</span>
+            </div>
+            {preview && (
+              <div style={{marginTop:6, background: isDifferent?'#dcfce7':'#f3f4f6', color: isDifferent?'#166534':'#111', padding:'6px 10px', borderRadius:8, fontSize:12, fontWeight:900, border: isDifferent?'1px solid #bbf7d0':'1px solid #e5e7eb'}}>
+                {isDifferent? `✅ تسعيرتك (${me.engine_cc||''}): ${preview.toLocaleString()} ل.ل - اوفر ${ (o.total_amount - preview).toLocaleString()} ل.ل` : `تسعيرتك: ${preview.toLocaleString()} ل.ل`}
+              </div>
+            )}
             <div style={{display:'flex', gap:8, marginTop:8}}>
               <button onClick={()=>toggleExpand(o)} style={{flex:1, background:'#1e3a6e', padding:10, borderRadius:10, fontWeight:700, border:'none', color:'white'}}>{expandedId===o.id?'🔼 اخفاء':'📍 شوف الطريق'}</button>
-              <button onClick={()=>handleAccept(o)} style={{flex:1, background:'#22c55e', padding:10, borderRadius:10, fontWeight:900, border:'none', color:'white'}}>✅ قبول</button>
+              <button onClick={()=>handleAccept(o)} style={{flex:1, background:'#22c55e', padding:10, borderRadius:10, fontWeight:900, border:'none', color:'white'}}>✅ قبول - {preview? preview.toLocaleString() : o.total_amount?.toLocaleString()} ل.ل</button>
             </div>
             {expandedId===o.id && (
               <div style={{background:'#0a1930', borderRadius:10, marginTop:8, overflow:'hidden', position:'relative', zIndex:0}}>
@@ -293,7 +370,8 @@ export default function TaxiDriverDashboard(){
               </div>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
       )}
 
@@ -302,8 +380,11 @@ export default function TaxiDriverDashboard(){
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:60, padding:12}}>
           <div style={{background:'white', color:'black', borderRadius:16, width:'100%', maxWidth:400, maxHeight:'80vh', overflow:'hidden', display:'flex', flexDirection:'column'}}>
             <div style={{padding:16, background:'#0a1930', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <div><div style={{fontSize:12, opacity:0.7}}>محفظتي</div><div style={{fontSize:22, fontWeight:900}}>{formatLBP(wallet)}</div></div>
-              <button onClick={()=>setShowWallet(false)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', width:32, height:32, borderRadius:8}}>✕</button>
+              <div><div style={{fontSize:12, opacity:0.7}}>محفظتي</div><div style={{fontSize:22, fontWeight:900}}>{showBalance? formatLBP(wallet) : '•••••••• ل.ل'}</div></div>
+              <div style={{display:'flex', gap:8}}>
+                <button onClick={()=>setShowBalance(!showBalance)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', padding:'6px 12px', borderRadius:8}}>{showBalance?'🙈':'👁'}</button>
+                <button onClick={()=>setShowWallet(false)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', width:32, height:32, borderRadius:8}}>✕</button>
+              </div>
             </div>
             <div style={{flex:1, overflowY:'auto', padding:10}}>
               {walletTx.length===0 && <div style={{textAlign:'center', padding:20, color:'#999'}}>لا يوجد حركات</div>}
