@@ -290,7 +290,11 @@ export default function TaxiDriverDashboard(){
           )}
           <button onClick={toggleOnline} style={{background:isOnline?'#22c55e':'#ef4444', padding:'6px 14px', borderRadius:20, fontWeight:900, border:'none', color:'white'}}>{isOnline?'🟢 Online':'🔴 Offline'}</button>
         </div>
-        <button onClick={logout} style={{background:'#ef444444', border:'1px solid #ef4444', color:'#fca5a5', padding:'6px 12px', borderRadius:8}}>خروج</button>
+        {/* ✅ تعديل 1 - زدت زر السجل جنب خروج */}
+        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <a href="/taxi/driver/history" style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', color:'white', padding:'6px 12px', borderRadius:8, textDecoration:'none', fontSize:12, fontWeight:900}}>📜 سجلي</a>
+          <button onClick={logout} style={{background:'#ef444444', border:'1px solid #ef4444', color:'#fca5a5', padding:'6px 12px', borderRadius:8}}>خروج</button>
+        </div>
       </div>
 
       <div style={{marginTop:12, background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', border:'2px solid rgba(255,255,255,0.2)'}}>
@@ -303,6 +307,12 @@ export default function TaxiDriverDashboard(){
           <button onClick={()=>setShowBalance(!showBalance)} style={{background:'white', color:'#059669', padding:'8px 14px', borderRadius:20, fontWeight:900, border:'none'}}>{showBalance?'🙈 اخفاء':'👁 اظهار'}</button>
           <div style={{fontSize:32}}>💳</div>
         </div>
+      </div>
+
+      {/* ✅ تعديل 2 - زدت ازرار السجل تحت المحفظة */}
+      <div style={{marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+        <a href="/taxi/driver/history" style={{textAlign:'center', padding:12, borderRadius:12, background:'white', color:'#0a1930', fontWeight:900, fontSize:13, textDecoration:'none', border:'1px solid #e5e7eb'}}>📜 سجل رحلاتي المكتملة</a>
+        <div style={{textAlign:'center', padding:12, borderRadius:12, background:'#132a54', color:'white', fontWeight:900, fontSize:12, border:'1px solid #1e3a6e'}}>💰 ارباح اليوم: {formatLBP(wallet)}</div>
       </div>
 
       {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:8}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
