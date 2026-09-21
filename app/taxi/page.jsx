@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getPricingConfig, calculateFare } from '@/lib/taxi/pricingEngine';
 
 const TaxiMap = dynamic(() => import('@/components/taxi/TaxiMap'), { ssr: false });
+const TaxiActiveMap = dynamic(() => import('@/components/taxi/TaxiActiveMap'), { ssr: false }); // ✅ ضفناها للرحلة الجارية
 
 const ENGINE_MAP = {
   car: '1500',
@@ -58,7 +59,10 @@ export default function Page() {
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [meLoading, setMeLoading] = useState(true);
+  const [showSos, setShowSos] = useState(false); // ✅ جديد للـ SOS
+  const [sosComment, setSosComment] = useState(''); // ✅ جديد للـ SOS
   const intervalRef = useRef(null);
+  const isManualBackRef = useRef(false); // ✅ هيدا حل مشكلة الرجوع - اذا true البولينغ ما بيرجعك
   const hasRedirected = useRef(false);
 
   const activeOrder = orders.find(o => o.id === activeOrderId) || orders[0] || null;
@@ -70,7 +74,7 @@ export default function Page() {
     localStorage.removeItem('taxi_orders');
     let cancelled = false;
     fetch('/api/me', { cache: 'no-store', credentials: 'include' })
-     .then(async (res) => {
+    .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -90,13 +94,13 @@ export default function Page() {
           }
         }
       })
-     .catch(() => {
+    .catch(() => {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
-     .finally(() => { if (!cancelled) setMeLoading(false); });
+    .finally(() => { if (!cancelled) setMeLoading(false); });
     return () => { cancelled = true; };
   }, [router]);
 
@@ -104,12 +108,19 @@ export default function Page() {
     const id = cid || customer?.customerId || customer?.id;
     if(!id) return;
     const res = await fetch(`/api/taxi/my-orders?customer_id=${id}&t=${Date.now()}`, { cache: 'no-store', credentials: 'include' }).then(r=>r.json()).catch(()=>({orders:[]}));
-    const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','code_verified','expired'].includes(o.status));
+    // ✅ تعديل 1: قبل كنت شايل code_verified فكان يختفي بعد الكود - هلق شلنا بس الملغى والمنتهي
+    const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','expired'].includes(o.status));
     setOrders(activeOnly);
     if(activeOnly.length === 0){
       setStep('form');
       if(intervalRef.current) clearInterval(intervalRef.current);
     } else {
+      // ✅ تعديل 2: اذا في رحلة موثقة افتح in_progress مش accepted
+      const inProg = activeOnly.find(o => ['code_verified','in_progress'].includes(o.status));
+      if(inProg &&!isManualBackRef.current){
+        setActiveOrderId(inProg.id);
+        setStep('in_progress');
+      }
       startPolling(id);
     }
   };
@@ -139,15 +150,20 @@ export default function Page() {
     const customerId = cid || customer?.customerId || customer?.id;
     if(!customerId) return;
     intervalRef.current = setInterval(async () => {
+      if(isManualBackRef.current) return; // ✅ اذا كبس رجوع ما ترجعو تلقائيا
       const res = await fetch(`/api/taxi/my-orders?customer_id=${customerId}&t=${Date.now()}`, { cache: 'no-store', credentials: 'include' }).then(r=>r.json()).catch(()=>null);
       if(res){
-        const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','code_verified','expired'].includes(o.status));
+        // ✅ نفس التعديل هون
+        const activeOnly = (res.orders || []).filter(o =>!['cancelled','completed','expired'].includes(o.status));
         setOrders(activeOnly);
         if(activeOnly.length === 0){
           setStep('form');
           clearInterval(intervalRef.current);
           return;
         }
+        // ✅ اول شي دور على رحلة جارية
+        const inProg = activeOnly.find(o => ['code_verified','in_progress'].includes(o.status));
+        if(inProg){ setActiveOrderId(inProg.id); setStep('in_progress'); return; }
         const accepted = activeOnly.find(o => ['accepted','on_the_way','arrived'].includes(o.status));
         if(accepted){ setActiveOrderId(accepted.id); setStep('accepted'); }
       }
@@ -223,7 +239,27 @@ export default function Page() {
     await fetchMyOrders();
   };
 
-  const handleBackToMap = () => setStep('form');
+  // ✅ تعديل 3: هون كان الغلط - كنت عامل setStep('form') بس، هلق بنوقف البولينغ
+  const handleBackToMap = () => {
+    isManualBackRef.current = true; // وقف الرجوع التلقائي
+    if(intervalRef.current) clearInterval(intervalRef.current);
+    setStep('form');
+    setTimeout(()=>{ isManualBackRef.current = false; startPolling(); }, 5000); // ارجع شغل بعد 5 ثواني
+  };
+
+  // ✅ جديد - SOS
+  const handleSos = async () => {
+    if(!activeOrder ||!sosComment) return alert('اكتب شو صار');
+    await fetch('/api/taxi/sos', { method:'POST', headers:{'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ order_id: activeOrder.id, comment: sosComment }) });
+    alert('تم ارسال بلاغ SOS'); setShowSos(false); setSosComment('');
+  };
+
+  // ✅ جديد - مشاركة واتساب
+  const handleShare = () => {
+    const code = activeOrder.order_code || activeOrder.secret_code || activeOrder.id;
+    const text = `تابع رحلتي 🚕 رقم: ${activeOrder.order_code} - السائق: ${activeOrder.taxi_name} ${activeOrder.taxi_phone} - السيارة: ${activeOrder.taxi_car_type} ${activeOrder.taxi_plate_number} ${activeOrder.taxi_car_color} - الرابط: ${window.location.origin}/taxi/share/${code}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
 
   if (meLoading) return <div style={{padding:20, textAlign:'center'}}>يتم التحميل...</div>;
   if (!customer) return null;
@@ -231,6 +267,7 @@ export default function Page() {
   const pendingOrders = orders.filter(o => o.status === 'pending');
   const draftOrders = orders.filter(o => o.status === 'draft' && o.requested_start_at);
   const acceptedOrders = orders.filter(o => ['accepted','on_the_way','arrived'].includes(o.status));
+  const inProgressOrders = orders.filter(o => ['code_verified','in_progress'].includes(o.status)); // ✅ جديد
 
   const renderOrderCard = (o) => (
     <div key={o.id} style={{background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:12, padding:10, fontSize:12, marginBottom:10}}>
@@ -295,6 +332,25 @@ export default function Page() {
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
               <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900}}>⬅ الخريطة</button>
               <button onClick={()=>handleCancel(activeOrder?.id || acceptedOrders[0]?.id)} style={{padding:12, borderRadius:12, background:'#fee2e2', color:'#dc2626', fontWeight:900, border:'1px solid #fecaca'}}>❌ إلغاء</button>
+            </div>
+          </div>
+        )}
+        {step === 'in_progress' && (
+          <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, margin:'12px auto'}}>
+            <div style={{background:'#0a1930', color:'white', padding:12, borderRadius:12, textAlign:'center', fontWeight:900}}>🚕 الرحلة جارية - {activeOrder?.taxi_name} - {activeOrder?.taxi_plate_number} {activeOrder?.taxi_car_color}</div>
+            <div style={{marginTop:12, height:320, borderRadius:12, overflow:'hidden', border:'1px solid #ddd}}>
+              <TaxiActiveMap myLocation={activeOrder?.taxi_lat_live? {lat: Number(activeOrder.taxi_lat_live), lng: Number(activeOrder.taxi_lng_live)} : null} origin_lat={activeOrder?.origin_lat} origin_lng={activeOrder?.origin_lng} dest_lat={activeOrder?.dest_lat} dest_lng={activeOrder?.dest_lng} />
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
+              <button onClick={()=>setShowSos(!showSos)} style={{padding:14, borderRadius:12, background:'#dc2626', color:'white', fontWeight:900}}>🆘 SOS</button>
+              <button onClick={handleShare} style={{padding:14, borderRadius:12, background:'#25D366', color:'white', fontWeight:900}}>📤 مشاركة واتساب</button>
+            </div>
+            {showSos && <div style={{marginTop:12, background:'#fee2e2', padding:12, borderRadius:12, border:'1px solid #fecaca'}}><textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="شو صار؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca'}} rows={3}/><button onClick={handleSos} style={{marginTop:8, width:'100%', padding:10, borderRadius:8, background:'#dc2626', color:'white', fontWeight:900}}>ارسال البلاغ</button></div>}
+            <div style={{marginTop:12, fontSize:12, background:'#f8fafc', padding:10, borderRadius:10, border:'1px solid #e5e7eb'}}>
+              <div>رقم الرحلة: {activeOrder?.order_code}</div>
+              <div>التاريخ: {activeOrder?.created_at? new Date(activeOrder.created_at).toLocaleString('ar-LB') : ''}</div>
+              <div>السيارة: {activeOrder?.taxi_car_type} - {activeOrder?.taxi_plate_number} - {activeOrder?.taxi_car_color}</div>
+              <div>السائق: {activeOrder?.taxi_name} - {activeOrder?.taxi_phone}</div>
             </div>
           </div>
         )}
