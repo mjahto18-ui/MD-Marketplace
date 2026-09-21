@@ -74,8 +74,8 @@ export async function POST(req) {
       }
     });
 
-    if (walletBalance < 50000) {
-      return Response.json({ error: `رصيد المحفظة غير كافي - عندك ${walletBalance.toLocaleString()} ل.ل ولازم 50,000` }, { status: 402 });
+    if (walletBalance < 300000) {
+      return Response.json({ error: `رصيد المحفظة غير كافي - عندك ${walletBalance.toLocaleString()} ل.ل الحد الادنى 300,000` }, { status: 402 });
     }
 
     const { data: order } = await supabase.from('taxi_orders').select('*').eq('id', order_id).single();
