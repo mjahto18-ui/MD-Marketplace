@@ -5,6 +5,7 @@ import { Star } from "lucide-react"
 import dynamic from 'next/dynamic'
 
 const TaxiNearbyMap = dynamic(() => import('@/components/taxi/TaxiNearbyMap'), { ssr: false })
+const TaxiActiveMap = dynamic(() => import('@/components/taxi/TaxiActiveMap'), { ssr: false })
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -230,16 +231,25 @@ export default function TaxiDriverDashboard(){
       {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:8}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
 
       {selectedOrder && (
-        <div style={{background:'white', color:'black', borderRadius:14, padding:14, marginTop:12, border:'3px solid #22c55e'}}>
-          <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name} - طلبك الحالي</b>
-          <div style={{fontSize:12, marginTop:4}}>📍 من: {selectedOrder.origin_name}</div>
-          <div style={{fontSize:12}}>🎯 إلى: {selectedOrder.dest_name}</div>
-          <div style={{marginTop:6, fontWeight:900}}>💰 {selectedOrder.total_amount?.toLocaleString()} - {selectedOrder.distance_traveled} كم - {selectedOrder.taxi_engine_cc}</div>
+        <div style={{background:'white', color:'black', borderRadius:14, padding:12, marginTop:12, border:'3px solid #22c55e'}}>
+          <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name} - {selectedOrder.customer_phone}</b>
+          <div style={{fontSize:12, marginTop:6, background:'#f0fdf4', padding:8, borderRadius:8, border:'1px solid #bbf7d0'}}>
+            <div>📍 من: {selectedOrder.origin_name}</div>
+            <div style={{marginTop:4}}>🎯 إلى: {selectedOrder.dest_name}</div>
+          </div>
+          <div style={{marginTop:10, borderRadius:12, overflow:'hidden', border:'2px solid #e5e7eb'}}>
+            <TaxiActiveMap myLocation={myLocation} origin_lat={selectedOrder.origin_lat} origin_lng={selectedOrder.origin_lng} dest_lat={selectedOrder.dest_lat} dest_lng={selectedOrder.dest_lng} />
+          </div>
+          <div style={{display:'flex', gap:8, marginTop:10}}>
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.origin_lat},${selectedOrder.origin_lng}`} target="_blank" style={{flex:1, background:'#3b82f6', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>🔵 خذني لعند الزبون</a>
+            <a href={`https://www.google.com/maps/dir/?api=1&origin=${selectedOrder.origin_lat},${selectedOrder.origin_lng}&destination=${selectedOrder.dest_lat},${selectedOrder.dest_lng}`} target="_blank" style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:700, textDecoration:'none'}}>🗺️ كامل الرحلة</a>
+          </div>
+          <div style={{marginTop:10, fontWeight:900, fontSize:14}}>💰 {selectedOrder.total_amount?.toLocaleString()} ل.ل - {selectedOrder.distance_traveled} كم - {selectedOrder.taxi_engine_cc}</div>
           <div style={{marginTop:10, display:'flex', gap:8}}>
             {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الكود</button>}
-            {selectedOrder.status === 'in_progress' && (<><input placeholder="المبلغ المستلم" value={amountReceived} onChange={e=>setAmountReceived(e.target.value)} style={{flex:1, padding:10, border:'2px solid #111', borderRadius:10, color:'black'}}/><button onClick={handleComplete} style={{background:'#22c55e', color:'white', padding:10, borderRadius:10, fontWeight:900, border:'none'}}>انهاء</button></>)}
+            {(selectedOrder.status === 'in_progress' || selectedOrder.status === 'code_verified') && (<><input placeholder="المبلغ المستلم" value={amountReceived} onChange={e=>setAmountReceived(e.target.value)} style={{flex:1, padding:10, border:'2px solid #111', borderRadius:10, color:'black'}}/><button onClick={handleComplete} style={{background:'#22c55e', color:'white', padding:10, borderRadius:10, fontWeight:900, border:'none'}}>انهاء</button></>)}
           </div>
-          <div style={{marginTop:8, fontSize:11, background:'#fef3c7', padding:8, borderRadius:8, color:'#92400e'}}>⛔ ما فيك تاخد طلب تاني حتى تخلص هاد</div>
+          <div style={{marginTop:8, fontSize:11, background:'#fef3c7', padding:8, borderRadius:8, color:'#92400e'}}>⛔ لا تستطيع اخد طلب تاني حتى ينتهي طلبك الحالي</div>
         </div>
       )}
 
