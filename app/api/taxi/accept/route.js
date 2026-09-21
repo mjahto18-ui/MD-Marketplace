@@ -84,7 +84,7 @@ export async function POST(req) {
 
     const { data: driver } = await supabase
 .from('taxi_drivers')
-.select('"Taxi_ID", full_name, phone, plate_number, car_type, vehicle_type, engine_cc')
+.select('"Taxi_ID", full_name, phone, plate_number, car_type, vehicle_type, engine_cc, seats, car_color')
 .eq('"Taxi_ID"', taxi_id)
 .single();
 
@@ -155,6 +155,8 @@ export async function POST(req) {
       taxi_car_type: driver?.car_type,
       taxi_vehicle_type: driver?.vehicle_type || order.taxi_vehicle_type,
       taxi_engine_cc: realEngine,
+      taxi_seats: driver?.seats || 4, // ✅ هيك بيجي 4 مش null
+      taxi_car_color: driver?.car_color || null, // ✅ هلق بيجي اللون اذا ضفت العمود
       total_amount: finalTotal,
       status: 'accepted',
       taxi_status: 'on_the_way',
