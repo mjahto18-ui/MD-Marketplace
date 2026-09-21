@@ -28,16 +28,20 @@ export async function POST(req) {
 
     if (!order_id ||!taxi_id) return Response.json({ error: 'order_id & taxi_id required' }, { status: 400 });
 
+    // ⛔ منع طلب تاني
+    const { data: active } = await supabase.from('taxi_orders').select('id, order_code').eq('taxi_id', taxi_id).in('status',['accepted','on_the_way','arrived','code_verified','in_progress']).limit(1).maybeSingle();
+    if(active) return Response.json({ error: `عندك طلب شغال #${active.order_code||''} - خلصو اول` }, { status: 409 });
+
     // ✅ 1- taxi_id جاي uuid من taxi_drivers
     // منجيب اليوزر الي مربوط فيه من جدول users."Taxi_ID"
     let ownerUserId = userId || null;
 
     if (!ownerUserId) {
       const { data: userRow, error: userErr } = await supabase
-     .from('users')
-     .select('"User ID", "Taxi_ID"')
-     .eq('"Taxi_ID"', taxi_id)
-     .maybeSingle();
+    .from('users')
+    .select('"User ID", "Taxi_ID"')
+    .eq('"Taxi_ID"', taxi_id)
+    .maybeSingle();
 
       if (userErr) throw userErr;
 
@@ -52,10 +56,10 @@ export async function POST(req) {
 
     // ✅ 2- منحسب المحفظة من wallet_transactions."Owner User ID" = users."User ID" - بس تشييك بدون خصم
     const { data: transData, error: transError } = await supabase
-   .from('wallet_transactions')
-   .select('"Amount", "Type"')
-   .eq('"Owner User ID"', ownerUserId)
-   .order('"Created At"', { ascending: false });
+  .from('wallet_transactions')
+  .select('"Amount", "Type"')
+  .eq('"Owner User ID"', ownerUserId)
+  .order('"Created At"', { ascending: false });
 
     if (transError) throw transError;
 
@@ -79,10 +83,10 @@ export async function POST(req) {
     if (!order.secret_code) return Response.json({ error: 'الطلب بدون كود - خلل' }, { status: 500 });
 
     const { data: driver } = await supabase
- .from('taxi_drivers')
- .select('"Taxi_ID", full_name, phone, plate_number, car_type, vehicle_type, engine_cc')
- .eq('"Taxi_ID"', taxi_id)
- .single();
+.from('taxi_drivers')
+.select('"Taxi_ID", full_name, phone, plate_number, car_type, vehicle_type, engine_cc')
+.eq('"Taxi_ID"', taxi_id)
+.single();
 
     if (!driver) return Response.json({ error: 'السائق غير موجود' }, { status: 404 });
 
