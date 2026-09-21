@@ -10,7 +10,7 @@ function getSupabase() {
 export async function POST(req) {
   try {
     const supabase = getSupabase();
-    const { order_id, taxi_id, lat, lng } = await req.json();
+    const { order_id, taxi_id, lat, lng, speed, heading } = await req.json();
 
     if (!order_id || !lat || !lng) return Response.json({ error: 'order_id, lat, lng required' }, { status: 400 });
 
@@ -31,13 +31,14 @@ export async function POST(req) {
     }
 
     // اذا عندك جدول تتبع منفصل مثل الدلفري driver_live_tracking
-    await supabase.from('taxi_live_tracking').upsert({
+    await supabase.from('taxi_live_tracking').insert({
       order_id,
       taxi_id,
       lat,
       lng,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'order_id' }).then(()=>{},()=>{});
+      speed: speed ?? 0,
+      heading: heading ?? 0
+    });
 
     return Response.json({ success: true });
   } catch (e) {
