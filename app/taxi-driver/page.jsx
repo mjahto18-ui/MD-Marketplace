@@ -66,6 +66,15 @@ export default function TaxiDriverDashboard(){
     return new Intl.NumberFormat('en-LB').format(num) + ' ل.ل'
   }
 
+  const getWhatsappLink = (phone, driverName, orderCode) => {
+    if(!phone) return null
+    let clean = String(phone).replace(/[^0-9]/g,'').replace(/^0+/,'')
+    if(!clean) return null
+    const full = clean.startsWith('961') ? clean : `961${clean}`
+    const msg = `مرحبا انا السائق ${driverName} من MD-TAXI رحلة رقم ${orderCode}`
+    return `https://wa.me/${full}?text=${encodeURIComponent(msg)}`
+  }
+
   useEffect(()=>{
     if(!supabase ||!me ||!isOnline) return
     const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
@@ -233,6 +242,11 @@ export default function TaxiDriverDashboard(){
       {selectedOrder && (
         <div style={{background:'white', color:'black', borderRadius:14, padding:12, marginTop:12, border:'3px solid #22c55e'}}>
           <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name} - {selectedOrder.customer_phone}</b>
+          {/* بوكس اتصال و واتساب جديد */}
+          <div style={{display:'flex', gap:8, marginTop:10}}>
+            <a href={`tel:${selectedOrder.customer_phone}`} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>📞 اتصال {selectedOrder.customer_phone}</a>
+            <a href={getWhatsappLink(selectedOrder.customer_phone, me.name, selectedOrder.order_code)} target="_blank" style={{flex:1, background:'#25D366', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>💬 واتساب</a>
+          </div>
           <div style={{fontSize:12, marginTop:6, background:'#f0fdf4', padding:8, borderRadius:8, border:'1px solid #bbf7d0'}}>
             <div>📍 من: {selectedOrder.origin_name}</div>
             <div style={{marginTop:4}}>🎯 إلى: {selectedOrder.dest_name}</div>
