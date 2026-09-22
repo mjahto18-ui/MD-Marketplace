@@ -274,10 +274,11 @@ export default function Page() {
   };
 
   const handleShare = () => {
-    const code = activeOrder.order_code || activeOrder.secret_code || activeOrder.id;
-    const text = `تابع رحلتي 🚕 رقم: ${activeOrder.order_code} - السائق: ${activeOrder.taxi_name} ${activeOrder.taxi_phone} - السيارة: ${activeOrder.taxi_car_type} ${activeOrder.taxi_plate_number} ${activeOrder.taxi_car_color} - الرابط: ${window.location.origin}/taxi/share/${code}`;
+    // لازم نستخدم order_code + id - هيك صار آمن ومستحيل ينحزر
+    const link = `${window.location.origin}/taxi/share/${activeOrder.order_code}/${activeOrder.id}`;
+    const text = `تابع رحلتي  رقم: ${activeOrder.order_code} - السائق: ${activeOrder.taxi_name} ${activeOrder.taxi_phone} - السيارة: ${activeOrder.taxi_car_type} ${activeOrder.taxi_plate_number} ${activeOrder.taxi_car_color} - الرابط: ${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-  };
+};
 
   if (meLoading) return <div style={{padding:20, textAlign:'center'}}>يتم التحميل...</div>;
   if (!customer) return null;
