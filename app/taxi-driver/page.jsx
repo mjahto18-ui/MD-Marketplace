@@ -32,7 +32,6 @@ function Stars({ rating = 0, size = 14 }) {
   );
 }
 
-// --- منطق التسعيرة الشفاف مع fallback ---
 function normalizeVehicleType(t) {
   if (!t) return 'car';
   const v = String(t).toLowerCase();
@@ -53,14 +52,14 @@ export default function TaxiDriverDashboard(){
   const [wallet, setWallet] = useState(0)
   const [walletTx, setWalletTx] = useState([])
   const [showWallet, setShowWallet] = useState(false)
-  const [showBalance, setShowBalance] = useState(false) // عين الخصوصية
+  const [showBalance, setShowBalance] = useState(false)
   const [showCodePad, setShowCodePad] = useState(false)
   const [codeInput, setCodeInput] = useState("")
   const [amountReceived, setAmountReceived] = useState("")
   const [driverStats, setDriverStats] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [expandedRoutes, setExpandedRoutes] = useState({})
-  const [pricingBundle, setPricingBundle] = useState(null) // كاش التسعيرة
+  const [pricingBundle, setPricingBundle] = useState(null)
 
   const locationWatchRef = useRef(null)
   const selectedOrderRef = useRef(null)
@@ -69,10 +68,9 @@ export default function TaxiDriverDashboard(){
 
   useEffect(()=>{
     setSupabase(createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))
-    fetch('/api/admin/me', {cache:'no-store'}).then(r=>r.json()).then(d=>{ setMe(d); setIsOnline(d.is_online?? true) })
+    fetch('/api/admin/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d=>{ setMe(d); setIsOnline(d.is_online?? true) })
   },[])
 
-  // تحميل كونفيغ التسعيرة مرة وحدة مع كاش - ما بعلق اذا فشل
   useEffect(()=>{
     if(!supabase) return
     const loadPricing = async () => {
@@ -112,7 +110,6 @@ export default function TaxiDriverDashboard(){
     return `https://wa.me/${full}?text=${encodeURIComponent(msg)}`
   }
 
-  // حساب تسعيرة السائق مع fallback للديفولت
   const getDriverPreviewPrice = (order) => {
     try {
       if(!pricingBundle ||!me) return null
@@ -120,7 +117,6 @@ export default function TaxiDriverDashboard(){
       const code = String(rawEngine).trim()
       const engine = pricingBundle.engines[code] || pricingBundle.enginesList.find(e=> normalizeVehicleType(e.vehicle_type) === normalizeVehicleType(me.vehicle_type))
       if(!engine) return null
-      // حساب مبسط - نفس منطق accept - اذا فشل بيرجع null
       const totalKm = Number(order.distance_traveled) || 0
       const fuelPerLiter = Number(pricingBundle.fuel.tank_price_lbp) / Number(pricingBundle.fuel.tank_liters)
       const fuelPerKm = Number(engine.consumption_l_per_km) * fuelPerLiter
@@ -252,7 +248,10 @@ export default function TaxiDriverDashboard(){
     else { setSelectedOrder(null); setOrders([]); setAmountReceived(""); }
   }
 
-  const logout = async ()=>{ await fetch('/api/admin/logout',{method:'POST'}); window.location.href='/admin/login' }
+  const logout = async ()=>{
+    await fetch('/api/admin/logout',{method:'POST', credentials:'include'});
+    window.location.href='/admin/login'
+  }
 
   const Numpad = ()=>(
     <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
@@ -290,7 +289,6 @@ export default function TaxiDriverDashboard(){
           )}
           <button onClick={toggleOnline} style={{background:isOnline?'#22c55e':'#ef4444', padding:'6px 14px', borderRadius:20, fontWeight:900, border:'none', color:'white'}}>{isOnline?'🟢 Online':'🔴 Offline'}</button>
         </div>
-        {/* ✅ تعديل 1 - زدت زر السجل جنب خروج */}
         <div style={{display:'flex', gap:8, alignItems:'center'}}>
           <a href="/taxi/driver/history" style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', color:'white', padding:'6px 12px', borderRadius:8, textDecoration:'none', fontSize:12, fontWeight:900}}>📜 سجلي</a>
           <button onClick={logout} style={{background:'#ef444444', border:'1px solid #ef4444', color:'#fca5a5', padding:'6px 12px', borderRadius:8}}>خروج</button>
@@ -307,12 +305,6 @@ export default function TaxiDriverDashboard(){
           <button onClick={()=>setShowBalance(!showBalance)} style={{background:'white', color:'#059669', padding:'8px 14px', borderRadius:20, fontWeight:900, border:'none'}}>{showBalance?'🙈 اخفاء':'👁 اظهار'}</button>
           <div style={{fontSize:32}}>💳</div>
         </div>
-      </div>
-
-      {/* ✅ تعديل 2 - زدت ازرار السجل تحت المحفظة */}
-      <div style={{marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
-        <a href="/taxi/driver/history" style={{textAlign:'center', padding:12, borderRadius:12, background:'white', color:'#0a1930', fontWeight:900, fontSize:13, textDecoration:'none', border:'1px solid #e5e7eb'}}>📜 سجل رحلاتي المكتملة</a>
-        <div style={{textAlign:'center', padding:12, borderRadius:12, background:'#132a54', color:'white', fontWeight:900, fontSize:12, border:'1px solid #1e3a6e'}}>💰 ارباح اليوم: {formatLBP(wallet)}</div>
       </div>
 
       {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:8}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
