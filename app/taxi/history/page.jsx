@@ -64,8 +64,8 @@ export default function HistoryPage(){
                 {o.taxi_car_type} - {o.taxi_plate_number} {o.taxi_engine_cc? `- ${o.taxi_engine_cc}cc` : ''} - {o.taxi_seats? `${o.taxi_seats} مقاعد` : ''}
               </div>
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:10}}>
-                <button onClick={()=>window.location.href=`/taxi/share/${o.order_code}`} style={{padding:8, borderRadius:8, background:'#0a1930', color:'white', fontWeight:900, fontSize:11, border:'none'}}>👁 عرض الرحلة</button>
-                <button onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent(`رحلتي ${o.order_code} من ${o.origin_name} الى ${o.dest_name} - ${o.total_amount} ل.ل`)}`,'_blank')} style={{padding:8, borderRadius:8, background:'#25D366', color:'white', fontWeight:900, fontSize:11, border:'none'}}>📤 مشاركة</button>
+                <button onClick={()=>window.location.href=`/taxi/share/${o.order_code}/${o.id}`} style={{padding:8, borderRadius:8, background:'#0a1930', color:'white', fontWeight:900, fontSize:11, border:'none'}}>👁 عرض الرحلة</button>
+                <button onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent(`رحلتي ${o.order_code} من ${o.origin_name} الى ${o.dest_name} - ${o.total_amount} ل.ل - تابعها: ${window.location.origin}/taxi/share/${o.order_code}/${o.id}`)}`,'_blank')} style={{padding:8, borderRadius:8, background:'#25D366', color:'white', fontWeight:900, fontSize:11, border:'none'}}>📤 مشاركة</button>
               </div>
             </div>
           );
