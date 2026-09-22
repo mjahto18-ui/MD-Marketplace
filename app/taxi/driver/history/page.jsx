@@ -1,20 +1,20 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function DriverHistory(){
+  const router = useRouter();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [taxiId, setTaxiId] = useState(null);
 
   useEffect(()=>{
-    // جرب باب الادمن اول، اذا ما لقى جرب باب الزباين - نفس مبدأ الباب
     fetch('/api/admin/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d=>{
       const tid = d?.Taxi_ID || d?.taxiId || d?.relatedId;
       if(tid){
         setTaxiId(tid);
         loadHistory(tid);
       } else {
-        // اذا فايت من الموقع الرئيسي
         fetch('/api/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d2=>{
           const tid2 = d2.user?.taxiId || d2.user?.Taxi_ID;
           if(tid2){
@@ -23,11 +23,6 @@ export default function DriverHistory(){
           } else setLoading(false);
         });
       }
-    }).catch(()=>{
-      fetch('/api/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d=>{
-        const tid = d.user?.taxiId || d.user?.Taxi_ID;
-        if(tid){ setTaxiId(tid); loadHistory(tid); } else setLoading(false);
-      });
     });
   }, []);
 
@@ -38,6 +33,14 @@ export default function DriverHistory(){
     setLoading(false);
   };
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/taxi-driver');
+    }
+  };
+
   if(loading) return <div style={{padding:20, textAlign:'center'}}>جاري تحميل سجل رحلاتك...</div>;
 
   const totalEarnings = orders.filter(o=>o.status==='completed').reduce((s,o)=>s+(o.driver_net || o.total_amount || 0), 0);
@@ -46,7 +49,7 @@ export default function DriverHistory(){
     <div dir="rtl" style={{minHeight:'100vh', background:'#f8fafc', fontFamily:'Cairo'}}>
       <div style={{background:'#0a1930', color:'white', padding:14, display:'flex', justifyContent:'space-between', position:'sticky', top:0}}>
         <b>📜 سجل رحلاتي كسائق</b>
-        <a href="/taxi/driver" style={{color:'white', textDecoration:'none', fontSize:12, border:'1px solid rgba(255,255,255,0.3)', padding:'4px 10px', borderRadius:8}}>⬅ رجوع</a>
+        <button onClick={handleBack} style={{color:'white', background:'transparent', fontSize:12, border:'1px solid rgba(255,255,255,0.3)', padding:'4px 10px', borderRadius:8, cursor:'pointer'}}>⬅ رجوع</button>
       </div>
 
       <div style={{maxWidth:480, margin:'0 auto', padding:12}}>
