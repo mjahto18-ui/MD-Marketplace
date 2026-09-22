@@ -17,10 +17,21 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // 2. حماية الأدمن
+    // 2. حماية الأدمن
   if (pathname.startsWith('/admin')) {
 
     if (pathname.startsWith('/admin/login')) {
+      const adminSession = request.cookies.get('admin_session');
+      if (adminSession) {
+        try {
+          const data = JSON.parse(adminSession.value);
+          const role = data.role;
+          if(role === 'Store Owner') return NextResponse.redirect(new URL('/store-owner', request.url));
+          if(role === 'Driver') return NextResponse.redirect(new URL('/driver-owner', request.url));
+          if(role === 'Taxi Driver') return NextResponse.redirect(new URL('/taxi-driver', request.url));
+          return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+        } catch {}
+      }
       return NextResponse.next();
     }
 
@@ -30,9 +41,21 @@ export async function middleware(request) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
 
+    if (pathname === '/admin' || pathname === '/admin/') {
+      try {
+        const data = JSON.parse(adminSession.value);
+        const role = data.role;
+        if(role === 'Store Owner') return NextResponse.redirect(new URL('/store-owner', request.url));
+        if(role === 'Driver') return NextResponse.redirect(new URL('/driver-owner', request.url));
+        if(role === 'Taxi Driver') return NextResponse.redirect(new URL('/taxi-driver', request.url));
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      } catch {
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      }
+    }
+
     return NextResponse.next();
   }
-
   // 3. حماية السائق وصاحب المتجر والتاكسي
   if (pathname.startsWith('/driver-owner') || pathname.startsWith('/store-owner') || pathname.startsWith('/taxi-driver')) {
 
