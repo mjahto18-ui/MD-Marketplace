@@ -60,8 +60,6 @@ export default function TaxiDriverDashboard(){
   const [expandedId, setExpandedId] = useState(null)
   const [expandedRoutes, setExpandedRoutes] = useState({})
   const [pricingBundle, setPricingBundle] = useState(null)
-  const [showSos, setShowSos] = useState(false)
-  const [sosComment, setSosComment] = useState("")
 
   const locationWatchRef = useRef(null)
   const selectedOrderRef = useRef(null)
@@ -250,18 +248,6 @@ export default function TaxiDriverDashboard(){
     else { setSelectedOrder(null); setOrders([]); setAmountReceived(""); }
   }
 
-  const handleSos = async ()=>{
-    if(!sosComment.trim()) return alert('اكتب شو صار');
-    const res = await fetch('/api/taxi/sos', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      credentials:'include',
-      body: JSON.stringify({ order_id: selectedOrder.id, comment: sosComment })
-    }).then(r=>r.json()).catch(()=>null)
-    if(res?.error) alert(res.error)
-    else { alert('تم ارسال بلاغ SOS'); setShowSos(false); setSosComment(''); }
-  }
-
   const logout = async ()=>{
     await fetch('/api/admin/logout',{method:'POST', credentials:'include'});
     window.location.href='/admin/login'
@@ -290,160 +276,141 @@ export default function TaxiDriverDashboard(){
   const isTripStarted = selectedOrder? (selectedOrder.is_code_verified || ['code_verified','in_progress'].includes(selectedOrder.status)) : false
 
   return (
-    <div dir="rtl" style={{minHeight:'100vh', background:'#0a1930', color:'white', width:'100%', overflowX:'hidden'}}>
-      <div style={{maxWidth:480, margin:'0 auto', padding:12, minHeight:'100vh'}}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0e2242', padding:10, borderRadius:12, position:'sticky', top:0, zIndex:20}}>
-          <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
-            <span>أهلاً {me.name} - {me.engine_cc || ''}</span>
-            {driverStats && (
-              <div style={{display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.1)', padding:'4px 10px', borderRadius:20}}>
-                <Stars rating={driverStats.average_rating} size={14} />
-                <span style={{fontSize:12, color:'#facc15', fontWeight:900}}>{Number(driverStats.average_rating||0).toFixed(1)}</span>
-                <span style={{fontSize:11, opacity:0.6}}>({driverStats.rating_level}) • {driverStats.total_orders||0} رحلة</span>
-              </div>
-            )}
-            <button onClick={toggleOnline} style={{background:isOnline?'#22c55e':'#ef4444', padding:'6px 14px', borderRadius:20, fontWeight:900, border:'none', color:'white'}}>{isOnline?'🟢 Online':'🔴 Offline'}</button>
-          </div>
-          <div style={{display:'flex', gap:8, alignItems:'center'}}>
-            <a href="/taxi/driver/history" style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', color:'white', padding:'6px 12px', borderRadius:8, textDecoration:'none', fontSize:12, fontWeight:900}}>📜 سجلي</a>
-            <button onClick={logout} style={{background:'#ef444444', border:'1px solid #ef4444', color:'#fca5a5', padding:'6px 12px', borderRadius:8}}>خروج</button>
-          </div>
+    <div style={{minHeight:'100vh', background:'#0a1930', color:'white', padding:12}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'#0e2242', padding:10, borderRadius:12, position:'sticky', top:0, zIndex:20}}>
+        <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
+          <span>أهلاً {me.name} - {me.engine_cc || ''}</span>
+          {driverStats && (
+            <div style={{display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,0.1)', padding:'4px 10px', borderRadius:20}}>
+              <Stars rating={driverStats.average_rating} size={14} />
+              <span style={{fontSize:12, color:'#facc15', fontWeight:900}}>{Number(driverStats.average_rating||0).toFixed(1)}</span>
+              <span style={{fontSize:11, opacity:0.6}}>({driverStats.rating_level}) • {driverStats.total_orders||0} رحلة</span>
+            </div>
+          )}
+          <button onClick={toggleOnline} style={{background:isOnline?'#22c55e':'#ef4444', padding:'6px 14px', borderRadius:20, fontWeight:900, border:'none', color:'white'}}>{isOnline?'🟢 Online':'🔴 Offline'}</button>
         </div>
-
-        <div style={{marginTop:12, background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', border:'2px solid rgba(255,255,255,0.2)'}}>
-          <div onClick={()=>setShowWallet(true)} style={{flex:1, cursor:'pointer'}}>
-            <div style={{fontSize:11, opacity:0.8}}>👛 محفظتي - اضغط للتفاصيل</div>
-            <div style={{fontSize:26, fontWeight:900, marginTop:2}}>{showBalance? formatLBP(wallet) : '•••••••• ل.ل'}</div>
-            <div style={{fontSize:11, opacity:0.7, marginTop:2}}>{showBalance? 'الرصيد ظاهر':'الرصيد مخفي - احترام للخصوصية'}</div>
-          </div>
-          <div style={{display:'flex', gap:8, alignItems:'center'}}>
-            <button onClick={()=>setShowBalance(!showBalance)} style={{background:'white', color:'#059669', padding:'8px 14px', borderRadius:20, fontWeight:900, border:'none'}}>{showBalance?'🙈 اخفاء':'👁 اظهار'}</button>
-            <div style={{fontSize:32}}>💳</div>
-          </div>
+        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <a href="/taxi/driver/history" style={{background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.3)', color:'white', padding:'6px 12px', borderRadius:8, textDecoration:'none', fontSize:12, fontWeight:900}}>📜 سجلي</a>
+          <button onClick={logout} style={{background:'#ef444444', border:'1px solid #ef4444', color:'#fca5a5', padding:'6px 12px', borderRadius:8}}>خروج</button>
         </div>
-
-        {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:8}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
-
-        {selectedOrder && (
-          <div style={{background:'white', color:'black', borderRadius:14, padding:12, marginTop:12, border:'3px solid #22c55e'}}>
-            <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name} - {selectedOrder.customer_phone}</b>
-            <div style={{display:'flex', gap:8, marginTop:10}}>
-              <a href={`tel:${selectedOrder.customer_phone}`} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>📞 اتصال {selectedOrder.customer_phone}</a>
-              <a href={getWhatsappLink(selectedOrder.customer_phone, me.name, selectedOrder.order_code)} target="_blank" style={{flex:1, background:'#25D366', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>💬 واتساب</a>
-            </div>
-            <div style={{fontSize:12, marginTop:6, background:'#f0fdf4', padding:8, borderRadius:8, border:'1px solid #bbf7d0'}}>
-              <div>📍 من: {selectedOrder.origin_name}</div>
-              <div style={{marginTop:4}}>🎯 إلى: {selectedOrder.dest_name}</div>
-            </div>
-            <div style={{marginTop:10, borderRadius:12, overflow:'hidden', border:'2px solid #e5e7eb', position:'relative', zIndex:0}}>
-              <TaxiActiveMap myLocation={myLocation} origin_lat={selectedOrder.origin_lat} origin_lng={selectedOrder.origin_lng} dest_lat={selectedOrder.dest_lat} dest_lng={selectedOrder.dest_lng} />
-            </div>
-
-            <div style={{display:'flex', gap:8, marginTop:10}}>
-              {!isTripStarted? (
-                <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.origin_lat},${selectedOrder.origin_lng}`} target="_blank" style={{flex:1, background:'#3b82f6', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🔵 خذني لعند الزبونة</a>
-              ) : (
-                <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.dest_lat},${selectedOrder.dest_lng}`} target="_blank" style={{flex:1, background:'#111', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🎯 الذهاب الى الوجهة - المرسل اليه</a>
-              )}
-            </div>
-
-            <div style={{marginTop:10, fontWeight:900, fontSize:14}}>💰 {selectedOrder.total_amount?.toLocaleString()} ل.ل - {selectedOrder.distance_traveled} كم - {selectedOrder.taxi_engine_cc}</div>
-            <div style={{marginTop:10, display:'flex', gap:8}}>
-              {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الكود</button>}
-              {(selectedOrder.status === 'in_progress' || selectedOrder.status === 'code_verified') && (<><input placeholder="المبلغ المستلم" value={amountReceived} onChange={e=>setAmountReceived(e.target.value)} style={{flex:1, padding:10, border:'2px solid #111', borderRadius:10, color:'black'}}/><button onClick={handleComplete} style={{background:'#22c55e', color:'white', padding:10, borderRadius:10, fontWeight:900, border:'none'}}>انهاء</button></>)}
-            </div>
-
-            {isTripStarted && (
-              <>
-                <div style={{marginTop:10, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
-                  <button onClick={()=>setShowSos(!showSos)} style={{padding:12, borderRadius:10, background:'#dc2626', color:'white', fontWeight:900, border:'none'}}>🆘 SOS</button>
-                  <a href={`https://wa.me/?text=${encodeURIComponent(`رحلة ${selectedOrder.order_code} - طوارئ`)}`} target="_blank" style={{padding:12, borderRadius:10, background:'#25D366', color:'white', fontWeight:900, textAlign:'center', textDecoration:'none'}}>📤 مشاركة</a>
-                </div>
-                {showSos && (
-                  <div style={{marginTop:10, background:'#fee2e2', padding:10, borderRadius:10, border:'1px solid #fecaca'}}>
-                    <div style={{fontSize:11, fontWeight:900, color:'#dc2626'}}>بلاغ SOS - رحلة #{selectedOrder.order_code}</div>
-                    <textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="شو صار؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca', marginTop:6, boxSizing:'border-box', color:'black'}} rows={3}/>
-                    <button onClick={handleSos} style={{marginTop:6, width:'100%', padding:10, borderRadius:8, background:'#dc2626', color:'white', fontWeight:900, border:'none'}}>ارسال البلاغ</button>
-                  </div>
-                )}
-              </>
-            )}
-
-            <div style={{marginTop:8, fontSize:11, background:'#fef3c7', padding:8, borderRadius:8, color:'#92400e'}}>⛔ لا تستطيع اخد طلب تاني حتى ينتهي طلبك الحالي</div>
-          </div>
-        )}
-
-        {!selectedOrder && (
-        <div style={{marginTop:16}}>
-          <h3 style={{fontWeight:900}}>🔍 طلبات قريبة 5 كم ({nearby.length})</h3>
-          {nearby.map(o=>{
-            const preview = o.preview_price
-            const isDifferent = preview && preview!== o.total_amount
-            return (
-            <div key={o.id} style={{background:'#132a54', borderRadius:12, padding:12, marginTop:8, border: expandedId===o.id?'2px solid #22c55e':'1px solid #1e3a6e'}}>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12}}>#{o.order_code || o.id.slice(0,6)}</span><span style={{background:'#FFC107', color:'black', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:900}}>{o.distance_km} كم</span></div>
-              <div style={{fontSize:11, opacity:0.7, marginTop:2}}>📍 {o.origin_name?.slice(0,50)} → {o.dest_name?.slice(0,40)}</div>
-              <div style={{display:'flex', justifyContent:'space-between', marginTop:6, fontWeight:900, fontSize:12}}>
-                <span>{o.customer_name} - {o.taxi_vehicle_type} - {o.distance_traveled} كم</span>
-                <span>{o.total_amount?.toLocaleString()} ل.ل</span>
-              </div>
-              {preview && (
-                <div style={{marginTop:6, background: isDifferent?'#dcfce7':'#f3f4f6', color: isDifferent?'#166534':'#111', padding:'6px 10px', borderRadius:8, fontSize:12, fontWeight:900, border: isDifferent?'1px solid #bbf7d0':'1px solid #e5e7eb'}}>
-                  {isDifferent? `✅ تسعيرتك (${me.engine_cc||''}): ${preview.toLocaleString()} ل.ل - اوفر ${ (o.total_amount - preview).toLocaleString()} ل.ل` : `تسعيرتك: ${preview.toLocaleString()} ل.ل`}
-                </div>
-              )}
-              <div style={{display:'flex', gap:8, marginTop:8}}>
-                <button onClick={()=>toggleExpand(o)} style={{flex:1, background:'#1e3a6e', padding:10, borderRadius:10, fontWeight:700, border:'none', color:'white'}}>{expandedId===o.id?'🔼 اخفاء':'📍 شوف الطريق'}</button>
-                <button onClick={()=>handleAccept(o)} style={{flex:1, background:'#22c55e', padding:10, borderRadius:10, fontWeight:900, border:'none', color:'white'}}>✅ قبول - {preview? preview.toLocaleString() : o.total_amount?.toLocaleString()} ل.ل</button>
-              </div>
-              {expandedId===o.id && (
-                <div style={{background:'#0a1930', borderRadius:10, marginTop:8, overflow:'hidden', position:'relative', zIndex:0}}>
-                  <TaxiNearbyMap myLocation={myLocation} origin_lat={o.origin_lat} origin_lng={o.origin_lng} dest_lat={o.dest_lat} dest_lng={o.dest_lng} routeCoords={expandedRoutes[o.id]} />
-                  <div style={{padding:8, fontSize:11, display:'flex', justifyContent:'space-between'}}><span>🟢 انطلاق</span><span>📏 {o.distance_traveled} كم</span><span>🔴 وصول</span></div>
-                  <a href={`https://www.google.com/maps/dir/?api=1&origin=${o.origin_lat},${o.origin_lng}&destination=${o.dest_lat},${o.dest_lng}`} target="_blank" style={{display:'block', textAlign:'center', padding:8, fontSize:12, background:'#0e2242', color:'#60a5fa'}}>افتح بغوغل ماب 🗺</a>
-                </div>
-              )}
-            </div>
-            )
-          })}
-        </div>
-        )}
-
-        {showCodePad && <Numpad/>}
-        {showWallet && (
-          <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:60, padding:12}}>
-            <div style={{background:'white', color:'black', borderRadius:16, width:'100%', maxWidth:400, maxHeight:'80vh', overflow:'hidden', display:'flex', flexDirection:'column'}}>
-              <div style={{padding:16, background:'#0a1930', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <div><div style={{fontSize:12, opacity:0.7}}>محفظتي</div><div style={{fontSize:22, fontWeight:900}}>{showBalance? formatLBP(wallet) : '•••••••• ل.ل'}</div></div>
-                <div style={{display:'flex', gap:8}}>
-                  <button onClick={()=>setShowBalance(!showBalance)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', padding:'6px 12px', borderRadius:8}}>{showBalance?'🙈':'👁'}</button>
-                  <button onClick={()=>setShowWallet(false)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', width:32, height:32, borderRadius:8}}>✕</button>
-                </div>
-              </div>
-              <div style={{flex:1, overflowY:'auto', padding:10}}>
-                {walletTx.length===0 && <div style={{textAlign:'center', padding:20, color:'#999'}}>لا يوجد حركات</div>}
-                {walletTx.map((t,i)=>{
-                  const amt = Number(t.Amount||0)
-                  const type = String(t.Type||'').toUpperCase()
-                  const isDeduct = type==='DEDUCT' || type==='CASH_OUT' || type==='PENALTY'
-                  return (
-                    <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px', borderBottom:'1px solid #eee'}}>
-                      <div style={{flex:1}}>
-                        <div style={{display:'flex', gap:6, alignItems:'center'}}>
-                          <span style={{background: isDeduct?'#fee2e2':'#dcfce7', color: isDeduct?'#ef4444':'#16a34a', padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:900}}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
-                          <span style={{fontWeight:900, fontSize:14, color: isDeduct?'#ef4444':'#16a34a'}}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
-                        </div>
-                        <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || '-'}</div>
-                        <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB'):''}</div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      <div style={{marginTop:12, background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', border:'2px solid rgba(255,255,255,0.2)'}}>
+        <div onClick={()=>setShowWallet(true)} style={{flex:1, cursor:'pointer'}}>
+          <div style={{fontSize:11, opacity:0.8}}>👛 محفظتي - اضغط للتفاصيل</div>
+          <div style={{fontSize:26, fontWeight:900, marginTop:2}}>{showBalance? formatLBP(wallet) : '•••••••• ل.ل'}</div>
+          <div style={{fontSize:11, opacity:0.7, marginTop:2}}>{showBalance? 'الرصيد ظاهر':'الرصيد مخفي - احترام للخصوصية'}</div>
+        </div>
+        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <button onClick={()=>setShowBalance(!showBalance)} style={{background:'white', color:'#059669', padding:'8px 14px', borderRadius:20, fontWeight:900, border:'none'}}>{showBalance?'🙈 اخفاء':'👁 اظهار'}</button>
+          <div style={{fontSize:32}}>💳</div>
+        </div>
+      </div>
+
+      {myLocation && <div style={{fontSize:10, opacity:0.5, marginTop:8}}>📍 {myLocation.lat.toFixed(5)},{myLocation.lng.toFixed(5)} - يبث مباشر</div>}
+
+      {selectedOrder && (
+        <div style={{background:'white', color:'black', borderRadius:14, padding:12, marginTop:12, border:'3px solid #22c55e'}}>
+          <b>#{selectedOrder.order_code || selectedOrder.id.slice(0,8)} - {selectedOrder.customer_name} - {selectedOrder.customer_phone}</b>
+          <div style={{display:'flex', gap:8, marginTop:10}}>
+            <a href={`tel:${selectedOrder.customer_phone}`} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>📞 اتصال {selectedOrder.customer_phone}</a>
+            <a href={getWhatsappLink(selectedOrder.customer_phone, me.name, selectedOrder.order_code)} target="_blank" style={{flex:1, background:'#25D366', color:'white', padding:12, borderRadius:10, textAlign:'center', fontWeight:900, textDecoration:'none'}}>💬 واتساب</a>
+          </div>
+          <div style={{fontSize:12, marginTop:6, background:'#f0fdf4', padding:8, borderRadius:8, border:'1px solid #bbf7d0'}}>
+            <div>📍 من: {selectedOrder.origin_name}</div>
+            <div style={{marginTop:4}}>🎯 إلى: {selectedOrder.dest_name}</div>
+          </div>
+          <div style={{marginTop:10, borderRadius:12, overflow:'hidden', border:'2px solid #e5e7eb', position:'relative', zIndex:0}}>
+            <TaxiActiveMap myLocation={myLocation} origin_lat={selectedOrder.origin_lat} origin_lng={selectedOrder.origin_lng} dest_lat={selectedOrder.dest_lat} dest_lng={selectedOrder.dest_lng} />
+          </div>
+
+          <div style={{display:'flex', gap:8, marginTop:10}}>
+            {!isTripStarted? (
+              <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.origin_lat},${selectedOrder.origin_lng}`} target="_blank" style={{flex:1, background:'#3b82f6', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🔵 خذني لعند الزبونة</a>
+            ) : (
+              <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.dest_lat},${selectedOrder.dest_lng}`} target="_blank" style={{flex:1, background:'#111', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🎯 الذهاب الى الوجهة - المرسل اليه</a>
+            )}
+          </div>
+
+          <div style={{marginTop:10, fontWeight:900, fontSize:14}}>💰 {selectedOrder.total_amount?.toLocaleString()} ل.ل - {selectedOrder.distance_traveled} كم - {selectedOrder.taxi_engine_cc}</div>
+          <div style={{marginTop:10, display:'flex', gap:8}}>
+            {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الكود</button>}
+            {(selectedOrder.status === 'in_progress' || selectedOrder.status === 'code_verified') && (<><input placeholder="المبلغ المستلم" value={amountReceived} onChange={e=>setAmountReceived(e.target.value)} style={{flex:1, padding:10, border:'2px solid #111', borderRadius:10, color:'black'}}/><button onClick={handleComplete} style={{background:'#22c55e', color:'white', padding:10, borderRadius:10, fontWeight:900, border:'none'}}>انهاء</button></>)}
+          </div>
+          <div style={{marginTop:8, fontSize:11, background:'#fef3c7', padding:8, borderRadius:8, color:'#92400e'}}>⛔ لا تستطيع اخد طلب تاني حتى ينتهي طلبك الحالي</div>
+        </div>
+      )}
+
+      {!selectedOrder && (
+      <div style={{marginTop:16}}>
+        <h3 style={{fontWeight:900}}>🔍 طلبات قريبة 5 كم ({nearby.length})</h3>
+        {nearby.map(o=>{
+          const preview = o.preview_price
+          const isDifferent = preview && preview!== o.total_amount
+          return (
+          <div key={o.id} style={{background:'#132a54', borderRadius:12, padding:12, marginTop:8, border: expandedId===o.id?'2px solid #22c55e':'1px solid #1e3a6e'}}>
+            <div style={{display:'flex', justifyContent:'space-between'}}><span style={{fontSize:12}}>#{o.order_code || o.id.slice(0,6)}</span><span style={{background:'#FFC107', color:'black', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:900}}>{o.distance_km} كم</span></div>
+            <div style={{fontSize:11, opacity:0.7, marginTop:2}}>📍 {o.origin_name?.slice(0,50)} → {o.dest_name?.slice(0,40)}</div>
+            <div style={{display:'flex', justifyContent:'space-between', marginTop:6, fontWeight:900, fontSize:12}}>
+              <span>{o.customer_name} - {o.taxi_vehicle_type} - {o.distance_traveled} كم</span>
+              <span>{o.total_amount?.toLocaleString()} ل.ل</span>
+            </div>
+            {preview && (
+              <div style={{marginTop:6, background: isDifferent?'#dcfce7':'#f3f4f6', color: isDifferent?'#166534':'#111', padding:'6px 10px', borderRadius:8, fontSize:12, fontWeight:900, border: isDifferent?'1px solid #bbf7d0':'1px solid #e5e7eb'}}>
+                {isDifferent? `✅ تسعيرتك (${me.engine_cc||''}): ${preview.toLocaleString()} ل.ل - اوفر ${ (o.total_amount - preview).toLocaleString()} ل.ل` : `تسعيرتك: ${preview.toLocaleString()} ل.ل`}
+              </div>
+            )}
+            <div style={{display:'flex', gap:8, marginTop:8}}>
+              <button onClick={()=>toggleExpand(o)} style={{flex:1, background:'#1e3a6e', padding:10, borderRadius:10, fontWeight:700, border:'none', color:'white'}}>{expandedId===o.id?'🔼 اخفاء':'📍 شوف الطريق'}</button>
+              <button onClick={()=>handleAccept(o)} style={{flex:1, background:'#22c55e', padding:10, borderRadius:10, fontWeight:900, border:'none', color:'white'}}>✅ قبول - {preview? preview.toLocaleString() : o.total_amount?.toLocaleString()} ل.ل</button>
+            </div>
+            {expandedId===o.id && (
+              <div style={{background:'#0a1930', borderRadius:10, marginTop:8, overflow:'hidden', position:'relative', zIndex:0}}>
+                <TaxiNearbyMap myLocation={myLocation} origin_lat={o.origin_lat} origin_lng={o.origin_lng} dest_lat={o.dest_lat} dest_lng={o.dest_lng} routeCoords={expandedRoutes[o.id]} />
+                <div style={{padding:8, fontSize:11, display:'flex', justifyContent:'space-between'}}><span>🟢 انطلاق</span><span>📏 {o.distance_traveled} كم</span><span>🔴 وصول</span></div>
+                <a href={`https://www.google.com/maps/dir/?api=1&origin=${o.origin_lat},${o.origin_lng}&destination=${o.dest_lat},${o.dest_lng}`} target="_blank" style={{display:'block', textAlign:'center', padding:8, fontSize:12, background:'#0e2242', color:'#60a5fa'}}>افتح بغوغل ماب 🗺</a>
+              </div>
+            )}
+          </div>
+          )
+        })}
+      </div>
+      )}
+
+      {showCodePad && <Numpad/>}
+      {showWallet && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:60, padding:12}}>
+          <div style={{background:'white', color:'black', borderRadius:16, width:'100%', maxWidth:400, maxHeight:'80vh', overflow:'hidden', display:'flex', flexDirection:'column'}}>
+            <div style={{padding:16, background:'#0a1930', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div><div style={{fontSize:12, opacity:0.7}}>محفظتي</div><div style={{fontSize:22, fontWeight:900}}>{showBalance? formatLBP(wallet) : '•••••••• ل.ل'}</div></div>
+              <div style={{display:'flex', gap:8}}>
+                <button onClick={()=>setShowBalance(!showBalance)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', padding:'6px 12px', borderRadius:8}}>{showBalance?'🙈':'👁'}</button>
+                <button onClick={()=>setShowWallet(false)} style={{background:'rgba(255,255,255,0.2)', border:'none', color:'white', width:32, height:32, borderRadius:8}}>✕</button>
+              </div>
+            </div>
+            <div style={{flex:1, overflowY:'auto', padding:10}}>
+              {walletTx.length===0 && <div style={{textAlign:'center', padding:20, color:'#999'}}>لا يوجد حركات</div>}
+              {walletTx.map((t,i)=>{
+                const amt = Number(t.Amount||0)
+                const type = String(t.Type||'').toUpperCase()
+                const isDeduct = type==='DEDUCT' || type==='CASH_OUT' || type==='PENALTY'
+                return (
+                  <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px', borderBottom:'1px solid #eee'}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                        <span style={{background: isDeduct?'#fee2e2':'#dcfce7', color: isDeduct?'#ef4444':'#16a34a', padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:900}}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
+                        <span style={{fontWeight:900, fontSize:14, color: isDeduct?'#ef4444':'#16a34a'}}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
+                      </div>
+                      <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || '-'}</div>
+                      <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB'):''}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
