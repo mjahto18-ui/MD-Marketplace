@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { ShieldAlert, Phone, Car, User, MapPin, CheckCircle, Clock } from "lucide-react";
+import { ShieldAlert, Phone, Car, User, MapPin, CheckCircle, Timer } from "lucide-react";
 import BackToDashboard from "@/components/BackToDashboard";
 import dynamicImport from "next/dynamic";
 
@@ -18,7 +18,6 @@ export default function SOSDashboardPage() {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. جلب بلاغات الطوارئ النشطة غير المقفلة
   const fetchActiveSOS = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -27,22 +26,24 @@ export default function SOSDashboardPage() {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (!error) setAlerts(data || []);
-    if (data?.[0] && !selectedAlert) setSelectedAlert(data[0]);
+    if (!error && data) {
+      setAlerts(data);
+      if (data.length > 0 && !selectedAlert) {
+        setSelectedAlert(data[0]);
+      }
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchActiveSOS();
 
-    // 2. ⚡ السحر الحقيقي: الاستماع اللحظي للنبضات الجنائية بالشارع
     const channel = supabase
       .channel("realtime_sos_alerts")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "taxi_sos" },
         (payload) => {
-          // إطلاق صوت تحذيري في غرفة التحكم فوراً لتنبيه الأدمن
           try {
             const audio = new Audio("https://google.com");
             audio.play();
@@ -57,7 +58,7 @@ export default function SOSDashboardPage() {
         { event: "UPDATE", schema: "public", table: "taxi_sos" },
         (payload) => {
           setAlerts((prev) => prev.map(a => a.id === payload.new.id ? payload.new : a));
-          if(selectedAlert?.id === payload.new.id) setSelectedAlert(payload.new);
+          setSelectedAlert((curr) => (curr?.id === payload.new.id ? payload.new : curr));
         }
       )
       .subscribe();
@@ -67,7 +68,7 @@ export default function SOSDashboardPage() {
 
   const resolveSOS = async (alertId) => {
     if(!confirm("تأكيد إغلاق بلاغ الطوارئ واحتواء المشكلة ميدانياً؟")) return;
-    await supabase.from("taxi_sos").update({ status: "Resolved", close_date: new Date().toISOString() }).eq("id", alertId);
+    await supabase.from("taxi_sos").update({ comment: "Resolved Case", close_date: new Date().toISOString() }).eq("id", alertId);
     setAlerts(prev => prev.filter(a => a.id !== alertId));
     setSelectedAlert(null);
     alert("تم إغلاق البلاغ بنجاح وتأمينه ✅");
@@ -110,25 +111,27 @@ export default function SOSDashboardPage() {
           
           {alerts.length === 0 ? (
             <div className="text-center py-12 text-white/20 text-xs">🟢 الوضع مستتب ولا يوجد طوارئ حالياً</div>
-          ) : alerts.map((a) => (
-            <div 
-              key={a.id} 
-              onClick={() => setSelectedAlert(a)}
-              className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${
-                selectedAlert?.id === a.id 
-                  ? 'bg-red-500/10 border-red-500/60 red-glow-strong' 
-                  : 'bg-[#0F0F0F]/60 border-white/[0.04] hover:bg-white/[0.02]'
-              }`}
-            >
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-bold text-sm text-red-400">🚨 {a.order_code || 'رحلة عامة'}</span>
-                <span className="text-[11px] text-white/40 mono">{new Date(a.created_at).toLocaleTimeString('ar-LB', {hour:'2-digit', minute:'2-digit'})}</span>
+          ) : (
+            alerts.map((a) => (
+              <div 
+                key={a.id} 
+                onClick={() => setSelectedAlert(a)}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${
+                  selectedAlert?.id === a.id 
+                    ? 'bg-red-500/10 border-red-500/60 red-glow-strong' 
+                    : 'bg-[#0F0F0F]/60 border-white/[0.04] hover:bg-white/[0.02]'
+                }`}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-bold text-sm text-red-400">🚨 {a.order_code || 'رحلة عامة'}</span>
+                  <span className="text-[11px] text-white/40 mono">{a.created_at ? new Date(a.created_at).toLocaleTimeString('ar-LB', {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+                </div>
+                <div className="text-xs font-bold text-white/80 truncate">الركاب: {a.customer_name}</div>
+                <div className="text-[11px] text-white/50 truncate mt-1">السائق: {a.driver_name}</div>
+                {a.comment && <div className="text-[11px] bg-black/40 border border-white/5 text-amber-300 rounded-lg p-1.5 mt-2 truncate">💬 "{a.comment}"</div>}
               </div>
-              <div className="text-xs font-bold text-white/80 truncate">الركاب: {a.customer_name}</div>
-              <div className="text-[11px] text-white/50 truncate mt-1">السائق: {a.driver_name}</div>
-              {a.comment && <div className="text-[11px] bg-black/40 border border-white/5 text-amber-300 rounded-lg p-1.5 mt-2 truncate">💬 "{a.comment}"</div>}
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         {/* لوحة التفاصيل والماب على اليسار */}
@@ -152,10 +155,10 @@ export default function SOSDashboardPage() {
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-blue-400"><Car className="w-4 h-4"/></div>
                     <div>
-                      <div className="text-[11px] text-white/40">السائق والمركبة (المتهم/المبلغ)</div>
+                      <div className="text-[11px] text-white/40">السائق والمركبة</div>
                       <div className="text-sm font-bold text-white">{selectedAlert.driver_name}</div>
                       <div className="text-xs text-white/70 font-mono mt-0.5">{selectedAlert.driver_phone}</div>
-                      <div className="text-xs text-[#FFD700] font-bold mt-1">🚗 {selectedAlert.car_type} · {selectedAlert.car_color || ''} · {selectedAlert.plate_number}</div>
+                      <div className="text-xs text-[#FFD700] font-bold mt-1">🚗 {selectedAlert.car_type} {selectedAlert.car_color ? `· ${selectedAlert.car_color}` : ''} · {selectedAlert.plate_number}</div>
                     </div>
                   </div>
                 </div>
@@ -169,7 +172,7 @@ export default function SOSDashboardPage() {
 
                 <div className="border-t border-white/[0.04] pt-4 space-y-2 text-xs text-white/50 leading-relaxed">
                   <div><b>🗺 خط السير المطلوب:</b> {selectedAlert.origin_name} ← {selectedAlert.dest_name}</div>
-                  <div><b>💳 قيمة الأجرة:</b> {selectedAlert.total_amount?.toLocaleString() || ''} ل.ل</div>
+                  <div><b>💳 قيمة الأجرة:</b> {selectedAlert.total_amount ? Number(selectedAlert.total_amount).toLocaleString() : ''} ل.ل</div>
                 </div>
 
                 <div className="border-t border-white/[0.04] pt-4 flex gap-2">
@@ -182,5 +185,5 @@ export default function SOSDashboardPage() {
                 </div>
               </div>
 
-              {/* التتبع الجغرافي الحي للمقذوف */}
+              {/* التتبع الجغرافي الحي */}
               <div className="xl:col-span-2 bg-[#141414] border border-white/[0.06] rounded-[24px] overflow-hidden flex flex-col h-[520px]">
