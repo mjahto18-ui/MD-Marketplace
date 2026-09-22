@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 import dynamic from "next/dynamic"
 import CashPending from "./CashPending"
 import { Star } from "lucide-react"
-const DriverMap = dynamic(() => import("@/components/Stars"), { ssr: false })
+const DriverMap = dynamic(() => import("./DriverMap"), { ssr: false })
 
 function Stars({ rating = 0, size = 14 }) {
   const r = parseFloat(rating) || 0;
