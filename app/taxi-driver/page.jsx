@@ -60,8 +60,6 @@ export default function TaxiDriverDashboard(){
   const [expandedId, setExpandedId] = useState(null)
   const [expandedRoutes, setExpandedRoutes] = useState({})
   const [pricingBundle, setPricingBundle] = useState(null)
-  const [showSos, setShowSos] = useState(false)
-  const [sosComment, setSosComment] = useState("")
 
   const locationWatchRef = useRef(null)
   const selectedOrderRef = useRef(null)
@@ -244,22 +242,10 @@ export default function TaxiDriverDashboard(){
   }
 
   const handleComplete = async ()=>{
-    const v = Number(String(amountReceived).replace(/,/g,'').trim())
-    if(!amountReceived || isNaN(v) || v <= 0){
-      alert('لازم تدخل المبلغ المستلم قبل الانهاء')
-      return
-    }
     const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
-    const res = await fetch('/api/taxi/complete',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ order_id: selectedOrder.id, taxi_id: driverId, amount_received: v }) }).then(r=>r.json())
+    const res = await fetch('/api/taxi/complete',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ order_id: selectedOrder.id, taxi_id: driverId, amount_received: amountReceived || selectedOrder.total_amount }) }).then(r=>r.json())
     if(res.error) alert(res.error)
     else { setSelectedOrder(null); setOrders([]); setAmountReceived(""); }
-  }
-
-  const handleSos = async ()=>{
-    if(!sosComment.trim()){ alert('اكتب شو صار'); return }
-    const res = await fetch('/api/taxi/sos',{ method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ order_id: selectedOrder.id, comment: sosComment }) }).then(r=>r.json()).catch(()=>({error:'fail'}))
-    if(res.error) alert(res.error)
-    else { alert('تم ارسال SOS'); setShowSos(false); setSosComment(''); }
   }
 
   const logout = async ()=>{
@@ -351,19 +337,6 @@ export default function TaxiDriverDashboard(){
             {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الكود</button>}
             {(selectedOrder.status === 'in_progress' || selectedOrder.status === 'code_verified') && (<><input placeholder="المبلغ المستلم" value={amountReceived} onChange={e=>setAmountReceived(e.target.value)} style={{flex:1, padding:10, border:'2px solid #111', borderRadius:10, color:'black'}}/><button onClick={handleComplete} style={{background:'#22c55e', color:'white', padding:10, borderRadius:10, fontWeight:900, border:'none'}}>انهاء</button></>)}
           </div>
-
-          {isTripStarted && (
-            <div style={{marginTop:10}}>
-              <button onClick={()=>setShowSos(!showSos)} style={{width:'100%', padding:12, borderRadius:10, background:'#dc2626', color:'white', fontWeight:900, border:'none'}}>🆘 SOS طوارئ</button>
-              {showSos && (
-                <div style={{marginTop:8, background:'#fee2e2', padding:10, borderRadius:10, border:'1px solid #fecaca'}}>
-                  <textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="شو صار؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca', boxSizing:'border-box', color:'black'}} rows={3}/>
-                  <button onClick={handleSos} style={{marginTop:6, width:'100%', padding:10, borderRadius:8, background:'#dc2626', color:'white', fontWeight:900, border:'none'}}>ارسال البلاغ</button>
-                </div>
-              )}
-            </div>
-          )}
-
           <div style={{marginTop:8, fontSize:11, background:'#fef3c7', padding:8, borderRadius:8, color:'#92400e'}}>⛔ لا تستطيع اخد طلب تاني حتى ينتهي طلبك الحالي</div>
         </div>
       )}
