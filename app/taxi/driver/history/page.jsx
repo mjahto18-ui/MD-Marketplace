@@ -7,19 +7,33 @@ export default function DriverHistory(){
   const [taxiId, setTaxiId] = useState(null);
 
   useEffect(()=>{
-    // جيب الـ Taxi_ID من /api/me تبع السواق
-    fetch('/api/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d=>{
-      const tid = d.user?.taxiId || d.user?.Taxi_ID;
+    // جرب باب الادمن اول، اذا ما لقى جرب باب الزباين - نفس مبدأ الباب
+    fetch('/api/admin/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d=>{
+      const tid = d?.Taxi_ID || d?.taxiId || d?.relatedId;
       if(tid){
         setTaxiId(tid);
         loadHistory(tid);
-      } else setLoading(false);
+      } else {
+        // اذا فايت من الموقع الرئيسي
+        fetch('/api/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d2=>{
+          const tid2 = d2.user?.taxiId || d2.user?.Taxi_ID;
+          if(tid2){
+            setTaxiId(tid2);
+            loadHistory(tid2);
+          } else setLoading(false);
+        });
+      }
+    }).catch(()=>{
+      fetch('/api/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d=>{
+        const tid = d.user?.taxiId || d.user?.Taxi_ID;
+        if(tid){ setTaxiId(tid); loadHistory(tid); } else setLoading(false);
+      });
     });
   }, []);
 
   const loadHistory = async (tid) => {
     setLoading(true);
-    const res = await fetch(`/api/taxi/driver-history?taxi_id=${tid}&t=${Date.now()}`, {cache:'no-store'}).then(r=>r.json()).catch(()=>({orders:[]}));
+    const res = await fetch(`/api/taxi/driver-history?taxi_id=${tid}&t=${Date.now()}`, {cache:'no-store', credentials:'include'}).then(r=>r.json()).catch(()=>({orders:[]}));
     setOrders(res.orders || []);
     setLoading(false);
   };
