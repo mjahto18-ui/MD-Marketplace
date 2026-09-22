@@ -88,6 +88,7 @@ export default function SOSDashboardPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "taxi_sos" },
         (payload) => {
+          if (payload.new.status!== "open") return;
           if (!isMuted && audioRef.current) {
             audioRef.current.currentTime = 0;
             audioRef.current.play().catch(() => {});
@@ -104,6 +105,12 @@ export default function SOSDashboardPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "taxi_sos" },
         (payload) => {
+          // اذا تسكر - شيله من القائمة فوراً
+          if (payload.new.status === "closed") {
+            setAlerts((prev) => prev.filter((a) => a.id!== payload.new.id));
+            setSelectedAlert((curr) => (curr?.id === payload.new.id? null : curr));
+            return;
+          }
           setAlerts((prev) =>
             prev.map((a) => (a.id === payload.new.id? payload.new : a))
           );
@@ -147,28 +154,25 @@ export default function SOSDashboardPage() {
     setSelectedAlert(null);
   };
 
+  // نفس مبدأ مشاركة الرحلة - order_code/id
   const shareViaWhatsApp = () => {
     if (!selectedAlert) return;
-    const cLat = selectedAlert.customer_lat || selectedAlert.origin_lat || selectedAlert.lat;
-    const cLng = selectedAlert.customer_lng || selectedAlert.origin_lng || selectedAlert.lng;
+    const publicLink = `${window.location.origin}/sos/${selectedAlert.order_code}/${selectedAlert.id}`;
+
+    const cLat = selectedAlert.customer_lat || selectedAlert.lat;
+    const cLng = selectedAlert.customer_lng || selectedAlert.lng;
     const dLat = selectedAlert.taxi_lat_live || selectedAlert.driver_lat;
     const dLng = selectedAlert.taxi_lng_live || selectedAlert.driver_lng;
-    const oLat = selectedAlert.origin_lat;
-    const oLng = selectedAlert.origin_lng;
 
-    const gCustomer = cLat? `https://www.google.com/maps?q=${cLat},${cLng}` : "غير متوفر";
-    const gDriver = dLat? `https://www.google.com/maps?q=${dLat},${dLng}` : "غير متوفر";
-    const gOrigin = oLat? `https://www.google.com/maps?q=${oLat},${oLng}` : "غير متوفر";
-
-    const text = `🚨 بلاغ طوارئ SOS - ${selectedAlert.order_code || "رحلة عامة"}%0A` +
+    const text = `🚨 بلاغ طوارئ SOS - ${selectedAlert.order_code}%0A` +
       `👤 الزبون: ${selectedAlert.customer_name} - ${selectedAlert.customer_phone}%0A` +
       `🚗 السائق: ${selectedAlert.driver_name} - ${selectedAlert.driver_phone} - ${selectedAlert.plate_number || ""}%0A` +
       `💬 التعليق: ${selectedAlert.comment || "لا يوجد"}%0A%0A` +
-      `📍 موقع الزبون الحي: ${gCustomer}%0A` +
-      `📍 موقع السائق الحي: ${gDriver}%0A` +
-      `📍 نقطة الانطلاق: ${gOrigin}%0A%0A` +
-      `🔗 رابط غرفة العمليات: ${window.location.href}%0A` +
-      `⏰ ${new Date().toLocaleString("ar-LB")}`;
+      `🔗 رابط التتبع الحي الآمن:%0A${publicLink}%0A%0A` +
+      `📍 موقع الزبون: https://www.google.com/maps?q=${cLat},${cLng}%0A` +
+      `📍 موقع السائق: https://www.google.com/maps?q=${dLat},${dLng}%0A%0A` +
+      `⏰ ${new Date().toLocaleString("ar-LB")}%0A` +
+      `⚠️ الرابط يختفي تلقائياً عند إغلاق البلاغ`;
 
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
@@ -185,14 +189,14 @@ export default function SOSDashboardPage() {
     <div dir="rtl" className="min-h-screen bg-[#0F0F0F] text-white p-6 relative">
       <style>{`
         *{font-family:'Andika',sans-serif}
-      .mono{font-family:'JetBrains Mono',monospace!important}
-      .red-glow-strong { box-shadow: 0 0 60px rgba(239,68,68,0.25), inset 0 1px 0 rgba(239,68,68,0.3); }
-      .red-pulse { animation: redFlash 2s infinite; }
+     .mono{font-family:'JetBrains Mono',monospace!important}
+     .red-glow-strong { box-shadow: 0 0 60px rgba(239,68,68,0.25), inset 0 1px 0 rgba(239,68,68,0.3); }
+     .red-pulse { animation: redFlash 2s infinite; }
         @keyframes redFlash {
           0%, 100% { border-color: rgba(239,68,68,0.4); }
           50% { border-color: rgba(239,68,68,1); box-shadow: 0 0 20px rgba(239,68,68,0.4); }
         }
-      .alarm-bar { animation: alarmBg 0.8s infinite; }
+     .alarm-bar { animation: alarmBg 0.8s infinite; }
         @keyframes alarmBg {
           0%,100% { background: rgba(239,68,68,0.9); }
           50% { background: rgba(0,0,0,0.9); }
@@ -369,7 +373,6 @@ export default function SOSDashboardPage() {
                   })()}
                 </div>
 
-                {/* 4 أزرار الذهاب - من يلي بيكبس */}
                 {(() => {
                   const cLat = selectedAlert.customer_lat || selectedAlert.origin_lat || selectedAlert.lat;
                   const cLng = selectedAlert.customer_lng || selectedAlert.origin_lng || selectedAlert.lng;
