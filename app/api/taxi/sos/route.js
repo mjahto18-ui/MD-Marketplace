@@ -22,6 +22,10 @@ export async function POST(req){
     const { data: order, error: oErr } = await supabase.from('taxi_orders').select('*').eq('id', order_id).single();
     if(oErr || !order) return new Response(JSON.stringify({error:'order not found'}), {status:404});
 
+    // اهم نقطة: ناخد احداثيات حية
+    const liveLat = order.taxi_lat_live || order.customer_lat || order.origin_lat;
+    const liveLng = order.taxi_lng_live || order.customer_lng || order.origin_lng;
+
     const { data, error } = await supabase.from('taxi_sos').insert({
       order_id: order.id,
       order_code: order.order_code,
@@ -39,6 +43,11 @@ export async function POST(req){
       seats: order.taxi_seats,
       origin_name: order.origin_name,
       dest_name: order.dest_name,
+      
+      // 👇 هدول هنن اللي كانو ناقصين وكرمالهم الخريطة ما كانت تفتح
+      lat: liveLat,
+      lng: liveLng,
+      
       origin_lat: order.origin_lat,
       origin_lng: order.origin_lng,
       dest_lat: order.dest_lat,
@@ -49,6 +58,8 @@ export async function POST(req){
       driver_lng: order.taxi_lng_live,
       taxi_lat_live: order.taxi_lat_live,
       taxi_lng_live: order.taxi_lng_live,
+      
+      total_amount: order.total_amount,
       comment: comment || ''
     }).select().single();
 
