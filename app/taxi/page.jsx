@@ -293,10 +293,14 @@ export default function Page() {
       <div>📍 من: {o.origin_name}</div>
       <div style={{marginTop:4}}>🎯 إلى: {o.dest_name}</div>
       <div style={{marginTop:8, display:'flex', justifyContent:'space-between', fontWeight:900}}>
-        <span>{o.status === 'draft'? 'حجز مسبق' : 'السعر التقريبي'}</span><span>{o.total_amount?.toLocaleString()} ل.ل - {o.distance_traveled} كم</span>
+        <span>{o.status === 'draft'? 'حجز مسبق' : o.status === 'pending' ? 'السعر التقريبي' : 'السعر النهائي'}</span><span>{o.total_amount?.toLocaleString()} ل.ل - {o.distance_traveled} كم</span>
       </div>
       {o.status === 'draft' && <div style={{fontSize:11, marginTop:4}}>🕒 الموعد: {new Date(o.requested_start_at).toLocaleString('ar-LB')}</div>}
-      <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠ احتمالية تغيير السعر عند موافقة السائق حسب المسار الفعلي والانتظار والمنطقة</div>
+      {o.status === 'pending' ? (
+        <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠ احتمالية تغيير السعر عند موافقة السائق حسب المسار الفعلي والانتظار والمنطقة</div>
+      ) : o.status === 'draft' ? null : (
+        <div style={{fontSize:10, marginTop:4, color:'#166534', background:'#dcfce7', padding:'6px 10px', borderRadius:8}}>✅ تم تثبيت السعر بناء على مواصفات سيارة السائق</div>
+      )}
       <div style={{marginTop:10, background:'#0a1930', color:'white', borderRadius:10, padding:10, textAlign:'center'}}>
         <div style={{fontSize:9, opacity:0.7}}>🔒 كود الرحلة - لا تشارك الرمز مع أحد فقط السائق عندما يصل</div>
         <div style={{fontSize:28, fontWeight:900, letterSpacing:6, marginTop:4}}>{o.secret_code}</div>
@@ -350,7 +354,7 @@ export default function Page() {
             {pendingOrders.length>0 && <div style={{fontSize:11, opacity:0.6, marginTop:8}}>عندك كمان {pendingOrders.length} طلب قيد البحث</div>}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
               <button onClick={handleBackToMap} style={{padding:12, borderRadius:12, border:'1px solid #e5e7eb', background:'white', fontWeight:900}}>⬅ الخريطة</button>
-              <button onClick={()=>handleCancel(activeOrder?.id || acceptedOrders[0]?.id)} style={{padding:12, borderRadius:12, background:'#fee2e2', color:'#dc2626', fontWeight:900, border:'1px solid #fecaca'}}>❌ إلغاء</button>
+              <button disabled style={{padding:12, borderRadius:12, background:'#dcfce7', color:'#166534', fontWeight:900, border:'1px solid #22c55e', cursor:'not-allowed'}}>🚕 السائق في طريقه اليك</button>
             </div>
           </div>
         )}
