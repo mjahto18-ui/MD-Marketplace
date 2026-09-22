@@ -76,7 +76,7 @@ export default function Page() {
     localStorage.removeItem('taxi_orders');
     let cancelled = false;
     fetch('/api/me', { cache: 'no-store', credentials: 'include' })
-   .then(async (res) => {
+  .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -96,13 +96,13 @@ export default function Page() {
           }
         }
       })
-   .catch(() => {
+  .catch(() => {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
-   .finally(() => { if (!cancelled) setMeLoading(false); });
+  .finally(() => { if (!cancelled) setMeLoading(false); });
     return () => { cancelled = true; };
   }, [router]);
 
@@ -276,11 +276,11 @@ export default function Page() {
   const handleShare = () => {
     // لازم نستخدم order_code + id - هيك صار آمن ومستحيل ينحزر
     const link = `${window.location.origin}/taxi/share/${activeOrder.order_code}/${activeOrder.id}`;
-    const text = `تابع رحلتي  رقم: ${activeOrder.order_code} - السائق: ${activeOrder.taxi_name} ${activeOrder.taxi_phone} - السيارة: ${activeOrder.taxi_car_type} ${activeOrder.taxi_plate_number} ${activeOrder.taxi_car_color} - الرابط: ${link}`;
+    const text = `تابع رحلتي رقم: ${activeOrder.order_code} - السائق: ${activeOrder.taxi_name} ${activeOrder.taxi_phone} - السيارة: ${activeOrder.taxi_car_type} ${activeOrder.taxi_plate_number} ${activeOrder.taxi_car_color} - الرابط: ${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 };
 
-  if (meLoading) return <div style={{padding:20, textAlign:'center'}}>يتم التحميل...</div>;
+  if (meLoading) return <div className="min-h-screen gradient-bg flex items-center justify-center" style={{padding:20, textAlign:'center', color:'white'}}>يتم التحميل...</div>;
   if (!customer) return null;
 
   const pendingOrders = orders.filter(o => o.status === 'pending');
@@ -289,7 +289,7 @@ export default function Page() {
   const inProgressOrders = orders.filter(o => ['code_verified','in_progress'].includes(o.status));
 
   const renderOrderCard = (o) => (
-    <div key={o.id} style={{background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:12, padding:10, fontSize:12, marginBottom:10}}>
+    <div key={o.id} style={{background:'#f8fafc', border:'1px solid #e5e7eb', borderRadius:12, padding:10, fontSize:12, marginBottom:10, width:'100%', maxWidth:'100%', wordBreak:'break-word', overflowWrap:'anywhere', boxSizing:'border-box'}}>
       <div>📍 من: {o.origin_name}</div>
       <div style={{marginTop:4}}>🎯 إلى: {o.dest_name}</div>
       <div style={{marginTop:8, display:'flex', justifyContent:'space-between', fontWeight:900}}>
@@ -306,12 +306,12 @@ export default function Page() {
 
   if (step!== 'form') {
     return (
-      <div dir="rtl" style={{minHeight:'100vh', background:'#f8fafc', fontFamily:'Cairo'}}>
+      <div dir="rtl" className="min-h-screen gradient-bg" style={{minHeight:'100vh', fontFamily:'Cairo', width:'100%', maxWidth:'100vw', overflowX:'hidden', boxSizing:'border-box'}}>
         {step === 'searching' && (
-          <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, margin:'12px auto'}}>
-            <div style={{textAlign:'center'}}><div style={{fontSize:32}}>🔍</div><h3 style={{fontWeight:900, margin:'8px 0'}}>طلباتك النشطة ({pendingOrders.length}) - عم ندور على سايق ضمن 5 كم...</h3></div>
+          <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, width:'100%', margin:'12px auto', boxSizing:'border-box', overflowX:'hidden'}}>
+            <div style={{textAlign:'center'}}><div style={{fontSize:32}}>🔍</div><h3 style={{fontWeight:900, margin:'8px 0', wordBreak:'break-word'}}>طلباتك النشطة ({pendingOrders.length}) - عم ندور على سايق ضمن 5 كم...</h3></div>
             <div style={{marginTop:12}}>{pendingOrders.map(o=>(
-              <div key={o.id} style={{border:o.id===activeOrder?.id?'2px solid #0a1930':'1px solid #e5e7eb', borderRadius:12, padding:8, marginBottom:10}}>
+              <div key={o.id} style={{border:o.id===activeOrder?.id?'2px solid #0a1930':'1px solid #e5e7eb', borderRadius:12, padding:8, marginBottom:10, width:'100%', maxWidth:'100%', boxSizing:'border-box'}}>
                 {renderOrderCard(o)}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:8}}>
                   <button onClick={()=>setActiveOrderId(o.id)} style={{padding:8, borderRadius:8, border:'1px solid #e5e7eb', background: activeOrderId===o.id? '#0a1930' : 'white', color: activeOrderId===o.id? 'white' : 'black', fontWeight:900, fontSize:11}}>{activeOrderId===o.id?'محدد':'تحديد'}</button>
@@ -328,10 +328,10 @@ export default function Page() {
           </div>
         )}
         {step === 'scheduled' && (
-          <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, margin:'12px auto'}}>
+          <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, width:'100%', margin:'12px auto', boxSizing:'border-box', overflowX:'hidden'}}>
             <div style={{textAlign:'center'}}><div style={{fontSize:32}}>🕒</div><h3 style={{fontWeight:900}}>حجوزاتك المسبقة ({draftOrders.length})</h3></div>
             <div style={{marginTop:12}}>{draftOrders.map(o=>(
-              <div key={o.id} style={{border:'1px solid #e5e7eb', borderRadius:12, padding:8, marginBottom:10}}>
+              <div key={o.id} style={{border:'1px solid #e5e7eb', borderRadius:12, padding:8, marginBottom:10, width:'100%', boxSizing:'border-box'}}>
                 {renderOrderCard(o)}
                 <button onClick={()=>handleCancel(o.id)} style={{width:'100%', marginTop:8, padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11}}>❌ إلغاء هيدا الحجز</button>
               </div>
@@ -344,7 +344,7 @@ export default function Page() {
           </div>
         )}
         {step === 'accepted' && (
-          <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, margin:'12px auto'}}>
+          <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, width:'100%', margin:'12px auto', boxSizing:'border-box', overflowX:'hidden'}}>
             <div style={{background:'#dcfce7', padding:12, borderRadius:12, textAlign:'center', fontWeight:900, color:'#16a34a'}}>✅ تم قبول طلبك - {activeOrder?.taxi_name || acceptedOrders[0]?.taxi_name || 'السائق في الطريق'}</div>
             {acceptedOrders.map(o=> renderOrderCard(o))}
             {pendingOrders.length>0 && <div style={{fontSize:11, opacity:0.6, marginTop:8}}>عندك كمان {pendingOrders.length} طلب قيد البحث</div>}
@@ -355,9 +355,9 @@ export default function Page() {
           </div>
         )}
         {step === 'in_progress' && (
-          <div style={{background:"white", borderRadius:16, padding:16, maxWidth:480, margin:"12px auto"}}>
+          <div style={{background:"white", borderRadius:16, padding:16, maxWidth:480, width:'100%', margin:"12px auto", boxSizing:'border-box', overflowX:'hidden'}}>
           <div style={{background:"#0a1930", color:"white", padding:12, borderRadius:12, textAlign:"center", fontWeight:900}}>🚕 الرحلة جارية - {activeOrder?.taxi_name} - {activeOrder?.taxi_plate_number}</div>
-          <div style={{marginTop:12, height:320, borderRadius:12, overflow:"hidden", border:"1px solid #ddd"}}>
+          <div style={{marginTop:12, height:320, borderRadius:12, overflow:"hidden", border:"1px solid #ddd", width:'100%', maxWidth:'100%'}}>
               <TaxiActiveMap myLocation={activeOrder?.taxi_lat_live? {lat: Number(activeOrder.taxi_lat_live), lng: Number(activeOrder.taxi_lng_live)} : null} origin_lat={activeOrder?.origin_lat} origin_lng={activeOrder?.origin_lng} dest_lat={activeOrder?.dest_lat} dest_lng={activeOrder?.dest_lng} />
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
@@ -365,7 +365,7 @@ export default function Page() {
               <button onClick={handleShare} style={{padding:14, borderRadius:12, background:'#25D366', color:'white', fontWeight:900}}>📤 مشاركة واتساب</button>
             </div>
             {showSos && <div style={{marginTop:12, background:'#fee2e2', padding:12, borderRadius:12, border:'1px solid #fecaca'}}><textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="شو صار؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca'}} rows={3}/><button onClick={handleSos} style={{marginTop:8, width:'100%', padding:10, borderRadius:8, background:'#dc2626', color:'white', fontWeight:900}}>ارسال البلاغ</button></div>}
-            <div style={{marginTop:12, fontSize:12, background:'#f8fafc', padding:10, borderRadius:10, border:'1px solid #e5e7eb'}}>
+            <div style={{marginTop:12, fontSize:12, background:'#f8fafc', padding:10, borderRadius:10, border:'1px solid #e5e7eb', wordBreak:'break-word'}}>
               <div>رقم الرحلة: {activeOrder?.order_code}</div>
               <div>التاريخ: {activeOrder?.created_at? new Date(activeOrder.created_at).toLocaleString('ar-LB') : ''}</div>
               <div>السيارة: {activeOrder?.taxi_car_type} - {activeOrder?.taxi_plate_number} - {activeOrder?.taxi_car_color}</div>
@@ -378,64 +378,69 @@ export default function Page() {
   }
 
   return (
-    <div dir="rtl" style={{minHeight:'100vh', background:'#f8fafc', fontFamily:'Cairo'}}>
-      <div style={{background:'#0a1930', color:'white', padding:'10px 16px', display:'flex', justifyContent:'space-between', position:'sticky', top:0, zIndex:20}}>
-  <b>🚕 طلب تاكسي</b>
-  <div style={{display:'flex', gap:8, alignItems:'center'}}>
-    <a href="/taxi/history" style={{fontSize:11, background:'rgba(255,255,255,0.2)', padding:'4px 10px', borderRadius:8, color:'white', textDecoration:'none', fontWeight:900}}>📜 سجلي</a>
-    <span style={{fontSize:11, opacity:0.8}}>{customer.name} {orders.length>0?`(${orders.length} نشط)`:''}</span>
-  </div>
-</div>
-      <div style={{maxWidth:480, margin:'0 auto', padding:12}}>
-        <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb'}}>📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/><span style={{fontSize:10, opacity:0.5}}>ثابت من customers</span></div>
-        <div style={{background:'white', borderRadius:16, padding:12, marginBottom:12}}>
+    <div dir="rtl" className="min-h-screen gradient-bg" style={{minHeight:'100vh', fontFamily:'Cairo', width:'100%', maxWidth:'100vw', overflowX:'hidden', boxSizing:'border-box'}}>
+      {/* هيدر جديد بنفس ستايل الشوب + زر رجوع */}
+      <div className="glass border-b border-white/10 p-4 sticky top-0 z-20" style={{background:'rgba(10,25,48,0.8)', backdropFilter:'blur(10px)', color:'white', padding:'10px 16px', display:'flex', justifyContent:'space-between', position:'sticky', top:0, zIndex:20, width:'100%', maxWidth:'100vw', boxSizing:'border-box'}}>
+        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <a href="/shop" style={{fontSize:12, background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.2)', padding:'6px 12px', borderRadius:10, color:'white', textDecoration:'none', fontWeight:900, display:'flex', alignItems:'center', gap:4}}>⬅ المتجر</a>
+          <b>🚕 طلب تاكسي</b>
+        </div>
+        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <a href="/taxi/history" style={{fontSize:11, background:'rgba(255,255,255,0.2)', padding:'4px 10px', borderRadius:8, color:'white', textDecoration:'none', fontWeight:900}}>📜 سجلي</a>
+          <span style={{fontSize:11, opacity:0.8, maxWidth:80, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{customer.name} {orders.length>0?`(${orders.length} نشط)`:''}</span>
+        </div>
+      </div>
+
+      <div style={{maxWidth:480, width:'100%', margin:'0 auto', padding:12, boxSizing:'border-box', overflowX:'hidden'}}>
+        <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', wordBreak:'break-word'}}>📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/><span style={{fontSize:10, opacity:0.5}}>ثابت من customers</span></div>
+        <div style={{background:'white', borderRadius:16, padding:12, marginBottom:12, width:'100%', boxSizing:'border-box'}}>
           <div style={{display:'flex', gap:8, marginBottom:12}}>
             <button onClick={()=>setTripType('now')} style={{flex:1, padding:10, borderRadius:12, fontWeight:900, background:tripType==='now'?'#FFC107':'white', border:'2px solid #e5e7eb'}}>⚡ فوري {pendingOrders.length>0?`(${pendingOrders.length})`:''}</button>
             <button onClick={()=>setTripType('scheduled')} style={{flex:1, padding:10, borderRadius:12, fontWeight:900, background:tripType==='scheduled'?'#FFC107':'white', border:'2px solid #e5e7eb'}}>🕒 مسبق {draftOrders.length>0?`(${draftOrders.length})`:''}</button>
           </div>
-          {tripType==='scheduled' && <input type="datetime-local" value={scheduledAt} onChange={e=>setScheduledAt(e.target.value)} style={{width:'100%', padding:12, borderRadius:10, border:'1px solid #ddd', marginBottom:12}}/>}
+          {tripType==='scheduled' && <input type="datetime-local" value={scheduledAt} onChange={e=>setScheduledAt(e.target.value)} style={{width:'100%', padding:12, borderRadius:10, border:'1px solid #ddd', marginBottom:12, boxSizing:'border-box'}}/>}
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
             {[{id:'car',label:'سيارة'},{id:'van',label:'فان'},{id:'moto',label:'موتو'},{id:'toktok',label:'توكتوك'}].map(v=>(
               <button key={v.id} onClick={()=>setVehicleType(v.id)} style={{padding:10, borderRadius:12, border:'2px solid', borderColor:vehicleType===v.id?'#0a1930':'#e5e7eb', background:vehicleType===v.id?'#0a1930':'white', color:vehicleType===v.id?'white':'black', fontWeight:900, fontSize:12}}>{v.label}</button>
             ))}
           </div>
         </div>
-        <div style={{height:'60vh', borderRadius:16, overflow:'hidden', border:'1px solid #ddd'}}><TaxiMap onDistanceCalculated={handleDistanceCalculated} onConfirm={handleConfirmMap} /></div>
+        <div style={{height:'60vh', width:'100%', maxWidth:'100%', borderRadius:16, overflow:'hidden', border:'1px solid #ddd', boxSizing:'border-box'}}><TaxiMap onDistanceCalculated={handleDistanceCalculated} onConfirm={handleConfirmMap} /></div>
 
         {/* ✅ جديد - ليستة السيارات القريبة - عرض بس */}
-        <div style={{marginTop:12, background:'white', borderRadius:16, padding:12, border:'1px solid #e5e7eb'}}>
-          <div style={{fontWeight:900, fontSize:13, marginBottom:8}}>🚕 السيارات القريبة ضمن 3 كم {nearbyLoading? '(جاري البحث...)': `(${nearbyDrivers.length})`}</div>
+        <div style={{marginTop:12, background:'white', borderRadius:16, padding:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', overflowX:'hidden'}}>
+          <div style={{fontWeight:900, fontSize:13, marginBottom:8, wordBreak:'break-word'}}>🚕 السيارات القريبة ضمن 3 كم {nearbyLoading? '(جاري البحث...)': `(${nearbyDrivers.length})`}</div>
           {nearbyDrivers.length === 0 &&!nearbyLoading && <div style={{fontSize:12, opacity:0.5, textAlign:'center', padding:10}}>لا يوجد سيارات {vehicleType} قريبة حاليا - جرب نوع تاني</div>}
           {nearbyDrivers.map((d, idx) => (
-            <div key={d.Taxi_ID || idx} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom: idx!== nearbyDrivers.length-1? '1px solid #f3f4f6' : 'none', fontSize:12}}>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:900}}>{idx+1}. {d.full_name} - {d.car_type || d.vehicle_type}</div>
-                <div style={{fontSize:11, opacity:0.7}}>المحرك: {d.engine_cc || '1500'} - اللوحة: {d.plate_number || '-'}</div>
+            <div key={d.Taxi_ID || idx} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom: idx!== nearbyDrivers.length-1? '1px solid #f3f4f6' : 'none', fontSize:12, width:'100%', boxSizing:'border-box'}}>
+              <div style={{flex:1, minWidth:0, overflow:'hidden'}}>
+                <div style={{fontWeight:900, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{idx+1}. {d.full_name} - {d.car_type || d.vehicle_type}</div>
+                <div style={{fontSize:11, opacity:0.7, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>المحرك: {d.engine_cc || '1500'} - اللوحة: {d.plate_number || '-'}</div>
               </div>
-              <div style={{textAlign:'left'}}>
+              <div style={{textAlign:'left', flexShrink:0, marginLeft:8}}>
                 <div style={{fontWeight:900, color:'#0a1930'}}>{d.distance_km?.toFixed(2)} كم</div>
                 <div style={{fontSize:10, color: d.is_online? '#16a34a' : '#9ca3af'}}>{d.is_online? '● متاح' : 'غير متاح'}</div>
               </div>
             </div>
           ))}
         </div>
-        
+
         {/* ✅ جديد - ازرار سجل الرحلات - زبون */}
        {orders.length>0 && (
-       <div style={{marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+       <div style={{marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, width:'100%', boxSizing:'border-box'}}>
        <button onClick={()=>setStep('searching')} style={{padding:10, borderRadius:10, background:'white', border:'1px solid #ddd', fontWeight:900, fontSize:12}}>🔍 طلباتي الفورية ({pendingOrders.length})</button>
        <button onClick={()=>setStep('scheduled')} style={{padding:10, borderRadius:10, background:'white', border:'1px solid #ddd', fontWeight:900, fontSize:12}}>🕒 حجوزاتي المسبقة ({draftOrders.length})</button>
     </div>
   )}
 
-     <div style={{marginTop:8}}>
-     <a href="/taxi/history" style={{display:'block', textAlign:'center', padding:12, borderRadius:12, background:'white', border:'1px solid #e5e7eb', fontWeight:900, fontSize:13, textDecoration:'none', color:'#0a1930'}}>📜 عرض سجل الرحلات المكتملة والملغية</a>
+     <div style={{marginTop:8, width:'100%', boxSizing:'border-box'}}>
+     <a href="/taxi/history" style={{display:'block', textAlign:'center', padding:12, borderRadius:12, background:'white', border:'1px solid #e5e7eb', fontWeight:900, fontSize:13, textDecoration:'none', color:'#0a1930', width:'100%', boxSizing:'border-box'}}>📜 عرض سجل الرحلات المكتملة والملغية</a>
     </div>
 
         {pricing && distanceData && (
-          <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12}}><div style={{fontSize:11, opacity:0.7}}>منطقة {area} - {distanceData.totalKm} كم - محرك {getEngineCode(vehicleType, bundle)} - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمالية تغيير السعر عند الموافقة</div></div>
+          <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12, width:'100%', boxSizing:'border-box'}}><div style={{fontSize:11, opacity:0.7, wordBreak:'break-word'}}>منطقة {area} - {distanceData.totalKm} كم - محرك {getEngineCode(vehicleType, bundle)} - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمالية تغيير السعر عند الموافقة</div></div>
         )}
-       
+
       </div>
     </div>
   );
