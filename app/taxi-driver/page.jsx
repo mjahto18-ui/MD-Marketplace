@@ -357,7 +357,7 @@ export default function TaxiDriverDashboard(){
               <button onClick={()=>setShowSos(!showSos)} style={{width:'100%', padding:12, borderRadius:10, background:'#dc2626', color:'white', fontWeight:900, border:'none'}}>🆘 SOS طوارئ</button>
               {showSos && (
                 <div style={{marginTop:8, background:'#fee2e2', padding:10, borderRadius:10, border:'1px solid #fecaca'}}>
-                  <textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="شو صار؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca, boxSizing:'border-box', color:'black'}} rows={3}/>
+                  <textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="شو صار؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca', boxSizing:'border-box', color:'black'}} rows={3}/>
                   <button onClick={handleSos} style={{marginTop:6, width:'100%', padding:10, borderRadius:8, background:'#dc2626', color:'white', fontWeight:900, border:'none'}}>ارسال البلاغ</button>
                 </div>
               )}
