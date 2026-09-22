@@ -16,24 +16,50 @@ export async function GET(req){
   const code = decodeURIComponent(rawCode).trim();
   const supabase = getSupabase();
 
-  // 1- جرب order_code (هو اللي بتبعتو واتساب)
-  let { data: order } = await supabase.from('taxi_orders').select('*').eq('order_code', code).maybeSingle();
+  // لازم يكون شكل MD-000022/cd50412a-d0ff-... 
+  // اذا حدا بعت MD-000022 لحالو او 4336 لحالو منبلوكو - هي الثغرة
+  if(!code.includes('/')){
+    return new Response(JSON.stringify({order:null, error:'invalid share link - use order_code/id'}), {
+      headers:{'Content-Type':'application/json', 'Cache-Control':'no-store'},
+      status: 403
+    });
+  }
+
+  const [orderCode, idToken] = code.split('/').map(s=>s.trim());
   
-  // 2- اذا ما لقى جرب secret_code
+  if(!orderCode || !idToken){
+    return new Response(JSON.stringify({order:null}), {
+      headers:{'Content-Type':'application/json', 'Cache-Control':'no-store'},
+      status: 400
+    });
+  }
+
+  // لازم الاتنين يطابقو نفس الرحلة - MD-000022 + id = cd50412a-d0ff-...
+  let { data: order } = await supabase.from('taxi_orders')
+    .select('*')
+    .eq('order_code', orderCode)
+    .eq('id', idToken)
+    .maybeSingle();
+
   if(!order){
-    const { data } = await supabase.from('taxi_orders').select('*').eq('secret_code', code).maybeSingle();
-    order = data;
+    return new Response(JSON.stringify({order:null}), {
+      headers:{'Content-Type':'application/json', 'Cache-Control':'no-store'},
+      status: 404
+    });
   }
 
-  // 3- اذا بعدو ما لقى جرب id
-  if(!order && code.length > 20){
-    try {
-      const { data } = await supabase.from('taxi_orders').select('*').eq('id', code).maybeSingle();
-      order = data;
-    } catch {}
+  // اذا انتهت الرحلة - منرجعها بس مع علامة انتهت
+  if(order.status === 'completed' || order.status === 'cancelled'){
+    return new Response(JSON.stringify({
+      order, 
+      ended: true,
+      message: order.status === 'completed' ? 'انتهت الرحلة' : 'الرحلة ملغاة'
+    }), {
+      headers:{'Content-Type':'application/json', 'Cache-Control':'no-store'}
+    });
   }
 
-  return new Response(JSON.stringify({order: order || null}), {
+  return new Response(JSON.stringify({order, ended: false}), {
     headers:{'Content-Type':'application/json', 'Cache-Control':'no-store'}
   });
 }
