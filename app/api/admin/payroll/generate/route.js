@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from 'next/headers'
 import { NextResponse } from "next/server"
-
 export const dynamic = "force-dynamic";
 
 function getSupabase() {
@@ -10,10 +9,7 @@ function getSupabase() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   return createClient(url, key);
 }
-
-function genCode(){
-  return Math.floor(10000 + Math.random()*90000).toString()
-}
+function genCode(){ return Math.floor(10000 + Math.random()*90000).toString() }
 
 export async function POST(req){
   try{
@@ -24,66 +20,92 @@ export async function POST(req){
     if(!['Admin','Assistant Admin','Accounting'].includes(session.role)){
       return NextResponse.json({success:false, message:'ما عندك صلاحية'}, {status:403})
     }
-
-    const { month } = await req.json() // 2025-05
+    const { month } = await req.json()
     if(!month) return NextResponse.json({success:false, message:'حدد الشهر'}, {status:400})
 
-    const month_year = month // جدولك بيستعمل month_year text مباشرة
-
+    const month_year = month
     const [y,m] = month.split('-').map(Number)
     const start = new Date(y, m-1, 1)
     const end = new Date(y, m, 1)
 
     const supabase = getSupabase()
-    const { data: emps } = await supabase.from('employees').select('*').eq('is_active', true)
-    if(!emps || emps.length===0) return NextResponse.json({success:false, message:'ما في موظفين'})
+    const { data: emps, error: empErr } = await supabase.from('employees').select('id, full_name, department, salary_type, base_salary, hourly_rate, is_active').eq('is_active', true)
+    if(empErr) throw empErr
+    if(!emps || emps.length===0) return NextResponse.json({success:false, message:'ما في موظفين فعالين'})
 
-    let count = 0
+    let count=0, details=[]
     for(const emp of emps){
+      // 1- جرب timesheet
+      let regular=0, overtime=0
       const { data: ts } = await supabase.from('timesheet')
-        .select('total_hours, overtime_hours')
+        .select('total_hours, overtime_hours, clock_in')
         .eq('employee_id', emp.id)
         .gte('clock_in', start.toISOString())
         .lt('clock_in', end.toISOString())
 
-      let regular = 0, overtime = 0
-      ;(ts||[]).forEach(r=>{ regular += Number(r.total_hours||0); overtime += Number(r.overtime_hours||0) })
-
-      let base_amount = 0, overtime_amount = 0
-      if(emp.salary_type === 'hourly'){
-        base_amount = regular * Number(emp.hourly_rate||0)
-        overtime_amount = overtime * Number(emp.hourly_rate||0) * 1.5
-      }else{
-        base_amount = Number(emp.base_salary||0)
-        const hourly = Number(emp.hourly_rate||0) || (Number(emp.base_salary||0) / 176)
-        overtime_amount = overtime * hourly * 1.5
+      if(ts && ts.length>0){
+        ts.forEach(r=>{ 
+          regular += Number(r.total_hours||0)
+          overtime += Number(r.overtime_hours||0)
+        })
+      } else {
+        // 2- fallback من attendance اذا timesheet فاضي (لان عندك جدولين)
+        const { data: att } = await supabase.from('attendance')
+          .select('total_hours, overtime_hours, date')
+          .eq('employee_id', emp.id)
+          .gte('date', `${month_year}-01`)
+          .lt('date', `${y}-${String(m+1).padStart(2,'0')}-01`)
+        if(att && att.length>0){
+          att.forEach(r=>{
+            regular += Number(r.total_hours||0)
+            overtime += Number(r.overtime_hours||0)
+          })
+        }
       }
-      const amount = base_amount + overtime_amount
+
+      const hourlyRate = Number(emp.hourly_rate||0)
+      const baseSalary = Number(emp.base_salary||0)
+      // لو ما عندو base_salary ولا hourly_rate حط 0 وخبر
+      let base_amount = 0, overtime_amount = 0
+
+      if((emp.salary_type||'').toLowerCase().includes('hour')){
+        const rate = hourlyRate || (baseSalary>0 ? baseSalary/176 : 0)
+        base_amount = regular * rate
+        overtime_amount = overtime * rate * 1.5
+      } else {
+        base_amount = baseSalary
+        const rate = hourlyRate || (baseSalary>0 ? baseSalary/176 : 0)
+        overtime_amount = overtime * rate * 1.5
+      }
+
+      const amount = Math.round(base_amount + overtime_amount)
       const total_hours = regular + overtime
 
-      // موجود قبل؟
       const { data: existing } = await supabase.from('payroll_runs')
-        .select('id, status')
+        .select('id, status, secret_code_5')
         .eq('employee_id', emp.id)
         .eq('month_year', month_year)
         .maybeSingle()
 
       if(existing){
-        if(existing.status === 'claimed') continue
+        if(existing.status === 'claimed'){
+          details.push(`${emp.full_name}: مقبوض سابقا - تخطيناه`)
+          continue
+        }
         await supabase.from('payroll_runs').update({
           total_hours,
-          base_amount,
+          base_amount: Math.round(base_amount),
           overtime_hours: overtime,
-          overtime_amount,
+          overtime_amount: Math.round(overtime_amount),
           amount
         }).eq('id', existing.id)
         count++
+        details.push(`${emp.full_name}: تحدث ${total_hours}س`)
         continue
       }
 
       let code = genCode()
-      // تأكد ما يتكرر بنفس الشهر
-      for(let i=0;i<5;i++){
+      for(let i=0;i<8;i++){
         const { data: dup } = await supabase.from('payroll_runs').select('id').eq('secret_code_5', code).eq('month_year', month_year).limit(1)
         if(!dup || dup.length===0) break
         code = genCode()
@@ -96,15 +118,15 @@ export async function POST(req){
         amount,
         secret_code_5: code,
         status: 'pending',
-        base_amount,
+        base_amount: Math.round(base_amount),
         overtime_hours: overtime,
-        overtime_amount
+        overtime_amount: Math.round(overtime_amount)
       })
-      if(!error) count++
-      else console.log('insert error', error)
+      if(!error){ count++; details.push(`${emp.full_name}: ${total_hours}س = ${amount}`) }
+      else details.push(`${emp.full_name}: خطأ ${error.message}`)
     }
 
-    return NextResponse.json({success:true, count})
+    return NextResponse.json({success:true, count, details, month_year, message:`تم ${count} راتب - الشهر ${month_year} - حضور من ${start.toISOString().slice(0,10)}`})
 
   }catch(e){
     console.log(e)
