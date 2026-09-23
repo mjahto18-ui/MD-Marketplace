@@ -37,6 +37,14 @@ export default function PayrollPage(){
     setGenLoading(false)
   }
 
+  // --- هون الـ 3 حالات تبع العرض بس ---
+  const getStatusConfig = (status) => {
+    if(status === 'pending') return { text: 'بانتظار القبض', bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' }
+    if(status === 'in_wallet') return { text: 'بمحفظة الموظف', bg: 'rgba(59,130,246,0.2)', color: '#60a5fa' }
+    if(status === 'claimed') return { text: 'مقبوض كاش', bg: 'rgba(34,197,94,0.2)', color: '#4ade80' }
+    return { text: status, bg: 'rgba(255,255,255,0.1)', color: 'white' }
+  }
+
   return (
     <div style={{
       minHeight:'100vh',
@@ -72,7 +80,9 @@ export default function PayrollPage(){
           {loading ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.5)'}}>جاري التحميل...</div> :
           rows.length===0 ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.4)', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>ما في رواتب لهذا الشهر - اضغط احسب رواتب الشهر</div> :
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-            {rows.map(r=>(
+            {rows.map(r=>{
+              const s = getStatusConfig(r.status)
+              return (
               <div key={r.id} style={{
                 display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px',
                 background:'rgba(0,0,0,0.3)', padding:'14px 16px', borderRadius:'12px',
@@ -83,7 +93,7 @@ export default function PayrollPage(){
                   <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>
                     مجموع {r.total_hours || 0}س - اضافي {r.overtime_hours || 0}س | اساسي {Number(r.base_amount||0).toLocaleString()} + اضافي {Number(r.overtime_amount||0).toLocaleString()} = <b style={{color:'#22c55e'}}>{Number(r.amount||0).toLocaleString()} ل.ل</b>
                   </div>
-                  {r.status==='claimed' && <div style={{fontSize:'11px', color:'#4ade80', marginTop:'4px'}}>مقبوض {new Date(r.claimed_at).toLocaleString('ar-LB')} بواسطة {r.claimed_by || ''}</div>}
+                  {r.status!=='pending' && r.claimed_at && <div style={{fontSize:'11px', color: s.color, marginTop:'4px'}}>{s.text} {new Date(r.claimed_at).toLocaleString('ar-LB')} بواسطة {r.claimed_by || ''}</div>}
                 </div>
                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
                   <div style={{textAlign:'center'}}>
@@ -92,8 +102,8 @@ export default function PayrollPage(){
                       fontSize: showCode[r.id] ? '22px':'18px',
                       fontWeight:'800',
                       letterSpacing:'3px',
-                      background: r.status==='claimed' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)',
-                      color: r.status==='claimed' ? '#4ade80' : 'white',
+                      background: r.status==='pending' ? 'rgba(255,255,255,0.08)' : r.status==='in_wallet' ? 'rgba(59,130,246,0.15)' : 'rgba(34,197,94,0.15)',
+                      color: r.status==='pending' ? 'white' : s.color,
                       padding:'6px 14px',
                       borderRadius:'8px',
                       border:'1px dashed rgba(255,255,255,0.15)',
@@ -106,13 +116,13 @@ export default function PayrollPage(){
                     fontSize:'11px',
                     padding:'4px 10px',
                     borderRadius:'20px',
-                    background: r.status==='claimed' ? 'rgba(34,197,94,0.2)' : 'rgba(251,191,36,0.15)',
-                    color: r.status==='claimed' ? '#4ade80' : '#fbbf24',
+                    background: s.bg,
+                    color: s.color,
                     border:'1px solid'
-                  }}>{r.status==='claimed' ? 'مقبوض' : 'بانتظار القبض'}</div>
+                  }}>{s.text}</div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
           }
         </div>
