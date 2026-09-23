@@ -29,7 +29,7 @@ export async function GET(){
 
     const { data: employees } = await supabase
       .from('employees')
-      .select('id, full_name, department, user_id, salary_type')
+      .select('id, full_name, department, user_id, salary_type, device_type, device_fingerprint, device_registered_at')
       .eq('is_active', true)
       .order('full_name')
 
@@ -40,7 +40,7 @@ export async function GET(){
         employee_id,
         clock_in,
         overtime_hours,
-        employees ( full_name, department )
+        employees ( full_name, department, device_type, device_fingerprint, device_registered_at )
       `)
       .is('clock_out', null)
       .order('clock_in', {ascending:false})
@@ -55,7 +55,10 @@ export async function GET(){
         department: r.employees?.department || '',
         clock_in: r.clock_in,
         hours_now,
-        overtime_hours: r.overtime_hours || 0
+        overtime_hours: r.overtime_hours || 0,
+        device_type: r.employees?.device_type || null,
+        device_fingerprint: r.employees?.device_fingerprint || null,
+        device_registered_at: r.employees?.device_registered_at || null
       }
     })
 
