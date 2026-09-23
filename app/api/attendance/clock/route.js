@@ -9,6 +9,18 @@ function getSupabase(){
   return createClient(url,key);
 }
 
+// هون التصليح - iPhone قبل Mac دائماً
+function getFriendlyDeviceType(ua = '') {
+  const u = ua.toLowerCase()
+  if (u.includes('iphone')) return 'iPhone'
+  if (u.includes('ipad')) return 'iPad'
+  if (u.includes('android')) return 'Android'
+  if (u.includes('windows')) return 'Windows'
+  if (u.includes('macintosh') || u.includes('mac os')) return 'Mac'
+  if (u.includes('cros')) return 'ChromeOS'
+  return 'Unknown'
+}
+
 export async function POST(req){
   try{
     let { employee_id, device_fingerprint, device_type, qr_token } = await req.json()
@@ -33,27 +45,21 @@ export async function POST(req){
       .select('*').eq('token', tokenToCheck).gt('expires_at', new Date().toISOString()).single()
     if(!qrRow) return NextResponse.json({success:false, message:'الـ QR منتهي - حدث الشاشة بالمكتب'})
 
-    // --- حالة 1: QR فاضي = دوام ---
     if(!qrEmployeeId){
       const { data: empByPrint } = await supabase.from('employees')
         .select('id, device_fingerprint, full_name').eq('device_fingerprint', device_fingerprint).single()
-      
       if(!empByPrint) return NextResponse.json({success:false, message:'تلفونك مو مربوط - اختار اسمك من الشاشة أول مرة'})
-      
       employee_id = empByPrint.id
-      // هون كمل لتحت لتسجيل الدوام
     }
 
     if(!employee_id) return NextResponse.json({success:false, message:'ما في ID موظف - اختار اسمك من الشاشة'})
-
     const { data: emp } = await supabase.from('employees').select('id, device_fingerprint, full_name').eq('id', employee_id).single()
     if(!emp) return NextResponse.json({success:false, message:'موظف مش موجود'})
 
-    // --- حالة 2: QR فيه ID = ربط ---
     if(!emp.device_fingerprint){
       await supabase.from('employees').update({
         device_fingerprint,
-        device_type: device_type?.slice(0,250),
+        device_type: getFriendlyDeviceType(device_type),
         device_registered_at: new Date().toISOString()
       }).eq('id', employee_id)
       return NextResponse.json({success:true, action:'bind', message:`✅ تم ربط ${emp.full_name} - صور مرة تانية للدوام`})
@@ -63,7 +69,6 @@ export async function POST(req){
       return NextResponse.json({success:false, message:'هيدا مش تلفونك المسجل!'})
     }
 
-    // --- حالة 3: رابط من قبل = دوام ---
     const { data: live } = await supabase.from('timesheet')
       .select('id, clock_in').eq('employee_id', employee_id).is('clock_out', null).maybeSingle()
 
