@@ -12,43 +12,50 @@ function getSupabase() {
 
 export async function POST(req){
   try{
-    const { employee_id, device_fingerprint, device_type, qr_token } = await req.json()
-    if(!employee_id || !device_fingerprint || !qr_token) 
+    let { employee_id, device_fingerprint, device_type, qr_token } = await req.json()
+    if(!qr_token ||!device_fingerprint)
       return NextResponse.json({success:false, message:'ناقص بيانات'})
+
+    // هون الفك - اذا الـ QR فيه :: معناتا جاي من شاشة المكتب وفيه ID الموظف
+    let tokenToCheck = qr_token
+    if(qr_token.includes('::')){
+      const parts = qr_token.split('::')
+      tokenToCheck = parts[0]
+      employee_id = parts[1] // مناخد الـ ID من الـ QR مش من الـ body
+    }
+
+    if(!employee_id) return NextResponse.json({success:false, message:'ما في ID موظف'})
 
     const supabase = getSupabase()
 
-    // 1. فحص الـ QR صالح 5 دقايق
+    // 1. فحص الـ QR صالح 5 دقايق - منفحص الـ base token بس
     const { data: qrRow } = await supabase.from('office_qr_tokens')
-      .select('*').eq('token', qr_token).gt('expires_at', new Date().toISOString()).single()
-    
+     .select('*').eq('token', tokenToCheck).gt('expires_at', new Date().toISOString()).single()
+
     if(!qrRow) return NextResponse.json({success:false, message:'الـ QR منتهي - حدث الصفحة بالمكتب'})
 
     // 2. جيب الموظف
     const { data: emp } = await supabase.from('employees').select('id, device_fingerprint').eq('id', employee_id).single()
     if(!emp) return NextResponse.json({success:false, message:'موظف مش موجود'})
 
-    // 3. ربط البصمة
+    // 3. ربط البصمة - هون بتتاخد بصمة التلفون يلي صوّر، مش اللابتوب
     if(!emp.device_fingerprint){
-      // اول مرة - ربط
       await supabase.from('employees').update({
         device_fingerprint,
         device_type,
         device_registered_at: new Date().toISOString()
       }).eq('id', employee_id)
     } else {
-      // تاني مرة - تحقق
-      if(emp.device_fingerprint !== device_fingerprint){
+      if(emp.device_fingerprint!== device_fingerprint){
         return NextResponse.json({success:false, message:'هيدا مش تلفونك المسجل!'})
       }
     }
 
     // 4. شوف اذا ON ولا OFF
     const { data: live } = await supabase.from('timesheet')
-      .select('id, clock_in').eq('employee_id', employee_id).is('clock_out', null).maybeSingle()
+     .select('id, clock_in').eq('employee_id', employee_id).is('clock_out', null).maybeSingle()
 
     if(live){
-      // كان ON -> عملو OFF
       const hours = (Date.now() - new Date(live.clock_in).getTime()) / (1000*60*60)
       await supabase.from('timesheet').update({
         clock_out: new Date().toISOString(),
@@ -56,12 +63,11 @@ export async function POST(req){
       }).eq('id', live.id)
       return NextResponse.json({success:true, action:'clock_out', message:'تم تسجيل الخروج'})
     }else{
-      // كان OFF -> عملو ON
       await supabase.from('timesheet').insert({
         employee_id,
         clock_in: new Date().toISOString()
       })
-      return NextResponse.json({success:true, action:'clock_in', message:'تم تسجيل الدخول'})
+      return NextResponse.json({success:true, action:'clock_in', message:'تم تسجيل الدخول وربط الجهاز بنجاح ✅'})
     }
 
   }catch(e){
