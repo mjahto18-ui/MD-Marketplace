@@ -12,7 +12,7 @@ function getSupabase() {
 }
 
 function genCode(){
-  return Math.floor(10000 + Math.random()*90000).toString() // 5 ارقام
+  return Math.floor(10000 + Math.random()*90000).toString()
 }
 
 export async function POST(req){
@@ -28,19 +28,18 @@ export async function POST(req){
     const { month } = await req.json() // 2025-05
     if(!month) return NextResponse.json({success:false, message:'حدد الشهر'}, {status:400})
 
+    const month_year = month // جدولك بيستعمل month_year text مباشرة
+
     const [y,m] = month.split('-').map(Number)
     const start = new Date(y, m-1, 1)
-    const end = new Date(y, m, 1) // اول يوم الشهر الجاي
+    const end = new Date(y, m, 1)
 
     const supabase = getSupabase()
-
-    // هات الموظفين
     const { data: emps } = await supabase.from('employees').select('*').eq('is_active', true)
     if(!emps || emps.length===0) return NextResponse.json({success:false, message:'ما في موظفين'})
 
     let count = 0
     for(const emp of emps){
-      // هات دوامو بهالشهر
       const { data: ts } = await supabase.from('timesheet')
         .select('total_hours, overtime_hours')
         .eq('employee_id', emp.id)
@@ -50,35 +49,31 @@ export async function POST(req){
       let regular = 0, overtime = 0
       ;(ts||[]).forEach(r=>{ regular += Number(r.total_hours||0); overtime += Number(r.overtime_hours||0) })
 
-      // حساب المبلغ
       let base_amount = 0, overtime_amount = 0
       if(emp.salary_type === 'hourly'){
         base_amount = regular * Number(emp.hourly_rate||0)
-        overtime_amount = overtime * Number(emp.hourly_rate||0) * 1.5 // اضافي *1.5
+        overtime_amount = overtime * Number(emp.hourly_rate||0) * 1.5
       }else{
         base_amount = Number(emp.base_salary||0)
-        // اذا شهري، حق الساعة = الراتب / (22 يوم * 8 ساعات)
         const hourly = Number(emp.hourly_rate||0) || (Number(emp.base_salary||0) / 176)
         overtime_amount = overtime * hourly * 1.5
       }
-
       const amount = base_amount + overtime_amount
+      const total_hours = regular + overtime
 
-      // اذا في راتب موجود لهالشهر لهالموظف لا نكرر، بس اذا مش مقبوض منحدثو
+      // موجود قبل؟
       const { data: existing } = await supabase.from('payroll_runs')
         .select('id, status')
         .eq('employee_id', emp.id)
-        .gte('period_start', start.toISOString())
-        .lt('period_start', end.toISOString())
+        .eq('month_year', month_year)
         .maybeSingle()
 
       if(existing){
-        if(existing.status === 'claimed') continue // اذا انقبض ما منعدل
+        if(existing.status === 'claimed') continue
         await supabase.from('payroll_runs').update({
-          total_regular_hours: regular,
-          total_overtime_hours: overtime,
-          overtime_hours: overtime,
+          total_hours,
           base_amount,
+          overtime_hours: overtime,
           overtime_amount,
           amount
         }).eq('id', existing.id)
@@ -86,29 +81,27 @@ export async function POST(req){
         continue
       }
 
-      // ولد كود خماسي غير مكرر لهالشهر
       let code = genCode()
+      // تأكد ما يتكرر بنفس الشهر
       for(let i=0;i<5;i++){
-        const { data: dup } = await supabase.from('payroll_runs').select('id').eq('claim_code', code).gte('period_start', start.toISOString()).lt('period_start', end.toISOString()).limit(1)
+        const { data: dup } = await supabase.from('payroll_runs').select('id').eq('secret_code_5', code).eq('month_year', month_year).limit(1)
         if(!dup || dup.length===0) break
         code = genCode()
       }
 
-      await supabase.from('payroll_runs').insert({
+      const { error } = await supabase.from('payroll_runs').insert({
         employee_id: emp.id,
-        period_start: start.toISOString(),
-        period_end: new Date(y, m-1, 28).toISOString(),
-        total_regular_hours: regular,
-        total_overtime_hours: overtime,
-        overtime_hours: overtime,
-        base_amount,
-        overtime_amount,
+        month_year,
+        total_hours,
         amount,
-        claim_code: code,
+        secret_code_5: code,
         status: 'pending',
-        created_by: session.userId
+        base_amount,
+        overtime_hours: overtime,
+        overtime_amount
       })
-      count++
+      if(!error) count++
+      else console.log('insert error', error)
     }
 
     return NextResponse.json({success:true, count})
