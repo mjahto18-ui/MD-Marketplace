@@ -29,13 +29,13 @@ export async function POST(req){
     const end = new Date(y, m, 1)
 
     const supabase = getSupabase()
-    const { data: emps, error: empErr } = await supabase.from('employees').select('id, full_name, department, salary_type, base_salary, hourly_rate, is_active').eq('is_active', true)
+    // هون صار يقرا required_hours من الجدول
+    const { data: emps, error: empErr } = await supabase.from('employees').select('id, full_name, department, salary_type, base_salary, required_hours, is_active').eq('is_active', true)
     if(empErr) throw empErr
     if(!emps || emps.length===0) return NextResponse.json({success:false, message:'ما في موظفين فعالين'})
 
     let count=0, details=[]
     for(const emp of emps){
-      // 1- جرب timesheet
       let regular=0, overtime=0
       const { data: ts } = await supabase.from('timesheet')
         .select('total_hours, overtime_hours, clock_in')
@@ -48,35 +48,28 @@ export async function POST(req){
           regular += Number(r.total_hours||0)
           overtime += Number(r.overtime_hours||0)
         })
-      } else {
-        // 2- fallback من attendance اذا timesheet فاضي (لان عندك جدولين)
-        const { data: att } = await supabase.from('attendance')
-          .select('total_hours, overtime_hours, date')
-          .eq('employee_id', emp.id)
-          .gte('date', `${month_year}-01`)
-          .lt('date', `${y}-${String(m+1).padStart(2,'0')}-01`)
-        if(att && att.length>0){
-          att.forEach(r=>{
-            regular += Number(r.total_hours||0)
-            overtime += Number(r.overtime_hours||0)
-          })
-        }
       }
 
-      const hourlyRate = Number(emp.hourly_rate||0)
       const baseSalary = Number(emp.base_salary||0)
-      // لو ما عندو base_salary ولا hourly_rate حط 0 وخبر
-      let base_amount = 0, overtime_amount = 0
+      const REQUIRED = Number(emp.required_hours||286)
+      
+      // سعر الساعة بناء على اساس المعاش / المطلوب
+      const hourly = REQUIRED > 0 ? baseSalary / REQUIRED : 0
 
-      if((emp.salary_type||'').toLowerCase().includes('hour')){
-        const rate = hourlyRate || (baseSalary>0 ? baseSalary/176 : 0)
-        base_amount = regular * rate
-        overtime_amount = overtime * rate * 1.5
+      // كم ساعة محسوبة للاساسي (ما بتتخطى المطلوب)
+      const regularForBase = Math.min(regular, REQUIRED)
+      // ساعات زيادة فوق المطلوب تنحسب اوفرتايم
+      const extraBeyond = Math.max(0, regular - REQUIRED)
+
+      let base_amount = 0
+      if(regular >= REQUIRED){
+        base_amount = baseSalary // سكر المطلوب = الاساس كامل
       } else {
-        base_amount = baseSalary
-        const rate = hourlyRate || (baseSalary>0 ? baseSalary/176 : 0)
-        overtime_amount = overtime * rate * 1.5
+        base_amount = REQUIRED > 0 ? baseSalary * (regularForBase / REQUIRED) : 0 // نسبي
       }
+
+      const totalOvertime = overtime + extraBeyond
+      const overtime_amount = totalOvertime * hourly * 1.5
 
       const amount = Math.round(base_amount + overtime_amount)
       const total_hours = regular + overtime
@@ -95,12 +88,12 @@ export async function POST(req){
         await supabase.from('payroll_runs').update({
           total_hours,
           base_amount: Math.round(base_amount),
-          overtime_hours: overtime,
+          overtime_hours: totalOvertime,
           overtime_amount: Math.round(overtime_amount),
           amount
         }).eq('id', existing.id)
         count++
-        details.push(`${emp.full_name}: تحدث ${total_hours}س`)
+        details.push(`${emp.full_name}: ${regular}س اساسي + ${totalOvertime}س اضافي = ${amount}`)
         continue
       }
 
@@ -119,14 +112,14 @@ export async function POST(req){
         secret_code_5: code,
         status: 'pending',
         base_amount: Math.round(base_amount),
-        overtime_hours: overtime,
+        overtime_hours: totalOvertime,
         overtime_amount: Math.round(overtime_amount)
       })
-      if(!error){ count++; details.push(`${emp.full_name}: ${total_hours}س = ${amount}`) }
+      if(!error){ count++; details.push(`${emp.full_name}: ${regular}س اساسي + ${totalOvertime}س اضافي = ${amount}`) }
       else details.push(`${emp.full_name}: خطأ ${error.message}`)
     }
 
-    return NextResponse.json({success:true, count, details, month_year, message:`تم ${count} راتب - الشهر ${month_year} - حضور من ${start.toISOString().slice(0,10)}`})
+    return NextResponse.json({success:true, count, details, month_year, message:`تم ${count} راتب - الشهر ${month_year} - حضور من ${start.toISOString().slice(0,10)} - المطلوب ${emps[0]?.required_hours||286}س`})
 
   }catch(e){
     console.log(e)
