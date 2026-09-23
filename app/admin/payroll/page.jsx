@@ -8,6 +8,7 @@ export default function PayrollPage(){
   const [genLoading, setGenLoading] = useState(false)
   const [month, setMonth] = useState(new Date().toISOString().slice(0,7))
   const [showCode, setShowCode] = useState({})
+  const [transferring, setTransferring] = useState({})
 
   const load = async ()=>{
     setLoading(true)
@@ -35,6 +36,23 @@ export default function PayrollPage(){
       else alert(j.message || 'فشل')
     }catch(e){ alert('خطأ اتصال') }
     setGenLoading(false)
+  }
+
+  // --- فسة التحويل للمحفظة - بتغير الحالة بس والـ Trigger بيشتغل ---
+  const transferToWallet = async (row)=>{
+    if(!confirm(`تحويل راتب ${row.employees?.full_name} - ${Number(row.amount||0).toLocaleString()} ل.ل لمحفظتو؟\nرح ينشال من البنك وينضاف عندو مع كومنت SALARY شهر ${month}`)) return
+    setTransferring(p=>({...p, [row.id]: true}))
+    try{
+      const res = await fetch('/api/admin/payroll/transfer-to-wallet',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ payroll_id: row.id })
+      })
+      const j = await res.json()
+      if(j.success){ alert('تم التحويل للمحفظة'); load() }
+      else alert(j.message || 'فشل التحويل - تأكد انو الموظف عندو محفظة')
+    }catch(e){ alert('خطأ اتصال') }
+    setTransferring(p=>({...p, [row.id]: false}))
   }
 
   // --- هون الـ 3 حالات تبع العرض بس ---
@@ -96,6 +114,15 @@ export default function PayrollPage(){
                   {r.status!=='pending' && r.claimed_at && <div style={{fontSize:'11px', color: s.color, marginTop:'4px'}}>{s.text} {new Date(r.claimed_at).toLocaleString('ar-LB')} بواسطة {r.claimed_by || ''}</div>}
                 </div>
                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                  {r.status==='pending' && (
+                    <button onClick={()=>transferToWallet(r)} disabled={!!transferring[r.id]} style={{
+                      background:'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                      padding:'8px 14px', borderRadius:'10px', border:'none', color:'black', fontWeight:'800', fontSize:'12px', cursor:'pointer',
+                      opacity: transferring[r.id]?0.6:1
+                    }}>
+                      {transferring[r.id] ? 'عم يحول...' : 'تحويل للمحفظة'}
+                    </button>
+                  )}
                   <div style={{textAlign:'center'}}>
                     <div style={{fontSize:'10px', color:'rgba(255,255,255,0.4)'}}>كود القبض</div>
                     <div style={{
