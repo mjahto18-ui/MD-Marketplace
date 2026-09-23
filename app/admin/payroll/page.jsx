@@ -49,7 +49,7 @@ export default function PayrollPage(){
         <div>
           <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الرواتب - الكود الخماسي</h1>
           <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px', marginBottom:'8px'}}></div>
-          <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>كل راتب الو كود من 5 ارقام - الموظف بيقبض فيه من محفظتو</div>
+          <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>كل راتب له كود من 5 ارقام - الموظف يقبض به من محفظته</div>
         </div>
         <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
           <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{
@@ -70,7 +70,7 @@ export default function PayrollPage(){
           border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
         }}>
           {loading ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.5)'}}>جاري التحميل...</div> :
-          rows.length===0 ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.4)', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>ما في رواتب لهيدا الشهر - دق احسب رواتب الشهر</div> :
+          rows.length===0 ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.4)', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>ما في رواتب لهذا الشهر - اضغط احسب رواتب الشهر</div> :
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {rows.map(r=>(
               <div key={r.id} style={{
@@ -81,7 +81,7 @@ export default function PayrollPage(){
                 <div style={{minWidth:'200px'}}>
                   <div style={{fontWeight:'700', fontSize:'15px'}}>{r.employees?.full_name || r.employee_id} <span style={{fontSize:'11px', background:'rgba(139,92,246,0.15)', color:'#a78bfa', padding:'2px 8px', borderRadius:'20px', marginRight:'6px'}}>{r.employees?.department}</span></div>
                   <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>
-                    عادي {r.total_regular_hours || 0}س + اضافي {r.overtime_hours || 0}س | الاساسي {Number(r.base_amount||0).toLocaleString()} + اضافي {Number(r.overtime_amount||0).toLocaleString()} = <b style={{color:'#22c55e'}}>{Number(r.amount||0).toLocaleString()} ل.ل</b>
+                    مجموع {r.total_hours || 0}س - اضافي {r.overtime_hours || 0}س | اساسي {Number(r.base_amount||0).toLocaleString()} + اضافي {Number(r.overtime_amount||0).toLocaleString()} = <b style={{color:'#22c55e'}}>{Number(r.amount||0).toLocaleString()} ل.ل</b>
                   </div>
                   {r.status==='claimed' && <div style={{fontSize:'11px', color:'#4ade80', marginTop:'4px'}}>مقبوض {new Date(r.claimed_at).toLocaleString('ar-LB')} بواسطة {r.claimed_by || ''}</div>}
                 </div>
@@ -99,7 +99,7 @@ export default function PayrollPage(){
                       border:'1px dashed rgba(255,255,255,0.15)',
                       cursor:'pointer'
                     }} onClick={()=>setShowCode({...showCode, [r.id]:!showCode[r.id]})}>
-                      {showCode[r.id] ? r.claim_code : '*****'}
+                      {showCode[r.id] ? r.secret_code_5 : '*****'}
                     </div>
                   </div>
                   <div style={{
@@ -116,10 +116,6 @@ export default function PayrollPage(){
           </div>
           }
         </div>
-      </div>
-
-      <div style={{maxWidth:'1200px', margin:'0 auto', marginTop:'16px', background:'rgba(139,92,246,0.08)', border:'1px solid rgba(139,92,246,0.15)', borderRadius:'12px', padding:'14px', fontSize:'12px', color:'rgba(255,255,255,0.6)'}}>
-        <b style={{color:'#a78bfa'}}>كيف بيقبض الموظف؟</b> الموظف بيفوت على المحفظة تبعو ثم يكتب الكود الخماسي ثم اذا الكود صح بينزل المبلغ بمحفظتو وبينحفظ claimed at و claimed by. اذا قال ما قبضت فيك تفرجيه ايمتا انقبض ومين قبضو من هون.
       </div>
     </div>
   )
