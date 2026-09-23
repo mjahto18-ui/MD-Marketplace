@@ -6,7 +6,7 @@ export default function PayrollPage(){
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [genLoading, setGenLoading] = useState(false)
-  const [month, setMonth] = useState(new Date().toISOString().slice(0,7)) // 2025-05
+  const [month, setMonth] = useState(new Date().toISOString().slice(0,7))
   const [showCode, setShowCode] = useState({})
 
   const load = async ()=>{
@@ -83,7 +83,7 @@ export default function PayrollPage(){
                   <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>
                     عادي {r.total_regular_hours || 0}س + اضافي {r.overtime_hours || 0}س | الاساسي {Number(r.base_amount||0).toLocaleString()} + اضافي {Number(r.overtime_amount||0).toLocaleString()} = <b style={{color:'#22c55e'}}>{Number(r.amount||0).toLocaleString()} ل.ل</b>
                   </div>
-                  {r.status==='claimed' && <div style={{fontSize:'11px', color:'#4ade80', marginTop:'4px'}}>✅ مقبوض {new Date(r.claimed_at).toLocaleString('ar-LB')} بواسطة {r.claimed_by || ''}</div>}
+                  {r.status==='claimed' && <div style={{fontSize:'11px', color:'#4ade80', marginTop:'4px'}}>مقبوض {new Date(r.claimed_at).toLocaleString('ar-LB')} بواسطة {r.claimed_by || ''}</div>}
                 </div>
                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
                   <div style={{textAlign:'center'}}>
@@ -119,7 +119,7 @@ export default function PayrollPage(){
       </div>
 
       <div style={{maxWidth:'1200px', margin:'0 auto', marginTop:'16px', background:'rgba(139,92,246,0.08)', border:'1px solid rgba(139,92,246,0.15)', borderRadius:'12px', padding:'14px', fontSize:'12px', color:'rgba(255,255,255,0.6)'}}>
-        <b style={{color:'#a78bfa'}}>كيف بيقبض الموظف؟</b> الموظف بيفوت على المحفظة تبعو -> بيكتب الكود الخماسي -> اذا الكود صح بينزل المبلغ بمحفظتو وبينحفظ `claimed_at` و `claimed_by`. اذا قال "ما قبضت" فيك تفرجيه ايمتا انقبض ومين قبضو من هون.
+        <b style={{color:'#a78bfa'}}>كيف بيقبض الموظف؟</b> الموظف بيفوت على المحفظة تبعو ثم يكتب الكود الخماسي ثم اذا الكود صح بينزل المبلغ بمحفظتو وبينحفظ claimed at و claimed by. اذا قال ما قبضت فيك تفرجيه ايمتا انقبض ومين قبضو من هون.
       </div>
     </div>
   )
