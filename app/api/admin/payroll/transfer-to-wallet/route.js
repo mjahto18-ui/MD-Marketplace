@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -8,7 +7,7 @@ function getSupabaseAdmin() {
   const url = rawUrl?.replace('/rest/v1','').replace(/\/$/,'');
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
   if (!url) throw new Error("Missing Supabase URL");
-  if (!key) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY - تأكد من Vercel Env اسمها SUPABASE_SERVICE_KEY");
+  if (!key) throw new Error("Missing Key - تأكد من Vercel Env");
   return createClient(url, key);
 }
 
@@ -35,34 +34,17 @@ export async function POST(req){
       return NextResponse.json({ success: false, message: `الراتب حالتو ${payroll.status} مش pending` }, { status: 400 });
     }
 
-    const employeeUserId = payroll.employees?.user_id;
-    if(!employeeUserId){
+    if(!payroll.employees?.user_id){
       return NextResponse.json({ success: false, message: `الموظف ${payroll.employees?.full_name} ما عندو حساب يوزر مربوط` }, { status: 400 });
     }
 
-    // ما بقى نشيك على جدول wallets لأنه مش موجود عندك - المحفظة هي wallet_transactions
-    // اذا المبلغ 0 منغير الحالة بس بلا تحويل
-    if(!payroll.amount || payroll.amount <= 0){
-      const { error } = await supabaseAdmin
-        .from('payroll_runs')
-        .update({ status: 'in_wallet', updated_at: new Date().toISOString() })
-        .eq('id', payroll_id)
-        .eq('status', 'pending');
-      if(error) throw error;
-      return NextResponse.json({ success: true, message: 'تم - المبلغ 0' });
-    }
-
-    // هون بس منغير الحالة والـ Trigger بيعمل التحويل
-    const { error: updateErr } = await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('payroll_runs')
-      .update({ 
-        status: 'in_wallet',
-        updated_at: new Date().toISOString()
-      })
+      .update({ status: 'in_wallet' })
       .eq('id', payroll_id)
       .eq('status', 'pending');
 
-    if(updateErr) throw updateErr;
+    if(error) throw error;
 
     return NextResponse.json({ success: true, message: 'تم التحويل للمحفظة' });
 
