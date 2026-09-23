@@ -10,14 +10,13 @@ export default function MyDevicePage() {
   useEffect(() => {
     localStorage.removeItem('stable_device_fp')
     const stored = localStorage.getItem('stable_device_fp_v2')
-    if (stored) {
+    if(stored){
       setFp(stored)
       setUa(navigator.userAgent)
       return
     }
-
     const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')!
+    const ctx = canvas.getContext('2d')
     ctx.textBaseline = "top"
     ctx.font = "14px Arial"
     ctx.fillStyle = "#f60"
@@ -31,7 +30,7 @@ export default function MyDevicePage() {
     const raw = [
       canvasData,
       navigator.userAgent,
-      `${screen.width}x${screen.height}x${screen.colorDepth}x${window.devicePixelRatio}`,
+      screen.width + "x" + screen.height + "x" + screen.colorDepth + "x" + window.devicePixelRatio,
       Intl.DateTimeFormat().resolvedOptions().timeZone,
       navigator.language,
     ].join('||')
