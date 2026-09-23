@@ -48,6 +48,20 @@ export default function AttendancePage(){
     else alert(j.message || "فشل")
   }
 
+  const resetDevice = async (empId, empName)=>{
+    if(!confirm(`بدك تصفر جهاز ${empName}؟`)) return
+    try{
+      const res = await fetch('/api/admin/attendance/reset-device',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ employee_id: empId })
+      })
+      const j = await res.json()
+      if(j.success){ load() }
+      else alert(j.message || "فشل")
+    }catch(e){ alert("خطأ") }
+  }
+
   return (
     <div style={{
       minHeight:'100vh',
@@ -86,7 +100,7 @@ export default function AttendancePage(){
         ))}
       </div>
 
-      <div style={{maxWidth:'1200px', margin:'0 auto'}}>
+      <div style={{maxWidth:'1200px', margin:'0 auto', marginBottom:'24px'}}>
         <div style={{
           background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
           backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
@@ -103,8 +117,8 @@ export default function AttendancePage(){
                 border:'1px solid rgba(255,255,255,0.06)'
               }}>
                 <div>
-                  <div style={{fontWeight:'700', fontSize:'15px'}}>{row.full_name} <span style={{fontSize:'11px', background:'rgba(34,197,94,0.15)', color:'#4ade80', padding:'2px 8px', borderRadius:'20px', marginRight:'8px'}}>{row.department}</span></div>
-                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>دخل {new Date(row.clock_in).toLocaleTimeString('ar-LB')} - صرلو {Number(row.hours_now).toFixed(1)} ساعة {row.overtime_hours>0 && `+ ${row.overtime_hours} اضافي`}</div>
+                  <div style={{fontWeight:'700', fontSize:'15px'}}>{row.full_name} <span style={{fontSize:'11px', background:'rgba(34,197,94,0.15)', color:'#4ade80', padding:'2px 8px', borderRadius:'20px', marginRight:'8px'}}>{row.department}</span> {row.device_type && <span style={{fontSize:'10px', background:'rgba(139,92,246,0.15)', color:'#a78bfa', padding:'2px 8px', borderRadius:'20px'}}>📱 {row.device_type.slice(0,20)}</span>}</div>
+                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>دخل {new Date(row.clock_in).toLocaleTimeString('ar-LB')} - صرلو {Number(row.hours_now).toFixed(1)} ساعة</div>
                 </div>
                 <div style={{display:'flex', gap:'8px'}}>
                   <button onClick={async()=>{
@@ -117,6 +131,39 @@ export default function AttendancePage(){
             ))}
           </div>
           }
+        </div>
+      </div>
+
+      {/* قسم الاجهزة - جديد */}
+      <div style={{maxWidth:'1200px', margin:'0 auto'}}>
+        <div style={{
+          background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
+          backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
+          border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
+        }}>
+          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>📱 الأجهزة المربوطة</h3>
+          <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+            {employees.map(em=>(
+              <div key={em.id} style={{
+                display:'flex', justifyContent:'space-between', alignItems:'center',
+                background:'rgba(0,0,0,0.3)', padding:'14px 16px', borderRadius:'12px',
+                border:'1px solid rgba(255,255,255,0.06)'
+              }}>
+                <div>
+                  <div style={{fontWeight:'700', fontSize:'14px'}}>{em.full_name}</div>
+                  <div style={{fontSize:'12px', marginTop:'4px', color: em.device_type ? '#4ade80' : '#ef4444'}}>
+                    {em.device_type ? `📱 ${em.device_type} | ${em.device_fingerprint ? em.device_fingerprint.slice(0,20) : ''}` : 'ما تربط بعد ❌'} 
+                    <span style={{color:'rgba(255,255,255,0.4)', marginRight:'8px'}}>{em.device_registered_at ? new Date(em.device_registered_at).toLocaleDateString('ar-LB') : ''}</span>
+                  </div>
+                </div>
+                <button onClick={()=>resetDevice(em.id, em.full_name)} disabled={!em.device_fingerprint && !em.device_type} style={{
+                  background: (em.device_fingerprint || em.device_type) ? 'rgba(251,146,60,0.15)' : 'rgba(255,255,255,0.05)',
+                  border:'1px solid rgba(251,146,60,0.3)', color:'#fdba74',
+                  padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'12px'
+                }}>تصفير 🔄</button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
