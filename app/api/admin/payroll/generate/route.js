@@ -29,7 +29,6 @@ export async function POST(req){
     const end = new Date(y, m, 1)
 
     const supabase = getSupabase()
-    // هون صار يقرا required_hours من الجدول
     const { data: emps, error: empErr } = await supabase.from('employees').select('id, full_name, department, salary_type, base_salary, required_hours, is_active').eq('is_active', true)
     if(empErr) throw empErr
     if(!emps || emps.length===0) return NextResponse.json({success:false, message:'ما في موظفين فعالين'})
@@ -53,19 +52,15 @@ export async function POST(req){
       const baseSalary = Number(emp.base_salary||0)
       const REQUIRED = Number(emp.required_hours||286)
       
-      // سعر الساعة بناء على اساس المعاش / المطلوب
       const hourly = REQUIRED > 0 ? baseSalary / REQUIRED : 0
-
-      // كم ساعة محسوبة للاساسي (ما بتتخطى المطلوب)
       const regularForBase = Math.min(regular, REQUIRED)
-      // ساعات زيادة فوق المطلوب تنحسب اوفرتايم
       const extraBeyond = Math.max(0, regular - REQUIRED)
 
       let base_amount = 0
       if(regular >= REQUIRED){
-        base_amount = baseSalary // سكر المطلوب = الاساس كامل
+        base_amount = baseSalary
       } else {
-        base_amount = REQUIRED > 0 ? baseSalary * (regularForBase / REQUIRED) : 0 // نسبي
+        base_amount = REQUIRED > 0 ? baseSalary * (regularForBase / REQUIRED) : 0
       }
 
       const totalOvertime = overtime + extraBeyond
@@ -81,8 +76,9 @@ export async function POST(req){
         .maybeSingle()
 
       if(existing){
-        if(existing.status === 'claimed'){
-          details.push(`${emp.full_name}: مقبوض سابقا - تخطيناه`)
+        // هون التعديل الجديد - بس pending فيك تعدل
+        if(existing.status === 'in_wallet' || existing.status === 'claimed'){
+          details.push(`${emp.full_name}: ${existing.status === 'in_wallet' ? 'بمحفظتو - ممنوع التعديل' : 'مقبوض كاش - ممنوع التعديل'} - تخطيناه`)
           continue
         }
         await supabase.from('payroll_runs').update({
