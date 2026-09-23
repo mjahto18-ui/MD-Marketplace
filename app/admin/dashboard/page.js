@@ -1,7 +1,6 @@
-
 "use client"
 export const dynamic = "force-dynamic"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { createClient } from "@supabase/supabase-js"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -18,10 +17,66 @@ export default function Dashboard(){
   const [showWallet, setShowWallet] = useState(false)
   const [showBalance, setShowBalance] = useState(false)
 
+  // === الجديد - SOS ===
+  const [sosCount, setSosCount] = useState(0)
+  const [sosAlarmActive, setSosAlarmActive] = useState(false)
+  const [sosMuted, setSosMuted] = useState(false)
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
+  const audioRef = useRef(null)
+  const sosChannelRef = useRef(null)
+
   const router = useRouter()
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
   useEffect(()=>{ load() },[])
+
+  // === SOS Audio + Realtime - بالداشبورد كمان لان هي عمليات ===
+  useEffect(()=>{
+    audioRef.current = new Audio("/sounds/sos.mp3")
+    audioRef.current.loop = true
+    audioRef.current.volume = 1
+
+    const unlock = () => {
+      if (audioRef.current && !audioUnlocked) {
+        audioRef.current.play().then(()=>{
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+          setAudioUnlocked(true)
+        }).catch(()=>{})
+      }
+      document.removeEventListener("click", unlock)
+      document.removeEventListener("touchstart", unlock)
+    }
+    document.addEventListener("click", unlock)
+    document.addEventListener("touchstart", unlock)
+
+    // Realtime SOS
+    const channel = supabase.channel("dashboard_sos_alerts")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "taxi_sos" }, (payload)=>{
+        if(payload.new.status !== "open") return
+        setSosCount(c=>c+1)
+        if(!sosMuted && audioRef.current){
+          audioRef.current.currentTime = 0
+          audioRef.current.play().catch(()=>{})
+          setSosAlarmActive(true)
+        }
+        if(navigator.vibrate) navigator.vibrate([500,200,500,200,1000])
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "taxi_sos" }, (payload)=>{
+        if(payload.new.status === "closed"){
+          setSosCount(c=> Math.max(0, c-1))
+        }
+      })
+      .subscribe()
+    sosChannelRef.current = channel
+
+    return ()=>{
+      document.removeEventListener("click", unlock)
+      document.removeEventListener("touchstart", unlock)
+      if(sosChannelRef.current) supabase.removeChannel(sosChannelRef.current)
+      if(audioRef.current){ audioRef.current.pause(); audioRef.current = null }
+    }
+  }, [sosMuted, audioUnlocked])
 
   const formatLBP = (n) => {
     const num = parseFloat(String(n).replace(/,/g,''))||0
@@ -62,7 +117,7 @@ export default function Dashboard(){
       }catch{}
     }
 
-    const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}] = await Promise.all([
+    const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
@@ -73,6 +128,7 @@ export default function Dashboard(){
       supabase.from('pending_overpay').select('*').limit(2000),
       supabase.from('pending_reviews').select('*').limit(2000),
       supabase.from('products').select('*').eq('Active','FALSE').limit(2000),
+      supabase.from('taxi_sos').select('id').eq('status','open').limit(100),
     ])
 
     const today = new Date().toISOString().split('T')[0]
@@ -97,6 +153,8 @@ export default function Dashboard(){
       pendingReviewsCount: pendingReviews?.filter(c=>c['Status']==='Pending' || c['status']==='pending').length|| pendingReviews?.length||0,
       pendingProducts: pendingProducts?.length||0,
     })
+    // SOS count
+    setSosCount(sosOpen?.length||0)
 
     const specialViews = ["Customers Pending","Pending Orders","Today Orders","Active Orders","Approved Orders","Complete Orders","Cash Pending","Cash Received","Rejected Orders","Mapping Customers"]
     let allowed = menus||[]
@@ -157,6 +215,100 @@ export default function Dashboard(){
       </div>
     </Link>
   )
+
+  // === كرت العمليات العادي - بلا عداد ===
+  const OperationItem = ({label, href, icon, sub}) => (
+    <Link
+      href={href}
+      className="group relative overflow-hidden bg-[#0F0F0F] border border-white/[0.06] rounded-3xl p-6 flex items-center justify-between shadow-sm hover:shadow-xl/5 hover:-translate-y-1 hover:border-white/[0.12] transition-all duration-300"
+    >
+      <div className="flex items-center gap-5 min-w-0">
+        <div className="w-12 h-12 rounded-2xl bg-[#141414] border border-white/[0.06] text-white flex items-center justify-center shrink-0 text-xl">
+          {icon}
+        </div>
+        <div className="text-right min-w-0 space-y-1">
+          <div className="text-[11px] tracking-[0.18em] text-white/40 font-bold uppercase truncate" style={{fontFamily:'Andika'}}>
+            OPERATIONS
+          </div>
+          <div className="text-[14px] font-black text-white leading-tight" style={{fontFamily:'Andika'}}>
+            {label}
+          </div>
+          {sub && <div className="text-[11px] text-white/50" style={{fontFamily:'Andika'}}>{sub}</div>}
+        </div>
+      </div>
+      <div className="w-10 h-10 rounded-2xl bg-[#0A0A0A] text-[#fdfbf7] flex items-center justify-center font-black shrink-0">
+        →
+      </div>
+    </Link>
+  )
+
+  // === كرت SOS - احمر - بيرجف - مع زمور ===
+  const SOSItem = () => {
+    const hasAlert = sosCount > 0
+    return (
+      <Link
+        href="/admin/taxi-sos"
+        className={`group relative overflow-hidden rounded-3xl p-6 flex items-center justify-between shadow-sm transition-all duration-300 border
+          ${hasAlert 
+            ? 'bg-[#1a0000] border-red-500/50 hover:border-red-400 shadow-[0_0_40px_rgba(239,68,68,0.3)] animate-[shake_0.5s_ease-in-out_infinite]' 
+            : 'bg-[#0F0F0F] border-white/[0.06] hover:border-red-500/30'
+          } ${sosAlarmActive && hasAlert ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-black' : ''}`}
+      >
+        <style>{`@keyframes shake { 0%,100%{transform:translateX(0)} 10%,30%,50%,70%,90%{transform:translateX(-2px)} 20%,40%,60%,80%{transform:translateX(2px)} } @keyframes pulse-red{0%,100%{opacity:1} 50%{opacity:0.5}}`}</style>
+
+        {hasAlert && (
+          <>
+            <div className="absolute inset-0 bg-red-500/10 animate-[pulse-red_1s_ease-in-out_infinite]" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-600 via-red-400 to-red-600" />
+          </>
+        )}
+
+        <div className="flex items-center gap-5 min-w-0 relative">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-2xl font-black shadow-sm transition-all
+            ${hasAlert ? 'bg-red-600 text-white animate-pulse' : 'bg-[#141414] border border-white/[0.06] text-white/60'}`}>
+            🚨
+          </div>
+
+          <div className="text-right min-w-0 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] tracking-[0.22em] font-black uppercase" style={{fontFamily:'Andika', color: hasAlert ? '#ef4444' : 'rgba(255,255,255,0.4)'}}>
+                EMERGENCY
+              </span>
+              {hasAlert && <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />}
+              {hasAlert && <span className="w-2 h-2 rounded-full bg-red-500 -ml-2" />}
+            </div>
+            <div className="text-[15px] font-black leading-tight flex items-center gap-2" style={{fontFamily:'Andika', color: hasAlert ? '#fff' : '#fff'}}>
+              SOS - طوارئ التاكسي
+              {hasAlert && <span className="text-xs bg-red-600 px-2 py-0.5 rounded-full">{sosCount}</span>}
+            </div>
+            <div className="text-[11px] font-bold" style={{fontFamily:'Andika', color: hasAlert ? '#fca5a5' : 'rgba(255,255,255,0.5)'}}>
+              {hasAlert ? `${sosCount} بلاغ مفتوح - اضغط فوراً!` : 'لا يوجد بلاغات - النظام جاهز'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 relative">
+          {hasAlert && (
+            <button
+              onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); 
+                if(audioRef.current){ 
+                  if(sosAlarmActive){ audioRef.current.pause(); setSosAlarmActive(false); setSosMuted(true) }
+                  else { audioRef.current.play().catch(()=>{}); setSosAlarmActive(true); setSosMuted(false) }
+                }
+              }}
+              className="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm"
+            >
+              {sosAlarmActive ? '🔇' : '🔊'}
+            </button>
+          )}
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black shrink-0 shadow-sm
+            ${hasAlert ? 'bg-red-600 text-white' : 'bg-[#0A0A0A] text-[#fdfbf7]'}`} style={{fontFamily:'Andika'}}>
+            {hasAlert ? sosCount : '→'}
+          </div>
+        </div>
+      </Link>
+    )
+  }
 
   // === كرت مالي - لون مختلف للبنك والتقارير - بس Admin / Accounting ===
   const FinanceItem = ({label, count, href, icon}) => (
@@ -314,6 +466,36 @@ export default function Dashboard(){
             <div className="w-16 h-16 rounded-2xl bg-[#FFD700] flex items-center justify-center text-2xl">💳</div>
           </div>
         </div>
+
+        {/* === قسم العمليات الجديد - SOS + 3 كروت === */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="text-right space-y-1">
+              <h2 className="text- font-black text-white" style={{fontFamily:'Andika'}}>
+                العمليات - الطوارئ والمكتب
+              </h2>
+              <p className="text- text-white/50" style={{fontFamily:'Andika'}}>
+                SOS & Attendance & Payroll
+              </p>
+            </div>
+            <div className="h-px flex-1 bg-red-500/10 mx-6" />
+            <div className="text-[10px] text-white/30 tracking-widest" style={{fontFamily:'Andika'}}>
+              LIVE OPERATIONS
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            {/* SOS - كامل العرض - احمر - بيرجف - مع زمور */}
+            <SOSItem />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* 3 كروت عمليات - بلا عداد - نفس قالب Item */}
+            <OperationItem label="الحضور - مين بالدوام؟" href="/admin/attendance" icon="👥" sub="تحكم يدوي + تصفير جهاز" />
+            <OperationItem label="الرواتب - الكود الخماسي" href="/admin/payroll" icon="💰" sub="احسب رواتب الشهر" />
+            <OperationItem label="شاشة المكتب - QR" href="/admin/office-display" icon="📱" sub="عرض QR للموظفين" />
+          </div>
+        </section>
 
         {/* MAIN STATUS CARDS */}
         <section className="space-y-6">
