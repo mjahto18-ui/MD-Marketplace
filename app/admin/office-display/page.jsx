@@ -84,7 +84,7 @@ export default function OfficeDisplayPage(){
       }}>
         {qrToken ? (
           <img 
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${window.location.origin}/attendance?qr=${encodeURIComponent(qrToken)}`)}`}
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${window.location.origin}/attendance?qr=${qrToken}`)}`}
             alt="QR" 
             style={{width:'300px', height:'300px'}}
           />
