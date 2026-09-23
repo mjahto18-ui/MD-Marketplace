@@ -1,23 +1,38 @@
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+export const dynamic = "force-dynamic";
+
+function getSupabase() {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const url = rawUrl?.replace('/rest/v1','').replace(/\/$/,'');
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
+  return createClient(url, key);
+}
 
 export async function GET(){
   try{
+    const cookieStore = await cookies();
+    const sessionRaw = cookieStore.get('admin_session')?.value
+    if(!sessionRaw) return NextResponse.json({success:false, message:'مو مسجل دخول'}, {status:401})
+    
+    const session = JSON.parse(sessionRaw)
+    const role = session.role
+    if(!['Admin','Assistant Admin'].includes(role)){
+      return NextResponse.json({success:false, message:`ما عندك صلاحية - دورك ${role}`}, {status:403})
+    }
+
+    const supabase = getSupabase()
     const todayStart = new Date()
     todayStart.setHours(0,0,0,0)
 
-    // كل الموظفين النشطين
     const { data: employees } = await supabase
       .from('employees')
       .select('id, full_name, department, user_id, salary_type')
       .eq('is_active', true)
       .order('full_name')
 
-    // مين ON هلا
     const { data: liveRaw } = await supabase
       .from('timesheet')
       .select(`
@@ -44,7 +59,6 @@ export async function GET(){
       }
     })
 
-    // دوام اليوم
     const { data: todayRows } = await supabase
       .from('timesheet')
       .select('employee_id, total_hours, overtime_hours')
@@ -59,7 +73,7 @@ export async function GET(){
     ;(todayRows||[]).forEach(r=>{ today_total += Number(r.total_hours||0) + Number(r.overtime_hours||0) })
     live.forEach(r=>{ today_total += Number(r.hours_now||0) + Number(r.overtime_hours||0) })
 
-    return Response.json({
+    return NextResponse.json({
       success:true,
       employees: employees || [],
       live,
@@ -73,6 +87,6 @@ export async function GET(){
 
   }catch(e){
     console.log(e)
-    return Response.json({success:false, message:e.message}, {status:500})
+    return NextResponse.json({success:false, message:e.message}, {status:500})
   }
 }
