@@ -1,11 +1,18 @@
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { createClient } from '@supabase/supabase-js'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url) throw new Error("Missing Supabase URL");
-  return createClient(url, key);
+  return createClient(url, key, {
+    global: {
+      fetch: (input, init) => {
+        return fetch(input, { ...(init || {}), cache: 'no-store' });
+      }
+    }
+  });
 }
 
 export async function GET(){
@@ -15,8 +22,8 @@ export async function GET(){
     .select(`"Request ID", "customer ID", "Mobile", "Customer Latitude", "Customer Longitude", "Approval Status", "Assigned Driver", "Delivery Adress", "Items Cost", "Delivery Fee", "Total Amount", "Note", "Order Area", "Admin Note", "Area", "Cerated Date"`)
     .eq('"Approval Status"', 'Pending')
 
-  if(error) return Response.json({error: error.message, details: error}, {status:500})
-  if(!orders || orders.length===0) return Response.json([])
+  if(error) return Response.json({error: error.message, details: error}, {status:500, headers: {'Cache-Control': 'no-store, no-cache, must-revalidate'}})
+  if(!orders || orders.length===0) return Response.json([], {headers: {'Cache-Control': 'no-store, no-cache, must-revalidate'}})
 
   const customerIds = [...new Set(orders.map(o=>o['customer ID']).filter(Boolean))]
   const areaCodes = [...new Set(orders.map(o=>o['Area']).filter(Boolean))]
@@ -62,5 +69,5 @@ export async function GET(){
     raw: o
   }))
 
-  return Response.json(result)
+  return Response.json(result, {headers: {'Cache-Control': 'no-store, no-cache, must-revalidate'}})
 }

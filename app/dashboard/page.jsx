@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw, Gift, Crown, TrendingUp } from "lucide-react";
+import { User, Package, MapPin, LogOut, ShoppingBag, MessageCircle, ChevronRight, Bell, Star, Wallet, RefreshCcw, Gift, Crown, TrendingUp, Clock, Timer } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 
@@ -13,19 +13,33 @@ export default function Dashboard() {
   const [notificationCount, setNotificationCount] = useState(0);
   const [balance, setBalance] = useState({ points: 0, wallet: 0, total_spent: 0 });
   const [orders, setOrders] = useState([]);
+  const [pendings, setPendings] = useState([]);
   const [openNotifications, setOpenNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [hasNew, setHasNew] = useState(false);
+  const [pendingRatingIds, setPendingRatingIds] = useState([]);
 
   const [needsLocationUpdate, setNeedsLocationUpdate] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
   const [tiers, setTiers] = useState([]);
   const [tierData, setTierData] = useState(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const formatTimer = (s) => {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  };
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-   .then(async (res) => {
+  .then(async (res) => {
         if (!res.ok) { window.location.href = '/login'; return; }
         const data = await res.json();
         setUser(data.user);
@@ -38,21 +52,26 @@ export default function Dashboard() {
           if (diffDays >= 15) setNeedsLocationUpdate(true);
         }
 
-        // ✅ شلنا api/notifications/count القديم يلي فيه ثغرة
-
         fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-       .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 }));
+      .then(r => r.json()).then(b => setBalance({ points: b.points || 0, wallet: b.wallet || 0, total_spent: b.total_spent || 0 }));
 
         fetch('/api/loyalty-tiers', { credentials: 'include' })
-       .then(r => r.json()).then(tData => {
+      .then(r => r.json()).then(tData => {
           const tiersList = tData.tiers || [];
           setTiers(tiersList);
         });
 
         fetch(`/api/my-orders?customerID=${data.user.customerId}`, { credentials: 'include' })
-       .then(r => r.json()).then(o => setOrders(o.orders || []));
+      .then(r => r.json()).then(o => setOrders(o.orders || []));
+
+        fetch(`/api/my-pending-overpay?customerID=${data.user.customerId}`, { credentials: 'include' })
+      .then(r => r.json()).then(p => setPendings(p.pendings || []));
+
+        fetch(`/api/check-pending-rating?customerID=${data.user.customerId}`, { credentials: 'include' })
+      .then(r => r.json()).then(d => setPendingRatingIds(d.pendingIds || []));
+
       })
-   .catch(() => { window.location.href = '/login'; });
+  .catch(() => { window.location.href = '/login'; });
   }, []);
 
   useEffect(() => {
@@ -99,7 +118,6 @@ export default function Dashboard() {
         }
 
         setNotifications(newNotifications);
-        // اذا البوب اب مسكر احسب العدد، اذا مفتوح خليه 0
         if (!openNotifications) {
           setNotificationCount(newNotifications.length);
         }
@@ -137,6 +155,14 @@ export default function Dashboard() {
   const latestApproved = orders
 .filter(o => o.approvalStatus === "Approved")
 .slice(-1)[0];
+
+    // --- FIX: الأجدد فوق بالتاريخ ---
+  const sortedOrders = [...orders].sort((a, b) => {
+    const da = new Date(a.date || a.RequestDate || a.CeratedDate || 0);
+    const db = new Date(b.date || b.RequestDate || b.CeratedDate || 0);
+    return db - da;
+  });
+  const last5Orders = sortedOrders.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950" style={{ direction: "rtl" }}>
@@ -345,9 +371,17 @@ export default function Dashboard() {
         )}
 
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Package className="w-5 h-5 text-purple-400" />
-            <h2 className="text-white font-bold">طلباتي</h2>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-purple-400" />
+              <h2 className="text-white font-bold">طلباتي</h2>
+              <span className="bg-white/10 text-white/60 text-xs px-2 py-0.5 rounded-full">{orders.length}</span>
+            </div>
+            {orders.length > 5 && (
+              <button onClick={() => router.push('/orders-dashboard')} className="text-purple-300 text-xs font-bold hover:text-white">
+                عرض الكل →
+              </button>
+            )}
           </div>
 
           {orders.length === 0? (
@@ -356,31 +390,99 @@ export default function Dashboard() {
               <p className="text-purple-200">لا يوجد طلبات بعد</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {orders.map(o => (
-                <div key={o.requestID} className="bg-white/5 rounded-xl p-3 border border-white/5">
-                  <div className="flex justify-between items-center">
-                    <p className="text-white font-bold text-sm">#{o.requestID.slice(-6)}</p>
-                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/20">{o.status}</span>
+            <>
+              <div className="space-y-3">
+                {last5Orders.map(o => {
+                  const pickupTime = o.pickupAt? new Date(o.pickupAt) : null;
+                  const isActiveTimer = pickupTime && (o.status === 'Picked Up' || o.status === 'On The Way');
+                  let remaining = 0;
+                  let expectedStr = '';
+                  let timerBg = 'bg-emerald-500';
+                  if(isActiveTimer){
+                    const elapsed = Math.floor((now - pickupTime.getTime())/1000);
+                    remaining = Math.max(0, 25*60 - elapsed);
+                    const expected = new Date(pickupTime.getTime() + 25*60*1000);
+                    expectedStr = expected.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true});
+                    if(remaining===0) timerBg = 'bg-red-600';
+                    else if(remaining<300) timerBg = 'bg-red-500';
+                    else if(remaining<600) timerBg = 'bg-yellow-400';
+                    else timerBg = 'bg-emerald-500';
+                  }
+                  const overpay = pendings.find(p => String(p["Request ID"]).trim().toLowerCase() === String(o.requestID).trim().toLowerCase());
+
+                  return (
+                  <div key={o.requestID} className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <div className="flex justify-between items-center">
+                      <p className="text-white font-bold text-sm">#{o.requestID.slice(-6)}</p>
+                      <div className="flex items-center gap-2">
+                        {isActiveTimer && (
+                          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/20 font-black text-xs ${timerBg} ${remaining<600 && remaining!==0? 'text-black' : 'text-white'} shadow-lg`}>
+                            <Timer className="w-3.5 h-3.5" />
+                            <span>{remaining===0? 'تأخر!' : formatTimer(remaining)}</span>
+                          </div>
+                        )}
+                        <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/20">{o.status}</span>
+                      </div>
+                    </div>
+
+                    {overpay && (
+                      <div className="mt-2 bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-2.5 flex justify-between items-center">
+                        <p className="text-yellow-200 text-xs font-bold">عندك {Number(overpay.Net).toLocaleString()} ل.س فرق بالفاتورة</p>
+                        <button onClick={() => router.push(`/donate/${overpay["Pending ID"]}`)} className="bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-black active:scale-95">
+                          اختار
+                        </button>
+                      </div>
+                    )}
+
+                    {pendingRatingIds.includes(o.requestID) && (
+                      <div className="mt-2 bg-gradient-to-r from-yellow-500/20 via-amber-400/20 to-yellow-500/20 border border-yellow-500/40 rounded-xl p-2.5 flex justify-between items-center shadow-[0_0_20px_rgba(234,179,8,0.15)]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-[0_2px_8px_rgba(234,179,8,0.4)]">
+                            <Star className="w-4 h-4 text-black fill-black" />
+                          </div>
+                          <p className="text-yellow-100 text-xs font-bold">قيّم السائق  لتجربة قادمة احسن</p>
+                        </div>
+                        <button onClick={() => router.push(`/rate/${o.requestID}`)} className="bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-4 py-1.5 rounded-full text-xs font-black active:scale-95 shadow-[0_0_15px_rgba(251,191,36,0.5)] hover:shadow-[0_0_20px_rgba(251,191,36,0.7)] transition-all">
+                          قيّم ⭐
+                        </button>
+                      </div>
+                    )}
+
+                    {isActiveTimer && (
+                      <div className="mt-2 bg-white/[0.07] border border-white/10 rounded-lg px-3 py-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-purple-300" />
+                          <span className="text-purple-200 text-xs">الوقت المتوقع للتوصيل:</span>
+                        </div>
+                        <span className="text-white font-bold text-sm">{expectedStr}</span>
+                      </div>
+                    )}
+
+                    <p className="text-purple-300/60 text-xs mt-1">{o.date}</p>
+                    <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                      <div>
+                        <p className="text-white/40">قبل التوصيل</p>
+                        <p className="text-white font-bold">{Number(o.itemsCost||0).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-white/40">التوصيل</p>
+                        <p className="text-white">{o.freeUsed? 'مجاني' : Number(o.deliveryFee||0).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-white/40">المجموع</p>
+                        <p className="text-green-300 font-bold">{Number(o.total||0).toLocaleString()}</p>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-purple-300/60 text-xs mt-1">{o.date}</p>
-                  <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
-                    <div>
-                      <p className="text-white/40">قبل التوصيل</p>
-                      <p className="text-white font-bold">{Number(o.itemsCost||0).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/40">التوصيل</p>
-                      <p className="text-white">{o.freeUsed? 'مجاني' : Number(o.deliveryFee||0).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/40">المجموع</p>
-                      <p className="text-green-300 font-bold">{Number(o.total||0).toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+              {orders.length > 5 && (
+                <button onClick={() => router.push('/orders-dashboard')} className="w-full mt-4 bg-white/5 border border-white/10 text-white py-3 rounded-xl font-bold text-sm hover:bg-white/10 transition">
+                  عرض كل الطلبات ({orders.length}) →
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -412,7 +514,6 @@ export default function Dashboard() {
 
       </div>
 
-      {/* ================= AI WHATSAPP ASSISTANT ================= */}
 <a
   href="https://wa.me/966558224093?text=مرحبا، بدي استفسر عن طلبي"
   target="_blank"
@@ -421,7 +522,6 @@ export default function Dashboard() {
   className="fixed bottom-6 right-6 z-50 flex flex-col items-center group"
 >
   <div className="relative">
-
     <div
       className="
         w-16 h-16
@@ -439,7 +539,6 @@ export default function Dashboard() {
         🤖
       </span>
     </div>
-
     <span
       className="
         absolute
@@ -460,9 +559,7 @@ export default function Dashboard() {
     >
       AI
     </span>
-
   </div>
-
   <div
     className="
       mt-2
@@ -482,7 +579,6 @@ export default function Dashboard() {
   >
     MD-Marketplace AI
   </div>
-
 </a>
 
       {showLocationModal && (

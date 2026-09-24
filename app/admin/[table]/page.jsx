@@ -122,7 +122,7 @@ export default function GenericTable(){
   const renderInput = (colKey, value, onChange, small=false) => {
     if (enums[colKey]) {
       return (
-        <select className={small? "w-full h-9 rounded-xl border border-amber-200 bg-amber-50/80 px-3 text- font-medium text-black outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/10" : "w-full h-11 rounded-2xl border border-amber-200 bg-amber-50/50 px-4 text- font-medium text-black outline-none focus:bg-white focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)}>
+        <select className={small? "w-full h-9 rounded-xl border border-[#FFD700]/20 bg-[#0F0F0F] px-3 text-[13px] font-medium text-white outline-none focus:border-[#FFD700]/40 focus:ring-2 focus:ring-[#FFD700]/10" : "w-full h-11 rounded-[16px] border border-[#FFD700]/20 bg-[#141414] px-4 text-[13px] font-medium text-white outline-none focus:bg-[#0F0F0F] focus:border-[#FFD700]/40 focus:ring-4 focus:ring-[#FFD700]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)}>
           <option value="">اختر {colKey}</option>
           {enums[colKey].map(v=>(<option key={v} value={v}>{v}</option>))}
         </select>
@@ -130,85 +130,93 @@ export default function GenericTable(){
     }
     if (dropdowns[colKey]) {
       return (
-        <select className={small? "w-full h-9 rounded-xl border border-zinc-200 bg-white px-3 text- font-medium text-black outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/10" : "w-full h-11 rounded-2xl border border-zinc-200 bg-zinc-50/50 px-4 text- font-medium text-black outline-none focus:bg-white focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)}>
+        <select className={small? "w-full h-9 rounded-xl border border-white/[0.06] bg-[#0F0F0F] px-3 text-[13px] font-medium text-white outline-none focus:border-[#FFD700]/20 focus:ring-2 focus:ring-[#FFD700]/10" : "w-full h-11 rounded-[16px] border border-white/[0.08] bg-[#141414] px-4 text-[13px] font-medium text-white outline-none focus:bg-[#0F0F0F] focus:border-[#FFD700]/30 focus:ring-4 focus:ring-[#FFD700]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)}>
           <option value="">اختر {colKey}</option>
           {dropdowns[colKey].map(opt=>(<option key={opt.value} value={opt.value}>{opt.label}</option>))}
         </select>
       )
     }
-    return (<input placeholder={colKey} className={small? "w-full h-9 rounded-xl border border-zinc-200 bg-white px-3 text- font-medium text-black outline-none focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/10" : "w-full h-11 rounded-2xl border border-zinc-200 bg-zinc-50/50 px-4 text- font-medium text-black outline-none placeholder:text-zinc-400 focus:bg-white focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)} />)
+    return (<input placeholder={colKey} className={small? "w-full h-9 rounded-xl border border-white/[0.06] bg-[#0F0F0F] px-3 text-[13px] font-medium text-white outline-none focus:border-[#FFD700]/20 focus:ring-2 focus:ring-[#FFD700]/10" : "w-full h-11 rounded-[16px] border border-white/[0.08] bg-[#141414] px-4 text-[13px] font-medium text-white outline-none placeholder:text-white/20 focus:bg-[#0F0F0F] focus:border-[#FFD700]/30 focus:ring-4 focus:ring-[#FFD700]/10 transition-all"} style={{fontFamily:'Andika'}} value={value||''} onChange={e=>onChange(e.target.value)} />)
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#0052CC] text-zinc-900 selection:bg-zinc-900 selection:text-white">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap'); *{font-family:'Andika',sans-serif}`}</style>
+    <div dir="rtl" className="min-h-screen bg-[#0F0F0F] text-white selection:bg-[#FFD700]/30">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        *{font-family:'Andika',sans-serif}
+        .mono{font-family:'JetBrains Mono',monospace!important}
+        .gold-glow{box-shadow:0 0 40px rgba(255,215,0,0.15), 0 0 80px rgba(255,215,0,0.05), inset 0 1px 0 rgba(255,215,0,0.2)}
+        .gold-glow-strong{box-shadow:0 0 60px rgba(255,215,0,0.3), 0 0 120px rgba(255,215,0,0.1), inset 0 1px 0 rgba(255,215,0,0.3)}
+        .grid-pattern{background-image:radial-gradient(rgba(255,215,0,0.08) 1px, transparent 1px); background-size:24px 24px}
+      `}</style>
 
-      <header className="sticky top-0 z-40 bg-[#E5F0FF] backdrop-blur-2xl border-b border-white/20">
-        <div className="px-6 lg:px-10 py-5 flex items-center justify-between">
+      <header className="sticky top-0 z-40 backdrop-blur-[20px] bg-[#0F0F0F]/80 border-b border-white/[0.06]">
+        <div className="px-6 lg:px-10 py-5 flex items-center justify-between max-w-[1600px] mx-auto">
           <div className="flex items-center gap-5">
-            <div className="w-12 h-12 rounded- bg-[#0052CC] flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
-              <div className="w-7 h-7 rounded- bg-white/20 backdrop-blur flex items-center justify-center text-white font-black text- tracking-widest" style={{fontFamily:'Andika'}}>MD</div>
+            <div className="w-12 h-12 rounded-[16px] bg-[#FFD700] flex items-center justify-center shadow-[0_0_30px_rgba(255,215,0,0.3)]">
+              <div className="w-7 h-7 rounded-[10px] bg-black/20 backdrop-blur flex items-center justify-center text-black font-black text-[12px] tracking-widest mono">MD</div>
             </div>
             <div>
               <div className="flex items-baseline gap-3">
-                <h1 className="text- font-[900] tracking-[-0.02em] text-black leading-none" style={{fontFamily:'Andika'}}>{table}</h1>
-                <span className="text- font-bold text-black/60 tracking-wide" style={{fontFamily:'Andika'}}>/ ADMIN</span>
+                <h1 className="text-[18px] font-black tracking-tight text-white leading-none">{table}</h1>
+                <span className="text-[12px] font-bold text-white/40 tracking-wide mono">/ ADMIN</span>
               </div>
               <div className="flex items-center gap-2.5 mt-2">
-                <span className="inline-flex items-center gap-2 rounded-full bg-[#0052CC] text-white px-3 py-1 text- font-bold tracking-wide" style={{fontFamily:'Andika'}}><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"/>{myRole}</span>
-                <span className="text- text-black font-medium" style={{fontFamily:'Andika'}}>{filtered.length} سجل • {Object.keys(dropdowns).length} روابط • {Object.keys(enums).length} ENUM</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#FFD700] text-black px-3 py-1 text-[11px] font-black tracking-wide mono"><span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse"/>{myRole}</span>
+                <span className="text-[12px] text-white/40 font-medium">{filtered.length} سجل • {Object.keys(dropdowns).length} روابط • {Object.keys(enums).length} ENUM</span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2.5">
-            <div className="hidden md:flex items-center gap-2 h-11 px-4 rounded-2xl bg-zinc-50 border border-zinc-100">
-              <span className="text-black">⌕</span>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث سريع..." className="bg-transparent outline-none text- font-medium text-black placeholder:text-zinc-400 w-" style={{fontFamily:'Andika'}}/>
+            <div className="hidden md:flex items-center gap-2 h-11 px-4 rounded-full bg-white/[0.04] border border-white/[0.06]">
+              <span className="text-white/40">⌕</span>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث سريع..." className="bg-transparent outline-none text-[13px] font-medium text-white placeholder:text-white/20 w-40 mono"/>
             </div>
-            {perm.can_add && (<button onClick={()=>setShowAdd(true)} className="h-11 px-5 rounded-2xl bg-[#0052CC] text-white text- font-bold tracking-wide hover:bg-[#0041a3] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] active:scale-[0.98] transition-all" style={{fontFamily:'Andika'}}>+ إضافة جديد</button>)}
-            <a href="/admin/dashboard" className="h-11 px-5 rounded-2xl bg-black border border-zinc-200 text-white text- font-bold hover:bg-zinc-800 transition" style={{fontFamily:'Andika'}}>لوحة التحكم</a>
+            {perm.can_add && (<button onClick={()=>setShowAdd(true)} className="h-11 px-5 rounded-full bg-[#FFD700] text-black text-[13px] font-black tracking-wide hover:bg-white hover:shadow-[0_0_20px_rgba(255,215,0,0.3)] active:scale-[0.98] transition-all">+ إضافة جديد</button>)}
+            <a href="/admin/dashboard" className="h-11 px-5 rounded-full bg-white/[0.06] border border-white/[0.08] text-white text-[13px] font-bold hover:bg-white/[0.1] transition">لوحة التحكم</a>
           </div>
         </div>
       </header>
 
-      <main className="px-6 lg:px-10 py-8">
+      <main className="px-6 lg:px-10 py-8 max-w-[1600px] mx-auto relative">
+        <div className="absolute inset-0 grid-pattern opacity-[0.15] pointer-events-none"></div>
         {showAdd && (
-          <div className="bg-[#E5F0FF] rounded- border border-zinc-100 shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-7 mb-8">
+          <div className="relative rounded-[24px] bg-[#141414] border border-[#FFD700]/20 gold-glow p-7 mb-8">
             <div className="flex items-center justify-between mb-7">
-              <div><h2 className="text- font-[800] tracking-tight text-black" style={{fontFamily:'Andika'}}>إضافة سجل جديد</h2><p className="text- text-black mt-1 font-medium" style={{fontFamily:'Andika'}}>البرتقالي ENUM من نفس الجدول ◆ الأزرق مربوط من جدول تاني ●</p></div>
-              <button onClick={()=>setShowAdd(false)} className="w-10 h-10 rounded-2xl bg-zinc-50 border border-zinc-100 text-black hover:bg-zinc-100 transition">✕</button>
+              <div><h2 className="text-[16px] font-black tracking-tight text-white">إضافة سجل جديد</h2><p className="text-[12px] text-white/40 mt-1 mono">البرتقالي ENUM ◆ الأزرق مربوط من جدول تاني ● نفس المنطق</p></div>
+              <button onClick={()=>setShowAdd(false)} className="w-10 h-10 rounded-full bg-white/[0.06] border border-white/[0.06] text-white hover:bg-white/[0.1] transition">✕</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {cols.filter(c=>c!=='supa_id').map(k=>(<div key={k}><label className="block text- font-bold tracking-wide text-black mb-2" style={{fontFamily:'Andika'}}>{k} {dropdowns[k] && <span className="text-[#0052CC]">● مربوط</span>} {enums[k] && <span className="text-amber-600">◆ {enums[k].length} قيم</span>}</label>{renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}</div>))}
+              {cols.filter(c=>c!=='supa_id').map(k=>(<div key={k}><label className="block text-[11px] font-bold tracking-wide text-white/50 mb-2 mono">{k} {dropdowns[k] && <span className="text-[#FFD700]">● مربوط</span>} {enums[k] && <span className="text-amber-400">◆ {enums[k].length} قيم</span>}</label>{renderInput(k, newRow[k]||'', (v)=>setNewRow({...newRow,[k]:v}))}</div>))}
             </div>
-            <div className="mt-7 flex gap-2.5"><button onClick={add} className="h-11 px-7 rounded-2xl bg-[#0052CC] text-white text- font-bold hover:bg-[#0041a3] transition" style={{fontFamily:'Andika'}}>حفظ السجل</button><button onClick={()=>setShowAdd(false)} className="h-11 px-7 rounded-2xl bg-zinc-50 border border-zinc-100 text-black text- font-bold hover:bg-zinc-100 transition" style={{fontFamily:'Andika'}}>إلغاء</button></div>
+            <div className="mt-7 flex gap-2.5"><button onClick={add} className="h-11 px-7 rounded-full bg-[#FFD700] text-black text-[13px] font-black hover:bg-white transition">حفظ السجل</button><button onClick={()=>setShowAdd(false)} className="h-11 px-7 rounded-full bg-white/[0.06] border border-white/[0.08] text-white text-[13px] font-bold hover:bg-white/[0.1] transition">إلغاء</button></div>
           </div>
         )}
 
-        <div className="bg-[#E5F0FF] rounded- border border-zinc-100 shadow-[0_20px_80px_rgba(0,0,0,0.15)] overflow-hidden">
-          <div className="px-8 py-6 border-b border-zinc-50 flex items-center justify-between bg-[#E5F0FF]">
+        <div className="relative rounded-[24px] bg-[#141414] border border-white/[0.06] overflow-hidden">
+          <div className="px-8 py-6 border-b border-white/[0.06] flex items-center justify-between bg-[#0F0F0F]/50">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#0052CC] text-white flex items-center justify-center text- font-black" style={{fontFamily:'Andika'}}>{filtered.length}</div>
-              <div><div className="text- font-bold text-black" style={{fontFamily:'Andika'}}>جدول {table}</div><div className="text- text-black font-medium mt-0.5" style={{fontFamily:'Andika'}}>عرض {filtered.length} من {data.length} • تحديث مباشر</div></div>
+              <div className="w-9 h-9 rounded-xl bg-[#FFD700] text-black flex items-center justify-center text-[13px] font-black mono shadow-[0_0_20px_rgba(255,215,0,0.3)]">{filtered.length}</div>
+              <div><div className="text-[13px] font-bold text-white">جدول {table}</div><div className="text-[11px] text-white/40 font-medium mt-0.5 mono">عرض {filtered.length} من {data.length} • تحديث مباشر</div></div>
             </div>
-            <div className="flex items-center gap-2 text- font-medium text-black" style={{fontFamily:'Andika'}}><span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]"/>LIVE SYNC • {Object.keys(enums).length} ENUMS • {Object.keys(dropdowns).length} LINKS</div>
+            <div className="flex items-center gap-2 text-[11px] font-medium text-white/30 mono"><span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.15)] animate-pulse"/>LIVE SYNC • {Object.keys(enums).length} ENUMS • {Object.keys(dropdowns).length} LINKS</div>
           </div>
 
           <div className="overflow-auto max-h-[calc(100vh-240px)]">
-            <table dir="rtl" className="w-full text- border-collapse">
+            <table dir="rtl" className="w-full text-[13px] border-collapse">
               <thead className="sticky top-0 z-20">
-                <tr className="bg-[#0052CC] text-white">
-                  {canEdit && (<th className="sticky right-0 z-30 bg-[#0052CC] px-6 py-4 text-center text- font-bold tracking-widest text-white" style={{fontFamily:'Andika'}}>إجراء</th>)}
-                  {cols.map(k=>(<th key={k} className="px-6 py-4 text-right text- font-bold tracking-widest text-white whitespace-nowrap border-l border-white/20" style={{fontFamily:'Andika'}}>{k} {dropdowns[k] && <span className="ml-1 text-white">●</span>} {enums[k] && <span className="ml-1 text-amber-200">◆</span>}</th>))}
-                  {canEdit && (<th className="px-6 py-4 text-center text- font-bold tracking-widest text-white" style={{fontFamily:'Andika'}}>حذف</th>)}
+                <tr className="bg-[#0F0F0F] text-white border-b border-white/[0.06]">
+                  {canEdit && (<th className="sticky right-0 z-30 bg-[#0F0F0F] px-6 py-4 text-center text-[11px] font-black tracking-widest text-[#FFD700] mono">إجراء</th>)}
+                  {cols.map(k=>(<th key={k} className="px-6 py-4 text-right text-[11px] font-bold tracking-widest text-white/40 whitespace-nowrap border-l border-white/[0.04] mono">{k} {dropdowns[k] && <span className="ml-1 text-[#FFD700]">●</span>} {enums[k] && <span className="ml-1 text-amber-300">◆</span>}</th>))}
+                  {canEdit && (<th className="px-6 py-4 text-center text-[11px] font-bold tracking-widest text-white/40 mono">حذف</th>)}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r,index)=>(
-                  <tr key={r.supa_id} className={`group border-b border-zinc-100 hover:bg-[#e6efff]/50 transition-all ${index%2===0?'bg-white':'bg-[#f6f8ff]'}`}>
-                    {canEdit && (<td className="sticky right-0 z-10 bg-inherit group-hover:bg-[#e6efff]/50 px-4 py-3 border-l border-zinc-100">{editId===r.supa_id? (<div className="flex gap-1.5"><button onClick={save} className="h-8 px-3 rounded-xl bg-[#0052CC] text-white text- font-bold hover:bg-[#0041a3] transition" style={{fontFamily:'Andika'}}>حفظ</button><button onClick={()=>setEditId(null)} className="h-8 w-8 rounded-xl bg-zinc-100 text-black hover:bg-zinc-200 transition">✕</button></div>) : (<button onClick={()=>{setEditId(r.supa_id); setEditRow(r)}} className="h-8 px-4 rounded-xl bg-black text-white text- font-bold group-hover:bg-[#0052CC] transition-all" style={{fontFamily:'Andika'}}>تعديل</button>)}</td>)}
-                    {cols.map(k=>(<td key={k} className="px-6 py-4 text-right text-black font-bold max-w- truncate border-l border-zinc-50/50" style={{fontFamily:'Andika'}}>{editId===r.supa_id && k!=='supa_id'? (renderInput(k, editRow[k]||'', (v)=>setEditRow({...editRow,[k]:v}), true)) : (<span className={`${dropdowns[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e6efff] text-black border border-[#b3ccff] text- font-bold':''} ${enums[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text- font-bold':''}`} style={{fontFamily:'Andika'}}>{dropdowns[k]? (dropdowns[k].find(o=>o.value===String(r[k]??''))?.label || String(r[k]??'')) : String(r[k]??'')}</span>)}</td>))}
-                    {canEdit && (<td className="px-4 py-3 text-center"><button onClick={()=>del(r.supa_id)} className="h-8 px-3 rounded-xl bg-white border border-zinc-200 text-black text- font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition" style={{fontFamily:'Andika'}}>حذف</button></td>)}
+                  <tr key={r.supa_id} className={`group border-b border-white/[0.04] hover:bg-white/[0.03] transition-all ${index%2===0?'bg-[#141414]':'bg-[#0F0F0F]/50'}`}>
+                    {canEdit && (<td className="sticky right-0 z-10 bg-inherit group-hover:bg-white/[0.03] px-4 py-3 border-l border-white/[0.04]">{editId===r.supa_id? (<div className="flex gap-1.5"><button onClick={save} className="h-8 px-3 rounded-full bg-[#FFD700] text-black text-[12px] font-black hover:bg-white transition">حفظ</button><button onClick={()=>setEditId(null)} className="h-8 w-8 rounded-full bg-white/[0.06] text-white hover:bg-white/[0.1] transition">✕</button></div>) : (<button onClick={()=>{setEditId(r.supa_id); setEditRow(r)}} className="h-8 px-4 rounded-full bg-white/[0.06] border border-white/[0.08] text-white text-[12px] font-bold group-hover:bg-[#FFD700] group-hover:text-black group-hover:border-[#FFD700] transition-all">تعديل</button>)}</td>)}
+                    {cols.map(k=>(<td key={k} className="px-6 py-4 text-right text-white/70 font-medium max-w-[240px] truncate border-l border-white/[0.02]">{editId===r.supa_id && k!=='supa_id'? (renderInput(k, editRow[k]||'', (v)=>setEditRow({...editRow,[k]:v}), true)) : (<span className={`${dropdowns[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/20 text-[11px] font-bold':''} ${enums[k]?'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] text-white/60 border border-white/[0.06] text-[11px] font-bold':''}`}>{dropdowns[k]? (dropdowns[k].find(o=>o.value===String(r[k]??''))?.label || String(r[k]??'')) : String(r[k]??'')}</span>)}</td>))}
+                    {canEdit && (<td className="px-4 py-3 text-center"><button onClick={()=>del(r.supa_id)} className="h-8 px-3 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/40 text-[12px] font-bold hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition">حذف</button></td>)}
                   </tr>
                 ))}
               </tbody>
@@ -216,8 +224,8 @@ export default function GenericTable(){
           </div>
         </div>
 
-        {!canEdit && perm.can_view && (<div className="mt-6 rounded-2xl bg-white border border-zinc-100 px-5 py-4 text- font-bold text-black" style={{fontFamily:'Andika'}}>🔒 وضع القراءة فقط — {myRole}</div>)}
-        {!perm.can_view && (<div className="mt-6 rounded-2xl bg-white border border-red-100 px-5 py-4 text- font-bold text-black" style={{fontFamily:'Andika'}}>⛔ لا تملك صلاحية عرض هذا الجدول</div>)}
+        {!canEdit && perm.can_view && (<div className="mt-6 rounded-full bg-white/[0.04] border border-white/[0.06] px-5 py-3 text-[13px] font-bold text-white/40 mono">🔒 وضع القراءة فقط — {myRole}</div>)}
+        {!perm.can_view && (<div className="mt-6 rounded-full bg-red-500/10 border border-red-500/20 px-5 py-3 text-[13px] font-bold text-red-400">⛔ لا تملك صلاحية عرض هذا الجدول</div>)}
       </main>
     </div>
   )

@@ -55,6 +55,7 @@ export default function CashPendingPage() {
     .update({
       'Cash Status': 'Received',
       'Approval Status': 'Completed',
+      'Collected By Driver': 'TRUE',
       'Archived Date': new Date().toISOString()
     })
     .eq('Request ID', orderId)

@@ -4,12 +4,12 @@ import { cookies } from 'next/headers';
 
 export async function POST() {
   const cookieStore = await cookies();
-  cookieStore.delete('admin_session');
+  cookieStore.set('admin_session', '', { maxAge: 0, path: '/' });
   return NextResponse.json({ success: true });
 }
 
 export async function GET() {
   const cookieStore = await cookies();
-  cookieStore.delete('admin_session');
-  return NextResponse.redirect(new URL('/admin/login', process.env.NEXT_PUBLIC_SITE_URL || 'https://md-marketplace.store'));
+  cookieStore.set('admin_session', '', { maxAge: 0, path: '/' });
+  return NextResponse.json({ success: true }); // بلا redirect
 }
