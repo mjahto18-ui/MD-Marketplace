@@ -1,6 +1,7 @@
 "use client"
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react"
+import BackToDashboard from "@/components/BackToDashboard"
 
 export default function PayrollPage(){
   const [rows, setRows] = useState([])
@@ -71,6 +72,8 @@ export default function PayrollPage(){
       padding:'24px',
       color:'white'
     }}>
+      <BackToDashboard />
+      
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px'}}>
         <div>
           <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الرواتب - كود التوثيق</h1>
