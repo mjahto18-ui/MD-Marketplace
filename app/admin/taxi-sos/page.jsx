@@ -22,7 +22,7 @@ const Map = dynamicImport(() => import("@/components/Map"), {
   ssr: false,
   loading: () => (
     <div className="p-4 text-center text-white/40 text-xs">
-      جاري تحميل خريطة الطوارئ...
+      جاري تحميل الخريطة ...
     </div>
   )
 });
@@ -168,7 +168,7 @@ export default function SOSDashboardPage() {
       `👤 الزبون: ${selectedAlert.customer_name} - ${selectedAlert.customer_phone}%0A` +
       `🚗 السائق: ${selectedAlert.driver_name} - ${selectedAlert.driver_phone} - ${selectedAlert.plate_number || ""}%0A` +
       `💬 التعليق: ${selectedAlert.comment || "لا يوجد"}%0A%0A` +
-      `🔗 رابط التتبع الحي الآمن:%0A${publicLink}%0A%0A` +
+      `🔗 رابط التتبع الحي :%0A${publicLink}%0A%0A` +
       `📍 موقع الزبون: https://www.google.com/maps?q=${cLat},${cLng}%0A` +
       `📍 موقع السائق: https://www.google.com/maps?q=${dLat},${dLng}%0A%0A` +
       `⏰ ${new Date().toLocaleString("ar-LB")}%0A` +
@@ -205,7 +205,7 @@ export default function SOSDashboardPage() {
 
       {alarmActive && (
         <div className="fixed top-0 left-0 right-0 z-[9999] h-14 alarm-bar flex items-center justify-between px-6 text-white font-black">
-          <div className="flex items-center gap-3">🚨 بلاغ طوارئ جديد وصل! 🚨</div>
+          <div className="flex items-center gap-3">🚨 بلاغ  جديد الاّن! 🚨</div>
           <button onClick={stopAlarm} className="bg-white text-black px-6 py-1.5 rounded-full text-xs">
             إيقاف الصوت
           </button>
@@ -217,7 +217,7 @@ export default function SOSDashboardPage() {
           <BackToDashboard />
           <div>
             <h1 className="text-2xl font-black text-red-500 flex items-center gap-2 tracking-tight">
-              🚨 غرفة العمليات والتدخل السريع (SOS Live)
+              🚨 واجهة العمليات والتدخل السريع (SOS Live)
             </h1>
             <p className="text-xs text-white/40 mt-1 mono">REAL-TIME CRITICAL INCIDENT MONITORING</p>
           </div>
@@ -246,7 +246,7 @@ export default function SOSDashboardPage() {
               }}
               className="text- bg-amber-500/20 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-full"
             >
-              🔊 فعل الصوت
+              🔊 تفعيل الصوت
             </button>
           )}
         </div>
@@ -258,7 +258,7 @@ export default function SOSDashboardPage() {
             البلاغات الواردة ({alerts.length})
           </h2>
           {alerts.length === 0? (
-            <div className="text-center py-12 text-white/20 text-xs">🟢 الوضع مستتب ولا يوجد طوارئ حالياً</div>
+            <div className="text-center py-12 text-white/20 text-xs">🟢  لا يوجد بلاغ جديد حالياً</div>
           ) : (
             alerts.map((a) => (
               <div
@@ -305,7 +305,7 @@ export default function SOSDashboardPage() {
                       <User className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text- text-white/40">الزبونة (الركاب)</div>
+                      <div className="text- text-white/40">الزبون (الركاب)</div>
                       <div className="text-sm font-bold text-white">{selectedAlert.customer_name}</div>
                       <div className="text-xs text-white/60 font-mono mt-0.5">{selectedAlert.customer_phone}</div>
                     </div>
@@ -326,7 +326,7 @@ export default function SOSDashboardPage() {
                 </div>
                 {selectedAlert.comment && (
                   <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-xs text-red-300 leading-relaxed">
-                    <span className="font-bold block mb-1">💬 تعليق وقالب الطوارئ المرسل:</span>
+                    <span className="font-bold block mb-1">💬 الملاحظة المرسلة من الزبون:</span>
                     "{selectedAlert.comment}"
                   </div>
                 )}
@@ -337,10 +337,10 @@ export default function SOSDashboardPage() {
                 <div className="border-t border-white/[0.04] pt-4 flex flex-col gap-2">
                   <div className="flex gap-2">
                     <a href={`tel:${selectedAlert.customer_phone}`} className="flex-1 h-11 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all">
-                      <Phone className="w-4 h-4" /> اتصال بالزبونة
+                      <Phone className="w-4 h-4" /> الإتصال بالزبونة
                     </a>
                     <button onClick={shareViaWhatsApp} className="flex-1 h-11 bg-[#25D366] text-black rounded-xl text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 transition-all">
-                      <Share2 className="w-4 h-4" /> واتساب أمني
+                      <Share2 className="w-4 h-4" /> مشاركة عبر
                     </button>
                   </div>
                   <button onClick={() => resolveSOS(selectedAlert.id)} className="w-full h-11 bg-white text-black rounded-xl text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 transition-all">
@@ -352,7 +352,7 @@ export default function SOSDashboardPage() {
               <div className="xl:col-span-2 bg-[#141414] border border-white/[0.06] rounded- overflow-hidden flex flex-col h-">
                 <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs font-bold text-white/70">
-                    <MapPin className="w-4 h-4 text-red-400" /> التتبع الجغرافي الحي للطوارئ
+                    <MapPin className="w-4 h-4 text-red-400" /> التتبع الجغرافي الحي للبلاغ
                   </div>
                   <div className="flex items-center gap-2 text- text-white/30 mono">
                     <Timer className="w-3 h-3" /> LIVE TRACKING
@@ -387,16 +387,16 @@ export default function SOSDashboardPage() {
                   return (
                     <div className="p-3 bg-black/50 border-t border-white/[0.06] grid grid-cols-2 gap-2">
                       <a href={mkDir(dLat, dLng) || "#"} target="_blank" className={`h-11 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all ${dLat? "bg-white text-black hover:bg-white/90" : "bg-white/5 text-white/20 pointer-events-none"}`}>
-                        <Navigation className="w-3.5 h-3.5" /> اذهب للسائق (حي)
+                        <Navigation className="w-3.5 h-3.5" /> الذهاب للسائق (موقع مباشر)
                       </a>
                       <a href={mkDir(cLat, cLng) || "#"} target="_blank" className={`h-11 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all ${cLat? "bg-red-600 text-white hover:bg-red-700" : "bg-white/5 text-white/20 pointer-events-none"}`}>
-                        <Navigation className="w-3.5 h-3.5" /> اذهب للزبون (حي)
+                        <Navigation className="w-3.5 h-3.5" /> الذهاب للزبون (موقع مباشر)
                       </a>
                       <a href={mkDir(oLat, oLng) || "#"} target="_blank" className={`h-9 rounded-xl text- font-bold flex items-center justify-center gap-1 border transition-all ${oLat? "bg-white/[0.06] border-white/[0.06] text-white/60 hover:text-white" : "bg-white/5 text-white/20 pointer-events-none"}`}>
-                        📍 الانطلاق (ثابت)
+                        📍 الانطلاق (موقع ثابت)
                       </a>
                       <a href={mkDir(destLat, destLng) || "#"} target="_blank" className={`h-9 rounded-xl text- font-bold flex items-center justify-center gap-1 border transition-all ${destLat? "bg-white/[0.06] border-white/[0.06] text-white/60 hover:text-white" : "bg-white/5 text-white/20 pointer-events-none"}`}>
-                        🎯 الوصول (ثابت)
+                        🎯 الوصول (موقع ثابت)
                       </a>
                     </div>
                   );
