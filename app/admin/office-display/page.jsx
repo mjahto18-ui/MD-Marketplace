@@ -90,7 +90,7 @@ export default function OfficeDisplayPage(){
       flexDirection:'column',
       alignItems:'center'
     }}>
-      <h1 style={{fontSize:'28px', fontWeight:'800', marginBottom:'8px'}}>شاشة المكتب - ربط و دوام</h1>
+      <h1 style={{fontSize:'28px', fontWeight:'800', marginBottom:'8px'}}>شاشة المكتب - ربط </h1>
       <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px', marginBottom:'20px'}}></div>
 
       <div style={{
@@ -105,7 +105,7 @@ export default function OfficeDisplayPage(){
           />
         ) : <div style={{width:'300px', height:'300px', background:'#eee'}}></div>}
         <div style={{color:'#111', marginTop:'10px', fontWeight:'bold', fontSize:'14px'}}>
-          {selectedEmp? `جاهز لـ ${selectedEmp.full_name} - صوّر من تلفونك` : 'جاهز للدوام - صوّر من تلفونك'}
+          {selectedEmp? `جاهز لـ ${selectedEmp.full_name} - صوّر من تلفونك` : 'جاهز للدوام - التقط من جهازك'}
         </div>
         <div style={{color:'#111', fontSize:'13px', marginTop:'4px'}}>صالح لـ {minutes}:{seconds.toString().padStart(2,'0')}</div>
         <div style={{color:'#666', fontSize:'10px', marginTop:'4px', wordBreak:'break-all', maxWidth:'300px'}}>{baseToken.slice(0,35)}...</div>
@@ -125,8 +125,8 @@ export default function OfficeDisplayPage(){
           textAlign:'center', color: selectedEmp.device_fingerprint? '#60a5fa' : '#4ade80', fontSize:'14px', fontWeight:'700'
         }}>
           {selectedEmp.device_fingerprint
-           ? `ℹ️ ${selectedEmp.full_name} رابط تلفونو من قبل - تصوير الـ QR رح يسجل دوام`
-            : `✅ يا ${selectedEmp.full_name} افتح هلق بتلفونك صفحة /attendance وصوّر الـ QR يلي فوق - رح تنربط بصمة تلفونك`
+           ? `ℹ️ ${selectedEmp.full_name} الجهاز موثوق من قبل - تصوير الـ QR سوف يسجل وقت الدخول و الخروج`
+            : `✅ يا ${selectedEmp.full_name} افتح هاتفك صفحة /attendance وصوّر الـ QR الظاهر - سوف يتوثق بصمة حهازك`
           }
         </div>
       )}
@@ -137,9 +137,9 @@ export default function OfficeDisplayPage(){
         backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
         border:'1px solid rgba(255,255,255,0.08)'
       }}>
-        <h3 style={{marginBottom:'16px', fontSize:'18px', fontWeight:'700'}}>👥 يلي ما ربط تلفونو بعد ({unbound.length}) - كبسة للربط</h3>
+        <h3 style={{marginBottom:'16px', fontSize:'18px', fontWeight:'700'}}>👥 الأجهزة الغير موثوقة ({unbound.length}) - اختر اسمك</h3>
         {loading? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)'}}>جاري التحميل...</div> :
-          unbound.length===0? <div style={{textAlign:'center', padding:'20px', background:'rgba(34,197,94,0.1)', borderRadius:'12px', color:'#4ade80'}}>الكل رابط ✅</div> :
+          unbound.length===0? <div style={{textAlign:'center', padding:'20px', background:'rgba(34,197,94,0.1)', borderRadius:'12px', color:'#4ade80'}}>كل الأجهزة موثوقة ✅</div> :
           <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px', marginBottom:'24px'}}>
             {unbound.map(em=>(
               <button key={em.id} onClick={()=>handleSelect(em)} style={{
@@ -153,7 +153,7 @@ export default function OfficeDisplayPage(){
           </div>
         }
 
-        <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700', color:'rgba(255,255,255,0.7)'}}>✅ يلي رابط ({bound.length}) - دوام مباشر</h3>
+        <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700', color:'rgba(255,255,255,0.7)'}}>✅ الأجهزة الموثوقة ({bound.length}) - دوام مباشر</h3>
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px'}}>
           {bound.map(em=>(
             <button key={em.id} onClick={()=>handleSelect(em)} style={{
