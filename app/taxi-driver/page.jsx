@@ -246,7 +246,7 @@ export default function TaxiDriverDashboard(){
   const handleComplete = async ()=>{
     const v = Number(String(amountReceived).replace(/,/g,'').trim())
     if(!amountReceived || isNaN(v) || v <= 0){
-      alert('لازم تدخل المبلغ المستلم قبل الانهاء')
+      alert('يرجى ادخال المبلغ المستلم قبل الانهاء')
       return
     }
     const driverId = me.Taxi_ID || me.taxiId || me.relatedId || me.userId
@@ -256,7 +256,7 @@ export default function TaxiDriverDashboard(){
   }
 
   const handleSos = async ()=>{
-    if(!sosComment.trim()){ alert('اكتب شو صار'); return }
+    if(!sosComment.trim()){ alert('يرجى كتابة ملخص'); return }
     const res = await fetch('/api/taxi/sos',{ method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ order_id: selectedOrder.id, comment: sosComment }) }).then(r=>r.json()).catch(()=>({error:'fail'}))
     if(res.error) alert(res.error)
     else { alert('تم ارسال SOS'); setShowSos(false); setSosComment(''); }
@@ -270,7 +270,7 @@ export default function TaxiDriverDashboard(){
   const Numpad = ()=>(
     <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}}>
       <div style={{background:'white', color:'black', borderRadius:16, width:320, padding:16, position:'relative', zIndex:10000}}>
-        <h3 style={{textAlign:'center', fontWeight:900}}>أدخل كود الزبون</h3>
+        <h3 style={{textAlign:'center', fontWeight:900}}>يرجى ادخال رمز الزبون</h3>
         <div style={{display:'flex', gap:8, justifyContent:'center', margin:'12px 0'}}>
           {[0,1,2,3].map(i=><div key={i} style={{width:40,height:50,border:'2px solid #111',borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:20}}>{codeInput[i]||''}</div>)}
         </div>
@@ -313,7 +313,7 @@ export default function TaxiDriverDashboard(){
         <div onClick={()=>setShowWallet(true)} style={{flex:1, cursor:'pointer'}}>
           <div style={{fontSize:11, opacity:0.8}}>👛 محفظتي - اضغط للتفاصيل</div>
           <div style={{fontSize:26, fontWeight:900, marginTop:2}}>{showBalance? formatLBP(wallet) : '•••••••• ل.ل'}</div>
-          <div style={{fontSize:11, opacity:0.7, marginTop:2}}>{showBalance? 'الرصيد ظاهر':'الرصيد مخفي - احترام للخصوصية'}</div>
+          <div style={{fontSize:11, opacity:0.7, marginTop:2}}>{showBalance? 'الرصيد ظاهر':'الرصيد مخفي  '}</div>
         </div>
         <div style={{display:'flex', gap:8, alignItems:'center'}}>
           <button onClick={()=>setShowBalance(!showBalance)} style={{background:'white', color:'#059669', padding:'8px 14px', borderRadius:20, fontWeight:900, border:'none'}}>{showBalance?'🙈 اخفاء':'👁 اظهار'}</button>
@@ -340,7 +340,7 @@ export default function TaxiDriverDashboard(){
 
           <div style={{display:'flex', gap:8, marginTop:10}}>
             {!isTripStarted? (
-              <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.origin_lat},${selectedOrder.origin_lng}`} target="_blank" style={{flex:1, background:'#3b82f6', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🔵 خذني لعند الزبونة</a>
+              <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.origin_lat},${selectedOrder.origin_lng}`} target="_blank" style={{flex:1, background:'#3b82f6', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🔵 الذهاب الى الزبون</a>
             ) : (
               <a href={`https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.dest_lat},${selectedOrder.dest_lng}`} target="_blank" style={{flex:1, background:'#111', color:'white', padding:14, borderRadius:12, textAlign:'center', fontWeight:900, textDecoration:'none', fontSize:15}}>🎯 الذهاب الى الوجهة - المرسل اليه</a>
             )}
@@ -348,7 +348,7 @@ export default function TaxiDriverDashboard(){
 
           <div style={{marginTop:10, fontWeight:900, fontSize:14}}>💰 {selectedOrder.total_amount?.toLocaleString()} ل.ل - {selectedOrder.distance_traveled} كم - {selectedOrder.taxi_engine_cc}</div>
           <div style={{marginTop:10, display:'flex', gap:8}}>
-            {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الكود</button>}
+            {selectedOrder.status === 'accepted' && <button onClick={()=>setShowCodePad(true)} style={{flex:1, background:'#111', color:'white', padding:12, borderRadius:10, fontWeight:900}}>تأكيد الرمز</button>}
             {(selectedOrder.status === 'in_progress' || selectedOrder.status === 'code_verified') && (<><input placeholder="المبلغ المستلم" value={amountReceived} onChange={e=>setAmountReceived(e.target.value)} style={{flex:1, padding:10, border:'2px solid #111', borderRadius:10, color:'black'}}/><button onClick={handleComplete} style={{background:'#22c55e', color:'white', padding:10, borderRadius:10, fontWeight:900, border:'none'}}>انهاء</button></>)}
           </div>
 
@@ -357,20 +357,20 @@ export default function TaxiDriverDashboard(){
               <button onClick={()=>setShowSos(!showSos)} style={{width:'100%', padding:12, borderRadius:10, background:'#dc2626', color:'white', fontWeight:900, border:'none'}}>🆘 SOS طوارئ</button>
               {showSos && (
                 <div style={{marginTop:8, background:'#fee2e2', padding:10, borderRadius:10, border:'1px solid #fecaca'}}>
-                  <textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="شو صار؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca', boxSizing:'border-box', color:'black'}} rows={3}/>
+                  <textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="ماذا حصل؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca', boxSizing:'border-box', color:'black'}} rows={3}/>
                   <button onClick={handleSos} style={{marginTop:6, width:'100%', padding:10, borderRadius:8, background:'#dc2626', color:'white', fontWeight:900, border:'none'}}>ارسال البلاغ</button>
                 </div>
               )}
             </div>
           )}
 
-          <div style={{marginTop:8, fontSize:11, background:'#fef3c7', padding:8, borderRadius:8, color:'#92400e'}}>⛔ لا تستطيع اخد طلب تاني حتى ينتهي طلبك الحالي</div>
+          <div style={{marginTop:8, fontSize:11, background:'#fef3c7', padding:8, borderRadius:8, color:'#92400e'}}>⛔ لا يحق لك استلام طلب تاني حتى ينتهي طلبك الحالي</div>
         </div>
       )}
 
       {!selectedOrder && (
       <div style={{marginTop:16}}>
-        <h3 style={{fontWeight:900}}>🔍 طلبات قريبة 5 كم ({nearby.length})</h3>
+        <h3 style={{fontWeight:900}}>🔍 طلبات قريبة 3 كم ({nearby.length})</h3>
         {nearby.map(o=>{
           const preview = o.preview_price
           const isDifferent = preview && preview!== o.total_amount
@@ -384,18 +384,18 @@ export default function TaxiDriverDashboard(){
             </div>
             {preview && (
               <div style={{marginTop:6, background: isDifferent?'#dcfce7':'#f3f4f6', color: isDifferent?'#166534':'#111', padding:'6px 10px', borderRadius:8, fontSize:12, fontWeight:900, border: isDifferent?'1px solid #bbf7d0':'1px solid #e5e7eb'}}>
-                {isDifferent? `✅ تسعيرتك (${me.engine_cc||''}): ${preview.toLocaleString()} ل.ل - اوفر ${ (o.total_amount - preview).toLocaleString()} ل.ل` : `تسعيرتك: ${preview.toLocaleString()} ل.ل`}
+                {isDifferent? `✅ سعرك (${me.engine_cc||''}): ${preview.toLocaleString()} ل.ل - اوفر ${ (o.total_amount - preview).toLocaleString()} ل.ل` : `سعرك: ${preview.toLocaleString()} ل.ل`}
               </div>
             )}
             <div style={{display:'flex', gap:8, marginTop:8}}>
-              <button onClick={()=>toggleExpand(o)} style={{flex:1, background:'#1e3a6e', padding:10, borderRadius:10, fontWeight:700, border:'none', color:'white'}}>{expandedId===o.id?'🔼 اخفاء':'📍 شوف الطريق'}</button>
+              <button onClick={()=>toggleExpand(o)} style={{flex:1, background:'#1e3a6e', padding:10, borderRadius:10, fontWeight:700, border:'none', color:'white'}}>{expandedId===o.id?'🔼 اخفاء':'📍 مشاهدة الطريق'}</button>
               <button onClick={()=>handleAccept(o)} style={{flex:1, background:'#22c55e', padding:10, borderRadius:10, fontWeight:900, border:'none', color:'white'}}>✅ قبول - {preview? preview.toLocaleString() : o.total_amount?.toLocaleString()} ل.ل</button>
             </div>
             {expandedId===o.id && (
               <div style={{background:'#0a1930', borderRadius:10, marginTop:8, overflow:'hidden', position:'relative', zIndex:0}}>
                 <TaxiNearbyMap myLocation={myLocation} origin_lat={o.origin_lat} origin_lng={o.origin_lng} dest_lat={o.dest_lat} dest_lng={o.dest_lng} routeCoords={expandedRoutes[o.id]} />
                 <div style={{padding:8, fontSize:11, display:'flex', justifyContent:'space-between'}}><span>🟢 انطلاق</span><span>📏 {o.distance_traveled} كم</span><span>🔴 وصول</span></div>
-                <a href={`https://www.google.com/maps/dir/?api=1&origin=${o.origin_lat},${o.origin_lng}&destination=${o.dest_lat},${o.dest_lng}`} target="_blank" style={{display:'block', textAlign:'center', padding:8, fontSize:12, background:'#0e2242', color:'#60a5fa'}}>افتح بغوغل ماب 🗺</a>
+                <a href={`https://www.google.com/maps/dir/?api=1&origin=${o.origin_lat},${o.origin_lng}&destination=${o.dest_lat},${o.dest_lng}`} target="_blank" style={{display:'block', textAlign:'center', padding:8, fontSize:12, background:'#0e2242', color:'#60a5fa'}}>افتح غوغل ماب 🗺</a>
               </div>
             )}
           </div>
