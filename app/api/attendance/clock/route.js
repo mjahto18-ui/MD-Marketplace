@@ -48,11 +48,11 @@ export async function POST(req){
     if(!qrEmployeeId){
       const { data: empByPrint } = await supabase.from('employees')
         .select('id, device_fingerprint, full_name').eq('device_fingerprint', device_fingerprint).single()
-      if(!empByPrint) return NextResponse.json({success:false, message:'تلفونك مو مربوط - اختار اسمك من الشاشة أول مرة'})
+      if(!empByPrint) return NextResponse.json({success:false, message:'جهازك غير موثوق - اختر اسمك من الشاشة أول مرة'})
       employee_id = empByPrint.id
     }
 
-    if(!employee_id) return NextResponse.json({success:false, message:'ما في ID موظف - اختار اسمك من الشاشة'})
+    if(!employee_id) return NextResponse.json({success:false, message:'لايوجد ID لهذا الموظف - اختر اسمك من الشاشة'})
     const { data: emp } = await supabase.from('employees').select('id, device_fingerprint, full_name').eq('id', employee_id).single()
     if(!emp) return NextResponse.json({success:false, message:'موظف مش موجود'})
 
@@ -62,11 +62,11 @@ export async function POST(req){
         device_type: getFriendlyDeviceType(device_type),
         device_registered_at: new Date().toISOString()
       }).eq('id', employee_id)
-      return NextResponse.json({success:true, action:'bind', message:`✅ تم ربط ${emp.full_name} - صور مرة تانية للدوام`})
+      return NextResponse.json({success:true, action:'bind', message:`✅ تم توثيق ${emp.full_name} - التقط مرة ثانية لتسجيل الوقت`})
     }
 
     if(emp.device_fingerprint !== device_fingerprint){
-      return NextResponse.json({success:false, message:'هيدا مش تلفونك المسجل!'})
+      return NextResponse.json({success:false, message:'هذا ليس جهازك الموثق!'})
     }
 
     const { data: live } = await supabase.from('timesheet')
@@ -75,10 +75,10 @@ export async function POST(req){
     if(live){
       const hours = (Date.now() - new Date(live.clock_in).getTime())/1000/60/60
       await supabase.from('timesheet').update({clock_out: new Date().toISOString(), total_hours: hours}).eq('id', live.id)
-      return NextResponse.json({success:true, action:'clock_out', message:`تم تسجيل خروج ${emp.full_name}`})
+      return NextResponse.json({success:true, action:'clock_out', message:`تم تسجيل الخروج لهذا اليوم ${emp.full_name}`})
     }else{
       await supabase.from('timesheet').insert({employee_id, clock_in: new Date().toISOString()})
-      return NextResponse.json({success:true, action:'clock_in', message:`تم تسجيل دخول ${emp.full_name} ✅`})
+      return NextResponse.json({success:true, action:'clock_in', message:`تم تسجيل الدخول لهذا اليوم ${emp.full_name} ✅`})
     }
 
   }catch(e){
