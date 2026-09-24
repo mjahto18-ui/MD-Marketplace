@@ -205,7 +205,7 @@ export default function Page() {
 
   const handleConfirmMap = async (mapData) => {
     if (!customer ||!mapData.origin ||!mapData.dest) return;
-    if (tripType === 'scheduled' &&!scheduledAt) { alert('اختار تاريخ ووقت الحجز المسبق'); return; }
+    if (tripType === 'scheduled' &&!scheduledAt) { alert('يرجى اختيار تاريخ ووقت الحجز المسبق'); return; }
     setLoading(true);
     try {
       const engineCode = getEngineCode(vehicleType, bundle);
@@ -268,7 +268,7 @@ export default function Page() {
   };
 
   const handleSos = async () => {
-    if(!activeOrder ||!sosComment) return alert('اكتب شو صار');
+    if(!activeOrder ||!sosComment) return alert('يرجى كتابة ملخص');
     await fetch('/api/taxi/sos', { method:'POST', headers:{'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ order_id: activeOrder.id, comment: sosComment }) });
     alert('تم ارسال بلاغ SOS'); setShowSos(false); setSosComment('');
   };
@@ -297,12 +297,12 @@ export default function Page() {
       </div>
       {o.status === 'draft' && <div style={{fontSize:11, marginTop:4}}>🕒 الموعد: {new Date(o.requested_start_at).toLocaleString('ar-LB')}</div>}
       {o.status === 'pending' ? (
-        <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠ احتمالية تغيير السعر عند موافقة السائق حسب المسار الفعلي والانتظار والمنطقة</div>
+        <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠ احتمالية تخفيض السعر عند موافقة السائق حسب المسار الفعلي والمسافة والمنطقة</div>
       ) : o.status === 'draft' ? null : (
         <div style={{fontSize:10, marginTop:4, color:'#166534', background:'#dcfce7', padding:'6px 10px', borderRadius:8}}>✅ تم تثبيت السعر بناء على مواصفات سيارة السائق</div>
       )}
       <div style={{marginTop:10, background:'#0a1930', color:'white', borderRadius:10, padding:10, textAlign:'center'}}>
-        <div style={{fontSize:9, opacity:0.7}}>🔒 كود الرحلة - لا تشارك الرمز مع أحد فقط السائق عندما يصل</div>
+        <div style={{fontSize:9, opacity:0.7}}>🔒 رمز الرحلة - لا تشارك الرمز مع أحد غير السائق عندما يصل</div>
         <div style={{fontSize:28, fontWeight:900, letterSpacing:6, marginTop:4}}>{o.secret_code}</div>
       </div>
     </div>
@@ -313,13 +313,13 @@ export default function Page() {
       <div dir="rtl" className="min-h-screen gradient-bg" style={{minHeight:'100vh', fontFamily:'Cairo', width:'100%', maxWidth:'100vw', overflowX:'hidden', boxSizing:'border-box'}}>
         {step === 'searching' && (
           <div style={{background:'white', borderRadius:16, padding:16, maxWidth:480, width:'100%', margin:'12px auto', boxSizing:'border-box', overflowX:'hidden'}}>
-            <div style={{textAlign:'center'}}><div style={{fontSize:32}}>🔍</div><h3 style={{fontWeight:900, margin:'8px 0', wordBreak:'break-word'}}>طلباتك النشطة ({pendingOrders.length}) - عم ندور على سايق ضمن 5 كم...</h3></div>
+            <div style={{textAlign:'center'}}><div style={{fontSize:32}}>🔍</div><h3 style={{fontWeight:900, margin:'8px 0', wordBreak:'break-word'}}>طلباتك النشطة ({pendingOrders.length}) - يتم البحث على سائق ضمن 3 كم...</h3></div>
             <div style={{marginTop:12}}>{pendingOrders.map(o=>(
               <div key={o.id} style={{border:o.id===activeOrder?.id?'2px solid #0a1930':'1px solid #e5e7eb', borderRadius:12, padding:8, marginBottom:10, width:'100%', maxWidth:'100%', boxSizing:'border-box'}}>
                 {renderOrderCard(o)}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:8}}>
                   <button onClick={()=>setActiveOrderId(o.id)} style={{padding:8, borderRadius:8, border:'1px solid #e5e7eb', background: activeOrderId===o.id? '#0a1930' : 'white', color: activeOrderId===o.id? 'white' : 'black', fontWeight:900, fontSize:11}}>{activeOrderId===o.id?'محدد':'تحديد'}</button>
-                  <button onClick={()=>handleCancel(o.id)} style={{padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11, border:'1px solid #fecaca'}}>❌ إلغاء هيدا الطلب</button>
+                  <button onClick={()=>handleCancel(o.id)} style={{padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11, border:'1px solid #fecaca'}}>❌ إلغاء  الطلب</button>
                 </div>
               </div>
             ))}
@@ -337,7 +337,7 @@ export default function Page() {
             <div style={{marginTop:12}}>{draftOrders.map(o=>(
               <div key={o.id} style={{border:'1px solid #e5e7eb', borderRadius:12, padding:8, marginBottom:10, width:'100%', boxSizing:'border-box'}}>
                 {renderOrderCard(o)}
-                <button onClick={()=>handleCancel(o.id)} style={{width:'100%', marginTop:8, padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11}}>❌ إلغاء هيدا الحجز</button>
+                <button onClick={()=>handleCancel(o.id)} style={{width:'100%', marginTop:8, padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11}}>❌ إلغاء الحجز</button>
               </div>
             ))}</div>
             {draftOrders.length===0 && <div style={{textAlign:'center', opacity:0.5, fontSize:12}}>لا يوجد حجز مسبق</div>}
@@ -366,9 +366,9 @@ export default function Page() {
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
               <button onClick={()=>setShowSos(!showSos)} style={{padding:14, borderRadius:12, background:'#dc2626', color:'white', fontWeight:900}}>🆘 SOS</button>
-              <button onClick={handleShare} style={{padding:14, borderRadius:12, background:'#25D366', color:'white', fontWeight:900}}>📤 مشاركة واتساب</button>
+              <button onClick={handleShare} style={{padding:14, borderRadius:12, background:'#25D366', color:'white', fontWeight:900}}>📤 مشاركة الرحلة</button>
             </div>
-            {showSos && <div style={{marginTop:12, background:'#fee2e2', padding:12, borderRadius:12, border:'1px solid #fecaca'}}><textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="شو صار؟" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca'}} rows={3}/><button onClick={handleSos} style={{marginTop:8, width:'100%', padding:10, borderRadius:8, background:'#dc2626', color:'white', fontWeight:900}}>ارسال البلاغ</button></div>}
+            {showSos && <div style={{marginTop:12, background:'#fee2e2', padding:12, borderRadius:12, border:'1px solid #fecaca'}}><textarea value={sosComment} onChange={e=>setSosComment(e.target.value)} placeholder="ماذا حصل" style={{width:'100%', padding:10, borderRadius:8, border:'1px solid #fecaca'}} rows={3}/><button onClick={handleSos} style={{marginTop:8, width:'100%', padding:10, borderRadius:8, background:'#dc2626', color:'white', fontWeight:900}}>ارسال البلاغ</button></div>}
             <div style={{marginTop:12, fontSize:12, background:'#f8fafc', padding:10, borderRadius:10, border:'1px solid #e5e7eb', wordBreak:'break-word'}}>
               <div>رقم الرحلة: {activeOrder?.order_code}</div>
               <div>التاريخ: {activeOrder?.created_at? new Date(activeOrder.created_at).toLocaleString('ar-LB') : ''}</div>
@@ -396,7 +396,7 @@ export default function Page() {
       </div>
 
       <div style={{maxWidth:480, width:'100%', margin:'0 auto', padding:12, boxSizing:'border-box', overflowX:'hidden'}}>
-        <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', wordBreak:'break-word'}}>📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/><span style={{fontSize:10, opacity:0.5}}>ثابت من customers</span></div>
+        <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', wordBreak:'break-word'}}>📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/><span style={{fontSize:10, opacity:0.5}}>  لدينا عبر سجلاتنا </span></div>
         <div style={{background:'white', borderRadius:16, padding:12, marginBottom:12, width:'100%', boxSizing:'border-box'}}>
           <div style={{display:'flex', gap:8, marginBottom:12}}>
             <button onClick={()=>setTripType('now')} style={{flex:1, padding:10, borderRadius:12, fontWeight:900, background:tripType==='now'?'#FFC107':'white', border:'2px solid #e5e7eb'}}>⚡ فوري {pendingOrders.length>0?`(${pendingOrders.length})`:''}</button>
@@ -414,7 +414,7 @@ export default function Page() {
         {/* ✅ جديد - ليستة السيارات القريبة - عرض بس */}
         <div style={{marginTop:12, background:'white', borderRadius:16, padding:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', overflowX:'hidden'}}>
           <div style={{fontWeight:900, fontSize:13, marginBottom:8, wordBreak:'break-word'}}>🚕 السيارات القريبة ضمن 3 كم {nearbyLoading? '(جاري البحث...)': `(${nearbyDrivers.length})`}</div>
-          {nearbyDrivers.length === 0 &&!nearbyLoading && <div style={{fontSize:12, opacity:0.5, textAlign:'center', padding:10}}>لا يوجد سيارات {vehicleType} قريبة حاليا - جرب نوع تاني</div>}
+          {nearbyDrivers.length === 0 &&!nearbyLoading && <div style={{fontSize:12, opacity:0.5, textAlign:'center', padding:10}}>لا يوجد سيارات {vehicleType} قريبة حاليا - نعتذر عن التأخير</div>}
           {nearbyDrivers.map((d, idx) => (
             <div key={d.Taxi_ID || idx} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom: idx!== nearbyDrivers.length-1? '1px solid #f3f4f6' : 'none', fontSize:12, width:'100%', boxSizing:'border-box'}}>
               <div style={{flex:1, minWidth:0, overflow:'hidden'}}>
