@@ -49,7 +49,7 @@ export default function AttendancePage(){
   }
 
   const resetDevice = async (empId, empName)=>{
-    if(!confirm(`بدك تصفر جهاز ${empName}؟`)) return
+    if(!confirm(`تريد تصفير الجهاز ${empName}؟`)) return
     try{
       const res = await fetch('/api/admin/attendance/reset-device',{
         method:'POST',
@@ -72,7 +72,7 @@ export default function AttendancePage(){
     }}>
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
         <div>
-          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الدوام - مين الأون اليوم؟</h1>
+          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الدوام - جدول الحضور اليومي</h1>
           <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px'}}></div>
         </div>
         <button onClick={()=>setShowManual(true)} style={{
@@ -84,8 +84,8 @@ export default function AttendancePage(){
 
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px,1fr))', gap:'14px'}}>
         {[
-          {label:'بالدوام هلا ON', value: stats.on_now, color:'#22c55e'},
-          {label:'حاضر اليوم', value: stats.present_today, color:'#3b82f6'},
+          {label:'لا يزال في الدوام ON', value: stats.on_now, color:'#22c55e'},
+          {label:'حضور اليوم', value: stats.present_today, color:'#3b82f6'},
           {label:'غايب اليوم', value: stats.absent, color:'#ef4444'},
           {label:'مجموع ساعات اليوم', value: Number(stats.today_total).toFixed(1), color:'#a78bfa'},
         ].map((c,i)=>(
@@ -108,7 +108,7 @@ export default function AttendancePage(){
         }}>
           <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>🟢 بالدوام حاليا</h3>
           {loading ? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)', padding:'20px'}}>جاري التحميل...</div> :
-          live.length===0 ? <div style={{textAlign:'center', color:'rgba(255,255,255,0.4)', padding:'30px', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>ما في حدا ON هلا</div> :
+          live.length===0 ? <div style={{textAlign:'center', color:'rgba(255,255,255,0.4)', padding:'30px', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد احد ON حاليا</div> :
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {live.map(row=>(
               <div key={row.id} style={{
@@ -118,14 +118,14 @@ export default function AttendancePage(){
               }}>
                 <div>
                   <div style={{fontWeight:'700', fontSize:'15px'}}>{row.full_name} <span style={{fontSize:'11px', background:'rgba(34,197,94,0.15)', color:'#4ade80', padding:'2px 8px', borderRadius:'20px', marginRight:'8px'}}>{row.department}</span> {row.device_type && <span style={{fontSize:'10px', background:'rgba(139,92,246,0.15)', color:'#a78bfa', padding:'2px 8px', borderRadius:'20px'}}>📱 {row.device_type.slice(0,20)}</span>}</div>
-                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>دخل {new Date(row.clock_in).toLocaleTimeString('ar-LB')} - صرلو {Number(row.hours_now).toFixed(1)} ساعة</div>
+                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>دخل {new Date(row.clock_in).toLocaleTimeString('ar-LB')} - دوام {Number(row.hours_now).toFixed(1)} ساعة</div>
                 </div>
                 <div style={{display:'flex', gap:'8px'}}>
                   <button onClick={async()=>{
-                    if(!confirm(`تسكت دوام ${row.full_name}؟`)) return
+                    if(!confirm(`تسكير دوام ${row.full_name}؟`)) return
                     await fetch('/api/admin/attendance/manual',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({employee_id:row.employee_id, type:'off'})})
                     load()
-                  }} style={{background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#fca5a5', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'12px'}}>عملو OFF</button>
+                  }} style={{background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#fca5a5', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'12px'}}>جعل الوظف OFF</button>
                 </div>
               </div>
             ))}
@@ -141,7 +141,7 @@ export default function AttendancePage(){
           backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
           border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
         }}>
-          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>📱 الأجهزة المربوطة</h3>
+          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>📱 الأجهزة الموثوقة</h3>
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {employees.map(em=>(
               <div key={em.id} style={{
@@ -152,7 +152,7 @@ export default function AttendancePage(){
                 <div>
                   <div style={{fontWeight:'700', fontSize:'14px'}}>{em.full_name}</div>
                   <div style={{fontSize:'12px', marginTop:'4px', color: em.device_type ? '#4ade80' : '#ef4444'}}>
-                    {em.device_type ? `📱 ${em.device_type} | ${em.device_fingerprint ? em.device_fingerprint.slice(0,20) : ''}` : 'ما تربط بعد ❌'} 
+                    {em.device_type ? `📱 ${em.device_type} | ${em.device_fingerprint ? em.device_fingerprint.slice(0,20) : ''}` : 'لم يوثق الجهاز بعد ❌'} 
                     <span style={{color:'rgba(255,255,255,0.4)', marginRight:'8px'}}>{em.device_registered_at ? new Date(em.device_registered_at).toLocaleDateString('ar-LB') : ''}</span>
                   </div>
                 </div>
@@ -176,9 +176,9 @@ export default function AttendancePage(){
             <h3 style={{marginBottom:'16px'}}>تحكم يدوي - Admin</h3>
             <div style={{display:'flex', gap:'8px', marginBottom:'16px'}}>
               {[
-                {k:'on', l:'عملو ON'},
-                {k:'off', l:'عملو OFF'},
-                {k:'overtime', l:'زيد اوفرتايم'},
+                {k:'on', l:'اجعل الموظف ON'},
+                {k:'off', l:'اجعل الموظف OFF'},
+                {k:'overtime', l:'اضافة اوفرتايم'},
               ].map(t=>(
                 <button key={t.k} onClick={()=>setManualType(t.k)} style={{
                   flex:1, padding:'10px', borderRadius:'10px', border:'1px solid', cursor:'pointer', fontSize:'13px',
@@ -192,7 +192,7 @@ export default function AttendancePage(){
             <select value={selectedEmp} onChange={e=>setSelectedEmp(e.target.value)} style={{
               width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.1)', color:'white', marginBottom:'12px'
             }}>
-              <option value="">اختار موظف</option>
+              <option value="">اختيار موظف</option>
               {employees.map(em=><option key={em.id} value={em.id}>{em.full_name} - {em.department}</option>)}
             </select>
 
@@ -201,7 +201,7 @@ export default function AttendancePage(){
                 <input value={otHours} onChange={e=>setOtHours(e.target.value)} type="number" placeholder="عدد الساعات الاضافية مثلا 2" style={{
                   width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.1)', color:'white', marginBottom:'12px'
                 }}/>
-                <input value={otReason} onChange={e=>setOtReason(e.target.value)} placeholder="السبب: تسليم طلبية متأخرة" style={{
+                <input value={otReason} onChange={e=>setOtReason(e.target.value)} placeholder="السبب: مثال تسليم طلبية متأخرة" style={{
                   width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.1)', color:'white', marginBottom:'12px'
                 }}/>
               </>
