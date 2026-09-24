@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import BackToDashboard from "@/components/BackToDashboard"
 
 export default function OfficeDisplayPage(){
   const [qrLink, setQrLink] = useState("")
@@ -90,6 +91,9 @@ export default function OfficeDisplayPage(){
       flexDirection:'column',
       alignItems:'center'
     }}>
+      
+      <BackToDashboard />
+
       <h1 style={{fontSize:'28px', fontWeight:'800', marginBottom:'8px'}}>شاشة المكتب - ربط </h1>
       <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px', marginBottom:'20px'}}></div>
 
