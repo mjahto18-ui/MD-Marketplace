@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import BackToDashboard from "@/components/BackToDashboard"
 
 export default function AttendancePage(){
   const [live, setLive] = useState([])
@@ -70,6 +71,8 @@ export default function AttendancePage(){
       padding:'24px',
       color:'white'
     }}>
+      <BackToDashboard />
+      
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
         <div>
           <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الدوام - جدول الحضور اليومي</h1>
