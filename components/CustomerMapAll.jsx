@@ -2,7 +2,10 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
 if (typeof window!== 'undefined') {
   delete L.Icon.Default.prototype._getIconUrl;
@@ -80,10 +83,31 @@ function FitAll({ data }){
 }
 
 export default function CustomerMapAll({ data = [] }) {
-  if(data.length===0) return <div className="p-10 text-center text-gray-500">ما في شي بهالفلتر</div>
+  const [localData, setLocalData] = useState(data)
+  const [updating, setUpdating] = useState(null)
 
-  const matched = data.filter(d=> d.isMatch)
-  const rest = data.filter(d=>!d.isMatch)
+  useEffect(()=>{ setLocalData(data) }, [data])
+
+  if(localData.length===0) return <div className="p-10 text-center text-gray-500">ما في شي بهالفلتر</div>
+
+  const handleTaxiUpdate = async (item, newStatus) => {
+    if(!item.userId){
+      alert('ما في User ID مربوط بهالزبون - ما فينا نحدث')
+      return
+    }
+    setUpdating(item.key)
+    const { error } = await supabase.from('users').update({ taxi: newStatus }).eq('"User ID"', item.userId)
+    setUpdating(null)
+    if(error){
+      alert('خطأ: ' + error.message)
+    } else {
+      // تحديث محلي فورا
+      setLocalData(prev => prev.map(p => p.key===item.key? {...p, taxi_status: newStatus} : p))
+    }
+  }
+
+  const matched = localData.filter(d=> d.isMatch)
+  const rest = localData.filter(d=>!d.isMatch)
 
   const grouped = [];
   rest.forEach((item)=>{
@@ -113,12 +137,19 @@ export default function CustomerMapAll({ data = [] }) {
   });
 
   const finalPoints = [
-  ...grouped,
-  ...matched.map(m=> ({ lat: m.lat, lng: m.lng, count: 1, items: [m], isMatch: true }))
+ ...grouped,
+ ...matched.map(m=> ({ lat: m.lat, lng: m.lng, count: 1, items: [m], isMatch: true }))
   ];
 
   if(finalPoints.length===0) return <div className="p-10 text-center text-gray-500">ما في نقاط صالحة</div>
   const center = [finalPoints[0].lat, finalPoints[0].lng];
+
+  const TaxiBadge = ({ status }) => {
+    const s = status?? 'null'
+    const color = s==='yes'? 'bg-green-600' : s==='no'? 'bg-red-600' : 'bg-gray-400'
+    const label = s==='yes'? 'TAXI YES' : s==='no'? 'TAXI NO' : 'TAXI NULL'
+    return <span className={`text- px-2 py-0.5 rounded-full text-white font-bold ${color}`}>{label}</span>
+  }
 
   return (
     <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
@@ -144,29 +175,53 @@ export default function CustomerMapAll({ data = [] }) {
           <Marker key={item.key || `group-${idx}`} position={[group.lat, group.lng]} icon={icon}>
             <Popup>
               {group.count > 1 &&!isMatch? (
-                <div className="text-sm min-w-">
+                <div className="text-sm" style={{minWidth: '280px'}}>
                   <div className="font-bold">📍 {group.count} نقاط بـ 200 متر</div>
-                  <div className="text-xs mt-2 space-y-1 max-h- overflow-y-auto">
-                    {group.items.slice(0,10).map((it,i)=>(
-                      <div key={it.key || i} className="flex items-center gap-2">
-                        <span style={{width: '8px', height: '8px', background: COLORS[it.type], borderRadius: '50%', display: 'inline-block'}}></span>
-                        {it.type==='stores'?'🏪':it.type==='drivers'?'🛵':it.type==='taxi_drivers'?'🚕':'👤'} {it.name} - {it.mobile}
+                  <div className="text-xs mt-2 space-y-1 max-h-60 overflow-y-auto">
+                    {group.items.slice(0,15).map((it,i)=>(
+                      <div key={it.key || i} className="flex items-center justify-between gap-2 border-b py-1">
+                        <div className="flex items-center gap-2">
+                          <span style={{width: '8px', height: '8px', background: COLORS[it.type], borderRadius: '50%', display: 'inline-block'}}></span>
+                          <span>{it.type==='stores'?'🏪':it.type==='drivers'?'🛵':it.type==='taxi_drivers'?'🚕':'👤'} {it.name}</span>
+                          <span className="text- text-gray-500">{it.mobile}</span>
+                        </div>
+                        {it.type==='customers' && <TaxiBadge status={it.taxi_status} />}
                       </div>
                     ))}
-                    {group.items.length>10 && <div className="text-gray-400">+ {group.items.length-10} بعد</div>}
+                    {group.items.length>15 && <div className="text-gray-400">+ {group.items.length-15} بعد</div>}
                   </div>
                 </div>
               ) : (
-                <div className="text-sm" style={{minWidth: '230px'}}>
-                  <div className="font-bold flex items-center gap-1" style={{color: color}}>
+                <div className="text-sm" style={{minWidth: '260px'}}>
+                  <div className="font-bold flex items-center gap-2" style={{color: color}}>
                     <span style={{width: '10px', height: '10px', background: color, borderRadius: '50%', display: 'inline-block'}}></span>
                     {item.type==='stores'?'🏪':item.type==='drivers'?'🛵':item.type==='taxi_drivers'?'🚕':'👤'} {item.name}
                     {isMatch && <span className="bg-red-500 text-white text-xs px-2 rounded-full">MATCH</span>}
                   </div>
+
                   <div className="mt-1">📞 {item.mobile}</div>
                   <div className="text-xs text-gray-700 mt-1 bg-gray-50 p-1 rounded">{item.extra}</div>
-                  <div className="text-xs text-gray-600 mt-1">📍 {item.address || item.area}</div>
-                  <div className="text- text-gray-400 mt-1">{item.lat.toFixed(5)}, {item.lng.toFixed(5)}</div>
+                  <div className="text-xs text-gray-600 mt-1">📍 {item.address || ''}</div>
+
+                  {/* ✅ بس للكوستمر - حالة التاكسي من users */}
+                  {item.type==='customers' && (
+                    <div className="mt-3 border-t pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold">حالة التاكسي (users.taxi):</span>
+                        <TaxiBadge status={item.taxi_status} />
+                      </div>
+
+                      <div className="flex gap-1 mt-2">
+                        <button disabled={updating===item.key} onClick={()=>handleTaxiUpdate(item, 'yes')} className="flex-1 bg-green-600 disabled:opacity-50 text-white text-xs font-bold px-2 py-1.5 rounded-full hover:bg-green-700">YES</button>
+                        <button disabled={updating===item.key} onClick={()=>handleTaxiUpdate(item, 'no')} className="flex-1 bg-red-600 disabled:opacity-50 text-white text-xs font-bold px-2 py-1.5 rounded-full hover:bg-red-700">NO</button>
+                        <button disabled={updating===item.key} onClick={()=>handleTaxiUpdate(item, null)} className="flex-1 bg-gray-500 disabled:opacity-50 text-white text-xs font-bold px-2 py-1.5 rounded-full hover:bg-gray-600">NULL</button>
+                      </div>
+                      {updating===item.key && <div className="text- text-center mt-1 text-gray-500">عم حدث...</div>}
+                      <div className="text- text-gray-400 mt-1">YES=يفتح الخدمة | NO=بلوك | NULL=مخفي</div>
+                    </div>
+                  )}
+
+                  <div className="text- text-gray-400 mt-2">{item.lat.toFixed(5)}, {item.lng.toFixed(5)}</div>
                 </div>
               )}
             </Popup>
