@@ -21,6 +21,20 @@ const storeMatchIcon = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com
 const driverIcon = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png', iconSize:[38,38], iconAnchor:[19,38] })
 const driverMatchIcon = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png', iconSize:[52,52], iconAnchor:[26,52], className:'drop-shadow-[0_0_10px_red]' })
 
+// ✅ جديد - تاكسي
+const taxiIcon = new L.DivIcon({
+  html: `<div style="width:36px;height:36px;background:#FFC107;border-radius:50%;border:2px solid black;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 4px black">🚕</div>`,
+  iconSize:[36,36], iconAnchor:[18,18]
+})
+const taxiMatchIcon = new L.DivIcon({
+  html: `<div style="width:52px;height:52px;background:#FFC107;border-radius:50%;border:3px solid red;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 0 12px red">🚕</div>`,
+  iconSize:[52,52], iconAnchor:[26,26]
+})
+const taxiOfflineIcon = new L.DivIcon({
+  html: `<div style="width:32px;height:32px;background:#9ca3af;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:18px;opacity:0.6">🚕</div>`,
+  iconSize:[32,32], iconAnchor:[16,16]
+})
+
 function FitAll({ data }){
   const map = useMap();
   useEffect(()=>{
@@ -45,18 +59,39 @@ export default function CustomerMapAll({ data = [] }) {
         let icon = customerIcon
         if(item.type==='stores') icon = item.isMatch? storeMatchIcon : storeIcon
         else if(item.type==='drivers') icon = item.isMatch? driverMatchIcon : driverIcon
+        else if(item.type==='taxi_drivers') {
+          if(item.isMatch) icon = taxiMatchIcon
+          else if(item.status === 'offline' || item.status === 'false' || item.is_online === false) icon = taxiOfflineIcon
+          else icon = taxiIcon
+        }
         else icon = item.isMatch? customerMatchIcon : customerIcon
+
+        const isTaxi = item.type==='taxi_drivers'
 
         return (
           <Marker key={`${item.type}-${item.id}`} position={[item.lat, item.lng]} icon={icon}>
             <Popup>
-              <div className="min-w- text-sm">
-                <div className="font-bold text-">{item.type==='stores'?'🏪':item.type==='drivers'?'🛵':'👤'} {item.name} {item.isMatch && <span className="bg-red-500 text-white text- px-2 rounded-full ml-1">MATCH</span>}</div>
+              <div className="min-w- text-sm" style={{minWidth: isTaxi? '220px':'auto'}}>
+                <div className="font-bold text-">
+                  {item.type==='stores'?'🏪':item.type==='drivers'?'🛵':isTaxi?'🚕':'👤'}
+                  {item.name}
+                  {item.isMatch && <span className="bg-red-500 text-white text- px-2 rounded-full ml-1">MATCH</span>}
+                  {isTaxi && item.vehicle && <span className="bg-yellow-400 text-black text-xs px-2 rounded-full ml-1">{item.vehicle}</span>}
+                </div>
                 <div>🆔 {item.id}</div>
                 <div>📞 {item.mobile}</div>
-                <div className="text-gray-600">📍 {item.address}</div>
-                {item.area && <div>Area: {item.area}</div>}
-                {item.status && <div>Status: {item.status}</div>}
+                <div className="text-gray-600">📍 {item.address || item.area}</div>
+                {item.area &&!isTaxi && <div>Area: {item.area}</div>}
+                {item.status && <div>Status: {item.status} {item.is_online? '● online':'○ offline'}</div>}
+                {isTaxi && (
+                  <>
+                    <div className="mt-1 text-xs bg-gray-100 p-1 rounded">
+                      <div>🔧 محرك: {item.engine_cc || item.engine || '1500'} - مقاعد: {item.seats || 4}</div>
+                      <div>🎨 لون: {item.car_color || '-'} - لوحة: {item.plate_number || '-'}</div>
+                      <div>⭐ تقييم: {item.average_rating || 0} ({item.rating_level || 'bronze'}) - طلبات: {item.total_orders || 0}</div>
+                    </div>
+                  </>
+                )}
                 <div className="text- text-gray-400 mt-1">{item.lat.toFixed(6)}, {item.lng.toFixed(6)}</div>
               </div>
             </Popup>
