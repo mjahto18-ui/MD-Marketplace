@@ -14,13 +14,12 @@ if (typeof window!== 'undefined') {
 }
 
 const COLORS = {
-  customers: '#ef4444', // أحمر
-  stores: '#3b82f6', // أزرق
-  drivers: '#15803d', // أخضر غامق
-  taxi_drivers: '#facc15' // أصفر
+  customers: '#ef4444',
+  stores: '#3b82f6',
+  drivers: '#15803d',
+  taxi_drivers: '#facc15'
 }
 
-// دبوس فردي - نفس شكل الجيست بس باللون
 const makePin = (color, textColor = 'white') => new L.DivIcon({
   html: `
     <div style="position:relative; width:24px; height:30px;">
@@ -34,7 +33,6 @@ const makePin = (color, textColor = 'white') => new L.DivIcon({
   iconAnchor: [12, 28],
 })
 
-// دبوس غروب - أكبر
 const makeClusterPin = (count, color = '#1e40af') => new L.DivIcon({
   html: `
     <div style="position:relative; width:36px; height:44px;">
@@ -48,7 +46,6 @@ const makeClusterPin = (count, color = '#1e40af') => new L.DivIcon({
   iconAnchor: [18, 42],
 })
 
-// دبوس MATCH - لما تفلتر
 const makeMatchPin = (color) => new L.DivIcon({
   html: `
     <div style="position:relative; width:32px; height:40px;">
@@ -85,11 +82,9 @@ function FitAll({ data }){
 export default function CustomerMapAll({ data = [] }) {
   if(data.length===0) return <div className="p-10 text-center text-gray-500">ما في شي بهالفلتر</div>
 
-  // ✅ اذا في فلتر - المطابقين ما بيتغربو - بيضلو لحالن
   const matched = data.filter(d=> d.isMatch)
   const rest = data.filter(d=>!d.isMatch)
 
-  // غروب 200 متر بس للي مش مطابقين
   const grouped = [];
   rest.forEach((item)=>{
     if(!item.lat ||!item.lng) return
@@ -117,10 +112,9 @@ export default function CustomerMapAll({ data = [] }) {
     }
   });
 
-  // منرجع منجمع - الغروبات + المطابقين لحالن
   const finalPoints = [
-   ...grouped,
-   ...matched.map(m=> ({ lat: m.lat, lng: m.lng, count: 1, items: [m], isMatch: true }))
+  ...grouped,
+  ...matched.map(m=> ({ lat: m.lat, lng: m.lng, count: 1, items: [m], isMatch: true }))
   ];
 
   if(finalPoints.length===0) return <div className="p-10 text-center text-gray-500">ما في نقاط صالحة</div>
@@ -141,21 +135,20 @@ export default function CustomerMapAll({ data = [] }) {
         if(isMatch) icon = makeMatchPin(color);
         else if(isSingle) icon = makePin(color, textColor);
         else {
-          // اذا الغروب فيه انواع مختلطة - مناخد لون الأكثرية
           const types = group.items.map(i=>i.type);
           const mostCommon = types.sort((a,b)=> types.filter(v=>v===a).length - types.filter(v=>v===b).length).pop();
           icon = makeClusterPin(group.count, COLORS[mostCommon] || '#1e40af');
         }
 
         return (
-          <Marker key={`group-${idx}`} position={[group.lat, group.lng]} icon={icon}>
+          <Marker key={item.key || `group-${idx}`} position={[group.lat, group.lng]} icon={icon}>
             <Popup>
               {group.count > 1 &&!isMatch? (
                 <div className="text-sm min-w-">
                   <div className="font-bold">📍 {group.count} نقاط بـ 200 متر</div>
                   <div className="text-xs mt-2 space-y-1 max-h- overflow-y-auto">
                     {group.items.slice(0,10).map((it,i)=>(
-                      <div key={i} className="flex items-center gap-2">
+                      <div key={it.key || i} className="flex items-center gap-2">
                         <span style={{width: '8px', height: '8px', background: COLORS[it.type], borderRadius: '50%', display: 'inline-block'}}></span>
                         {it.type==='stores'?'🏪':it.type==='drivers'?'🛵':it.type==='taxi_drivers'?'🚕':'👤'} {it.name} - {it.mobile}
                       </div>
@@ -164,16 +157,15 @@ export default function CustomerMapAll({ data = [] }) {
                   </div>
                 </div>
               ) : (
-                <div className="text-sm" style={{minWidth: '200px'}}>
+                <div className="text-sm" style={{minWidth: '230px'}}>
                   <div className="font-bold flex items-center gap-1" style={{color: color}}>
                     <span style={{width: '10px', height: '10px', background: color, borderRadius: '50%', display: 'inline-block'}}></span>
                     {item.type==='stores'?'🏪':item.type==='drivers'?'🛵':item.type==='taxi_drivers'?'🚕':'👤'} {item.name}
                     {isMatch && <span className="bg-red-500 text-white text-xs px-2 rounded-full">MATCH</span>}
                   </div>
-                  <div>🆔 {item.id}</div>
-                  <div>📞 {item.mobile}</div>
-                  <div className="text-gray-600">📍 {item.address || item.area}</div>
-                  {item.status && <div className="text-xs">Status: {item.status}</div>}
+                  <div className="mt-1">📞 {item.mobile}</div>
+                  <div className="text-xs text-gray-700 mt-1 bg-gray-50 p-1 rounded">{item.extra}</div>
+                  <div className="text-xs text-gray-600 mt-1">📍 {item.address || item.area}</div>
                   <div className="text- text-gray-400 mt-1">{item.lat.toFixed(5)}, {item.lng.toFixed(5)}</div>
                 </div>
               )}
