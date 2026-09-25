@@ -187,7 +187,7 @@ export default function ShopPage() {
                 </div>
                 <Car className="w-7 h-7 text-gray-400 mx-auto mb-2" />
                 <h3 className="text-white font-bold text-sm">MD-TAXI</h3>
-                <p className="text-red-300 text- mt-1 leading-tight">هذه الخدمة ليست متاحة على حسابك <br/>تواصل مع فريق الدعم</p>
+                <p className="text-red-300 text- mt-1 leading-tight"> الخدمة غير متاحة حاليا  <br/>تواصل مع فريق الدعم</p>
               </div>
             ) : null
           ) : (
