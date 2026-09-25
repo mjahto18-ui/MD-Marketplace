@@ -75,7 +75,7 @@ export default function ShopPage() {
         if (data.user) {
           setUser(data.user);
           fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-      .then(r=>r.json()).then(b=>{
+     .then(r=>r.json()).then(b=>{
             fetch('/api/loyalty-tiers').then(r=>r.json()).then(tData=>{
               const tiersList = tData.tiers || [];
               if(tiersList.length){
@@ -173,12 +173,23 @@ export default function ShopPage() {
             </button>
           )}
 
-          {/* MD-TAXI - بوكس جديد نفس الحجم */}
+          {/* MD-TAXI - مع نظام taxi ENUM */}
           {user? (
-            <Link href="/taxi" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
-              <Car className="w-7 h-7 text-yellow-400 mx-auto mb-2" />
-              <h3 className="text-white font-bold text-sm">MD-TAXI</h3>
-            </Link>
+            user.taxi === 'yes'? (
+              <Link href="/taxi" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
+                <Car className="w-7 h-7 text-yellow-400 mx-auto mb-2" />
+                <h3 className="text-white font-bold text-sm">MD-TAXI</h3>
+              </Link>
+            ) : user.taxi === 'no'? (
+              <div className="glass rounded-2xl p-4 text-center border border-red-500/40 relative opacity-80">
+                <div className="absolute top-2 right-2 w-6 h-6 bg-red-500/20 rounded-full flex items-center justify-center border border-red-500/30">
+                  <Lock className="w-3 h-3 text-red-400" />
+                </div>
+                <Car className="w-7 h-7 text-gray-400 mx-auto mb-2" />
+                <h3 className="text-white font-bold text-sm">MD-TAXI</h3>
+                <p className="text-red-300 text- mt-1 leading-tight">موقفة لحسابك<br/>تواصل مع الدعم</p>
+              </div>
+            ) : null
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
               <LockBadge />
