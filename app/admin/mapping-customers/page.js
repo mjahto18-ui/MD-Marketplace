@@ -11,16 +11,10 @@ const CustomerMapAll = dynamicImport(() => import("@/components/CustomerMapAll")
 })
 
 const COLORS = {
-  customers: '#ef4444', // أحمر
-  stores: '#3b82f6', // أزرق
-  drivers: '#22c55e', // أخضر
-  taxi_drivers: '#facc15' // أصفر
-}
-
-function maskPhone(p){
-  if(!p) return '-'
-  const s = String(p).trim()
-  return s.length > 6? s.slice(0,3)+'***'+s.slice(-3) : s
+  customers: '#ef4444',
+  stores: '#3b82f6',
+  drivers: '#22c55e',
+  taxi_drivers: '#facc15'
 }
 
 export default function MappingCustomerPage() {
@@ -36,7 +30,7 @@ export default function MappingCustomerPage() {
   const fetchAll = async () => {
     const [c,s,d,t] = await Promise.all([
       supabase.from('customers').select('"Name","Mobile","Area","Status","Current Latitude","Current Longtitude","Registration Latitude","Registration Longitude","Free Delivery Remaining"').limit(1000),
-      supabase.from('stores').select('"Store Name","Category","Area","Adress","Status","Delivery Available","Open Time","Close Time","Current Latitude","Current Longitude"').limit(500),
+      supabase.from('stores').select('"Store Name","Mobile","Category","Area","Adress","Status","Delivery Available","Open Time","Close Time","Current Latitude","Current Longitude"').limit(500),
       supabase.from('drivers').select('"Driver Name","Mobile","Area","Status","VehicleTyp","Avg Rating","Total Delivered","Current Latitude","Current Longitude"').limit(500),
       supabase.from('taxi_drivers').select('full_name, phone, area, address, vehicle_type, car_color, seats, status, is_online, average_rating, total_orders, rating_level, "Current Latitude", "Current Longitude", lat, lng').limit(1000)
     ])
@@ -44,7 +38,7 @@ export default function MappingCustomerPage() {
     const customers = (c.data||[]).map((x,i)=>({
       key: `c-${i}`,
       name: x['Name'] || 'زبون',
-      mobile: maskPhone(x['Mobile']),
+      mobile: x['Mobile'] || '',
       full_mobile: x['Mobile'] || '',
       address: x['Area'] || '',
       status: x['Status'] || '',
@@ -57,8 +51,8 @@ export default function MappingCustomerPage() {
     const stores = (s.data||[]).map((x,i)=>({
       key: `s-${i}`,
       name: x['Store Name'] || 'متجر',
-      mobile: '',
-      full_mobile: '',
+      mobile: x['Mobile'] || '', // ✅ هون كان فاضي - رجعنا الرقم
+      full_mobile: x['Mobile'] || '',
       address: x['Area'] || x['Adress'] || '',
       status: x['Status'] || '',
       extra: `${x['Category']||''} - ${x['Delivery Available']==='yes'?'دليفري ✅':'بلا دليفري'} - ${x['Open Time']||''}→${x['Close Time']||''}`,
@@ -70,7 +64,7 @@ export default function MappingCustomerPage() {
     const drivers = (d.data||[]).map((x,i)=>({
       key: `d-${i}`,
       name: x['Driver Name'] || 'سائق',
-      mobile: maskPhone(x['Mobile']),
+      mobile: x['Mobile'] || '',
       full_mobile: x['Mobile'] || '',
       address: x['Area'] || '',
       status: x['Status'] || '',
@@ -83,11 +77,11 @@ export default function MappingCustomerPage() {
     const taxi_drivers = (t.data||[]).map((x,i)=>({
       key: `t-${i}`,
       name: x['full_name'] || 'تاكسي',
-      mobile: maskPhone(x['phone']),
+      mobile: x['phone'] || '',
       full_mobile: x['phone'] || '',
       address: x['area'] || x['address'] || '',
       status: x['is_online']? 'online' : 'offline',
-      extra: `${x['vehicle_type']||'car'} ${x['car_color']||''} ${x['seats']||4} مقاعد - ⭐${x['average_rating']||0} ${x['rating_level']||'bronze'} - 📦${x['total_orders']||0} - ${x['status']||''}`,
+      extra: `${x['vehicle_type']||'car'} ${x['car_color']||''} ${x['seats']||4} مقاعد - ⭐${x['average_rating']||0} ${x['rating_level']||'bronze'} - 📦${x['total_orders']||0}`,
       vehicle: x['vehicle_type'],
       lat: parseFloat(x['Current Latitude'] || x['lat']),
       lng: parseFloat(x['Current Longitude'] || x['lng']),
