@@ -11,29 +11,32 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// ايقونات حسب الرول
-const customerIcon = new L.DivIcon({ html: `<div style="width:14px;height:14px;background:#ef4444;border-radius:50%;border:2px solid white;box-shadow:0 0 3px black"></div>`, iconSize:[14,14], iconAnchor:[7,7] })
-const customerMatchIcon = new L.DivIcon({ html: `<div style="width:24px;height:24px;background:red;border-radius:50%;border:3px solid yellow;box-shadow:0 0 10px red"></div>`, iconSize:[24,24], iconAnchor:[12,12] })
+// ألوانك المطلوبة
+const COLORS = {
+  customers: '#ef4444', // أحمر
+  stores: '#22c55e', // أخضر فاتح
+  drivers: '#15803d', // أخضر غامق
+  taxi_drivers: '#facc15' // أصفر
+}
 
-const storeIcon = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/869/869636.png', iconSize:[36,36], iconAnchor:[18,36] })
-const storeMatchIcon = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/869/869636.png', iconSize:[50,50], iconAnchor:[25,50], className:'drop-shadow-[0_0_8px_red]' })
-
-const driverIcon = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png', iconSize:[38,38], iconAnchor:[19,38] })
-const driverMatchIcon = new L.Icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png', iconSize:[52,52], iconAnchor:[26,52], className:'drop-shadow-[0_0_10px_red]' })
-
-// ✅ جديد - تاكسي
-const taxiIcon = new L.DivIcon({
-  html: `<div style="width:36px;height:36px;background:#FFC107;border-radius:50%;border:2px solid black;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 4px black">🚕</div>`,
-  iconSize:[36,36], iconAnchor:[18,18]
-})
-const taxiMatchIcon = new L.DivIcon({
-  html: `<div style="width:52px;height:52px;background:#FFC107;border-radius:50%;border:3px solid red;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 0 12px red">🚕</div>`,
-  iconSize:[52,52], iconAnchor:[26,26]
-})
-const taxiOfflineIcon = new L.DivIcon({
-  html: `<div style="width:32px;height:32px;background:#9ca3af;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:18px;opacity:0.6">🚕</div>`,
-  iconSize:[32,32], iconAnchor:[16,16]
-})
+function makeDot(color, size=14){
+  return new L.DivIcon({
+    html: `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 0 3px black"></div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2]
+  })
+}
+function makeDotMatch(color, size=26){
+  return new L.DivIcon({
+    html: `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50%;border:3px solid yellow;box-shadow:0 0 10px red"></div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2]
+  })
+}
+function makeDotOffline(size=10){
+  return new L.DivIcon({
+    html: `<div style="width:${size}px;height:${size}px;background:#9ca3af;border-radius:50%;border:1px solid white;opacity:0.5"></div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2]
+  })
+}
 
 function FitAll({ data }){
   const map = useMap();
@@ -47,8 +50,7 @@ function FitAll({ data }){
 }
 
 export default function CustomerMapAll({ data = [] }) {
-  if(data.length===0) return <div className="p-10 text-center text-gray-500">ما في شي بهالفلتر - جرّب رقم تاني او غيّر التاب</div>
-
+  if(data.length===0) return <div className="p-10 text-center text-gray-500">ما في شي بهالفلتر</div>
   const center = [data[0].lat, data[0].lng]
 
   return (
@@ -56,43 +58,34 @@ export default function CustomerMapAll({ data = [] }) {
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <FitAll data={data} />
       {data.map(item=>{
-        let icon = customerIcon
-        if(item.type==='stores') icon = item.isMatch? storeMatchIcon : storeIcon
-        else if(item.type==='drivers') icon = item.isMatch? driverMatchIcon : driverIcon
-        else if(item.type==='taxi_drivers') {
-          if(item.isMatch) icon = taxiMatchIcon
-          else if(item.status === 'offline' || item.status === 'false' || item.is_online === false) icon = taxiOfflineIcon
-          else icon = taxiIcon
-        }
-        else icon = item.isMatch? customerMatchIcon : customerIcon
+        const col = COLORS[item.type] || COLORS.customers
+        let icon
+        if(item.isMatch) icon = makeDotMatch(col)
+        else if(item.type==='taxi_drivers' && (item.status==='offline' || item.is_online===false)) icon = makeDotOffline()
+        else icon = makeDot(col, item.type==='taxi_drivers'?12:14)
 
         const isTaxi = item.type==='taxi_drivers'
 
         return (
           <Marker key={`${item.type}-${item.id}`} position={[item.lat, item.lng]} icon={icon}>
             <Popup>
-              <div className="min-w- text-sm" style={{minWidth: isTaxi? '220px':'auto'}}>
-                <div className="font-bold text-">
-                  {item.type==='stores'?'🏪':item.type==='drivers'?'🛵':isTaxi?'🚕':'👤'}
-                  {item.name}
-                  {item.isMatch && <span className="bg-red-500 text-white text- px-2 rounded-full ml-1">MATCH</span>}
-                  {isTaxi && item.vehicle && <span className="bg-yellow-400 text-black text-xs px-2 rounded-full ml-1">{item.vehicle}</span>}
+              <div className="text-sm" style={{minWidth: isTaxi?'210px':'auto'}}>
+                <div className="font-bold flex items-center gap-1" style={{color: col}}>
+                  <span style={{width: '10px', height: '10px', background: col, borderRadius: '50%', display: 'inline-block'}}></span>
+                  {item.type==='stores'?'🏪':item.type==='drivers'?'🛵':isTaxi?'🚕':'👤'} {item.name}
+                  {item.isMatch && <span className="bg-red-500 text-white text-xs px-2 rounded-full ml-1">MATCH</span>}
                 </div>
                 <div>🆔 {item.id}</div>
                 <div>📞 {item.mobile}</div>
                 <div className="text-gray-600">📍 {item.address || item.area}</div>
-                {item.area &&!isTaxi && <div>Area: {item.area}</div>}
-                {item.status && <div>Status: {item.status} {item.is_online? '● online':'○ offline'}</div>}
+                {item.status && <div className="text-xs">Status: {item.status}</div>}
                 {isTaxi && (
-                  <>
-                    <div className="mt-1 text-xs bg-gray-100 p-1 rounded">
-                      <div>🔧 محرك: {item.engine_cc || item.engine || '1500'} - مقاعد: {item.seats || 4}</div>
-                      <div>🎨 لون: {item.car_color || '-'} - لوحة: {item.plate_number || '-'}</div>
-                      <div>⭐ تقييم: {item.average_rating || 0} ({item.rating_level || 'bronze'}) - طلبات: {item.total_orders || 0}</div>
-                    </div>
-                  </>
+                  <div className="mt-1 text-xs bg-gray-100 p-1 rounded">
+                    <div>🚗 {item.vehicle || 'car'} - {item.plate_number || ''}</div>
+                    <div>⭐ {item.average_rating || 0} - {item.total_orders || 0} طلب</div>
+                  </div>
                 )}
-                <div className="text- text-gray-400 mt-1">{item.lat.toFixed(6)}, {item.lng.toFixed(6)}</div>
+                <div className="text- text-gray-400 mt-1">{item.lat.toFixed(5)}, {item.lng.toFixed(5)}</div>
               </div>
             </Popup>
           </Marker>
