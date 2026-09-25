@@ -11,9 +11,9 @@ const CustomerMapAll = dynamicImport(() => import("@/components/CustomerMapAll")
 })
 
 const COLORS = {
-  customers_yes: '#16a34a', // اخضر - taxi yes
-  customers_no: '#7f1d1d', // احمر غامق - taxi no بلوك
-  customers_null: '#9ca3af', // رمادي - null مخفي
+  customers_yes: '#16a34a',
+  customers_no: '#7f1d1d',
+  customers_null: '#9ca3af',
   customers: '#ef4444',
   stores: '#3b82f6',
   drivers: '#22c55e',
@@ -45,16 +45,14 @@ export default function MappingCustomerPage() {
   }
 
   const fetchAll = async () => {
-    // ✅ بنجيب كلشي بلا limit - بيجيب 4000 زبون و 10000 يوزر دفعات
     const [c,s,d,t,u] = await Promise.all([
       fetchAllPaginated('customers', '"Customer ID","Name","Mobile","Area","Status","Current Latitude","Current Longtitude","Registration Latitude","Registration Longitude","Free Delivery Remaining"'),
       fetchAllPaginated('stores', '"Store Name","Mobile","Category","Area","Adress","Status","Delivery Available","Open Time","Close Time","Current Latitude","Current Longitude"'),
       fetchAllPaginated('drivers', '"Driver Name","Mobile","Area","Status","VehicleTyp","Avg Rating","Total Delivered","Current Latitude","Current Longitude"'),
-      fetchAllPaginated('taxi_drivers', 'full_name, phone, area, address, vehicle_type, car_color, seats, status, is_online, average_rating, total_orders, rating_level, "Current Latitude", "Current Longitude", lat, lng'),
-      fetchAllPaginated('users', '"Customer ID",taxi') // ✅ بس عمودين - خفيف للـ 10000
+      fetchAllPaginated('taxi_drivers', 'full_name, phone, area, address, car_type, plate_number, vehicle_type, car_color, seats, status, is_online, average_rating, total_orders, rating_level, "Current Latitude", "Current Longitude", lat, lng'),
+      fetchAllPaginated('users', '"Customer ID",taxi')
     ])
 
-    // ✅ Map سريع Customer ID 5555 -> taxi yes/no/null
     const taxiMap = new Map(
       (u||[]).filter(x=> x["Customer ID"]).map(x=>[String(x["Customer ID"]).trim(), x.taxi?? null])
     )
@@ -64,14 +62,14 @@ export default function MappingCustomerPage() {
       return {
         key: `c-${cid || i}`,
         realCustomerId: cid,
-        userId: null, // ما بقى بدنا User ID
+        userId: null,
         name: x['Name'] || 'زبون',
         mobile: x['Mobile'] || '',
         full_mobile: x['Mobile'] || '',
         address: x['Area'] || '',
         status: x['Status'] || '',
         extra: `مجاني: ${x['Free Delivery Remaining']||0} - ${x['Status']||''}`,
-        taxi_status: taxiMap.get(cid)?? null, // yes/no/null من users
+        taxi_status: taxiMap.get(cid)?? null,
         lat: parseFloat(x['Current Latitude']||x['Registration Latitude']),
         lng: parseFloat(x['Current Longtitude']||x['Registration Longitude']),
         type: 'customers'
@@ -94,7 +92,8 @@ export default function MappingCustomerPage() {
     const taxi_drivers = (t||[]).map((x,i)=>({
       key: `t-${i}`, name: x['full_name'] || 'تاكسي', mobile: x['phone'] || '', full_mobile: x['phone'] || '',
       address: x['area'] || x['address'] || '', status: x['is_online']? 'online' : 'offline',
-      extra: `${x['vehicle_type']||'car'} ${x['car_color']||''}`, lat: parseFloat(x['Current Latitude'] || x['lat']), lng: parseFloat(x['Current Longitude'] || x['lng']), type: 'taxi_drivers'
+      extra: `${x['car_type']||x['vehicle_type']||'car'} - لون ${x['car_color']||'ابيض'} - ⭐${x['average_rating']??0} ${x['rating_level']||'bronze'} - 📦${x['total_orders']??0}`,
+      lat: parseFloat(x['Current Latitude'] || x['lat']), lng: parseFloat(x['Current Longitude'] || x['lng']), type: 'taxi_drivers'
     })).filter(x=>!isNaN(x.lat)&&x.lat!==0)
 
     setAll({customers, stores, drivers, taxi_drivers})
@@ -132,7 +131,7 @@ export default function MappingCustomerPage() {
         <input type="text" placeholder="فلتر اسم / رقم" value={search} onChange={e=>{setSearch(e.target.value); apply(tab, e.target.value)}} className="border-2 rounded-full px-4 py-2 w-80 ml-auto outline-none" style={{borderColor: 'black', background: '#fffde7'}} />
       </div>
       <div className="flex-1">
-        <CustomerMapAll data={view} />
+        <CustomerMapAll data={view} colors={COLORS} />
       </div>
     </div>
   )
