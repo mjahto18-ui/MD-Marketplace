@@ -10,6 +10,13 @@ const CustomerMapAll = dynamicImport(() => import("@/components/CustomerMapAll")
   loading: () => <div className="p-6">عم حمل الخريطة...</div>
 })
 
+const COLORS = {
+  customers: '#ef4444', // أحمر
+  stores: '#3b82f6', // أزرق
+  drivers: '#22c55e', // أخضر
+  taxi_drivers: '#facc15' // أصفر
+}
+
 export default function MappingCustomerPage() {
   const [all, setAll] = useState({ customers:[], stores:[], drivers:[], taxi_drivers:[] })
   const [view, setView] = useState([])
@@ -48,11 +55,12 @@ export default function MappingCustomerPage() {
     })).filter(x=>!isNaN(x.lat))
 
     const taxi_drivers = (t.data||[]).map(x=>({
-      id: x['Taxi_ID'], name: x['full_name'] || x['Driver Name'], mobile: x['phone'] || x['Mobile'], address: x['area'] || x['Area'], status: x['status'] || (x['is_online']? 'online':'offline'),
-      lat: parseFloat(x['Current Latitude'] || x['current_latitude'] || x['lat']),
-      lng: parseFloat(x['Current Longitude'] || x['current_longitude'] || x['lng'] || x['Longtitude']),
+      id: x['Taxi_ID'], name: x['full_name'], mobile: x['phone'], address: x['area'] || x['address'],
+      lat: parseFloat(x['Current Latitude'] || x['lat']),
+      lng: parseFloat(x['Current Longitude'] || x['lng']),
       type: 'taxi_drivers',
-      vehicle: x['vehicle_type'] || x['car_type']
+      status: x['is_online']? 'online':'offline',
+      vehicle: x['vehicle_type']
     })).filter(x=>!isNaN(x.lat)&&x.lat!==0)
 
     setAll({customers, stores, drivers, taxi_drivers})
@@ -67,31 +75,40 @@ export default function MappingCustomerPage() {
     else if(newTab==='taxi_drivers') base = all.taxi_drivers
     else base = [...all.customers,...all.stores,...all.drivers,...all.taxi_drivers]
 
-    if(!phoneVal){
-      setView(base.map(b=>({...b, isMatch:false})))
-    } else {
+    if(!phoneVal) setView(base.map(b=>({...b, isMatch:false})))
+    else {
       const matched = base.filter(b=> String(b.mobile).includes(phoneVal) || String(b.id).toLowerCase().includes(phoneVal.toLowerCase()))
       setView(matched.map(b=>({...b, isMatch:true})))
     }
   }
 
-  if(all.customers.length===0 && all.stores.length===0 && all.taxi_drivers.length===0) return <div className="p-6">عم حمل...</div>
+  const btnStyle = (key, active) => ({
+    background: active? COLORS[key] : '#f3f4f6',
+    color: active? (key==='taxi_drivers'?'black':'white') : 'black',
+    border: `2px solid ${COLORS[key]}`,
+    padding: '8px 16px',
+    borderRadius: '9999px',
+    fontWeight: '900',
+    fontSize: '13px'
+  })
+
+  if(all.customers.length===0 && all.taxi_drivers.length===0) return <div className="p-6">عم حمل...</div>
 
   return (
     <div className="h-screen flex flex-col">
       <div className="p-3 bg-white shadow flex gap-2 items-center flex-wrap">
        <BackToDashboard />
-        <button onClick={()=>{setTab('all'); apply('all', search)}} className={`px-4 py-2 rounded-full text-sm font-bold ${tab==='all'?'bg-black text-white':'bg-gray-100'}`}>All {all.customers.length+all.stores.length+all.drivers.length+all.taxi_drivers.length}</button>
-        <button onClick={()=>{setTab('customers'); apply('customers', search)}} className={`px-4 py-2 rounded-full text-sm font-bold ${tab==='customers'?'bg-red-500 text-white':'bg-gray-100'}`}>Customers {all.customers.length}</button>
-        <button onClick={()=>{setTab('stores'); apply('stores', search)}} className={`px-4 py-2 rounded-full text-sm font-bold ${tab==='stores'?'bg-blue-600 text-white':'bg-gray-100'}`}>Stores {all.stores.length}</button>
-        <button onClick={()=>{setTab('drivers'); apply('drivers', search)}} className={`px-4 py-2 rounded-full text-sm font-bold ${tab==='drivers'?'bg-green-600 text-white':'bg-gray-100'}`}>Drivers {all.drivers.length}</button>
-        <button onClick={()=>{setTab('taxi_drivers'); apply('taxi_drivers', search)}} className={`px-4 py-2 rounded-full text-sm font-bold ${tab==='taxi_drivers'?'bg-yellow-500 text-black':'bg-gray-100'}`}>🚕 Taxi {all.taxi_drivers.length}</button>
+        <button onClick={()=>{setTab('all'); apply('all', search)}} style={{...btnStyle('customers', tab==='all'), background: tab==='all'? 'black':'#f3f4f6', borderColor: 'black'}}>All {all.customers.length+all.stores.length+all.drivers.length+all.taxi_drivers.length}</button>
+        <button onClick={()=>{setTab('customers'); apply('customers', search)}} style={btnStyle('customers', tab==='customers')}>🔴 Customers {all.customers.length}</button>
+        <button onClick={()=>{setTab('stores'); apply('stores', search)}} style={btnStyle('stores', tab==='stores')}>🔵 Stores {all.stores.length}</button>
+        <button onClick={()=>{setTab('drivers'); apply('drivers', search)}} style={btnStyle('drivers', tab==='drivers')}>🟢 Drivers {all.drivers.length}</button>
+        <button onClick={()=>{setTab('taxi_drivers'); apply('taxi_drivers', search)}} style={btnStyle('taxi_drivers', tab==='taxi_drivers')}>🟡 Taxi {all.taxi_drivers.length}</button>
 
-        <input type="text" placeholder="فلتر 03222222 / ID" value={search} onChange={e=>{setSearch(e.target.value); apply(tab, e.target.value)}} className="border-2 border-red-500 rounded-full px-4 py-2 w-80 ml-auto bg-yellow-50 outline-none" />
+        <input type="text" placeholder="فلتر 03222222 / ID" value={search} onChange={e=>{setSearch(e.target.value); apply(tab, e.target.value)}} className="border-2 rounded-full px-4 py-2 w-80 ml-auto outline-none" style={{borderColor: COLORS[tab] || 'black', background: '#fffde7'}} />
         {search && <button onClick={()=>{setSearch(""); apply(tab, "")}} className="bg-gray-200 px-3 py-1 rounded-full">مسح</button>}
       </div>
       <div className="flex-1">
-        <CustomerMapAll data={view} />
+        <CustomerMapAll data={view} colors={COLORS} />
       </div>
     </div>
   )
