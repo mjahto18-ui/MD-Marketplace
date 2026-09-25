@@ -61,8 +61,8 @@ export default function Page() {
   const [meLoading, setMeLoading] = useState(true);
   const [showSos, setShowSos] = useState(false);
   const [sosComment, setSosComment] = useState('');
-  const [nearbyDrivers, setNearbyDrivers] = useState([]); // ✅ جديد - ليستة السيارات القريبة
-  const [nearbyLoading, setNearbyLoading] = useState(false); // ✅ جديد
+  const [nearbyDrivers, setNearbyDrivers] = useState([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
   const intervalRef = useRef(null);
   const isManualBackRef = useRef(false);
   const hasRedirected = useRef(false);
@@ -76,7 +76,7 @@ export default function Page() {
     localStorage.removeItem('taxi_orders');
     let cancelled = false;
     fetch('/api/me', { cache: 'no-store', credentials: 'include' })
-  .then(async (res) => {
+ .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -86,6 +86,17 @@ export default function Page() {
           return;
         }
         const d = await res.json();
+        // حماية جديدة - taxi ENUM
+        if (d.user?.taxi!== 'yes') {
+          if (!hasRedirected.current) {
+            hasRedirected.current = true;
+            if (d.user?.taxi === 'no') {
+              alert('🔒 خدمة MD-TAXI حسابك غير مدعوم - تواصل مع فريق');
+            }
+            router.replace('/shop');
+          }
+          return;
+        }
         if (d.user?.customerId) {
           setCustomer(d.user);
           fetchMyOrders(d.user.customerId);
@@ -96,13 +107,13 @@ export default function Page() {
           }
         }
       })
-  .catch(() => {
+ .catch(() => {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
-  .finally(() => { if (!cancelled) setMeLoading(false); });
+ .finally(() => { if (!cancelled) setMeLoading(false); });
     return () => { cancelled = true; };
   }, [router]);
 
@@ -168,7 +179,6 @@ export default function Page() {
     }, 3000);
   };
 
-  // ✅ جديد - جيب السيارات القريبة
   const fetchNearby = async (lat, lng, vType) => {
     if(!lat ||!lng) return;
     setNearbyLoading(true);
@@ -186,7 +196,6 @@ export default function Page() {
     if (data.pickup?.lat) {
       currentArea = await getAreaFromLatLng(data.pickup.lat, data.pickup.lng);
       setArea(currentArea);
-      // ✅ كل ما حسب المسافة جيب القريبين
       fetchNearby(data.pickup.lat, data.pickup.lng, vehicleType);
     }
     try {
@@ -196,7 +205,6 @@ export default function Page() {
     } catch(e) { console.error('calc fare error', e); }
   };
 
-  // ✅ اذا غير نوع السيارة ارجع جيب القريبين
   useEffect(() => {
     if(distanceData?.pickup?.lat) {
       fetchNearby(distanceData.pickup.lat, distanceData.pickup.lng, vehicleType);
@@ -274,11 +282,10 @@ export default function Page() {
   };
 
   const handleShare = () => {
-    // لازم نستخدم order_code + id - هيك صار آمن ومستحيل ينحزر
     const link = `${window.location.origin}/taxi/share/${activeOrder.order_code}/${activeOrder.id}`;
     const text = `تابع رحلتي رقم: ${activeOrder.order_code} - السائق: ${activeOrder.taxi_name} ${activeOrder.taxi_phone} - السيارة: ${activeOrder.taxi_car_type} ${activeOrder.taxi_plate_number} ${activeOrder.taxi_car_color} - الرابط: ${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-};
+  };
 
   if (meLoading) return <div className="min-h-screen gradient-bg flex items-center justify-center" style={{padding:20, textAlign:'center', color:'white'}}>يتم التحميل...</div>;
   if (!customer) return null;
@@ -293,12 +300,12 @@ export default function Page() {
       <div>📍 من: {o.origin_name}</div>
       <div style={{marginTop:4}}>🎯 إلى: {o.dest_name}</div>
       <div style={{marginTop:8, display:'flex', justifyContent:'space-between', fontWeight:900}}>
-        <span>{o.status === 'draft'? 'حجز مسبق' : o.status === 'pending' ? 'السعر التقريبي' : 'السعر النهائي'}</span><span>{o.total_amount?.toLocaleString()} ل.ل - {o.distance_traveled} كم</span>
+        <span>{o.status === 'draft'? 'حجز مسبق' : o.status === 'pending'? 'السعر التقريبي' : 'السعر النهائي'}</span><span>{o.total_amount?.toLocaleString()} ل.ل - {o.distance_traveled} كم</span>
       </div>
       {o.status === 'draft' && <div style={{fontSize:11, marginTop:4}}>🕒 الموعد: {new Date(o.requested_start_at).toLocaleString('ar-LB')}</div>}
-      {o.status === 'pending' ? (
+      {o.status === 'pending'? (
         <div style={{fontSize:10, opacity:0.6, marginTop:4}}>⚠ احتمالية تخفيض السعر عند موافقة السائق حسب المسار الفعلي والمسافة والمنطقة</div>
-      ) : o.status === 'draft' ? null : (
+      ) : o.status === 'draft'? null : (
         <div style={{fontSize:10, marginTop:4, color:'#166534', background:'#dcfce7', padding:'6px 10px', borderRadius:8}}>✅ تم تثبيت السعر بناء على مواصفات سيارة السائق</div>
       )}
       <div style={{marginTop:10, background:'#0a1930', color:'white', borderRadius:10, padding:10, textAlign:'center'}}>
@@ -319,7 +326,7 @@ export default function Page() {
                 {renderOrderCard(o)}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:8}}>
                   <button onClick={()=>setActiveOrderId(o.id)} style={{padding:8, borderRadius:8, border:'1px solid #e5e7eb', background: activeOrderId===o.id? '#0a1930' : 'white', color: activeOrderId===o.id? 'white' : 'black', fontWeight:900, fontSize:11}}>{activeOrderId===o.id?'محدد':'تحديد'}</button>
-                  <button onClick={()=>handleCancel(o.id)} style={{padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11, border:'1px solid #fecaca'}}>❌ إلغاء  الطلب</button>
+                  <button onClick={()=>handleCancel(o.id)} style={{padding:8, borderRadius:8, background:'#fee2e2', color:'#dc2626', fontWeight:900, fontSize:11, border:'1px solid #fecaca'}}>❌ إلغاء الطلب</button>
                 </div>
               </div>
             ))}
@@ -383,7 +390,6 @@ export default function Page() {
 
   return (
     <div dir="rtl" className="min-h-screen gradient-bg" style={{minHeight:'100vh', fontFamily:'Cairo', width:'100%', maxWidth:'100vw', overflowX:'hidden', boxSizing:'border-box'}}>
-      {/* هيدر جديد بنفس ستايل الشوب + زر رجوع */}
       <div className="glass border-b border-white/10 p-4 sticky top-0 z-20" style={{background:'rgba(10,25,48,0.8)', backdropFilter:'blur(10px)', color:'white', padding:'10px 16px', display:'flex', justifyContent:'space-between', position:'sticky', top:0, zIndex:20, width:'100%', maxWidth:'100vw', boxSizing:'border-box'}}>
         <div style={{display:'flex', gap:8, alignItems:'center'}}>
           <a href="/shop" style={{fontSize:12, background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.2)', padding:'6px 12px', borderRadius:10, color:'white', textDecoration:'none', fontWeight:900, display:'flex', alignItems:'center', gap:4}}>⬅ المتجر</a>
@@ -396,7 +402,7 @@ export default function Page() {
       </div>
 
       <div style={{maxWidth:480, width:'100%', margin:'0 auto', padding:12, boxSizing:'border-box', overflowX:'hidden'}}>
-        <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', wordBreak:'break-word'}}>📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/><span style={{fontSize:10, opacity:0.5}}>  لدينا عبر سجلاتنا </span></div>
+        <div style={{background:'white', borderRadius:10, padding:10, marginBottom:8, fontSize:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', wordBreak:'break-word'}}>📍 عنوانك الثابت: {customer.address || customer.area || '-'}<br/><span style={{fontSize:10, opacity:0.5}}> لدينا عبر سجلاتنا </span></div>
         <div style={{background:'white', borderRadius:16, padding:12, marginBottom:12, width:'100%', boxSizing:'border-box'}}>
           <div style={{display:'flex', gap:8, marginBottom:12}}>
             <button onClick={()=>setTripType('now')} style={{flex:1, padding:10, borderRadius:12, fontWeight:900, background:tripType==='now'?'#FFC107':'white', border:'2px solid #e5e7eb'}}>⚡ فوري {pendingOrders.length>0?`(${pendingOrders.length})`:''}</button>
@@ -411,7 +417,6 @@ export default function Page() {
         </div>
         <div style={{height:'60vh', width:'100%', maxWidth:'100%', borderRadius:16, overflow:'hidden', border:'1px solid #ddd', boxSizing:'border-box'}}><TaxiMap onDistanceCalculated={handleDistanceCalculated} onConfirm={handleConfirmMap} /></div>
 
-        {/* ✅ جديد - ليستة السيارات القريبة - عرض بس */}
         <div style={{marginTop:12, background:'white', borderRadius:16, padding:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', overflowX:'hidden'}}>
           <div style={{fontWeight:900, fontSize:13, marginBottom:8, wordBreak:'break-word'}}>🚕 السيارات القريبة ضمن 3 كم {nearbyLoading? '(جاري البحث...)': `(${nearbyDrivers.length})`}</div>
           {nearbyDrivers.length === 0 &&!nearbyLoading && <div style={{fontSize:12, opacity:0.5, textAlign:'center', padding:10}}>لا يوجد سيارات {vehicleType} قريبة حاليا - نعتذر عن التأخير</div>}
@@ -429,7 +434,6 @@ export default function Page() {
           ))}
         </div>
 
-        {/* ✅ جديد - ازرار سجل الرحلات - زبون */}
        {orders.length>0 && (
        <div style={{marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, width:'100%', boxSizing:'border-box'}}>
        <button onClick={()=>setStep('searching')} style={{padding:10, borderRadius:10, background:'white', border:'1px solid #ddd', fontWeight:900, fontSize:12}}>🔍 طلباتي الفورية ({pendingOrders.length})</button>
