@@ -32,9 +32,9 @@ export default function PrivacyPage() {
 
       <div className="max-w-4xl mx-auto px-4 py-8">
 
-        {/* اللوغو بالنص - بلا طراف بيض */}
+        {/* اللوغو بالنص - بلا طراف بيض - مصلح */}
         <div className="flex justify-center mb-8">
-          <div className="w- h- rounded- overflow-hidden shadow-[0_0_40px_rgba(255,78,154,0.4)]">
+          <div className="w-[140px] h-[140px] rounded-[28px] overflow-hidden shadow-[0_0_40px_rgba(255,78,154,0.4)]">
             <Image
               src="/icon-dark.png"
               alt="MD Marketplace"
