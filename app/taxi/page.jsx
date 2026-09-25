@@ -91,7 +91,7 @@ export default function Page() {
           if (!hasRedirected.current) {
             hasRedirected.current = true;
             if (d.user?.taxi === 'no') {
-              alert('🔒 خدمة MD-TAXI حسابك غير مدعوم - تواصل مع فريق');
+              alert('🔒 خدمة MD-TAXI   غير متاحة لحسابك -  تواصل مع فريق الدعم');
             }
             router.replace('/shop');
           }
