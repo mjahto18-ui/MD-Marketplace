@@ -28,30 +28,45 @@ export default function MappingCustomerPage() {
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
-    const [c,s,d,t] = await Promise.all([
-      supabase.from('customers').select('"Name","Mobile","Area","Status","Current Latitude","Current Longtitude","Registration Latitude","Registration Longitude","Free Delivery Remaining"').limit(1000),
+    // ✅ جبنا users كمان - بس الأعمدة اللي بدنا ياها
+    const [c,s,d,t,u] = await Promise.all([
+      supabase.from('customers').select('"Customer ID","Name","Mobile","Area","Status","Current Latitude","Current Longtitude","Registration Latitude","Registration Longitude","Free Delivery Remaining"').limit(1000),
       supabase.from('stores').select('"Store Name","Mobile","Category","Area","Adress","Status","Delivery Available","Open Time","Close Time","Current Latitude","Current Longitude"').limit(500),
       supabase.from('drivers').select('"Driver Name","Mobile","Area","Status","VehicleTyp","Avg Rating","Total Delivered","Current Latitude","Current Longitude"').limit(500),
-      supabase.from('taxi_drivers').select('full_name, phone, area, address, vehicle_type, car_color, seats, status, is_online, average_rating, total_orders, rating_level, "Current Latitude", "Current Longitude", lat, lng').limit(1000)
+      supabase.from('taxi_drivers').select('full_name, phone, area, address, vehicle_type, car_color, seats, status, is_online, average_rating, total_orders, rating_level, "Current Latitude", "Current Longitude", lat, lng').limit(1000),
+      supabase.from('users').select('"User ID","Customer ID",taxi,"Role"').limit(2000) // ✅ هون المفتاح
     ])
 
-    const customers = (c.data||[]).map((x,i)=>({
-      key: `c-${i}`,
-      name: x['Name'] || 'زبون',
-      mobile: x['Mobile'] || '',
-      full_mobile: x['Mobile'] || '',
-      address: x['Area'] || '',
-      status: x['Status'] || '',
-      extra: `مجاني: ${x['Free Delivery Remaining']||0} - ${x['Status']||''}`,
-      lat: parseFloat(x['Current Latitude']||x['Registration Latitude']),
-      lng: parseFloat(x['Current Longtitude']||x['Registration Longitude']),
-      type: 'customers'
-    })).filter(x=>!isNaN(x.lat)&&x.lat!==0)
+    // ✅ نعمل lookup للكوستمر بس
+    const userByCustomer = new Map(
+      (u.data||[])
+       .filter(x=> x["Customer ID"] && x["Role"]==='Customer')
+       .map(x=>[x["Customer ID"], x])
+    )
+
+    const customers = (c.data||[]).map((x,i)=>{
+      const uMatch = userByCustomer.get(x["Customer ID"])
+      return {
+        key: `c-${i}`,
+        userId: uMatch?.["User ID"] || null, // للابديت ع users
+        realCustomerId: x["Customer ID"], // للربط
+        name: x['Name'] || 'زبون',
+        mobile: x['Mobile'] || '',
+        full_mobile: x['Mobile'] || '',
+        address: x['Area'] || '',
+        status: x['Status'] || '',
+        extra: `مجاني: ${x['Free Delivery Remaining']||0} - ${x['Status']||''}`,
+        taxi_status: uMatch?.taxi?? null, // ✅ yes / no / null من users
+        lat: parseFloat(x['Current Latitude']||x['Registration Latitude']),
+        lng: parseFloat(x['Current Longtitude']||x['Registration Longitude']),
+        type: 'customers'
+      }
+    }).filter(x=>!isNaN(x.lat)&&x.lat!==0)
 
     const stores = (s.data||[]).map((x,i)=>({
       key: `s-${i}`,
       name: x['Store Name'] || 'متجر',
-      mobile: x['Mobile'] || '', // ✅ هون كان فاضي - رجعنا الرقم
+      mobile: x['Mobile'] || '',
       full_mobile: x['Mobile'] || '',
       address: x['Area'] || x['Adress'] || '',
       status: x['Status'] || '',
