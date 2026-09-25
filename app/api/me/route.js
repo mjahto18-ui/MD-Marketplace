@@ -49,6 +49,7 @@ export async function GET() {
         email: userData['Email'],
         status: userData['Status'],
         AcceptedTerms: userData['AcceptedTerms'],
+        taxi: userData['taxi'] ?? null,
 
         // من جدول Customers
         customerId: customerData['Customer ID'],
