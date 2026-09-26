@@ -13,7 +13,7 @@ const BOT2_START_COMMAND = "START_ORDER";
 const BOT3_URL = process.env.BOT3_URL || "https://www.md-marketplace.store/api/whatsapp/bot3";
 const BOT3_BRIDGE_KEY = process.env.BOT3_BRIDGE_KEY || "MDM_BOT1_TO_BOT3_TAXI";
 const BOT3_START_COMMAND = "START_TAXI";
-const BOT3_SESSION = "BOT3_TAXI";
+
 
 const BOT1_SESSION = "BOT1";
 const BOT2_SESSION = "BOT2";
