@@ -475,17 +475,14 @@ async function getBotSessionTable(phone) {
   return filtered[0] || null;
 }
 async function openBot3Session(phone) {
-  const now = new Date().toISOString();
-  const norm = normalizeWhatsAppNumber(phone);
-  const supabase = getSupabase();
-  try {
-    const { data: existing } = await supabase.from('bot_sessions').select('*').eq('Phone', norm).order('Last Activity', {ascending:false}).limit(1).maybeSingle();
-    if (existing) {
-      const { error } = await supabase.from('bot_sessions').update({ "Active Bot": BOT3_SESSION, Status: "ACTIVE", "Last Activity": now, "Closed At": "" }).eq('id', existing.id);
-      if (!error) return { ok: true };
-    }
-  } catch(e){ console.log("openBot3 check error", e.message); }
-  return await appSheetAction("Bot Sessions", "Add", [{ Phone: norm, "Active Bot": BOT3_SESSION, Status: "ACTIVE", "Started At": now, "Last Activity": now, "Request ID": "", "Closed At": "", data: {} }]);
+  const beirutString = new Date().toISOString();
+  return await appSheetAction("Bot Sessions", "Add", [{
+    Phone: normalizeWhatsAppNumber(phone),
+    "Active Bot": BOT3_SESSION,
+    Status: "ACTIVE",
+    "Started At": beirutString,
+    "Last Activity": beirutString
+  }]);
 }
 async function openBot2Session(phone) {
   const beirutString = new Date().toISOString();
