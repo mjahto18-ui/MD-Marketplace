@@ -915,7 +915,7 @@ export async function POST(req) {
       return Response.json({ status: "ok" }, { status: 200 });
     }
     if (message?.type === "location") {
-  console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude);
+  console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude, message.location.name, message.location.address);
   return Response.json({ status: "ok" }, { status: 200 });
 }
     if (message?.type === "location") {
