@@ -17,6 +17,7 @@ const BOT3_SESSION = "BOT3_TAXI";
 
 const BOT1_SESSION = "BOT1";
 const BOT2_SESSION = "BOT2";
+const BOT3_SESSION = "BOT3_TAXI";
 const WEBSITE_URL = "https://www.md-marketplace.store";
 const INFO_EMAIL = "info@md-marketplace.store";
 const SUPPORT_EMAIL = "support@md-marketplace.store";
