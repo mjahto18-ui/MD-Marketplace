@@ -914,6 +914,15 @@ export async function POST(req) {
       await saveToAppSheet(from, `صورة باركود ${decoded}`, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BARCODE_IMAGE_OFF" });
       return Response.json({ status: "ok" }, { status: 200 });
     }
+    if (message?.type === "location") {
+  console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude);
+  return Response.json({ status: "ok" }, { status: 200 });
+}
+    if (message?.type === "location") {
+  console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude);
+  await sendMessage(from, `📍 وصل اللوكيشن: ${message.location.latitude}, ${message.location.longitude} - التيست نجح ✅`);
+  return Response.json({ status: "ok" }, { status: 200 });
+}
     let userText = "";
     if (message?.type === "text") { userText = message.text.body || body.text || ""; }
     else if (message?.type === "audio" && message?.audio?.id) {
