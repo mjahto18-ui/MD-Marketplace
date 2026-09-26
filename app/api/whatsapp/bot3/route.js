@@ -52,13 +52,13 @@ async function getBotSessionRow(phone) {
 }
 async function touchBotSession(phone) {
   const supabase = getSupabase();
-  await supabase.from('bot_sessions').update({ "Last Activity": new Date().toISOString() }).eq('Phone', normalizeWhatsAppNumber(phone));
+  await supabase.from('bot_sessions').update({ "Last Activity": new Date().toISOString() }).eq('Phone', normalizeWhatsAppNumber(phone)).eq('Active Bot', 'BOT3_TAXI');
 }
 async function closeBotSessionAndReturnToBot1(phone, reason="TAXI_DONE") {
   const supabase = getSupabase();
   const now = new Date().toISOString();
   console.log(`🔒 تسكير BOT3 لـ ${phone} سبب: ${reason} -> BOT1`);
-  await supabase.from('bot_sessions').update({ "Active Bot": "BOT1", Status: "CLOSED", "Closed At": now, "Last Activity": now }).eq('Phone', normalizeWhatsAppNumber(phone));
+  await supabase.from('bot_sessions').update({ "Active Bot": "BOT1", Status: "CLOSED", "Closed At": now, "Last Activity": now, data: null }).eq('Phone', normalizeWhatsAppNumber(phone));
 }
 async function createOrUpdateBot3Session(phone, dataPatch={}) {
   const supabase = getSupabase();
@@ -66,43 +66,59 @@ async function createOrUpdateBot3Session(phone, dataPatch={}) {
   const norm = normalizeWhatsAppNumber(phone);
   const existing = await getBotSessionRow(phone);
   const base = { Phone: norm, "Active Bot": "BOT3_TAXI", Status: "ACTIVE", "Started At": existing?.["Started At"] || now, "Last Activity": now, "Request ID": existing?.["Request ID"] || "" };
-  const mergedData = {...(existing?.data || {}),...dataPatch };
+  // نحفظ origin/dest مؤقت ب data column - مش ب messages
+  const mergedData = { ...(existing?.data || {}), ...dataPatch };
   if (existing) {
-    // مجبر يعدل بس بالسطر اللي مربوط بالرقم Phone هو المفتاح
-    await supabase.from('bot_sessions').update({...base, data: mergedData }).eq('Phone', norm);
+    await supabase.from('bot_sessions').update({ ...base, data: mergedData }).eq('Phone', norm);
   } else {
-    await supabase.from('bot_sessions').insert([{...base, data: mergedData, "Closed At": "" }]);
+    await supabase.from('bot_sessions').insert([{ ...base, data: mergedData, "Closed At": "" }]);
   }
   return mergedData;
 }
 
-// ---- جلب بيانات العميل - البحث الوحيد هو الرقم ----
-// ملاحظة: من واتساب بيجي الرقم كامل 966551653968
-// لازم نقارنو مع WhatsApp Number لانو كامل متلو متل الواتساب
+// ---- جلب بيانات العميل متل BOT2 و create-draft ----
 async function getCustomerByPhone(phone) {
   const supabase = getSupabase();
-  const phoneW = normalizeWhatsAppNumber(phone);
+  const phoneNorm = normalizePhone(phone);
   const { data: customers } = await supabase.from('customers').select('*');
   for (const c of customers || []) {
-    const mobileW = normalizeWhatsAppNumber(c["Mobile"] || "");
-    if (mobileW === phoneW) return c;
+    const mobile = normalizePhone(c["Mobile"] || "");
+    if (mobile === phoneNorm) return c;
   }
   return null;
 }
 async function getUserTaxiStatus(phone) {
   const supabase = getSupabase();
-  const phoneW = normalizeWhatsAppNumber(phone);
-  if (!phoneW) return null;
+  const phoneNorm = normalizePhone(phone);
+  const phoneTrim = String(phone).trim();
   const { data: usersRows } = await supabase.from('users').select('*');
   for (const u of usersRows || []) {
-    const waNum = normalizeWhatsAppNumber(u['WhatsApp Number'] || '');
-    if (waNum && waNum === phoneW) return u; // بس واتس نمبر كامل
+    const m = String(u['Mobile'] || '').trim();
+    const mNorm = normalizePhone(m);
+    if (m === phoneTrim || mNorm === phoneNorm) return u;
   }
   return null;
 }
 
+
+async function getNextWhatsAppOrderCode() {
+  const supabase = getSupabase();
+  try {
+    const { data } = await supabase.from('taxi_orders').select('order_code').ilike('order_code', 'MD-W%').order('created_at', { ascending: false }).limit(1);
+    let nextNum = 1;
+    if (data && data.length > 0 && data[0].order_code) {
+      const match = data[0].order_code.match(/MD-W(\d+)/);
+      if (match) nextNum = parseInt(match[1], 10) + 1;
+    }
+    return `MD-W${String(nextNum).padStart(5, '0')}`;
+  } catch(e) {
+    console.log("getNextCode error", e.message);
+    return `MD-W${String(Date.now()).slice(-5).padStart(5,'0')}`;
+  }
+}
+
 function getEstimateEngineCode(vehicle_type, bundle) {
-  const engines = bundle?.engines? Object.values(bundle.engines) : [];
+  const engines = bundle?.engines ? Object.values(bundle.engines) : [];
   if (vehicle_type === 'moto') {
     const f = engines.filter(e => e.vehicle_type === 'moto' || e.code === '150'); f.sort((a,b)=>Number(b.factor)-Number(a.factor)); return f[0]?.code || '150';
   }
@@ -124,7 +140,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const body = await req.json();
-
+    
+    // ---- Bridge من BOT1 -> BOT3 ----
     if (body.command === "START_TAXI" || body.transferKey === "START_TAXI" || body.event === "NEW_TAXI") {
       const bridgePhone = normalizeWhatsAppNumber(body.phone || body.Phone || body.from || "");
       if (!bridgePhone) return NextResponse.json({ status: "ok", error: "NO_PHONE" });
@@ -141,24 +158,25 @@ export async function POST(req) {
 
     const whatsappNumber = normalizeWhatsAppNumber(from);
     const session = await getBotSessionRow(whatsappNumber);
-    if (!session || session["Active Bot"]!== "BOT3_TAXI" || session.Status!== "ACTIVE") {
+    if (!session || session["Active Bot"] !== "BOT3_TAXI" || session.Status !== "ACTIVE") {
       return NextResponse.json({ status: "ok", action: "NOT_BOT3" });
     }
 
     await touchBotSession(whatsappNumber);
 
+    // ---- جلب بيانات العميل + فحص taxi (null / yes / no) ----
     const customerRow = await getCustomerByPhone(whatsappNumber);
-    const userRow = await getUserTaxiStatus(whatsappNumber);
+    const userRow = await getUserTaxiStatus(from);
 
     if (!customerRow) {
       await sendMessage(whatsappNumber, "ما لقيت حسابك بجدول العملاء، لازم تسجل اول شي على md-marketplace.store");
       return NextResponse.json({ status: "ok" });
     }
 
-    const taxiFlag = userRow?.taxi;
+    const taxiFlag = userRow?.taxi; // null | yes | no
     if (taxiFlag === null || taxiFlag === undefined || String(taxiFlag).trim() === "") {
       await sendMessage(whatsappNumber, "خدمة التاكسي مش متاحة لحسابك حاليا 🙏");
-      console.log(`🚫 TAXI null/مش متاحة لـ ${whatsappNumber} - WhatsApp Number: ${userRow?.["WhatsApp Number"]}`);
+      console.log(`🚫 TAXI null/مش متاحة لـ ${whatsappNumber}`);
       await closeBotSessionAndReturnToBot1(whatsappNumber, "TAXI_NULL_NOT_AVAILABLE");
       return NextResponse.json({ status: "ok", taxi: "null_not_available" });
     }
@@ -168,16 +186,18 @@ export async function POST(req) {
       await closeBotSessionAndReturnToBot1(whatsappNumber, "TAXI_NO_BLOCKED");
       return NextResponse.json({ status: "ok", taxi: "no_blocked" });
     }
+    // yes -> مسموح
 
     const customer_id = customerRow["Customer ID"]?.toString();
     const customer_name = customerRow["Name"] || customerRow["Customer Name"] || "";
     const customer_phone = customerRow["Mobile"] || from;
 
     const text = message?.text?.body || body?.text || "";
-    const loc = message?.location || null;
+    const loc = message?.location || null; // واتساب live location
 
     let currentData = session?.data || {};
 
+    // ---- استقبال لوكيشن ----
     if (loc && loc.latitude && loc.longitude) {
       const lat = Number(loc.latitude);
       const lng = Number(loc.longitude);
@@ -185,18 +205,21 @@ export async function POST(req) {
       const address = loc.address || name;
 
       if (!currentData.origin_lat) {
-        console.log(`📍 BOT3 ORIGIN ${whatsappNumber} => lat=${lat} lng=${lng} name=${name}`);
+        // اول نقطة = من وين
+        console.log(`📍 BOT3 ORIGIN ${whatsappNumber} => lat=${lat} lng=${lng} name=${name} | لوج مؤقت ينمحى بعد ساعة`);
         currentData = await createOrUpdateBot3Session(whatsappNumber, { origin_lat: lat, origin_lng: lng, origin_name: name, origin_address: address });
-        await sendMessage(whatsappNumber, `تمام لقطت موقعك من: ${name} ✅\n\nهلا لوين؟ فوت اعمل بحث واتساب و بعتلي الموقع التاني  📍`);
+        await sendMessage(whatsappNumber, `تمام لقطت موقعك من: ${name} ✅\n\nهلا لوين؟ فوت اعمل بحث واتساب و بعتلي الموقع التاني (متل حميط 49897) 📍`);
         return NextResponse.json({ status: "ok", step: "ORIGIN_SAVED" });
       } else if (!currentData.dest_lat) {
-        console.log(`📍 BOT3 DEST ${whatsappNumber} => lat=${lat} lng=${lng} name=${name}`);
+        // تاني نقطة = لوين
+        console.log(`📍 BOT3 DEST ${whatsappNumber} => lat=${lat} lng=${lng} name=${name} | لوج مؤقت ينمحى بعد ساعة`);
         currentData = await createOrUpdateBot3Session(whatsappNumber, { dest_lat: lat, dest_lng: lng, dest_name: name, dest_address: address });
-        await sendMessage(whatsappNumber, `ممتاز! من ${currentData.origin_name} الى ${name} ✅\n\nيرجى تحديد نوع الالية:\n1⃣ موتو\n2⃣ سيارة\n3⃣ توكتوك\n\nاكتب: موتو او سيارة او توكتوك`);
+        await sendMessage(whatsappNumber, `ممتاز! من ${currentData.origin_name} الى ${name} ✅\n\nيرجى تحديد نوع الالية:\n1️⃣ موتو\n2️⃣ سيارة\n3️⃣ توكتوك\n\nاكتب: موتو او سيارة او توكتوك`);
         return NextResponse.json({ status: "ok", step: "DEST_SAVED" });
       }
     }
 
+    // ---- اختيار الالية ----
     if (currentData.origin_lat && currentData.dest_lat && text) {
       const t = normalizeText(text);
       let vehicle_type = null;
@@ -209,21 +232,29 @@ export async function POST(req) {
         return NextResponse.json({ status: "ok", step: "WAIT_VEHICLE" });
       }
 
+      // ---- حساب السعر متل create-draft ----
       const bundle = await getPricingConfig();
       const engineCode = getEstimateEngineCode(vehicle_type, bundle);
+
+      // حساب مسافة بسيط haversine للعرض (create-draft بيحسبها اصلا)
       const R = 6371;
       const dLat = (currentData.dest_lat - currentData.origin_lat) * Math.PI/180;
       const dLng = (currentData.dest_lng - currentData.origin_lng) * Math.PI/180;
       const a = Math.sin(dLat/2)**2 + Math.cos(currentData.origin_lat*Math.PI/180)*Math.cos(currentData.dest_lat*Math.PI/180)*Math.sin(dLng/2)**2;
       const totalKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
       const fare = calculateFare({
         cityKm: totalKm, highwayKm: 0, totalKm: totalKm,
         engineCode: engineCode, area: 'default', vehicle_type: vehicle_type,
         routeKey: 'default', pricingBundle: bundle, isDriverAcceptance: false
       });
 
+      console.log(`💰 BOT3 FARE ${whatsappNumber} origin=${currentData.origin_lat},${currentData.origin_lng} dest=${currentData.dest_lat},${currentData.dest_lng} vehicle=${vehicle_type} km=${totalKm.toFixed(2)} price=${fare.customer_pays_lbp} | لوج مؤقت`);
+
       const supabase = getSupabase();
+      const nextOrderCode = await getNextWhatsAppOrderCode();
       const { data: orderData, error } = await supabase.from('taxi_orders').insert({
+        order_code: nextOrderCode,
         customer_id: customer_id,
         customer_name: customer_name,
         customer_phone: customer_phone,
@@ -249,15 +280,22 @@ export async function POST(req) {
         return NextResponse.json({ status: "ok", error: error.message });
       }
 
-      const tripCode = orderData.id? `TAXI-${String(orderData.id).slice(0,5).toUpperCase()}` : `TAXI-${Date.now().toString().slice(-5)}`;
-      const reply = `✅ تم تسجيل طلبك!\n\n📍 من: ${currentData.origin_name}\n📍 الى: ${currentData.dest_name}\n🚗 الالية: ${vehicle_type}\n📏 المسافة: ${totalKm.toFixed(2)} كم\n💰 السعر التقريبي: ${fare.customer_pays_lbp?.toLocaleString()} ل.ل\n\n📌 كود الرحلة: *${tripCode}*\n⏳ بانتظار سائق قريب...\n\nتابع رحلتك من هون:\n${SITE_URL}/taxi\n\nفوت بحسابك وشوف حالة الطلب 🚕`;
+      const tripCode = orderData.id ? `TAXI-${String(orderData.id).slice(0,5).toUpperCase()}` : `TAXI-${Date.now().toString().slice(-5)}`;
+
+      const reply = `✅ تم تسجيل طلبك!\n\n📍 من: ${currentData.origin_name}\n📍 الى: ${currentData.dest_name}\n🚗 الالية: ${vehicle_type}\n📏 المسافة: ${totalKm.toFixed(2)} كم\n💰 السعر التقريبي: ${fare.customer_pays_lbp?.toLocaleString()} ل.ل\n\n⏳ في انتظار موافقة السائق\n\n📌 يرجى الدخول الى التطبيق لاستلام كود الرحلة ${tripCode} ومتابع نشاطها\nmd-marketplace.store/taxi/${tripCode}`;
 
       await sendMessage(whatsappNumber, reply);
-      console.log(`✅ BOT3 ORDER CREATED ${tripCode}`);
+      console.log(`✅ BOT3 ORDER CREATED ${tripCode} customer=${customer_id} origin=${currentData.origin_lat},${currentData.origin_lng} dest=${currentData.dest_lat},${currentData.dest_lng} | لوج ينمحى بعد ساعة`);
+
+      // ---- فصل وارجاع ل BOT1 متل BOT2 ----
       await closeBotSessionAndReturnToBot1(whatsappNumber, "TAXI_ORDER_DONE");
+      
+      // ما منسجل ب messages ابدا - بس taxi_orders + لوج فيرسيل المؤقت
+
       return NextResponse.json({ status: "ok", action: "TAXI_DRAFT_CREATED", tripCode });
     }
 
+    // اذا بعده ما بعت لوكيشن
     if (!currentData.origin_lat) {
       await sendMessage(whatsappNumber, "بعتلي موقعك الحالي 📍 من وين بدك نبلش؟");
     } else if (!currentData.dest_lat) {
