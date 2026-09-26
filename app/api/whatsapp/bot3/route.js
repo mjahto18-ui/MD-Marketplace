@@ -95,11 +95,8 @@ async function getUserTaxiStatus(phone) {
   if (!phoneW) return null;
   const { data: usersRows } = await supabase.from('users').select('*');
   for (const u of usersRows || []) {
-    // بس بـ WhatsApp Number لان بيجي كامل متلو متل الواتساب
     const waNum = normalizeWhatsAppNumber(u['WhatsApp Number'] || '');
-    if (waNum && waNum === phoneW) {
-      return u;
-    }
+    if (waNum && waNum === phoneW) return u; // بس واتس نمبر كامل
   }
   return null;
 }
@@ -190,7 +187,7 @@ export async function POST(req) {
       if (!currentData.origin_lat) {
         console.log(`📍 BOT3 ORIGIN ${whatsappNumber} => lat=${lat} lng=${lng} name=${name}`);
         currentData = await createOrUpdateBot3Session(whatsappNumber, { origin_lat: lat, origin_lng: lng, origin_name: name, origin_address: address });
-        await sendMessage(whatsappNumber, `تمام لقطت موقعك من: ${name} ✅\n\nهلا لوين؟ فوت اعمل بحث واتساب و بعتلي الموقع التاني (متل حميط 49897) 📍`);
+        await sendMessage(whatsappNumber, `تمام لقطت موقعك من: ${name} ✅\n\nهلا لوين؟ فوت اعمل بحث واتساب و بعتلي الموقع التاني  📍`);
         return NextResponse.json({ status: "ok", step: "ORIGIN_SAVED" });
       } else if (!currentData.dest_lat) {
         console.log(`📍 BOT3 DEST ${whatsappNumber} => lat=${lat} lng=${lng} name=${name}`);
