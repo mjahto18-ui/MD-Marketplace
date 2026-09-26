@@ -10,6 +10,10 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const BOT2_URL = process.env.BOT2_URL || "https://www.md-marketplace.store/api/whatsapp-bot2";
 const BOT2_BRIDGE_KEY = process.env.BOT2_BRIDGE_KEY || "MDM_BOT1_TO_BOT2_ORDER";
 const BOT2_START_COMMAND = "START_ORDER";
+const BOT3_URL = process.env.BOT3_URL || "https://www.md-marketplace.store/api/whatsapp/bot3";
+const BOT3_BRIDGE_KEY = process.env.BOT3_BRIDGE_KEY || "MDM_BOT1_TO_BOT3_TAXI";
+const BOT3_START_COMMAND = "START_TAXI";
+const BOT3_SESSION = "BOT3_TAXI";
 
 const BOT1_SESSION = "BOT1";
 const BOT2_SESSION = "BOT2";
@@ -335,6 +339,11 @@ function getStoreOpenStatus(openTime, closeTime) {
   if (close < open) return { isOpen: now >= open || now < close };
   return { isOpen: now >= open && now < close };
 }
+function isTaxiIntent(userMessage) {
+  const message = normalizeText(userMessage);
+  const taxiPatterns = ["بدي تاكسي","بدي تكسي","بدي تكتك","بدي توكتوك","بدي توك توك","بدي موتو","تاكسي","تكسي","توكتوك","توك توك","موتو تاكسي","سيارة اجرة","بدي سيارة","وصلني","taxi","toktok","moto taxi"];
+  return taxiPatterns.some(p => message.includes(normalizeText(p)));
+}
 function isNewOrderIntent(userMessage) {
   const message = normalizeText(userMessage);
   const existingOrderPatterns = ["وين طلبي","وين الطلب","وين اوردري","وين الاوردر","وين صار الطلب","وين صار طلبي","وين صار الاوردر","وين صار اوردري","شو صار بطلب","شو صار بالطلب","شو صار بطلبي","شو صار بالاوردر","شو صار باوردري","حالة الطلب","حاله الطلب","حالة طلبي","حالة اوردري","حالة الأوردر","حالة الاوردر","طلبي وين صار","وين صار طلبي","وصل طلبي","وصل الطلب","وصل الاوردر","طلبتي وين","اوردري وين"];
@@ -418,13 +427,29 @@ async function getUserByWhatsAppNumber(whatsappNumber) {
         active: row["Active"] || "",
         gender: String(row["Gender"] || "").toLowerCase().trim(),
         assignedPersona: String(row["Assigned Persona"] || "").toLowerCase().trim(),
-        acceptedTerms: row["AcceptedTerms"] || ""
+        acceptedTerms: row["AcceptedTerms"] || "",
+        taxi: row["taxi"] || null
       };
       console.log("🎯 المستخدم:", JSON.stringify(user));
       return user;
     }
   }
   console.log("👤 الزائر غير مسجل في Users");
+  return null;
+}
+async function getCustomerRowByPhone(whatsappNumber, customerId) {
+  try {
+    const supabase = getSupabase();
+    const phoneNorm = String(whatsappNumber||"").replace(/\D/g,"");
+    const custIdNorm = String(customerId||"").trim();
+    const { data } = await supabase.from('customers').select('*');
+    for (const c of data||[]) {
+      const cid = String(c["Customer ID"]||c["customer ID"]||"").trim();
+      if (custIdNorm && cid && cid === custIdNorm) return c;
+      const m = String(c["Mobile"]||"").replace(/\D/g,"");
+      if (m === phoneNorm || m.endsWith(phoneNorm.slice(-8)) || phoneNorm.endsWith(m.slice(-8))) return c;
+    }
+  } catch(e){}
   return null;
 }
 
@@ -448,6 +473,19 @@ async function getBotSessionTable(phone) {
   const filtered = rows.filter(r => normalizeWhatsAppNumber(r["Phone"] || "") === normalized);
   filtered.sort((a,b)=> new Date(b["Last Activity"]||b["Started At"]||0) - new Date(a["Last Activity"]||a["Started At"]||0));
   return filtered[0] || null;
+}
+async function openBot3Session(phone) {
+  const now = new Date().toISOString();
+  const norm = normalizeWhatsAppNumber(phone);
+  const supabase = getSupabase();
+  try {
+    const { data: existing } = await supabase.from('bot_sessions').select('*').eq('Phone', norm).order('Last Activity', {ascending:false}).limit(1).maybeSingle();
+    if (existing) {
+      const { error } = await supabase.from('bot_sessions').update({ "Active Bot": BOT3_SESSION, Status: "ACTIVE", "Last Activity": now, "Closed At": "" }).eq('id', existing.id);
+      if (!error) return { ok: true };
+    }
+  } catch(e){ console.log("openBot3 check error", e.message); }
+  return await appSheetAction("Bot Sessions", "Add", [{ Phone: norm, "Active Bot": BOT3_SESSION, Status: "ACTIVE", "Started At": now, "Last Activity": now, "Request ID": "", "Closed At": "", data: {} }]);
 }
 async function openBot2Session(phone) {
   const beirutString = new Date().toISOString();
@@ -520,6 +558,54 @@ async function transferToBot2({ from, user, originalMessage }) {
   const opened = await openBot2Session(from);
   if (!opened?.ok) { console.error("❌ فشل فتح جلسة BOT2 في جدول Bot Sessions"); return false; }
   console.log("✅ تم الانتقال - Session = BOT2 في جدول Bot Sessions");
+  return true;
+}
+async function sendToBot3({ from, user, originalMessage }) {
+  if (!BOT3_URL) return false;
+  try {
+    const payload = {
+      command: "START_TAXI", transferKey: BOT3_START_COMMAND, bridgeKey: BOT3_BRIDGE_KEY,
+      sourceBot: BOT1_SESSION, targetBot: BOT3_SESSION, event: "NEW_TAXI",
+      phone: normalizeWhatsAppNumber(from), originalMessage: originalMessage,
+      user: user? { userId: user.userId || "", customerId: user.customerId || "", name: user.name || "", mobile: user.mobile || "", whatsappNumber: user.whatsappNumber || "", taxi: user.taxi || null } : null,
+      startMessage: "تكرم عينك 🚕 من وين بدك نبلش؟ بعتلي موقعك الحالي 📍"
+    };
+    console.log("🔀 إرسال Bridge إلى BOT3:", JSON.stringify({ event: payload.event, phone: payload.phone }));
+    const response = await fetch(BOT3_URL, { method: "POST", headers: { "Content-Type": "application/json", "x-md-bridge-key": BOT3_BRIDGE_KEY }, body: JSON.stringify(payload) });
+    const text = await response.text();
+    console.log("🤖 نتيجة BOT3:", response.status, text);
+    if (!response.ok) return false;
+    return true;
+  } catch (error) { console.error("❌ فشل Bridge إلى BOT3:", error); return false; }
+}
+async function transferToBot3({ from, user, originalMessage }) {
+  if (!user) {
+    await sendMessage(from, `تكرم عينك! 😊 حتى اقدر بلشلك طلب تاكسي، بس سجل حساب سريع على موقعنا ${WEBSITE_URL} وبس تخلص قلي بدي تاكسي وانا جاهز دغري 🚕`);
+    return false;
+  }
+  const custRow = await getCustomerRowByPhone(from, user.customerId);
+  if (!custRow) {
+    await sendMessage(from, `لقيت اسمك يا ${user.name || ''} بس بعدك مش مسجل كزبون 😊 كمل تسجيلك على ${WEBSITE_URL} وبس تخلص قلي بدي تاكسي 🚕`);
+    return false;
+  }
+  const taxiFlag = user.taxi;
+  if (taxiFlag === null || taxiFlag === undefined || String(taxiFlag).trim() === "") {
+    await sendMessage(from, "خدمة التاكسي مش متاحة لحسابك حاليا 🙏 فيك تتواصل معنا على " + CONTACT_PHONE);
+    console.log(`🚫 BOT1->BOT3 BLOCKED null/مش متاحة ${from}`);
+    return false;
+  }
+  if (String(taxiFlag).toLowerCase() === "no") {
+    await sendMessage(from, "🔒 خدمة MD-TAXI موقفة لحسابك");
+    console.log(`🚫 BOT1->BOT3 BLOCKED no/محظور ${from}`);
+    return false;
+  }
+  console.log("🌉 BOT1 -> BOT3_TAXI", from);
+  await saveToAppSheet(from, originalMessage, "TRANSFER_TO_BOT3_TAXI", { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BOT_TRANSFER" });
+  const sent = await sendToBot3({ from, user, originalMessage });
+  if (!sent) { console.error("❌ BOT3 لم يستقبل Bridge"); return false; }
+  const opened = await openBot3Session(from);
+  if (!opened?.ok) { console.error("❌ فشل فتح جلسة BOT3"); return false; }
+  console.log("✅ تم الانتقال - Session = BOT3_TAXI");
   return true;
 }
 async function searchProducts(userMessage) {
@@ -918,15 +1004,24 @@ export async function POST(req) {
       await saveToAppSheet(from, `صورة باركود ${decoded}`, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BARCODE_IMAGE_OFF" });
       return Response.json({ status: "ok" }, { status: 200 });
     }
+    // ===== LOCATION FORWARD TO BOT3 - مصلح (كان عندك تيست مكرر) =====
     if (message?.type === "location") {
-  console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude, message.location.name, message.location.address);
-  return Response.json({ status: "ok" }, { status: 200 });
-}
-    if (message?.type === "location") {
-  console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude);
-  await sendMessage(from, `📍 وصل اللوكيشن: ${message.location.latitude}, ${message.location.longitude} - التيست نجح ✅`);
-  return Response.json({ status: "ok" }, { status: 200 });
-}
+      const whatsappNumberEarly = normalizeWhatsAppNumber(from);
+      const sessionEarly = await getBotSessionTable(whatsappNumberEarly);
+      const activeBotEarly = sessionEarly? String(sessionEarly["Active Bot"]||"").trim() : "";
+      if (activeBotEarly === BOT3_SESSION) {
+        console.log(`📍 BOT1 Forward LOCATION to BOT3: ${message.location.latitude},${message.location.longitude} for ${whatsappNumberEarly}`);
+        try {
+          await fetch(BOT3_URL, {
+            method: "POST", headers: { "Content-Type": "application/json", "x-md-bridge-key": BOT3_BRIDGE_KEY },
+            body: JSON.stringify({ entry: [{ changes: [{ value: { messages: [message] } }] }], from: whatsappNumberEarly })
+          });
+        } catch(e){ console.error("BOT1->BOT3 location forward error", e.message); }
+        return Response.json({ status: "ok", forwarded_to: "BOT3_LOCATION" }, { status: 200 });
+      }
+      console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude, message.location.name, message.location.address);
+      return Response.json({ status: "ok" }, { status: 200 });
+    }
     let userText = "";
     if (message?.type === "text") { userText = message.text.body || body.text || ""; }
     else if (message?.type === "audio" && message?.audio?.id) {
@@ -1036,6 +1131,12 @@ export async function POST(req) {
     const user = await getUserByWhatsAppNumber(whatsappNumber);
     const sessionRow = await getBotSessionTable(whatsappNumber);
     const currentBotSession = sessionRow? String(sessionRow["Active Bot"] || BOT1_SESSION).trim() : BOT1_SESSION;
+    if (currentBotSession === BOT3_SESSION) {
+      try {
+        await fetch(BOT3_URL, { method: "POST", headers: { "Content-Type": "application/json", "x-md-bridge-key": BOT3_BRIDGE_KEY }, body: JSON.stringify({ from: whatsappNumber, text: userText, whatsappNumber: whatsappNumber, entry: body.entry }) });
+      } catch (e) { console.error("BOT1->BOT3 text forward error", e.message); }
+      return Response.json({ status: "ok", forwarded_to: "BOT3" }, { status: 200 });
+    }
     if (currentBotSession === BOT2_SESSION) {
       try {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.md-marketplace.store";
@@ -1043,8 +1144,27 @@ export async function POST(req) {
       } catch (e) { console.error("❌ فشل تحويل لـ BOT2:", e.message); }
       return Response.json({ status: "ok", forwarded_to: "BOT2" }, { status: 200 });
     }
+    // ===== TAXI INTENT CHECK - جديد - مع شرط الكوستمر =====
+    if (isTaxiIntent(userText)) {
+      console.log(`🚕 Taxi intent detected: ${userText} from ${whatsappNumber}`);
+      const transferredTaxi = await transferToBot3({ from: whatsappNumber, user, originalMessage: userText });
+      if (transferredTaxi) {
+        return Response.json({ status: "ok", transferred: true, target: "BOT3", command: BOT3_START_COMMAND }, { status: 200 });
+      } else {
+        return Response.json({ status: "ok", blocked: "taxi_blocked" }, { status: 200 });
+      }
+    }
     const newOrderIntent = isNewOrderIntent(userText);
-    if (newOrderIntent && user) {
+    if (newOrderIntent) {
+      if (!user) {
+        await sendMessage(from, `تكرم عينك! 😊 حتى اقدر بلشلك الأوردر، بس سجل حساب سريع على موقعنا ${WEBSITE_URL} وبس تخلص قلي شو حابب تطلب وانا جاهز دغري`);
+        return Response.json({ status: "ok", blocked: "not_customer" }, { status: 200 });
+      }
+      const custRow = await getCustomerRowByPhone(whatsappNumber, user?.customerId);
+      if (!custRow) {
+        await sendMessage(from, `لقيت اسمك يا ${user.name || ''} بس بعدك مش مسجل كزبون 😊 كمل تسجيلك على ${WEBSITE_URL} وبس تخلص قلي شو حابب تطلب`);
+        return Response.json({ status: "ok", blocked: "no_customer_id" }, { status: 200 });
+      }
       const transferred = await transferToBot2({ from: whatsappNumber, user, originalMessage: userText });
       if (transferred) { return Response.json({ status: "ok", transferred: true, target: "BOT2", command: BOT2_START_COMMAND }, { status: 200 }); }
     }
