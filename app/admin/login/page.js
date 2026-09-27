@@ -21,11 +21,34 @@ export default function AdminLogin(){
       })
       const j = await res.json()
       if(j.success){ 
+        // ✅ هون الجديد - نجيب Subscription ID متل مدخل الكوستمر
+        try{
+          if(typeof window !== "undefined" && window.OneSignal){
+            await window.OneSignal.login(phone);
+            let subId = null;
+            for(let i=0;i<10;i++){
+              try{ subId = window.OneSignal.User?.PushSubscription?.id || await window.OneSignal.User.PushSubscription.id; }catch{}
+              if(subId) break;
+              await new Promise(r=>setTimeout(r,500));
+            }
+            if(subId){
+              // جرب ناخد userId من الـ API، اذا مش موجود منعمل fetch للـ users
+              const userIdForSub = j.userId || j.user?.userId || j.userID || null;
+              if(userIdForSub){
+                await fetch("/api/save-subscription",{
+                  method:"POST",
+                  headers:{"Content-Type":"application/json"},
+                  body:JSON.stringify({ userId: userIdForSub, subscriptionId: subId })
+                });
+              }
+            }
+          }
+        }catch(e){ console.log("OneSignal admin error", e) }
+
         // ✅ صار يقرا من الـ API وين يروح
         if(j.redirectTo){
           router.push(j.redirectTo)
         } else {
-          // fallback قديم
           if(j.role === 'Store Owner') router.push('/store-owner')
           else if(j.role === 'Driver') router.push('/driver-owner')
           else if(j.role === 'Taxi Driver') router.push('/taxi-driver')
