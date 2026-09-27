@@ -17,7 +17,7 @@ export async function POST(req) {
       code, role, name, phone, area, lat, lng,
       vehicleTyp,
       gender, vehicle_type, engine_cc, car_color, plate_number, car_type, address, seats,
-      storeName, storeAddress, openTime, closeTime,
+      storeName, storeAddress, openTime, closeTime, category, description
     } = body;
 
     if (!code || !/\d{6}/.test(String(code))) return NextResponse.json({ error: 'كود الدعوة ناقص' }, { status: 400 });
@@ -34,6 +34,9 @@ export async function POST(req) {
     const now = new Date().toISOString();
     const latNum = parseFloat(lat);
     const lngNum = parseFloat(lng);
+    // Join Date dd/mm/yyyy now
+    const d = new Date();
+    const joinDate = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 
     if (role === 'driver') {
       if (!vehicleTyp || !['Moto','Car','Van'].includes(vehicleTyp)) return NextResponse.json({ error: 'نوع المركبة لازم Moto أو Car أو Van' }, { status: 400 });
@@ -52,12 +55,13 @@ export async function POST(req) {
 
     } else if (role === 'taxi_driver') {
       if (!vehicle_type) return NextResponse.json({ error: 'نوع السيارة إجباري' }, { status: 400 });
-      if (!engine_cc) return NextResponse.json({ error: 'قوة المحرك إجبارية - 1200/1500/2000/2500/150/200/toktok' }, { status: 400 });
+      if (!engine_cc) return NextResponse.json({ error: 'قوة المحرك إجبارية - 1200/1500/2000/2500/150/200' }, { status: 400 });
       if (!car_color) return NextResponse.json({ error: 'لون السيارة إجباري' }, { status: 400 });
-      const allowed = ['1200','1500','2000','2500','150','200','toktok'];
-      if (!allowed.includes(String(engine_cc))) return NextResponse.json({ error: 'قوة المحرك لازم 1200/1500/2000/2500/150/200/toktok' }, { status: 400 });
-      if (vehicle_type === 'toktok' && String(engine_cc) !== 'toktok') return NextResponse.json({ error: 'اذا النوع toktok لازم قوة المحرك toktok' }, { status: 400 });
-      if (vehicle_type !== 'toktok' && String(engine_cc) === 'toktok') return NextResponse.json({ error: 'قوة محرك toktok بس لنوع toktok' }, { status: 400 });
+      // الغينا التكتك كاسم - عندك ياه 200 سي سي
+      const allowed = ['1200','1500','2000','2500','150','200'];
+      if (!allowed.includes(String(engine_cc))) return NextResponse.json({ error: 'قوة المحرك لازم 1200/1500/2000/2500/150/200 - التكتك هو 200' }, { status: 400 });
+      // اذا نوع المركبة toktok نخلي المحرك 200 اجباري
+      if (vehicle_type === 'toktok' && String(engine_cc) !== '200') return NextResponse.json({ error: 'التكتك محركو 200 سي سي' }, { status: 400 });
 
       const { error } = await supabase.from('taxi_drivers').insert({
         full_name: name,
@@ -85,12 +89,20 @@ export async function POST(req) {
     } else if (role === 'store') {
       if (!area) return NextResponse.json({ error: 'المنطقة إجبارية من جدول areas' }, { status: 400 });
       if (!storeName) return NextResponse.json({ error: 'اسم المتجر إجباري' }, { status: 400 });
+
+      // Category مربوط بجدول categories - FK
+      // Description لازم تكون
+      // Join Date dd/mm/yyyy now
+      // Open Time / Close Time لازم يكون مكتوبين وين انحط
       const { error } = await supabase.from('stores').insert({
         "Store Name": storeName,
         "Owner Name": name,
         "Mobile": phone,
         "Area": area,
+        "Category": category || null,
         "Adress": storeAddress || address || null,
+        "Description": description || null,
+        "Join Date": joinDate,
         "Current Latitude": String(latNum),
         "Current Longitude": String(lngNum),
         "Current Store LatLong": `${latNum},${lngNum}`,
@@ -117,6 +129,9 @@ export async function POST(req) {
     console.error('Register error:', e);
     if (e.message?.includes('drivers_Area_fkey') || e.message?.includes('stores_Area_fkey')) {
       return NextResponse.json({ error: 'المنطقة غير موجودة بجدول areas - اختار من القائمة' }, { status: 400 });
+    }
+    if (e.message?.includes('stores_Category_fkey')) {
+      return NextResponse.json({ error: 'الكاتيجوري غير موجود بجدول categories' }, { status: 400 });
     }
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
