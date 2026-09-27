@@ -6,7 +6,7 @@ export default function AdminTermsApproval() {
   const [loading, setLoading] = useState(false);
 
   async function handleApprove() {
-    const agree = document.getElementById("agree") as HTMLInputElement | null;
+    const agree = document.getElementById("agree");
     
     if (!agree?.checked) {
       alert("يجب الموافقة على الشروط أولاً");
