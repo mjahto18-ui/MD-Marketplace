@@ -74,7 +74,39 @@ export default function HistoryPage(){
               <div style={{fontSize:11, marginTop:4, color:'rgba(255,255,255,0.4)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
                 {o.taxi_car_type} - {o.taxi_plate_number} {o.taxi_engine_cc? `- ${o.taxi_engine_cc}cc` : ''} - {o.taxi_seats? `${o.taxi_seats} مقاعد` : ''}
               </div>
-              {/* شلت المشاركة والمشاهدة متل ما اتفقنا - ارشيف نضيف */}
+              {/* زر إعادة الطلب - بس للـ expired */}
+{o.status === 'expired' && (
+  <button
+    onClick={async ()=>{
+      if(!confirm('اعادة طلب الرحلة ؟')) return;
+      const r = await fetch('/api/taxi/reorder', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({order_id: o.id})
+      }).then(r=>r.json());
+      if(r.success){
+        alert('تم إعادة الطلب - صار pending هلق');
+        router.push('/taxi'); // رجعو عصفحة التكسي يشوف الطلب فعال
+      } else {
+        alert('فشل: ' + (r.error||''));
+      }
+    }}
+    style={{
+      marginTop:10,
+      width:'100%',
+      background:'rgba(251,191,36,0.15)',
+      border:'1px solid rgba(251,191,36,0.4)',
+      color:'#fbbf24',
+      padding:'8px 12px',
+      borderRadius:10,
+      fontWeight:900,
+      fontSize:12,
+      cursor:'pointer'
+    }}
+  >
+    🔄 إعادة الطلب 
+  </button>
+)}
             </div>
           );
         })}
