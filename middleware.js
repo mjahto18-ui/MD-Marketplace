@@ -35,9 +35,25 @@ export async function middleware(request) {
       return NextResponse.next();
     }
 
+    // استثناء صفحة الموافقة تبع الأدمن عشان ما نعمل لووب
+    if (pathname.startsWith('/admin/terms-approval')) {
+      return NextResponse.next();
+    }
+
     const adminSession = request.cookies.get('admin_session');
 
     if (!adminSession) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+
+    // ✅ الفحص الجديد يلي ضفناه - بيمنع يفوت عالداشبورد اذا مش موافق
+    try {
+      const data = JSON.parse(adminSession.value);
+      const accepted = String(data.AcceptedTerms || "FALSE").toUpperCase().trim();
+      if (accepted !== "TRUE") {
+        return NextResponse.redirect(new URL('/admin/terms-approval', request.url));
+      }
+    } catch {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
 
@@ -62,6 +78,17 @@ export async function middleware(request) {
     const adminSession = request.cookies.get('admin_session');
 
     if (!adminSession) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+
+    // ✅ نفس الفحص هون كمان
+    try {
+      const data = JSON.parse(adminSession.value);
+      const accepted = String(data.AcceptedTerms || "FALSE").toUpperCase().trim();
+      if (accepted !== "TRUE") {
+        return NextResponse.redirect(new URL('/admin/terms-approval', request.url));
+      }
+    } catch {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
 
