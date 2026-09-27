@@ -185,11 +185,14 @@ export default function TaxiDriverDashboard(){
       setOrders(myOrders||[])
       if(myOrders?.[0] &&!selectedOrderRef.current) setSelectedOrder(myOrders[0])
       if(myOrders?.length>0){ setNearby([]); return; }
-      if(myLocation){
-        const { data: pending } = await supabase.from('taxi_orders').select('*').eq('status','pending').gte('created_at', new Date(Date.now() - 30*60*1000).toISOString()).order('created_at',{ascending:false}).limit(50)
+      
+        if(myLocation){
+        const vt = normalizeVehicleType(me.vehicle_type)
+        const { data: pending } = await supabase.from('taxi_orders').select('*').eq('status','pending').eq('taxi_vehicle_type', vt).gte('created_at', new Date(Date.now() - 30*60*1000).toISOString()).order('created_at',{ascending:false}).limit(50)
         const filtered = (pending||[]).filter(o=>{
           if(!o.origin_lat ||!o.origin_lng) return false
-          if(o.taxi_vehicle_type && me.vehicle_type && o.taxi_vehicle_type!== me.vehicle_type) return false
+          
+          return haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)) <= 5
           return haversine(myLocation.lat, myLocation.lng, Number(o.origin_lat), Number(o.origin_lng)) <= 5
         }).map(o=>{
           const preview = getDriverPreviewPrice(o)
