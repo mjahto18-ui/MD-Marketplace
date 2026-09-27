@@ -21,12 +21,11 @@ export default function AdminLogin(){
   const [showRegister,setShowRegister]=useState(false)
   const [verifiedCode,setVerifiedCode]=useState("")
   const [areas,setAreas]=useState([])
-  const [engines,setEngines]=useState([])
   const [regForm,setRegForm]=useState({
     role:"store", // store | driver | taxi_driver
     name:"", phone:"", area:"", 
     vehicleTyp:"Moto", vehicle_type:"car", engine_cc:"", car_color:"", plate_number:"", car_type:"", seats:"4", gender:"male",
-    storeName:"", storeAddress:"", openTime:"", closeTime:""
+    storeName:"", storeAddress:"", openTime:"", closeTime:"", address:""
   })
   const [regErr,setRegErr]=useState("")
   const [regLoading,setRegLoading]=useState(false)
@@ -49,24 +48,18 @@ export default function AdminLogin(){
     setLoading(false)
   }
 
-  // فتح البوكس + جلب areas و engines مشان ما نعمل مسار جديد
+  // فتح البوكس + جلب areas فقط - ما عاد نجيب engines
   const openCodeBox = async ()=>{
     setInviteCode(""); setCodeErr(""); setShowCodeBox(true)
     try{
       const a = await fetch("/api/areas").then(r=>r.json())
-      setAreas(a.areas || [])
-    }catch{}
-    try{
-      const e = await fetch("/api/taxi-engines").then(r=>r.json()).catch(()=>({}))
-      // اذا عندك المسار باسم تاني غير taxi-engines بدلو هون
-      setEngines(e.engines || e.data || [])
+      setAreas(a.areas || a || [])
     }catch{}
   }
 
   const checkCode = async ()=>{
     setCodeErr(""); setCodeLoading(true)
     try{
-      // هاد نفس المسار الأول يلي بعتو انت - حطو مثلاً app/api/admin/verify-invite-code/route.js
       const res = await fetch('/api/admin/verify-invite-code',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -94,7 +87,6 @@ export default function AdminLogin(){
       const lat = pos.coords.latitude
       const lng = pos.coords.longitude
       try{
-        // هاد نفس المسار التاني يلي بعتو انت - app/api/admin/register-with-invite/route.js
         const res = await fetch('/api/admin/register-with-invite',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
@@ -111,6 +103,7 @@ export default function AdminLogin(){
             car_color: regForm.car_color,
             plate_number: regForm.plate_number,
             car_type: regForm.car_type,
+            address: regForm.address,
             seats: regForm.seats,
             gender: regForm.gender,
             storeName: regForm.storeName,
@@ -157,7 +150,7 @@ export default function AdminLogin(){
               <>
                 <select value={regForm.area} onChange={e=>setRegForm({...regForm, area:e.target.value})} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required>
                   <option value="">اختر المنطقة من areas</option>
-                  {areas.map(a=><option key={a.id} value={a.id} style={{color:'black'}}>{a.name || a.area_name}</option>)}
+                  {areas.map(a=><option key={a.id} value={a.id} style={{color:'black'}}>{a.name || a.area_name || a.id}</option>)}
                 </select>
                 <select value={regForm.vehicleTyp} onChange={e=>setRegForm({...regForm, vehicleTyp:e.target.value})} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}}>
                   <option value="Moto">Moto</option><option value="Car">Car</option><option value="Van">Van</option>
@@ -173,8 +166,13 @@ export default function AdminLogin(){
                     <option value="car">car</option><option value="van">van</option><option value="toktok">toktok</option><option value="moto">moto</option><option value="touristic_van">touristic_van</option><option value="touristic_van_11">touristic_van_11</option>
                   </select>
                   <select value={regForm.engine_cc} onChange={e=>setRegForm({...regForm, engine_cc:e.target.value})} style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required>
-                    <option value="">قوة المحرك من taxi_engines</option>
-                    {engines.map(en=><option key={en.code || en.id} value={en.code} style={{color:'black'}}>{en.code} - {en.label||en.name||''}</option>)}
+                    <option value="">قوة المحرك</option>
+                    <option value="1200">1200</option>
+                    <option value="1500">1500</option>
+                    <option value="2000">2000</option>
+                    <option value="2500">2500</option>
+                    <option value="150">150</option>
+                    <option value="200">200</option>
                     <option value="toktok">toktok</option>
                   </select>
                 </div>
@@ -182,6 +180,9 @@ export default function AdminLogin(){
                   <input value={regForm.car_color} onChange={e=>setRegForm({...regForm, car_color:e.target.value})} placeholder="لون السيارة*" style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
                   <input value={regForm.plate_number} onChange={e=>setRegForm({...regForm, plate_number:e.target.value})} placeholder="رقم اللوحة" style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
                 </div>
+                {/* الحقلين الناقصين يلي طلبتن */}
+                <input value={regForm.car_type} onChange={e=>setRegForm({...regForm, car_type:e.target.value})} placeholder="اسم السيارة - car_type" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+                <input value={regForm.address} onChange={e=>setRegForm({...regForm, address:e.target.value})} placeholder="العنوان - address" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
               </>
             )}
 
@@ -190,7 +191,7 @@ export default function AdminLogin(){
                 <input value={regForm.storeName} onChange={e=>setRegForm({...regForm, storeName:e.target.value})} placeholder="اسم المتجر*" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
                 <select value={regForm.area} onChange={e=>setRegForm({...regForm, area:e.target.value})} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required>
                   <option value="">اختر المنطقة من areas</option>
-                  {areas.map(a=><option key={a.id} value={a.id} style={{color:'black'}}>{a.name || a.area_name}</option>)}
+                  {areas.map(a=><option key={a.id} value={a.id} style={{color:'black'}}>{a.name || a.area_name || a.id}</option>)}
                 </select>
                 <input value={regForm.storeAddress} onChange={e=>setRegForm({...regForm, storeAddress:e.target.value})} placeholder="عنوان المتجر" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
                 <div style={{display:'flex', gap:'8px'}}>
