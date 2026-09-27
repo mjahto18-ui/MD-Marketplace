@@ -183,7 +183,7 @@ export default function Dashboard(){
       href={href}
       className="group relative overflow-hidden bg-[#0F0F0F] border border-white/[0.06] rounded-3xl p-6 flex items-center justify-between shadow-sm hover:shadow-xl/5 hover:-translate-y-1 hover:border-white/[0.08] transition-all duration-300"
     >
-      <div className="absolute inset-y-0 right-0 w- bg-[#FFD700] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="absolute inset-y-0 right-0 w-1 bg-[#FFD700] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
       <div className="flex items-center gap-5 min-w-0">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-all duration-300 ${
@@ -191,22 +191,22 @@ export default function Dashboard(){
       ? 'bg-[#0A0A0A] text-[#FFD700]'
             : 'bg-[#141414] border border-white/[0.06] text-white'
         }`}>
-          <span className="text- font-black tracking-widest" style={{fontFamily:'Andika'}}>
+          <span className="text-lg font-black tracking-widest" style={{fontFamily:'Andika'}}>
             {count > 0? '!' : '✓'}
           </span>
         </div>
 
         <div className="text-right min-w-0 space-y-1">
-          <div className="text- tracking-[0.18em] text-white/40 font-bold uppercase truncate" style={{fontFamily:'Andika'}}>
+          <div className="text-[11px] tracking-[0.18em] text-white/40 font-bold uppercase truncate" style={{fontFamily:'Andika'}}>
             {label}
           </div>
-          <div className="text- font-black text-white leading-none tracking-tight" style={{fontFamily:'Andika'}}>
+          <div className="text-[20px] font-black text-white leading-none tracking-tight" style={{fontFamily:'Andika'}}>
             {count}
           </div>
         </div>
       </div>
 
-      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text- font-black shrink-0 shadow-sm ${
+      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black shrink-0 shadow-sm ${
         count > 0
     ? 'bg-[#FFD700] text-white'
           : 'bg-[#0A0A0A] text-[#fdfbf7]'
@@ -324,7 +324,7 @@ export default function Dashboard(){
         </div>
 
         <div className="text-right min-w-0 space-y-1">
-          <div className="text- tracking-[0.18em] text-[#FFD700]/70 font-black uppercase truncate" style={{fontFamily:'Andika'}}>
+          <div className="text-[11px] tracking-[0.18em] text-[#FFD700]/70 font-black uppercase truncate" style={{fontFamily:'Andika'}}>
             FINANCE
           </div>
           <div className="text-sm font-black text-[#fdfbf7] leading-tight tracking-tight" style={{fontFamily:'Andika'}}>
@@ -371,17 +371,17 @@ export default function Dashboard(){
             </div>
 
             <div className="text-right space-y-2">
-              <div className="font-black text- tracking-[0.08em] text-white" style={{fontFamily:'Andika'}}>
+              <div className="font-black text-[13px] tracking-[0.08em] text-white" style={{fontFamily:'Andika'}}>
                 MD MARKETPLACE
               </div>
 
               <div className="flex items-center gap-2.5">
 
-                <span className="inline-flex items-center rounded-full bg-[#141414] border border-white/[0.08] px-3 py-1 text- font-black tracking-[0.14em] text-white shadow-sm" style={{fontFamily:'Andika'}}>
+                <span className="inline-flex items-center rounded-full bg-[#141414] border border-white/[0.08] px-3 py-1 text-[10px] font-black tracking-[0.14em] text-white shadow-sm" style={{fontFamily:'Andika'}}>
                   {myRole}
                 </span>
 
-                <span className="text- font-bold text-white/70" style={{fontFamily:'Andika'}}>
+                <span className="text-[12px] font-bold text-white/70" style={{fontFamily:'Andika'}}>
                   {myName} 👤
                 </span>
 
@@ -416,13 +416,13 @@ export default function Dashboard(){
       </div>
 
       {/* CONTENT */}
-      <main className="px-6 lg:px-10 py-10 max-w- mx-auto space-y-12">
+      <main className="px-6 lg:px-10 py-10 max-w-[1600px] mx-auto space-y-12">
 
         {/* WELCOME */}
         <div className="flex items-end justify-between gap-6">
 
           <div className="text-right space-y-3">
-            <div className="text- font-bold tracking-[0.22em] uppercase text-white/40" style={{fontFamily:'Andika'}}>
+            <div className="text-[11px] font-bold tracking-[0.22em] uppercase text-white/40" style={{fontFamily:'Andika'}}>
               CONTROL CENTER
             </div>
 
@@ -430,14 +430,14 @@ export default function Dashboard(){
               لوحة التحكم
             </h1>
 
-            <p className="text- text-white/60 font-medium" style={{fontFamily:'Andika'}}>
+            <p className="text-[13px] text-white/60 font-medium" style={{fontFamily:'Andika'}}>
               مرحباً {myName}، إليك ملخص عمليات المنصة.
             </p>
           </div>
 
           <div className="hidden md:flex items-center gap-3 rounded-full bg-[#141414] border border-white/[0.08] px-5 py-2.5 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-[#FFD700] shadow-sm animate-pulse" />
-            <span className="text- font-bold tracking-widest text-white" style={{fontFamily:'Andika'}}>
+            <span className="text-[11px] font-bold tracking-widest text-white" style={{fontFamily:'Andika'}}>
               SYSTEM ONLINE
             </span>
           </div>
@@ -467,15 +467,15 @@ export default function Dashboard(){
           </div>
         </div>
 
-        {/* === قسم العمليات الجديد - SOS + 3 كروت === */}
+        {/* === قسم العمليات الجديد - SOS + 3 كروت + كرت Generate Code === */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="text-right space-y-1">
-              <h2 className="text- font-black text-white" style={{fontFamily:'Andika'}}>
+              <h2 className="text-[16px] font-black text-white" style={{fontFamily:'Andika'}}>
                 العمليات - الطوارئ والمكتب
               </h2>
-              <p className="text- text-white/50" style={{fontFamily:'Andika'}}>
-                SOS & Attendance & Payroll
+              <p className="text-[12px] text-white/50" style={{fontFamily:'Andika'}}>
+                SOS & Attendance & Payroll & Invite Codes
               </p>
             </div>
             <div className="h-px flex-1 bg-red-500/10 mx-6" />
@@ -489,11 +489,12 @@ export default function Dashboard(){
             <SOSItem />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* 3 كروت عمليات - بلا عداد - نفس قالب Item */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            {/* 3 كروت عمليات - بلا عداد - نفس قالب Item + كرت Generate Code الجديد */}
             <OperationItem label="الحضور - مين بالدوام؟" href="/admin/attendance" icon="👥" sub="تحكم يدوي + تصفير جهاز" />
             <OperationItem label="الرواتب - الكود الخماسي" href="/admin/payroll" icon="💰" sub="احسب رواتب الشهر" />
             <OperationItem label="شاشة المكتب - QR" href="/admin/office-display" icon="📱" sub="عرض QR للموظفين" />
+            <OperationItem label="Generate Code - كرت دعوة" href="/admin/invite-codes" icon="🎟️" sub="ولد كود 6 أرقام - بدون عداد - مربوط بالانفايت" />
           </div>
         </section>
 
@@ -503,11 +504,11 @@ export default function Dashboard(){
           <div className="flex items-center justify-between">
 
             <div className="text-right space-y-1">
-              <h2 className="text- font-black text-white" style={{fontFamily:'Andika'}}>
+              <h2 className="text-[16px] font-black text-white" style={{fontFamily:'Andika'}}>
                 حالة العمليات
               </h2>
 
-              <p className="text- text-white/50" style={{fontFamily:'Andika'}}>
+              <p className="text-[12px] text-white/50" style={{fontFamily:'Andika'}}>
                 Orders & Customers Overview
               </p>
             </div>
@@ -556,10 +557,10 @@ export default function Dashboard(){
           <div className="flex items-end justify-between">
 
             <div className="text-right space-y-1">
-              <h2 className="text- font-black text-white" style={{fontFamily:'Andika'}}>
+              <h2 className="text-[16px] font-black text-white" style={{fontFamily:'Andika'}}>
                 أدوات الإدارة
               </h2>
-              <p className="text- text-white/50" style={{fontFamily:'Andika'}}>
+              <p className="text-[12px] text-white/50" style={{fontFamily:'Andika'}}>
                 {myRole} · {menuTables.length} صلاحية متاحة
               </p>
             </div>
@@ -575,7 +576,7 @@ export default function Dashboard(){
               <Link
                 key={m.supa_id}
                 href={`/admin/${m.Menu}`}
-                className="group relative overflow-hidden bg-[#141414] rounded-3xl p-6 min-h- flex flex-col justify-between border border-white/[0.06] shadow-sm hover:shadow-xl/5 hover:-translate-y-1 hover:border-[#FFD700]/40 transition-all duration-300"
+                className="group relative overflow-hidden bg-[#141414] rounded-3xl p-6 min-h-[120px] flex flex-col justify-between border border-white/[0.06] shadow-sm hover:shadow-xl/5 hover:-translate-y-1 hover:border-[#FFD700]/40 transition-all duration-300"
               >
 
                 <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full bg-[#FFD700]/[0.06] group-hover:bg-[#FFD700]/[0.12] transition-all duration-300" />
@@ -584,7 +585,7 @@ export default function Dashboard(){
 
                   <div className="flex items-center justify-between">
 
-                    <span className="text- tracking-[0.18em] text-white/40 font-black uppercase" style={{fontFamily:'Andika'}}>
+                    <span className="text-[10px] tracking-[0.18em] text-white/40 font-black uppercase" style={{fontFamily:'Andika'}}>
                       {m.Menu}
                     </span>
 
@@ -594,7 +595,7 @@ export default function Dashboard(){
 
                   </div>
 
-                  <div className="font-black text- text-white leading-tight" style={{fontFamily:'Andika'}}>
+                  <div className="font-black text-[15px] text-white leading-tight" style={{fontFamily:'Andika'}}>
                     {m.View}
                   </div>
 
@@ -602,7 +603,7 @@ export default function Dashboard(){
 
                 <div className="relative flex items-center justify-between mt-6">
 
-                  <span className={`inline-flex rounded-full px-3.5 py-1.5 text- font-black shadow-sm ${
+                  <span className={`inline-flex rounded-full px-3.5 py-1.5 text-[10px] font-black shadow-sm ${
                     m._access === 'Read & Write'
                ? 'bg-[#0A0A0A] text-[#FFD700] border border-[#FFD700]/30'
                       : 'bg-[#0F0F0F] text-white/60 border border-white/[0.08]'
@@ -610,7 +611,7 @@ export default function Dashboard(){
                     {m._access}
                   </span>
 
-                  <span className="text- text-white/30 font-bold tracking-widest" style={{fontFamily:'Andika'}}>
+                  <span className="text-[10px] text-white/30 font-bold tracking-widest" style={{fontFamily:'Andika'}}>
                     OPEN
                   </span>
 
@@ -629,7 +630,7 @@ export default function Dashboard(){
       {/* مودال المحفظة - مبلغ + ADD/حسم + نوت */}
       {showWallet && (
         <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-[#141414] rounded-3xl w-full max-w-md max-h- overflow-hidden flex flex-col">
+          <div className="bg-[#141414] rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-5 bg-[#0A0A0A] text-[#fdfbf7] flex justify-between items-center">
               <div><div className="text-xs opacity-50">محفظتي - {myUserId}</div><div className="text-2xl font-black mt-1">{formatLBP(wallet)}</div></div>
               <button onClick={()=>setShowWallet(false)} className="w-8 h-8 rounded-xl bg-[#141414]/10 flex items-center justify-center">✕</button>
@@ -643,11 +644,11 @@ export default function Dashboard(){
                   <div key={i} className="flex justify-between items-center p-3 border-b border-black/5">
                     <div className="flex-1">
                       <div className="flex gap-2 items-center">
-                        <span className={`px-2 py-1 rounded-full text- font-black ${isDeduct?'bg-red-100 text-red-600':'bg-green-100 text-green-600'}`}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-black ${isDeduct?'bg-red-100 text-red-600':'bg-green-100 text-green-600'}`}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
                         <span className={`font-black text-sm ${isDeduct?'text-red-600':'text-green-600'}`}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
                       </div>
                       <div className="text-xs mt-1 text-black/80">{t.Notes || t.Reason || '-'}</div>
-                      <div className="text- opacity-40 mt-1">{t['Created At']? new Date(t['Created At']).toLocaleString('ar-LB'):''} {t['Order ID']? `| ${t['Order ID']}`:''}</div>
+                      <div className="text-[10px] opacity-40 mt-1">{t['Created At']? new Date(t['Created At']).toLocaleString('ar-LB'):''} {t['Order ID']? `| ${t['Order ID']}`:''}</div>
                     </div>
                   </div>
                 )
