@@ -42,7 +42,7 @@ export async function POST(req) {
     const acceptedTerms = String(finalUser.AcceptedTerms || "FALSE").toUpperCase().trim()
 
     if (lockStatus === "TRUE" || lockStatus === "LOCKED") {
-      return NextResponse.json({ success: false, message: "تم قفل الحساب بعد 3 محاولات خاطئة - تواصل مع الادمن العام" }, { status: 403 });
+      return NextResponse.json({ success: false, message: "تم قفل الحساب بسبب محاولات دخول غير صحيحة. يرجى التواصل مع فريق الدعم أو طلب إعادة تعيين رمز الدخول لإعادة تفعيل الحساب." }, { status: 403 });
     }
 
     const activeRaw = finalUser.Active
@@ -127,7 +127,7 @@ export async function POST(req) {
         'isLocked': "TRUE"
       }).eq('"User ID"', finalUser['User ID']);
 
-      return NextResponse.json({ success: false, message: "تم قفل الحساب بعد 3 محاولات خاطئة - تواصل مع فريق الدعم" }, { status: 403 });
+      return NextResponse.json({ success: false, message: "تم قفل الحساب بسبب محاولات دخول غير صحيحة. يرجى التواصل مع فريق الدعم أو طلب إعادة تعيين رمز الدخول لإعادة تفعيل الحساب." }, { status: 403 });
     }
 
     await supabase.from('users').update({
