@@ -37,15 +37,21 @@ export async function POST(req) {
     const role = String(finalUser.Role || '').trim()
     const status = String(finalUser.Status || '').trim()
     const pinDb = String(finalUser.PIN || '').trim()
+    const lockStatus = String(finalUser.isLocked || '').toUpperCase()
+    const attempts = parseInt(finalUser.failedAttempts || "0")
+
+    // ✅ 1. نفس الكوستمر - فحص القفل
+    if (lockStatus === "TRUE" || lockStatus === "LOCKED") {
+      return NextResponse.json({ success: false, message: "تم قفل الحساب بعد 3 محاولات خاطئة - تواصل مع الادمن العام" }, { status: 403 });
+    }
 
     const activeRaw = finalUser.Active
     const activeStr = String(activeRaw).toLowerCase()
-    const isActive = activeRaw === true || activeStr === 'true' || activeStr === '1'
+    const isActive = activeRaw === true || activeStr === 'true' || activeStr === 'TRUE' || activeStr === '1'
 
     if(!isActive){
       return NextResponse.json({ success: false, message: `حسابك موقوف - Active = ${finalUser.Active}` }, { status: 403 });
     }
-
     if (status!== 'Active'){
       return NextResponse.json({ success: false, message: `الحساب غير مفعل - Status = ${status}` }, { status: 403 });
     }
@@ -55,52 +61,74 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: `دورك ${role} غير مسموح حاليا` }, { status: 403 });
     }
 
-    if (pinDb!== pinStr) return NextResponse.json({ success: false, message: "PIN غلط" }, { status: 401 });
+    // ✅ 2. اذا PIN صح - صفر العداد
+    if (pinDb === pinStr) {
+      await supabase.from('users').update({
+        'failedAttempts': "0",
+        'isLocked': "FALSE"
+      }).eq('"User ID"', finalUser['User ID']);
 
-    // ✅ جيب بيانات التاكسي الحقيقية من taxi_drivers
-    let taxiData = null
-    if(finalUser['Taxi_ID']){
-      const { data: driver } = await supabase
-        .from('taxi_drivers')
-        .select('engine_cc, vehicle_type, car_type, car_color, seats, full_name')
-        .eq('"Taxi_ID"', finalUser['Taxi_ID'])
-        .single()
-      taxiData = driver
+      let taxiData = null
+      if(finalUser['Taxi_ID']){
+        const { data: driver } = await supabase
+          .from('taxi_drivers')
+          .select('engine_cc, vehicle_type, car_type, car_color, seats, full_name')
+          .eq('"Taxi_ID"', finalUser['Taxi_ID'])
+          .single()
+        taxiData = driver
+      }
+
+      const cookieStore = await cookies();
+      cookieStore.set('admin_session', JSON.stringify({
+        userId: finalUser['User ID'],
+        name: finalUser.Name,
+        phone: phoneStr,
+        role: role,
+        storeId: finalUser['Store ID'] || finalUser.Store_ID || null,
+        area: finalUser.Area || null,
+        relatedId: finalUser['Related ID'] || null,
+        Taxi_ID: finalUser['Taxi_ID'] || null,
+        taxiId: finalUser['Taxi_ID'] || null,
+        engine_cc: taxiData?.engine_cc || '1500',
+        vehicle_type: taxiData?.vehicle_type || 'car',
+        car_type: taxiData?.car_type || null,
+        car_color: taxiData?.car_color || null,
+        seats: taxiData?.seats || 4,
+      }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
+
+      const redirectTo = 
+        role === 'Store Owner' ? '/store-owner' :
+        role === 'Driver' ? '/driver-owner' :
+        role === 'Taxi Driver' ? '/taxi-driver' :
+        '/admin';
+
+      return NextResponse.json({ 
+        success: true, 
+        role,
+        userId: finalUser['User ID'],
+        redirectTo,
+        engine_cc: taxiData?.engine_cc || '1500',
+        vehicle_type: taxiData?.vehicle_type || 'car'
+      });
     }
 
-    const cookieStore = await cookies();
-    cookieStore.set('admin_session', JSON.stringify({
-      userId: finalUser['User ID'],
-      name: finalUser.Name,
-      phone: phoneStr,
-      role: role,
-      storeId: finalUser['Store ID'] || finalUser.Store_ID || null,
-      area: finalUser.Area || null,
-      relatedId: finalUser['Related ID'] || null,
-      Taxi_ID: finalUser['Taxi_ID'] || null,
-      taxiId: finalUser['Taxi_ID'] || null,
-      engine_cc: taxiData?.engine_cc || '1500',
-      vehicle_type: taxiData?.vehicle_type || 'car',
-      car_type: taxiData?.car_type || null,
-      car_color: taxiData?.car_color || null,
-      seats: taxiData?.seats || 4,
-    }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
+    // ✅ 3. PIN غلط - نفس لوجيك الكوستمر
+    let newAttempts = attempts + 1;
+    if (newAttempts >= 3) {
+      await supabase.from('users').update({
+        'failedAttempts': String(newAttempts),
+        'PIN': "",
+        'isLocked': "TRUE"
+      }).eq('"User ID"', finalUser['User ID']);
 
-    // ✅ هون التعديل المهم - صار يرجع كل شي للفرونت
-    const redirectTo = 
-      role === 'Store Owner' ? '/store-owner' :
-      role === 'Driver' ? '/driver-owner' :
-      role === 'Taxi Driver' ? '/taxi-driver' :
-      '/admin';
+      return NextResponse.json({ success: false, message: "تم قفل الحساب بعد 3 محاولات خاطئة - تواصل مع فريق الدعم" }, { status: 403 });
+    }
 
-    return NextResponse.json({ 
-      success: true, 
-      role,
-      userId: finalUser['User ID'],
-      redirectTo,
-      engine_cc: taxiData?.engine_cc || '1500',
-      vehicle_type: taxiData?.vehicle_type || 'car'
-    });
+    await supabase.from('users').update({
+      'failedAttempts': String(newAttempts)
+    }).eq('"User ID"', finalUser['User ID']);
+
+    return NextResponse.json({ success: false, message: `PIN غلط - محاولة ${newAttempts}/3` }, { status: 401 });
 
   } catch (e) {
     return NextResponse.json({ success: false, message: e.message }, { status: 500 });
