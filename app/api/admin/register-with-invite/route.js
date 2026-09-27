@@ -36,6 +36,8 @@ export async function POST(req) {
       // stores specific
       storeName,
       storeAddress,
+      openTime,
+      closeTime,
     } = body;
 
     // 1. تحقق أساسي
@@ -69,6 +71,8 @@ export async function POST(req) {
         "Area": area, // Area ID - FK
         "VehicleTyp": vehicleTyp,
         "Status": "Active",
+        "Open Time": openTime || null,
+        "Close Time": closeTime || null,
         "Current Latitude": latNum,
         "Current Longitude": lngNum,
         "Last Location Update": now
@@ -123,7 +127,9 @@ export async function POST(req) {
         "Current Latitude": String(latNum), // text بجدولك
         "Current Longitude": String(lngNum), // text
         "Current Store LatLong": `${latNum},${lngNum}`,
-        "Status": "Active"
+        "Status": "Active",
+        "Open Time": openTime || null,
+        "Close Time": closeTime || null
       });
       if (error) throw error;
       // trigger trg_stores_create_user بيخلق اليوزر
