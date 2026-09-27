@@ -1,142 +1,210 @@
-export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
-function getSupabase() {
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const url = rawUrl?.replace('/rest/v1','').replace(/\/$/,'');
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url) throw new Error("Missing Supabase URL");
-  return createClient(url, key);
-}
+export async function middleware(request) {
 
-export async function POST(req) {
-  try {
-    const { phone, pin } = await req.json();
-    const phoneStr = String(phone).trim();
-    const pinStr = String(pin).trim();
-    const phoneNoZero = phoneStr.replace(/^0+/, '');
+  const { pathname } = request.nextUrl;
 
-    const supabase = getSupabase();
-
-    const { data: users } = await supabase.from('users')
-   .select('*')
-   .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
-   .limit(5)
-
-    let finalUser = users?.[0]
-
-    if(!finalUser && phoneStr === '03177653'){
-      const { data } = await supabase.from('users').select('*').eq('"User ID"','Admin').maybeSingle()
-      finalUser = data
-    }
-
-    if (!finalUser) return NextResponse.json({ success: false, message: "رقم غير موجود" }, { status: 401 });
-
-    const role = String(finalUser.Role || '').trim()
-    const status = String(finalUser.Status || '').trim()
-    const pinDb = String(finalUser.PIN || '').trim()
-    const lockStatus = String(finalUser.isLocked || '').toUpperCase()
-    const attempts = parseInt(finalUser.failedAttempts || "0")
-    const acceptedTerms = String(finalUser.AcceptedTerms || "FALSE").toUpperCase().trim()
-
-    if (lockStatus === "TRUE" || lockStatus === "LOCKED") {
-      return NextResponse.json({ success: false, message: "تم قفل الحساب بعد 3 محاولات خاطئة - تواصل مع الادمن العام" }, { status: 403 });
-    }
-
-    const activeRaw = finalUser.Active
-    const activeStr = String(activeRaw).toLowerCase()
-    const isActive = activeRaw === true || activeStr === 'true' || activeStr === 'TRUE' || activeStr === '1'
-
-    if(!isActive){
-      return NextResponse.json({ success: false, message: `حسابك موقوف - Active = ${finalUser.Active}` }, { status: 403 });
-    }
-    if (status!== 'Active'){
-      return NextResponse.json({ success: false, message: `الحساب غير مفعل - Status = ${status}` }, { status: 403 });
-    }
-
-    const allowedRoles = ['Admin','Store Owner','Driver','Taxi Driver','Assistant Admin','Accounting']
-    if(!allowedRoles.includes(role)){
-      return NextResponse.json({ success: false, message: `دورك ${role} غير مسموح حاليا` }, { status: 403 });
-    }
-
-    if (pinDb === pinStr) {
-      await supabase.from('users').update({
-        'failedAttempts': "0",
-        'isLocked': "FALSE"
-      }).eq('"User ID"', finalUser['User ID']);
-
-      let taxiData = null
-      if(finalUser['Taxi_ID']){
-        const { data: driver } = await supabase
-          .from('taxi_drivers')
-          .select('engine_cc, vehicle_type, car_type, car_color, seats, full_name')
-          .eq('"Taxi_ID"', finalUser['Taxi_ID'])
-          .single()
-        taxiData = driver
-      }
-
-      const cookieStore = await cookies();
-      cookieStore.set('admin_session', JSON.stringify({
-        userId: finalUser['User ID'],
-        name: finalUser.Name,
-        phone: phoneStr,
-        role: role,
-        AcceptedTerms: acceptedTerms,
-        storeId: finalUser['Store ID'] || finalUser.Store_ID || null,
-        area: finalUser.Area || null,
-        relatedId: finalUser['Related ID'] || null,
-        Taxi_ID: finalUser['Taxi_ID'] || null,
-        taxiId: finalUser['Taxi_ID'] || null,
-        engine_cc: taxiData?.engine_cc || '1500',
-        vehicle_type: taxiData?.vehicle_type || 'car',
-        car_type: taxiData?.car_type || null,
-        car_color: taxiData?.car_color || null,
-        seats: taxiData?.seats || 4,
-      }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
-
-      // ✅ هون الجبر - اذا ما قابل الشروط وديه عصفحة الشروط
-      let redirectTo;
-      if (acceptedTerms!== "TRUE") {
-        redirectTo = '/admin/terms-approval';
-      } else {
-        redirectTo = 
-          role === 'Store Owner' ? '/store-owner' :
-          role === 'Driver' ? '/driver-owner' :
-          role === 'Taxi Driver' ? '/taxi-driver' :
-          '/admin';
-      }
-
-      return NextResponse.json({ 
-        success: true, 
-        role,
-        userId: finalUser['User ID'],
-        AcceptedTerms: acceptedTerms,
-        redirectTo,
-        engine_cc: taxiData?.engine_cc || '1500',
-        vehicle_type: taxiData?.vehicle_type || 'car'
-      });
-    }
-
-    let newAttempts = attempts + 1;
-    if (newAttempts >= 3) {
-      await supabase.from('users').update({
-        'failedAttempts': String(newAttempts),
-        'PIN': "",
-        'isLocked': "TRUE"
-      }).eq('"User ID"', finalUser['User ID']);
-
-      return NextResponse.json({ success: false, message: "تم قفل الحساب بعد 3 محاولات خاطئة - تواصل مع فريق الدعم" }, { status: 403 });
-    }
-
-    await supabase.from('users').update({
-      'failedAttempts': String(newAttempts)
-    }).eq('"User ID"', finalUser['User ID']);
-
-    return NextResponse.json({ success: false, message: `PIN غلط - محاولة ${newAttempts}/3` }, { status: 401 });
-
-  } catch (e) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+  // 1. هودي صفحات ما منلمسن ابدا
+  if (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.includes('.') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/terms-approval') ||
+    pathname.startsWith('/closed') ||
+    pathname.startsWith('/coming-soon')
+  ) {
+    return NextResponse.next();
   }
+
+    // 2. حماية الأدمن
+  if (pathname.startsWith('/admin')) {
+
+    if (pathname.startsWith('/admin/login')) {
+      const adminSession = request.cookies.get('admin_session');
+      if (adminSession) {
+        try {
+          const data = JSON.parse(adminSession.value);
+          const role = data.role;
+          if(role === 'Store Owner') return NextResponse.redirect(new URL('/store-owner', request.url));
+          if(role === 'Driver') return NextResponse.redirect(new URL('/driver-owner', request.url));
+          if(role === 'Taxi Driver') return NextResponse.redirect(new URL('/taxi-driver', request.url));
+          return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+        } catch {}
+      }
+      return NextResponse.next();
+    }
+
+    // استثناء صفحة الموافقة تبع الأدمن عشان ما نعمل لووب
+    if (pathname.startsWith('/admin/terms-approval')) {
+      return NextResponse.next();
+    }
+
+    const adminSession = request.cookies.get('admin_session');
+
+    if (!adminSession) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+
+    // ✅ الفحص الجديد يلي ضفناه - بيمنع يفوت عالداشبورد اذا مش موافق
+    try {
+      const data = JSON.parse(adminSession.value);
+      const accepted = String(data.AcceptedTerms || "FALSE").toUpperCase().trim();
+      if (accepted !== "TRUE") {
+        return NextResponse.redirect(new URL('/admin/terms-approval', request.url));
+      }
+    } catch {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+
+    if (pathname === '/admin' || pathname === '/admin/') {
+      try {
+        const data = JSON.parse(adminSession.value);
+        const role = data.role;
+        if(role === 'Store Owner') return NextResponse.redirect(new URL('/store-owner', request.url));
+        if(role === 'Driver') return NextResponse.redirect(new URL('/driver-owner', request.url));
+        if(role === 'Taxi Driver') return NextResponse.redirect(new URL('/taxi-driver', request.url));
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      } catch {
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      }
+    }
+
+    return NextResponse.next();
+  }
+  // 3. حماية السائق وصاحب المتجر والتاكسي
+  if (pathname.startsWith('/driver-owner') || pathname.startsWith('/store-owner') || pathname.startsWith('/taxi-driver')) {
+
+    const adminSession = request.cookies.get('admin_session');
+
+    if (!adminSession) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+
+    // ✅ نفس الفحص هون كمان
+    try {
+      const data = JSON.parse(adminSession.value);
+      const accepted = String(data.AcceptedTerms || "FALSE").toUpperCase().trim();
+      if (accepted !== "TRUE") {
+        return NextResponse.redirect(new URL('/admin/terms-approval', request.url));
+      }
+    } catch {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+
+    return NextResponse.next();
+  }
+
+  // 4. صفحة الحداد - اذا الموقع مقفل
+  if (pathname !== '/closed') {
+
+    try {
+
+      const baseUrl = request.nextUrl.origin;
+
+      const res = await fetch(`${baseUrl}/api/global-config`, {
+        next: { revalidate: 10 },
+        headers: { 'x-middleware': '1' }
+      });
+
+      if (res.ok) {
+
+        const cfg = await res.json();
+
+        if ((cfg?.isLocked === true || cfg?.emergency_lock?.value === 'TRUE')) {
+          return NextResponse.redirect(new URL('/closed', request.url));
+        }
+      }
+
+    } catch {}
+  }
+
+  // 5. صفحة الرئيسية /
+  if (pathname === '/') {
+
+    const session = request.cookies.get('session');
+    const isGuest = request.cookies.get('md_guest');
+
+    // اذا عندو جلسة او زائر قديم -> وديه عالشوب
+    if (session || isGuest) {
+      return NextResponse.redirect(new URL('/shop', request.url));
+    }
+
+    // اذا زائر جديد اول مرة -> سجلو بـ guestlogs
+    try {
+
+      const baseUrl = request.nextUrl.origin;
+
+      // ننده الـ API اللي عملناه
+      const guestRes = await fetch(`${baseUrl}/api/guest`, {
+        method: 'POST',
+        headers: {
+          'x-forwarded-for': request.headers.get('x-forwarded-for') || '',
+          'x-real-ip': request.headers.get('x-real-ip') || '',
+          'user-agent': request.headers.get('user-agent') || ''
+        }
+      });
+
+      // مناخد الرد ومنكمل على /
+      const response = NextResponse.next();
+
+      // مننسخ الكوكيز md_guest اللي رجعها الـ API
+      const setCookie = guestRes.headers.get('set-cookie');
+
+      if(setCookie) {
+        response.headers.set('set-cookie', setCookie);
+      }
+
+      return response;
+
+    } catch (e) {
+      // حتى لو فشل التسجيل منكمل عالموقع عادي
+      return NextResponse.next();
+    }
+  }
+
+  // 6. الصفحات المحمية - سلة و بروفايل و طلبات
+  const protectedRoutes = ['/cart', '/profile', '/orders', '/checkout', '/products'];
+
+  const isProtected = protectedRoutes.some(r => pathname.startsWith(r));
+
+  if (isProtected) {
+
+    const session = request.cookies.get('session');
+    const isGuest = request.cookies.get('md_guest');
+
+    if (!session && !isGuest) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    if (session) {
+
+      try {
+
+        let data;
+
+        try {
+          data = JSON.parse(session.value);
+        } catch {
+          data = JSON.parse(decodeURIComponent(session.value));
+        }
+
+        const accepted = String(data.AcceptedTerms || data.acceptedTerms || "TRUE").toUpperCase();
+
+        if (accepted !== "TRUE" && pathname !== '/terms-approval') {
+          return NextResponse.redirect(new URL('/terms-approval', request.url));
+        }
+
+      } catch {
+        return NextResponse.next();
+      }
+    }
+  }
+
+  return NextResponse.next();
 }
+
+// هون منقلو وين يشتغل الميدلوير
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)']
+};
