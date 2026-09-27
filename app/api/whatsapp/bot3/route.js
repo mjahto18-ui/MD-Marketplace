@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 import { getPricingConfig, calculateFare } from "@/lib/taxi/pricingEngine";
@@ -32,7 +31,6 @@ function normalizeWhatsAppNumber(phone) {
 function normalizePhone(p) { return String(p || "").replace(/\D/g, "").trim(); }
 function normalizeText(t) { return String(t||"").toLowerCase().trim(); }
 
-
 async function sendMessage(to, text) {
   if (!WHATSAPP_TOKEN) return;
   const cleanPhone = normalizeWhatsAppNumber(to);
@@ -46,48 +44,6 @@ async function sendMessage(to, text) {
     console.log("📤 WhatsApp BOT3:", JSON.stringify(data).slice(0,500));
   } catch(e){ console.error("BOT3 send error", e); }
 }
-
-async function sendMessageWithTaxiButton(to, orderCode, secretCode, detailsText) {
-  if (!WHATSAPP_TOKEN) return;
-  const cleanPhone = normalizeWhatsAppNumber(to);
-  const taxiUrl = `${SITE_URL}/taxi`;
-  try {
-    const res = await fetch(`https://graph.facebook.com/v26.0/${PHONE_ID}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: cleanPhone,
-        type: "interactive",
-        interactive: {
-          type: "cta_url",
-          body: { text: detailsText },
-          action: {
-            name: "cta_url",
-            parameters: {
-              display_text: "🚕 تابع رحلتك",
-              url: taxiUrl
-            }
-          }
-        }
-      })
-    });
-    const data = await res.json();
-    console.log("📤 WhatsApp BOT3 BUTTON:", JSON.stringify(data).slice(0,800));
-    if (data.error) {
-      // fallback لنص عادي اذا فشل الكبسة
-      await sendMessage(to, detailsText + `
-
-${taxiUrl}`);
-    }
-  } catch(e){ 
-    console.error("BOT3 button error", e);
-    await sendMessage(to, detailsText + `
-
-${taxiUrl}`);
-  }
-}
-
 
 async function getBotSessionRow(phone) {
   const supabase = getSupabase();
@@ -186,7 +142,7 @@ export async function POST(req) {
       const bridgePhone = normalizeWhatsAppNumber(body.phone || body.Phone || body.from || "");
       if (!bridgePhone) return NextResponse.json({ status: "ok", error: "NO_PHONE" });
       await createOrUpdateBot3Session(bridgePhone, {});
-      const startMsg = body.startMessage || "تكرم عينك 🚕 من وين بدك نبلش؟\nبعتلي موقعك الحالي 📍";
+      const startMsg = body.startMessage || "تكرم عينك 🚕 من وين بدك نبلش؟\nإرسال موقعك الحالي 📍";
       await sendMessage(bridgePhone, startMsg);
       return NextResponse.json({ status: "ok", bridge: "BOT3_STARTED", phone: bridgePhone });
     }
@@ -238,7 +194,7 @@ export async function POST(req) {
       const address = loc.address || name;
       if (!currentData.origin_lat) {
         currentData = await createOrUpdateBot3Session(whatsappNumber, { origin_lat: lat, origin_lng: lng, origin_name: name, origin_address: address });
-        await sendMessage(whatsappNumber, `تمام لقطت موقعك من: ${name} ✅\n\nهلا لوين؟ بعتلي الموقع التاني 📍`);
+        await sendMessage(whatsappNumber, `تمام لقطت موقعك من: ${name} ✅\n\nنقطة الوصول إرسال الموقع التاني 📍`);
         return NextResponse.json({ status: "ok", step: "ORIGIN_SAVED" });
       } else if (!currentData.dest_lat) {
         currentData = await createOrUpdateBot3Session(whatsappNumber, { dest_lat: lat, dest_lng: lng, dest_name: name, dest_address: address });
@@ -336,18 +292,18 @@ export async function POST(req) {
         }
       } catch(e){ console.log("push error", e.message); }
 
-      const detailsText = `✅ تم تسجيل طلبك!\n\n📍 من: ${currentData.origin_name}\n📍 الى: ${currentData.dest_name}\n🚗 الالية: ${vehicle_type}\n📏 المسافة: ${totalKm.toFixed(2)} كم\n💰 السعر التقريبي: ${fare.customer_pays_lbp?.toLocaleString()} ل.ل\n\n📌 كود الرحلة: *${orderData.order_code}*\n🔒 رمز التحقق: *${secretCode}*\n⏳ بانتظار سائق قريب...\n\nتابع رحلتك من هون:\n${SITE_URL}/taxi`;
+      const reply = `✅ تم تسجيل طلبك!\n\n📍 من: ${currentData.origin_name}\n📍 الى: ${currentData.dest_name}\n🚗 الالية: ${vehicle_type}\n📏 المسافة: ${totalKm.toFixed(2)} كم\n💰 السعر التقريبي: ${fare.customer_pays_lbp?.toLocaleString()} ل.ل\n\n📌 كود الرحلة: *${orderData.order_code}*\n🔒 رمز التحقق: *${secretCode}*\n⏳ بانتظار سائق قريب...\n\nتابع رحلتك من هون:\n${SITE_URL}/taxi`;
 
-      await sendMessageWithTaxiButton(whatsappNumber, orderData.order_code, secretCode, detailsText);
+      await sendMessage(whatsappNumber, reply);
       console.log(`✅ BOT3 ORDER CREATED ${orderData.order_code} code=${secretCode} customer=${customer_id}`);
       await closeBotSessionAndReturnToBot1(whatsappNumber, "TAXI_ORDER_DONE");
       return NextResponse.json({ status: "ok", action: "TAXI_CREATED", tripCode: orderData.order_code });
     }
 
     if (!currentData.origin_lat) {
-      await sendMessage(whatsappNumber, "بعتلي موقعك الحالي 📍 من وين بدك نبلش؟");
+      await sendMessage(whatsappNumber, "إرسال موقعك الحالي 📍 نقطة الإنطلاق");
     } else if (!currentData.dest_lat) {
-      await sendMessage(whatsappNumber, "هلا لوين؟ بعتلي الموقع التاني بالبحث 📍");
+      await sendMessage(whatsappNumber, " نقطة الوصول اختيار خانة بالبحث للإرسال📍");
     }
 
     return NextResponse.json({ status: "ok" });
