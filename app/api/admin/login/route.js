@@ -39,8 +39,8 @@ export async function POST(req) {
     const pinDb = String(finalUser.PIN || '').trim()
     const lockStatus = String(finalUser.isLocked || '').toUpperCase()
     const attempts = parseInt(finalUser.failedAttempts || "0")
+    const acceptedTerms = String(finalUser.AcceptedTerms || "FALSE").toUpperCase().trim()
 
-    // ✅ 1. نفس الكوستمر - فحص القفل
     if (lockStatus === "TRUE" || lockStatus === "LOCKED") {
       return NextResponse.json({ success: false, message: "تم قفل الحساب بعد 3 محاولات خاطئة - تواصل مع الادمن العام" }, { status: 403 });
     }
@@ -61,7 +61,6 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: `دورك ${role} غير مسموح حاليا` }, { status: 403 });
     }
 
-    // ✅ 2. اذا PIN صح - صفر العداد
     if (pinDb === pinStr) {
       await supabase.from('users').update({
         'failedAttempts': "0",
@@ -84,6 +83,7 @@ export async function POST(req) {
         name: finalUser.Name,
         phone: phoneStr,
         role: role,
+        AcceptedTerms: acceptedTerms,
         storeId: finalUser['Store ID'] || finalUser.Store_ID || null,
         area: finalUser.Area || null,
         relatedId: finalUser['Related ID'] || null,
@@ -96,23 +96,29 @@ export async function POST(req) {
         seats: taxiData?.seats || 4,
       }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
 
-      const redirectTo = 
-        role === 'Store Owner' ? '/store-owner' :
-        role === 'Driver' ? '/driver-owner' :
-        role === 'Taxi Driver' ? '/taxi-driver' :
-        '/admin';
+      // ✅ هون الجبر - اذا ما قابل الشروط وديه عصفحة الشروط
+      let redirectTo;
+      if (acceptedTerms!== "TRUE") {
+        redirectTo = '/admin/terms-approval';
+      } else {
+        redirectTo = 
+          role === 'Store Owner' ? '/store-owner' :
+          role === 'Driver' ? '/driver-owner' :
+          role === 'Taxi Driver' ? '/taxi-driver' :
+          '/admin';
+      }
 
       return NextResponse.json({ 
         success: true, 
         role,
         userId: finalUser['User ID'],
+        AcceptedTerms: acceptedTerms,
         redirectTo,
         engine_cc: taxiData?.engine_cc || '1500',
         vehicle_type: taxiData?.vehicle_type || 'car'
       });
     }
 
-    // ✅ 3. PIN غلط - نفس لوجيك الكوستمر
     let newAttempts = attempts + 1;
     if (newAttempts >= 3) {
       await supabase.from('users').update({
