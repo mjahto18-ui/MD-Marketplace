@@ -79,7 +79,6 @@ export async function POST(req) {
       relatedId: finalUser['Related ID'] || null,
       Taxi_ID: finalUser['Taxi_ID'] || null,
       taxiId: finalUser['Taxi_ID'] || null,
-      // ✅ هون الحل - صار يجيب المحرك الحقيقي
       engine_cc: taxiData?.engine_cc || '1500',
       vehicle_type: taxiData?.vehicle_type || 'car',
       car_type: taxiData?.car_type || null,
@@ -87,7 +86,21 @@ export async function POST(req) {
       seats: taxiData?.seats || 4,
     }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
 
-    return NextResponse.json({ success: true, role });
+    // ✅ هون التعديل المهم - صار يرجع كل شي للفرونت
+    const redirectTo = 
+      role === 'Store Owner' ? '/store-owner' :
+      role === 'Driver' ? '/driver-owner' :
+      role === 'Taxi Driver' ? '/taxi-driver' :
+      '/admin';
+
+    return NextResponse.json({ 
+      success: true, 
+      role,
+      userId: finalUser['User ID'],
+      redirectTo,
+      engine_cc: taxiData?.engine_cc || '1500',
+      vehicle_type: taxiData?.vehicle_type || 'car'
+    });
 
   } catch (e) {
     return NextResponse.json({ success: false, message: e.message }, { status: 500 });
