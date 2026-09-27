@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 function getSupabase() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const url = rawUrl?.replace('/rest/v1','').replace(/\/$/,'');
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url) throw new Error("Missing Supabase URL");
   return createClient(url, key);
 }
@@ -28,7 +28,7 @@ export async function POST(req) {
     let finalUser = users?.[0]
 
     if(!finalUser && phoneStr === '03177653'){
-      const { data } = await supabase.from('users').select('*').eq('User ID','Admin').maybeSingle()
+      const { data } = await supabase.from('users').select('*').eq('"User ID"','Admin').maybeSingle()
       finalUser = data
     }
 
@@ -40,7 +40,7 @@ export async function POST(req) {
 
     const activeRaw = finalUser.Active
     const activeStr = String(activeRaw).toLowerCase()
-    const isActive = activeRaw === true || activeStr === 'true' || activeStr === 'TRUE' || activeStr === '1'
+    const isActive = activeRaw === true || activeStr === 'true' || activeStr === '1'
 
     if(!isActive){
       return NextResponse.json({ success: false, message: `حسابك موقوف - Active = ${finalUser.Active}` }, { status: 403 });
@@ -57,6 +57,17 @@ export async function POST(req) {
 
     if (pinDb!== pinStr) return NextResponse.json({ success: false, message: "PIN غلط" }, { status: 401 });
 
+    // ✅ جيب بيانات التاكسي الحقيقية من taxi_drivers
+    let taxiData = null
+    if(finalUser['Taxi_ID']){
+      const { data: driver } = await supabase
+        .from('taxi_drivers')
+        .select('engine_cc, vehicle_type, car_type, car_color, seats, full_name')
+        .eq('"Taxi_ID"', finalUser['Taxi_ID'])
+        .single()
+      taxiData = driver
+    }
+
     const cookieStore = await cookies();
     cookieStore.set('admin_session', JSON.stringify({
       userId: finalUser['User ID'],
@@ -67,8 +78,13 @@ export async function POST(req) {
       area: finalUser.Area || null,
       relatedId: finalUser['Related ID'] || null,
       Taxi_ID: finalUser['Taxi_ID'] || null,
-       taxiId: finalUser['Taxi_ID'] || null
-      
+      taxiId: finalUser['Taxi_ID'] || null,
+      // ✅ هون الحل - صار يجيب المحرك الحقيقي
+      engine_cc: taxiData?.engine_cc || '1500',
+      vehicle_type: taxiData?.vehicle_type || 'car',
+      car_type: taxiData?.car_type || null,
+      car_color: taxiData?.car_color || null,
+      seats: taxiData?.seats || 4,
     }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
 
     return NextResponse.json({ success: true, role });
