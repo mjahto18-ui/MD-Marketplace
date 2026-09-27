@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 
 export default function TermsApproval() {
   const [loading, setLoading] = useState(false);
@@ -40,12 +41,14 @@ export default function TermsApproval() {
       <div className="bg-white shadow-2xl rounded-[24px] p-8 w-full max-w-[420px] relative z-10">
         
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-lg" style={{ background: "linear-gradient(135deg, #a78bfa 0%, #a855f7 30%, #ec4899 100%)" }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="8" cy="21" r="1" fill="white" stroke="white" />
-              <circle cx="19" cy="21" r="1" fill="white" stroke="white" />
-              <path d="M2.5 2.5h3l2.5 12h11l2.5-8h-15" />
-            </svg>
+          <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center mb-3 shadow-lg">
+            <Image
+              src="/icon-dark.png"
+              alt="MD-Marketplace"
+              width={64}
+              height={64}
+              className="w-full h-full object-cover"
+            />
           </div>
           <h3 className="text-[15px] font-bold tracking-widest text-slate-800">MD-MARKETPLACE</h3>
           <p className="text-[11px] text-slate-400 mt-1 tracking-wide">منصة التسوق الموثوقة</p>
