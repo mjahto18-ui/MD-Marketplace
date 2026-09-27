@@ -103,13 +103,13 @@ export async function POST(req) {
       return NextResponse.json({ error: 'دور غير معروف' }, { status: 400 });
     }
 
-    await supabase.from('admin_invite_codes').update({
+    const { error: burnError } = await supabase.from('admin_invite_codes').update({
       is_used: true,
       used_by: phone,
       used_at: now,
-      used_role: role,
-      used_area: area || null
+      area: area || null
     }).eq('code', String(code).trim());
+    if (burnError) throw burnError;
 
     return NextResponse.json({ success: true, message: 'تم التسجيل وحرق الكود - أول نقطة لوكيشن تسجلت' });
 
