@@ -25,10 +25,11 @@ export default function HistoryPage(){
   };
 
   const getStatusColor = (s) => {
-    if(s==='completed') return {bg:'rgba(34,197,94,0.15)', color:'#4ade80', border:'rgba(34,197,94,0.3)', label:'مكتملة'};
-    if(s==='cancelled') return {bg:'rgba(239,68,68,0.15)', color:'#f87171', border:'rgba(239,68,68,0.3)', label:'ملغية'};
-    return {bg:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'rgba(251,191,36,0.3)', label:s};
-  };
+  if(s==='completed') return {bg:'rgba(34,197,94,0.15)', color:'#4ade80', border:'rgba(34,197,94,0.3)', label:'مكتملة'};
+  if(s==='cancelled') return {bg:'rgba(239,68,68,0.15)', color:'#f87171', border:'rgba(239,68,68,0.3)', label:'ملغية'};
+  if(s==='expired') return {bg:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'rgba(251,191,36,0.3)', label:'منتهية'};
+  return {bg:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'rgba(251,191,36,0.3)', label:s};
+};
 
   const handleBack = () => {
     if (window.history.length > 1) router.back();
