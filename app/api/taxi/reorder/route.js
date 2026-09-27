@@ -17,20 +17,10 @@ export async function POST(req){
   if(!old || old.status !== 'expired') return Response.json({success:false, error:'not expired'},{status:400});
 
   const { error } = await supabase.from('taxi_orders').update({
-    status: 'pending',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    taxi_id: null,
-    taxi_name: null,
-    taxi_phone: null,
-    taxi_plate_number: null,
-    taxi_status: 'idle',
-    secret_code: null,
-    is_code_verified: false,
-    code_verified_at: null,
-    actual_start_at: null,
-    actual_end_at: null,
-  }).eq('id', order_id).eq('status','expired');
+  status: 'pending',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+}).eq('id', order_id).eq('status','expired');
 
   if(error) return Response.json({success:false, error:error.message},{status:500});
   return Response.json({success:true});
