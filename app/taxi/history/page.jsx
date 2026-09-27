@@ -7,6 +7,7 @@ export default function HistoryPage(){
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [customerId, setCustomerId] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(()=>{
     fetch('/api/me', {cache:'no-store', credentials:'include'}).then(r=>r.json()).then(d=>{
@@ -25,11 +26,40 @@ export default function HistoryPage(){
   };
 
   const getStatusColor = (s) => {
-  if(s==='completed') return {bg:'rgba(34,197,94,0.15)', color:'#4ade80', border:'rgba(34,197,94,0.3)', label:'مكتملة'};
-  if(s==='cancelled') return {bg:'rgba(239,68,68,0.15)', color:'#f87171', border:'rgba(239,68,68,0.3)', label:'ملغية'};
-  if(s==='expired') return {bg:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'rgba(251,191,36,0.3)', label:'منتهية'};
-  return {bg:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'rgba(251,191,36,0.3)', label:s};
-};
+    if(s==='completed') return {bg:'rgba(34,197,94,0.15)', color:'#4ade80', border:'rgba(34,197,94,0.3)', label:'مكتملة'};
+    if(s==='cancelled') return {bg:'rgba(239,68,68,0.15)', color:'#f87171', border:'rgba(239,68,68,0.3)', label:'ملغية'};
+    if(s==='expired') return {bg:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'rgba(251,191,36,0.3)', label:'منتهية'};
+    return {bg:'rgba(251,191,36,0.15)', color:'#fbbf24', border:'rgba(251,191,36,0.3)', label:s};
+  };
+
+  const handleReorder = async (o) => {
+    if(!confirm('إعادة طلب نفس الرحلة هلق؟')) return;
+    setActionLoading(o.id);
+    try{
+      const r = await fetch('/api/taxi/reorder', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({order_id: o.id})
+      }).then(r=>r.json());
+      if(r.success){
+        router.push('/taxi');
+      } else alert('فشل: '+(r.error||''));
+    } finally { setActionLoading(null); }
+  };
+
+  const handleCancel = async (o) => {
+    if(!confirm('بدك تلغي هالطلب نهائياً؟')) return;
+    setActionLoading(o.id);
+    try{
+      const r = await fetch('/api/taxi/cancel', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({order_id: o.id})
+      }).then(r=>r.json());
+      if(r.success){
+        // شيلو من الهيستوري او حدثو لـ cancelled
+        setOrders(prev => prev.map(x=> x.id===o.id ? {...x, status:'cancelled'} : x));
+      } else alert(r.error||'فشل الإلغاء');
+    } finally { setActionLoading(null); }
+  };
 
   const handleBack = () => {
     if (window.history.length > 1) router.back();
@@ -40,7 +70,6 @@ export default function HistoryPage(){
 
   return (
     <div dir="rtl" className="min-h-screen gradient-bg" style={{minHeight:'100vh', fontFamily:'Cairo', width:'100%', maxWidth:'100vw', overflowX:'hidden', boxSizing:'border-box'}}>
-      {/* هيدر نفس الشوب */}
       <div className="glass border-b border-white/10 p-4 sticky top-0 z-20" style={{backdropFilter:'blur(10px)', background:'rgba(10,25,48,0.8)', color:'white', padding:'14px 16px', display:'flex', justifyContent:'space-between', position:'sticky', top:0, zIndex:10, width:'100%', maxWidth:'100vw', boxSizing:'border-box'}}>
         <div style={{display:'flex', gap:8, alignItems:'center'}}>
           <button onClick={handleBack} style={{fontSize:12, background:'rgba(255,255,255,0.15)', border:'1px solid rgba(255,255,255,0.2)', padding:'6px 12px', borderRadius:10, color:'white', fontWeight:900}}>⬅ رجوع</button>
@@ -54,8 +83,9 @@ export default function HistoryPage(){
 
         {orders.map(o=>{
           const st = getStatusColor(o.status);
+          const isBusy = actionLoading===o.id;
           return (
-            <div key={o.id} className="glass border border-white/10" style={{borderRadius:16, padding:12, marginBottom:12, border:'1px solid rgba(255,255,255,0.1)', width:'100%', maxWidth:'100%', boxSizing:'border-box', overflowX:'hidden', wordBreak:'break-word', overflowWrap:'anywhere'}}>
+            <div key={o.id} className="glass border border-white/10" style={{borderRadius:16, padding:12, marginBottom:12, border:'1px solid rgba(255,255,255,0.1)', width:'100%', boxSizing:'border-box'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <span style={{fontWeight:900, fontSize:13, color:'white'}}>{o.order_code}</span>
                 <span style={{background:st.bg, color:st.color, border:`1px solid ${st.border}`, padding:'2px 10px', borderRadius:20, fontSize:11, fontWeight:900}}>{st.label}</span>
@@ -72,42 +102,26 @@ export default function HistoryPage(){
                 <span>السائق: {o.taxi_name || '-'}</span>
                 <span>{o.total_amount?.toLocaleString()} ل.ل</span>
               </div>
-              <div style={{fontSize:11, marginTop:4, color:'rgba(255,255,255,0.4)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
-                {o.taxi_car_type} - {o.taxi_plate_number} {o.taxi_engine_cc? `- ${o.taxi_engine_cc}cc` : ''} - {o.taxi_seats? `${o.taxi_seats} مقاعد` : ''}
-              </div>
-              {/* زر إعادة الطلب - بس للـ expired */}
-{o.status === 'expired' && (
-  <button
-    onClick={async ()=>{
-      if(!confirm('اعادة طلب الرحلة ؟')) return;
-      const r = await fetch('/api/taxi/reorder', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({order_id: o.id})
-      }).then(r=>r.json());
-      if(r.success){
-        alert('تم إعادة الطلب - صار pending هلق');
-        router.push('/taxi'); // رجعو عصفحة التكسي يشوف الطلب فعال
-      } else {
-        alert('فشل: ' + (r.error||''));
-      }
-    }}
-    style={{
-      marginTop:10,
-      width:'100%',
-      background:'rgba(251,191,36,0.15)',
-      border:'1px solid rgba(251,191,36,0.4)',
-      color:'#fbbf24',
-      padding:'8px 12px',
-      borderRadius:10,
-      fontWeight:900,
-      fontSize:12,
-      cursor:'pointer'
-    }}
-  >
-    🔄 إعادة الطلب 
-  </button>
-)}
+
+              {/* زرين بس للـ expired */}
+              {o.status === 'expired' && (
+                <div style={{display:'flex', gap:8, marginTop:12}}>
+                  <button
+                    onClick={()=>handleReorder(o)}
+                    disabled={isBusy}
+                    style={{flex:1, background:'rgba(251,191,36,0.15)', border:'1px solid rgba(251,191,36,0.4)', color:'#fbbf24', padding:'9px', borderRadius:10, fontWeight:900, fontSize:12, cursor:'pointer', opacity:isBusy?0.5:1}}
+                  >
+                    {isBusy?'...':'🔄 إعادة الطلب'}
+                  </button>
+                  <button
+                    onClick={()=>handleCancel(o)}
+                    disabled={isBusy}
+                    style={{flex:1, background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#f87171', padding:'9px', borderRadius:10, fontWeight:900, fontSize:12, cursor:'pointer', opacity:isBusy?0.5:1}}
+                  >
+                    {isBusy?'...':'✕ إلغاء الطلب'}
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
