@@ -1,6 +1,6 @@
 "use client"
 export const dynamic = "force-dynamic";
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 
@@ -11,21 +11,21 @@ export default function AdminLogin(){
   const [loading,setLoading]=useState(false)
   const router = useRouter()
 
-  // بوكس الكود
   const [showCodeBox,setShowCodeBox]=useState(false)
   const [inviteCode,setInviteCode]=useState("")
   const [codeErr,setCodeErr]=useState("")
   const [codeLoading,setCodeLoading]=useState(false)
 
-  // فورم التسجيل بعد ما يصح الكود - بيستخدم نفس API التاني يلي بعتو
   const [showRegister,setShowRegister]=useState(false)
   const [verifiedCode,setVerifiedCode]=useState("")
   const [areas,setAreas]=useState([])
+  const [categories,setCategories]=useState([])
   const [regForm,setRegForm]=useState({
-    role:"store", // store | driver | taxi_driver
+    role:"store",
     name:"", phone:"", area:"", 
     vehicleTyp:"Moto", vehicle_type:"car", engine_cc:"", car_color:"", plate_number:"", car_type:"", seats:"4", gender:"male",
-    storeName:"", storeAddress:"", openTime:"", closeTime:"", address:""
+    storeName:"", storeAddress:"", openTime:"", closeTime:"", address:"",
+    category:"", description:""
   })
   const [regErr,setRegErr]=useState("")
   const [regLoading,setRegLoading]=useState(false)
@@ -48,12 +48,13 @@ export default function AdminLogin(){
     setLoading(false)
   }
 
-  // فتح البوكس + جلب areas فقط - ما عاد نجيب engines
   const openCodeBox = async ()=>{
     setInviteCode(""); setCodeErr(""); setShowCodeBox(true)
     try{
       const a = await fetch("/api/areas").then(r=>r.json())
       setAreas(a.areas || a || [])
+      const c = await fetch("/api/categories").then(r=>r.json()).catch(()=>({}))
+      setCategories(c.categories || c || [])
     }catch{}
   }
 
@@ -75,6 +76,16 @@ export default function AdminLogin(){
       }
     }catch(e){ setCodeErr("خطأ اتصال") }
     setCodeLoading(false)
+  }
+
+  const resetForm = ()=>{
+    setRegForm({
+      role:"store",
+      name:"", phone:"", area:"", 
+      vehicleTyp:"Moto", vehicle_type:"car", engine_cc:"", car_color:"", plate_number:"", car_type:"", seats:"4", gender:"male",
+      storeName:"", storeAddress:"", openTime:"", closeTime:"", address:"",
+      category:"", description:""
+    })
   }
 
   const handleRegister = async (e)=>{
@@ -110,13 +121,18 @@ export default function AdminLogin(){
             storeAddress: regForm.storeAddress,
             openTime: regForm.openTime,
             closeTime: regForm.closeTime,
+            category: regForm.category,
+            description: regForm.description,
           })
         })
         const j = await res.json()
         if(!res.ok) throw new Error(j.error || "فشل التسجيل")
         alert(j.message || "تم التسجيل وحرق الكود")
+        // بعد كل ابديت و نجاح ينمحو الاسطر يردع البوكس نضيف
+        resetForm()
         setShowRegister(false)
         setVerifiedCode("")
+        setInviteCode("")
       }catch(err){
         setRegErr(err.message)
       }
@@ -130,10 +146,10 @@ export default function AdminLogin(){
   if(showRegister){
     return (
       <div style={{minHeight:'100vh', background:'radial-gradient(1200px at 20% -10%, #1a0b2e 0%, #0a0a14 45%, #080811 100%)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Cairo, sans-serif', padding:'20px'}}>
-        <div style={{background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))', backdropFilter:'blur(20px)', padding:'28px', borderRadius:'24px', width:'460px', border:'1px solid rgba(255,255,255,0.08)'}}>
+        <div style={{background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))', backdropFilter:'blur(20px)', padding:'28px', borderRadius:'24px', width:'500px', maxHeight:'90vh', overflowY:'auto', border:'1px solid rgba(255,255,255,0.08)'}}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px'}}>
             <h2 style={{color:'white', fontWeight:'bold'}}>فورم التسجيل - الكود: {verifiedCode}</h2>
-            <button onClick={()=>{setShowRegister(false); setVerifiedCode("")}} style={{background:'rgba(255,255,255,0.1)', color:'white', border:'none', padding:'6px 12px', borderRadius:'8px', cursor:'pointer'}}>إغلاق البوكس - إلغاء</button>
+            <button onClick={()=>{resetForm(); setShowRegister(false); setVerifiedCode("")}} style={{background:'rgba(255,255,255,0.1)', color:'white', border:'none', padding:'6px 12px', borderRadius:'8px', cursor:'pointer'}}>إغلاق البوكس - إلغاء</button>
           </div>
 
           <div style={{display:'flex', gap:'8px', marginBottom:'12px'}}>
@@ -143,14 +159,14 @@ export default function AdminLogin(){
           </div>
 
           <form onSubmit={handleRegister} style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-            <input value={regForm.name} onChange={e=>setRegForm({...regForm, name:e.target.value})} placeholder={regForm.role==='store'?'اسم صاحب المتجر':'الاسم الكامل'} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
-            <input value={regForm.phone} onChange={e=>setRegForm({...regForm, phone:e.target.value})} placeholder="رقم الموبايل" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
+            <input value={regForm.name} onChange={e=>setRegForm({...regForm, name:e.target.value})} placeholder={regForm.role==='store'?'اسم صاحب المتجر*':'الاسم الكامل*'} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
+            <input value={regForm.phone} onChange={e=>setRegForm({...regForm, phone:e.target.value})} placeholder="رقم الموبايل*" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
 
             {regForm.role==='driver' && (
               <>
                 <select value={regForm.area} onChange={e=>setRegForm({...regForm, area:e.target.value})} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required>
-                  <option value="">اختر المنطقة من areas</option>
-                  {areas.map(a=><option key={a.id} value={a.id} style={{color:'black'}}>{a.name || a.area_name || a.id}</option>)}
+                  <option value="">اختر المنطقة من areas*</option>
+                  {areas.map(a=><option key={a.id || a['Area ID']} value={a.id || a['Area ID']} style={{color:'black'}}>{a.name || a.area_name || a['Area Name'] || a.id || a['Area ID']}</option>)}
                 </select>
                 <select value={regForm.vehicleTyp} onChange={e=>setRegForm({...regForm, vehicleTyp:e.target.value})} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}}>
                   <option value="Moto">Moto</option><option value="Car">Car</option><option value="Van">Van</option>
@@ -162,25 +178,30 @@ export default function AdminLogin(){
               <>
                 <input value={regForm.area} onChange={e=>setRegForm({...regForm, area:e.target.value})} placeholder="المنطقة - كتابة حرة" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
                 <div style={{display:'flex', gap:'8px'}}>
-                  <select value={regForm.vehicle_type} onChange={e=>setRegForm({...regForm, vehicle_type:e.target.value})} style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}}>
-                    <option value="car">car</option><option value="van">van</option><option value="toktok">toktok</option><option value="moto">moto</option><option value="touristic_van">touristic_van</option><option value="touristic_van_11">touristic_van_11</option>
+                  <select value={regForm.vehicle_type} onChange={e=>{
+                    const vt = e.target.value
+                    if(vt==='toktok'){
+                      setRegForm({...regForm, vehicle_type: vt, engine_cc: '200'})
+                    }else{
+                      setRegForm({...regForm, vehicle_type: vt})
+                    }
+                  }} style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}}>
+                    <option value="car">car</option><option value="van">van</option><option value="toktok">toktok - 200cc</option><option value="moto">moto</option><option value="touristic_van">touristic_van</option><option value="touristic_van_11">touristic_van_11</option>
                   </select>
                   <select value={regForm.engine_cc} onChange={e=>setRegForm({...regForm, engine_cc:e.target.value})} style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required>
-                    <option value="">قوة المحرك</option>
+                    <option value="">قوة المحرك*</option>
                     <option value="1200">1200</option>
                     <option value="1500">1500</option>
                     <option value="2000">2000</option>
                     <option value="2500">2500</option>
                     <option value="150">150</option>
-                    <option value="200">200</option>
-                    <option value="toktok">toktok</option>
+                    <option value="200">200 - تكتك</option>
                   </select>
                 </div>
                 <div style={{display:'flex', gap:'8px'}}>
                   <input value={regForm.car_color} onChange={e=>setRegForm({...regForm, car_color:e.target.value})} placeholder="لون السيارة*" style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
                   <input value={regForm.plate_number} onChange={e=>setRegForm({...regForm, plate_number:e.target.value})} placeholder="رقم اللوحة" style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
                 </div>
-                {/* الحقلين الناقصين يلي طلبتن */}
                 <input value={regForm.car_type} onChange={e=>setRegForm({...regForm, car_type:e.target.value})} placeholder="اسم السيارة - car_type" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
                 <input value={regForm.address} onChange={e=>setRegForm({...regForm, address:e.target.value})} placeholder="العنوان - address" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
               </>
@@ -190,20 +211,35 @@ export default function AdminLogin(){
               <>
                 <input value={regForm.storeName} onChange={e=>setRegForm({...regForm, storeName:e.target.value})} placeholder="اسم المتجر*" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
                 <select value={regForm.area} onChange={e=>setRegForm({...regForm, area:e.target.value})} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required>
-                  <option value="">اختر المنطقة من areas</option>
-                  {areas.map(a=><option key={a.id} value={a.id} style={{color:'black'}}>{a.name || a.area_name || a.id}</option>)}
+                  <option value="">اختر المنطقة من areas*</option>
+                  {areas.map(a=><option key={a.id || a['Area ID']} value={a.id || a['Area ID']} style={{color:'black'}}>{a.name || a.area_name || a['Area Name'] || a.id || a['Area ID']}</option>)}
                 </select>
-                <input value={regForm.storeAddress} onChange={e=>setRegForm({...regForm, storeAddress:e.target.value})} placeholder="عنوان المتجر" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
-                <div style={{display:'flex', gap:'8px'}}>
-                  <input type="time" value={regForm.openTime} onChange={e=>setRegForm({...regForm, openTime:e.target.value})} style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
-                  <input type="time" value={regForm.closeTime} onChange={e=>setRegForm({...regForm, closeTime:e.target.value})} style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+                <select value={regForm.category} onChange={e=>setRegForm({...regForm, category:e.target.value})} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}}>
+                  <option value="">اختر Category من categories</option>
+                  {categories.map(c=><option key={c.id || c['Category ID']} value={c.id || c['Category ID']} style={{color:'black'}}>{c.name || c['Category Name'] || c.id}</option>)}
+                </select>
+                <input value={regForm.storeAddress} onChange={e=>setRegForm({...regForm, storeAddress:e.target.value})} placeholder="عنوان المتجر - Adress" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+                <textarea value={regForm.description} onChange={e=>setRegForm({...regForm, description:e.target.value})} placeholder="Description* - وصف المتجر" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white', minHeight:'60px'}} required />
+                <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                  <label style={{color:'rgba(255,255,255,0.6)', fontSize:'11px'}}>Open Time / Close Time - وين انحط بالستور</label>
+                  <div style={{display:'flex', gap:'8px'}}>
+                    <div style={{flex:1}}>
+                      <label style={{color:'white', fontSize:'10px'}}>Open Time</label>
+                      <input type="time" value={regForm.openTime} onChange={e=>setRegForm({...regForm, openTime:e.target.value})} style={{width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+                    </div>
+                    <div style={{flex:1}}>
+                      <label style={{color:'white', fontSize:'10px'}}>Close Time</label>
+                      <input type="time" value={regForm.closeTime} onChange={e=>setRegForm({...regForm, closeTime:e.target.value})} style={{width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+                    </div>
+                  </div>
                 </div>
+                <div style={{color:'rgba(255,255,255,0.5)', fontSize:'10px'}}>Join Date dd/mm/yyyy now - بينحط لحالو</div>
               </>
             )}
 
             {regErr && <div style={{background:'rgba(239,68,68,0.15)', color:'#fca5a5', padding:'8px', borderRadius:'8px', fontSize:'12px'}}>{regErr}</div>}
             <div style={{display:'flex', gap:'10px', marginTop:'6px'}}>
-              <button type="button" onClick={()=>{setShowRegister(false); setVerifiedCode("")}} style={{flex:1, background:'rgba(255,255,255,0.1)', color:'white', padding:'12px', borderRadius:'10px', border:'none', cursor:'pointer'}}>إلغاء - إغلاق البوكس</button>
+              <button type="button" onClick={()=>{resetForm(); setShowRegister(false); setVerifiedCode("")}} style={{flex:1, background:'rgba(255,255,255,0.1)', color:'white', padding:'12px', borderRadius:'10px', border:'none', cursor:'pointer'}}>إلغاء - إغلاق البوكس</button>
               <button type="submit" disabled={regLoading} style={{flex:1, background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)', color:'white', padding:'12px', borderRadius:'10px', fontWeight:'bold', border:'none', cursor:'pointer', opacity: regLoading?0.6:1}}>{regLoading?'جاري...':'تسجيل'}</button>
             </div>
           </form>
