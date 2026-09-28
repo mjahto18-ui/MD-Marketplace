@@ -16,7 +16,6 @@ export async function GET(req) {
 
   const supabase = getSupabase();
   const now = new Date();
-  // كان ساعتين، صار ساعة بس لأنه 20 دقيقة كفاية
   const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
 
   const { data: drafts, error } = await supabase
@@ -30,35 +29,27 @@ export async function GET(req) {
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
   const results = [];
-
   for (const draft of drafts) {
     const scheduledTime = new Date(draft.requested_start_at);
     const diffMinutes = (scheduledTime - now) / 1000 / 60;
-    // كان 70، صار 20 دقيقة
-    if (diffMinutes > 20 || diffMinutes < 0) continue;
+    if (diffMinutes > 20 || diffMinutes < 0) continue; // 20 دقيقة
 
     const { data: order, error: updErr } = await supabase
       .from('taxi_orders')
       .update({ status: 'pending', updated_at: new Date().toISOString() })
-      .eq('id', draft.id)
-      .select()
-      .single();
+      .eq('id', draft.id).select().single();
 
     if (updErr) { results.push({ id: draft.id, error: updErr.message }); continue; }
 
     let nearby = await getNearbyDrivers(supabase, {
-      origin_lat: order.origin_lat,
-      origin_lng: order.origin_lng,
-      vehicle_type: order.taxi_vehicle_type,
-      radiusKm: 5
+      origin_lat: order.origin_lat, origin_lng: order.origin_lng,
+      vehicle_type: order.taxi_vehicle_type, radiusKm: 5
     });
     let radius = 5;
     if (nearby.length === 0) {
       nearby = await getNearbyDrivers(supabase, {
-        origin_lat: order.origin_lat,
-        origin_lng: order.origin_lng,
-        vehicle_type: order.taxi_vehicle_type,
-        radiusKm: 10
+        origin_lat: order.origin_lat, origin_lng: order.origin_lng,
+        vehicle_type: order.taxi_vehicle_type, radiusKm: 10
       });
       radius = 10;
     }
@@ -66,42 +57,33 @@ export async function GET(req) {
     if (nearby.length > 0) {
       await supabase.from('push_queue').insert(
         nearby.map(d => ({
-          Title: 'حجز مسبق - صار وقتو',
-          Message: `🕒 حجز مسبق - الموعد ${new Date(order.requested_start_at).toLocaleString('ar-LB')} - ${order.origin_name} -> ${order.dest_name} - ${order.total_amount?.toLocaleString()} ل.ل - كود ${order.secret_code} - ${d.distance_km.toFixed(1)} كم - الانطلاق بعد 20 دقيقة`,
-          Status: 'Pending',
-          Code: 'TAXI_SCHEDULED_DUE',
-          'Order ID': order.id,
-          'Customer ID': d.Taxi_ID
+          // ✅ الصح
+          "User ID": d["User ID"] || d.User_ID, // لازم User ID مش Customer ID
+          "Customer ID": d["Customer ID"] || null,
+          "Code": "TAXI_SCHEDULED_DUE",
+          "Order ID": order.id,
+          "Data": {
+            order_code: order.order_code,
+            amount: Number(order.total_amount||0).toLocaleString(),
+            origin: order.origin_name,
+            dest: order.dest_name,
+            secret_code: order.secret_code,
+            scheduled_time: new Date(order.requested_start_at).toLocaleTimeString('ar-LB',{hour:'2-digit',minute:'2-digit'}),
+            distance: d.distance_km?.toFixed(1)
+          },
+          "Status": "Pending"
         }))
       );
     }
     results.push({ id: order.id, scheduled_at: order.requested_start_at, nearby: nearby.length, radius });
   }
 
-  // حجوزات مسبقة منتهية من ساعتين
-  const { data: expired } = await supabase
-    .from('taxi_orders')
-    .select('id')
-    .eq('status', 'draft')
-    .not('requested_start_at', 'is', null)
-    .lt('requested_start_at', new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString());
+  // منتهية + يتيم
+  const { data: expired } = await supabase.from('taxi_orders').select('id').eq('status','draft').not('requested_start_at','is',null).lt('requested_start_at', new Date(now.getTime() - 2*60*60*1000).toISOString());
+  if (expired?.length) await supabase.from('taxi_orders').update({ status: 'cancelled', admin_notes: 'expired scheduled' }).in('id', expired.map(e=>e.id));
 
-  if (expired?.length) {
-    await supabase.from('taxi_orders').update({ status: 'cancelled', admin_notes: 'expired scheduled - not accepted' }).in('id', expired.map(e => e.id));
-  }
+  const { data: orphan } = await supabase.from('taxi_orders').select('id').eq('status','draft').is('requested_start_at',null).is('secret_code',null).lt('created_at', new Date(now.getTime() - 15*60*1000).toISOString());
+  if (orphan?.length) await supabase.from('taxi_orders').update({ status: 'cancelled', admin_notes: 'auto-cancelled orphan draft' }).in('id', orphan.map(o=>o.id));
 
-  // ✅ جديد: تنظيف الـ draft الفوري اليتيم بلا كود (مثل MD-000041)
-  const { data: orphan } = await supabase
-    .from('taxi_orders')
-    .select('id')
-    .eq('status', 'draft')
-    .is('requested_start_at', null)
-    .is('secret_code', null)
-    .lt('created_at', new Date(now.getTime() - 15 * 60 * 1000).toISOString());
-
-  if (orphan?.length) {
-    await supabase.from('taxi_orders').update({ status: 'cancelled', admin_notes: 'auto-cancelled orphan draft now' }).in('id', orphan.map(o => o.id));
-  }
-
-  return Response.json({ checked: drafts.length, activated: results.length, results, expired: expired?.length || 0, orphan_cleaned: orphan?.length || 0 });
+  return Response.json({ checked: drafts.length, activated: results.length, results, expired: expired?.length||0, orphan_cleaned: orphan?.length||0 });
 }
