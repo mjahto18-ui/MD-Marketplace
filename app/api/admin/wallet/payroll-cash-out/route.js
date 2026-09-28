@@ -119,18 +119,20 @@ export async function POST(req){
       return NextResponse.json({success:false, error:`اليوزر ${ownerName} (${ownerUserId.slice(0,8)}) ما عندو سجل بجدول employees`}, {status:400});
     }
 
-    // 3- المطابقة: payroll_runs لنفس الموظف + نفس الكود + مش مقبوض
+    // 3- المطابقة: payroll_runs لنفس الموظف + نفس الكود + لازم يكون in_wallet فقط
     const { data: payrollRows, error: payrollErr } = await supabase
       .from('payroll_runs')
       .select('id, employee_id, amount, secret_code_5, status, month_year')
       .eq('employee_id', emp.id)
       .eq('secret_code_5', cleanCode)
-      .neq('status', 'claimed')
       .order('created_at', {ascending:false});
 
     if(payrollErr) throw payrollErr;
-    if(!payrollRows || payrollRows.length === 0){
-      // جرب يشوف إذا الكود موجود بس claimed
+    
+    // فلتر: بس اللي مش claimed
+    const availableRows = (payrollRows||[]).filter(r=> r.status !== 'claimed');
+    
+    if(!availableRows || availableRows.length === 0){
       const { data: claimedCheck } = await supabase.from('payroll_runs').select('id, status, month_year').eq('employee_id', emp.id).eq('secret_code_5', cleanCode).maybeSingle();
       if(claimedCheck?.status === 'claimed'){
         return NextResponse.json({success:false, error:`هاد الكود مقبوض سابقاً - شهر ${claimedCheck.month_year}`}, {status:400});
@@ -138,9 +140,22 @@ export async function POST(req){
       return NextResponse.json({success:false, error:`الكود ${cleanCode} غير صحيح للموظف ${ownerName}`}, {status:400});
     }
 
-    const matchedPayroll = payrollRows[0]; // أحدث واحد
+    // فحص حالة in_wallet - هاد المطلوب: ما لازم يسحب إلا إذا in_wallet
+    const matchedPayroll = availableRows.find(r=> r.status === 'in_wallet') || null;
+    const pendingPayroll = availableRows.find(r=> r.status === 'pending') || null;
 
-    // 4- فحص الرصيد قبل الدفع
+    if(!matchedPayroll && pendingPayroll){
+      return NextResponse.json({
+        success:false, 
+        error:`الراتب لسه بحالة pending - لازم تروح على صفحة الرواتب وتعمل "تحويل للمحفظة" أول، بعدين ترجع تدفع كاش بالكود`
+      }, {status:400});
+    }
+
+    if(!matchedPayroll){
+      return NextResponse.json({success:false, error:`الراتب مش جاهز للدفع - الحالة الحالية ${availableRows[0]?.status}`}, {status:400});
+    }
+
+    // 4- فحص الرصيد قبل الدفع - بس الرصيد الحالي لأنه in_wallet يعني المصاري نزلت
     const { data: txs } = await supabase.from('wallet_transactions').select('Type, Amount').eq('Owner User ID', ownerUserId);
     let currentBalance = 0;
     (txs||[]).forEach(t=>{
@@ -149,34 +164,18 @@ export async function POST(req){
       else currentBalance += Number(t.Amount||0);
     });
 
-    // إذا الراتب لسه pending، الترigger رح يضيف المبلغ للمحفظة عند تحويله لـ in_wallet
-    // فالرصيد المتوقع = الحالي + مبلغ الراتب إذا كان pending
-    let projectedBalance = currentBalance;
-    if(matchedPayroll.status === 'pending'){
-      projectedBalance += Number(matchedPayroll.amount||0);
-    }
-
-    if(amt > projectedBalance){
+    if(amt > currentBalance){
       return NextResponse.json({
         success:false, 
-        error:`رصيد غير كافي - رصيده الحالي ${currentBalance.toLocaleString()}، بعد تنزيل الراتب بيصير ${projectedBalance.toLocaleString()}، والمطلوب ${amt.toLocaleString()}`
+        error:`رصيد غير كافي - رصيده الحالي ${currentBalance.toLocaleString()} والمطلوب ${amt.toLocaleString()}`
       }, {status:400});
     }
 
-    // إذا الدفع جزئي، تأكد ما يتجاوز مبلغ الراتب
     if(amt > Number(matchedPayroll.amount||0)){
       return NextResponse.json({
         success:false,
         error:`المبلغ المطلوب ${amt.toLocaleString()} أكبر من قيمة الراتب ${Number(matchedPayroll.amount).toLocaleString()}`
       }, {status:400});
-    }
-
-    // 5- إذا الراتب pending، حوله لـ in_wallet أول (التريغر رح ينزل المصاري ع المحفظة)
-    if(matchedPayroll.status === 'pending'){
-      const { error: toWalletErr } = await supabase.from('payroll_runs').update({ status: 'in_wallet' }).eq('id', matchedPayroll.id).eq('status', 'pending');
-      if(toWalletErr) throw toWalletErr;
-      // انتظر شوي للتريغر
-      await new Promise(r=>setTimeout(r, 500));
     }
 
     // 6- نفذ الدفع: خصم + cash_payouts
