@@ -5,18 +5,20 @@ import { getNearbyDrivers } from "@/lib/taxi/nearby";
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) throw new Error("Missing Supabase env");
   return createClient(url, key);
 }
 
 export async function GET(req) {
-  const auth = req.headers.get('authorization');
-  const secret = process.env.CRON_SECRET;
+  const url = new URL(req.url);
+  const auth = req.headers.get('authorization')?.trim();
+  const secretParam = url.searchParams.get('secret')?.trim();
+  const secret = process.env.CRON_SECRET?.trim();
+
   if (!secret) return Response.json({ error: 'CRON_SECRET not set in .env' }, { status: 500 });
-  
-  // للديباغ - شيلو بعد ما يشتغل
-  console.log('Auth check:', { got: auth, expected: `Bearer ${secret}`.substring(0,20)+'...' });
-  
-  if (auth !== `Bearer ${secret}`) return Response.json({ error: 'unauthorized', got_auth: auth }, { status: 401 });
+  if (auth !== `Bearer ${secret}` && secretParam !== secret) {
+    return Response.json({ error: 'unauthorized' }, { status: 401 });
+  }
 
   const supabase = getSupabase();
   const now = new Date();
@@ -59,12 +61,9 @@ export async function GET(req) {
     }
 
     if (nearby.length > 0) {
-      // ✅ الصح - بلا secret_code للسائق + Data كامل
       await supabase.from('push_queue').insert(
         nearby.map(d => {
-          // شيل secret_code من الـ order قبل ما تبعتو للسائق
           const { secret_code, ...orderWithoutCode } = order;
-          
           return {
             "Queue ID": crypto.randomUUID(),
             "User ID": d["User ID"] || d.User_ID || d.user_id,
@@ -72,17 +71,15 @@ export async function GET(req) {
             "Code": "TAXI_SCHEDULED_DUE",
             "Order ID": order.id.toString(),
             "Data": {
-              // السطر كامل بلا كود - هيك فيك تنقي بالقالب شو بدك
               ...orderWithoutCode,
               order_code: order.order_code,
               origin: order.origin_name,
               dest: order.dest_name,
-              amount: order.total_amount, // خلي الرقم خام بلا toLocaleString مشان القالب
+              amount: order.total_amount,
               amount_formatted: Number(order.total_amount||0).toLocaleString(),
               scheduled_time: new Date(order.requested_start_at).toLocaleTimeString('ar-LB',{hour:'2-digit',minute:'2-digit'}),
               distance: d.distance_km?.toFixed(1),
               is_scheduled: true
-              // secret_code محذوف عمداً - ممنوع للسائق
             },
             "Status": "Pending"
           };
@@ -92,11 +89,12 @@ export async function GET(req) {
     results.push({ id: order.id, scheduled_at: order.requested_start_at, nearby: nearby.length, radius });
   }
 
-  // منتهية + يتيم
-  const { data: expired } = await supabase.from('taxi_orders').select('id').eq('status','draft').not('requested_start_at','is',null).lt('requested_start_at', new Date(now.getTime() - 2*60*60*1000).toISOString());
+  const twoHoursAgo = new Date(now.getTime() - 2*60*60*1000).toISOString();
+  const { data: expired } = await supabase.from('taxi_orders').select('id').eq('status','draft').not('requested_start_at','is',null).lt('requested_start_at', twoHoursAgo);
   if (expired?.length) await supabase.from('taxi_orders').update({ status: 'cancelled', admin_notes: 'expired scheduled' }).in('id', expired.map(e=>e.id));
 
-  const { data: orphan } = await supabase.from('taxi_orders').select('id').eq('status','draft').is('requested_start_at',null).is('secret_code',null).lt('created_at', new Date(now.getTime() - 15*60*1000).toISOString());
+  const fifteenMinAgo = new Date(now.getTime() - 15*60*1000).toISOString();
+  const { data: orphan } = await supabase.from('taxi_orders').select('id').eq('status','draft').is('requested_start_at',null).is('secret_code',null).lt('created_at', fifteenMinAgo);
   if (orphan?.length) await supabase.from('taxi_orders').update({ status: 'cancelled', admin_notes: 'auto-cancelled orphan draft' }).in('id', orphan.map(o=>o.id));
 
   return Response.json({ checked: drafts.length, activated: results.length, results, expired: expired?.length||0, orphan_cleaned: orphan?.length||0 });
