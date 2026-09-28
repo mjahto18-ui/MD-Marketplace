@@ -2,6 +2,27 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+function parseData(d){
+  if(!d) return {};
+  if(typeof d === 'object') return d;
+  if(typeof d === 'string'){
+    try{ return JSON.parse(d); }catch{ return {}; }
+  }
+  return {};
+}
+
+function fillTemplate(str, data){
+  if(!str) return '';
+  let out = str;
+  // يبدل {{key}} و {{ key }} و {{key }} كلن
+  for(const [k,v] of Object.entries(data)){
+    out = out.replaceAll(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), String(v ?? ''));
+  }
+  // نظف اي {{}} بقي فاضي
+  out = out.replace(/{{\s*[^}]+\s*}}/g, '').replace(/\s{2,}/g,' ').trim();
+  return out;
+}
+
 export async function POST(req) {
   try {
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
@@ -11,8 +32,8 @@ export async function POST(req) {
     const queueId = body["Queue ID"];
     const userId = body["User ID"];
     const code = body["Code"];
-    const orderId = body["Order ID"];
-    let dataPayload = body["Data"] || {};
+    let orderId = body["Order ID"] || body["Order ID"] || '';
+    let dataPayload = parseData(body["Data"]);
 
     if (!userId || !code) return NextResponse.json({ success: false, message: "Missing data" });
 
@@ -22,32 +43,45 @@ export async function POST(req) {
     const { data: template } = await supabase.from("notification_templates").select("*").eq("Code", code).single();
     if (!template) return NextResponse.json({ success: false, message: "Template not found" });
 
-    let title = template["Title AR"];
-    let message = template["Message AR"];
-
-    // ✅ إذا ما في Data بس في Order ID، جيب البيانات من taxi_orders
-    if (orderId && Object.keys(dataPayload).length === 0) {
+    // ✅ اذا Data فاضي او ناقص، كمل من taxi_orders
+    if (orderId) {
       const { data: order } = await supabase.from("taxi_orders").select("*").eq("id", orderId).single();
       if (order) {
+        // كمل الناقص بس، ما تمحي الموجود
         dataPayload = {
-          order_code: order.order_code,
-          amount: Number(order.total_amount||0).toLocaleString(),
-          origin: (order.origin_name||'').slice(0,25),
-          dest: (order.dest_name||'').slice(0,25),
-          secret_code: order.secret_code,
-          scheduled_time: new Date(order.requested_start_at).toLocaleTimeString('ar-LB',{hour:'2-digit',minute:'2-digit'}),
-          distance: order.distance_traveled || ''
+          order_code: order.order_code || order.id?.slice(0,8),
+          order_id: order.id,
+          amount: order.total_amount ? Number(order.total_amount).toLocaleString() : '',
+          origin: (order.origin_name||'').slice(0,30),
+          dest: (order.dest_name||'').slice(0,30),
+          distance: dataPayload.distance || dataPayload.distance_km || order.distance_traveled || '',
+          distance_km: dataPayload.distance_km || dataPayload.distance || '',
+          secret_code: order.secret_code || '',
+          ...dataPayload, // الموجود ب push_queue بيغلب
+          // aliases للتوافق
+          orderCode: order.order_code,
         };
       }
     }
 
-    // ✅ عبّي القالب {{order_code}} {{amount}} ...
-    for (const [k,v] of Object.entries(dataPayload)) {
-      title = title.replaceAll(`{{${k}}}`, String(v));
-      message = message.replaceAll(`{{${k}}}`, String(v));
-    }
+    // ✅ وحّد المفاتيح عشان القالب يلاقيها مهما كان الاسم
+    const fullData = {
+      ...dataPayload,
+      distance: dataPayload.distance || dataPayload.distance_km || '',
+      distance_km: dataPayload.distance_km || dataPayload.distance || '',
+      origin: dataPayload.origin || dataPayload.origin_name || '',
+      dest: dataPayload.dest || dataPayload.dest_name || '',
+      amount: dataPayload.amount || '',
+      order_code: dataPayload.order_code || dataPayload.orderCode || '',
+      order_id: orderId || dataPayload.order_id || '',
+    };
 
-    // ✅ بعت OneSignal مع data ذكية للتطبيق
+    let title = template["Title AR"] || '';
+    let message = template["Message AR"] || '';
+
+    title = fillTemplate(title, fullData);
+    message = fillTemplate(message, fullData);
+
     const response = await fetch("https://api.onesignal.com/notifications?c=push", {
       method: "POST",
       headers: {
@@ -61,18 +95,18 @@ export async function POST(req) {
         contents: { en: message },
         data: {
           type: code,
-          order_id: orderId || '',
+          order_id: orderId || fullData.order_id || '',
+          order_code: fullData.order_code || '',
           click_action: orderId ? `/taxi/${orderId}` : '/orders',
-          ...dataPayload
+          ...fullData
         },
-        android: { priority: 10 },
-        ios: { sound: "default" }
       }),
     });
 
     const result = await response.json();
     if (queueId) await supabase.from("push_queue").update({ "Status": "Sent", "Sent At": new Date().toISOString(), "Response": JSON.stringify(result) }).eq("Queue ID", queueId);
 
+    console.log("SENT:", title, message);
     return NextResponse.json({ success: true, title, message, result });
   } catch (err) {
     console.error(err);
