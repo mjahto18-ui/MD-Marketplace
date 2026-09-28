@@ -205,7 +205,7 @@ export async function POST(req){
       "Reason": "CASH_PAYOUT",
       "Amount": amt,
       "Notes": `SALARY CASH - ${matchedPayroll.month_year} - Code ${cleanCode} - Payroll ${matchedPayroll.id} - by ${who}`,
-      "Order ID": matchedPayroll.id,
+      "Order ID": null,
       "Triggered By": who
     });
     if(walletError) throw new Error('wallet_transactions: ' + walletError.message);
