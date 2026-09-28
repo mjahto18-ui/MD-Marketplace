@@ -12,7 +12,11 @@ export async function GET(req) {
   const auth = req.headers.get('authorization');
   const secret = process.env.CRON_SECRET;
   if (!secret) return Response.json({ error: 'CRON_SECRET not set in .env' }, { status: 500 });
-  if (auth !== `Bearer ${secret}`) return Response.json({ error: 'unauthorized' }, { status: 401 });
+  
+  // للديباغ - شيلو بعد ما يشتغل
+  console.log('Auth check:', { got: auth, expected: `Bearer ${secret}`.substring(0,20)+'...' });
+  
+  if (auth !== `Bearer ${secret}`) return Response.json({ error: 'unauthorized', got_auth: auth }, { status: 401 });
 
   const supabase = getSupabase();
   const now = new Date();
@@ -32,7 +36,7 @@ export async function GET(req) {
   for (const draft of drafts) {
     const scheduledTime = new Date(draft.requested_start_at);
     const diffMinutes = (scheduledTime - now) / 1000 / 60;
-    if (diffMinutes > 20 || diffMinutes < 0) continue; // 20 دقيقة
+    if (diffMinutes > 20 || diffMinutes < 0) continue;
 
     const { data: order, error: updErr } = await supabase
       .from('taxi_orders')
@@ -55,24 +59,34 @@ export async function GET(req) {
     }
 
     if (nearby.length > 0) {
+      // ✅ الصح - بلا secret_code للسائق + Data كامل
       await supabase.from('push_queue').insert(
-        nearby.map(d => ({
-          // ✅ الصح
-          "User ID": d["User ID"] || d.User_ID, // لازم User ID مش Customer ID
-          "Customer ID": d["Customer ID"] || null,
-          "Code": "TAXI_SCHEDULED_DUE",
-          "Order ID": order.id,
-          "Data": {
-            order_code: order.order_code,
-            amount: Number(order.total_amount||0).toLocaleString(),
-            origin: order.origin_name,
-            dest: order.dest_name,
-            secret_code: order.secret_code,
-            scheduled_time: new Date(order.requested_start_at).toLocaleTimeString('ar-LB',{hour:'2-digit',minute:'2-digit'}),
-            distance: d.distance_km?.toFixed(1)
-          },
-          "Status": "Pending"
-        }))
+        nearby.map(d => {
+          // شيل secret_code من الـ order قبل ما تبعتو للسائق
+          const { secret_code, ...orderWithoutCode } = order;
+          
+          return {
+            "Queue ID": crypto.randomUUID(),
+            "User ID": d["User ID"] || d.User_ID || d.user_id,
+            "Customer ID": order.customer_id,
+            "Code": "TAXI_SCHEDULED_DUE",
+            "Order ID": order.id.toString(),
+            "Data": {
+              // السطر كامل بلا كود - هيك فيك تنقي بالقالب شو بدك
+              ...orderWithoutCode,
+              order_code: order.order_code,
+              origin: order.origin_name,
+              dest: order.dest_name,
+              amount: order.total_amount, // خلي الرقم خام بلا toLocaleString مشان القالب
+              amount_formatted: Number(order.total_amount||0).toLocaleString(),
+              scheduled_time: new Date(order.requested_start_at).toLocaleTimeString('ar-LB',{hour:'2-digit',minute:'2-digit'}),
+              distance: d.distance_km?.toFixed(1),
+              is_scheduled: true
+              // secret_code محذوف عمداً - ممنوع للسائق
+            },
+            "Status": "Pending"
+          };
+        })
       );
     }
     results.push({ id: order.id, scheduled_at: order.requested_start_at, nearby: nearby.length, radius });
