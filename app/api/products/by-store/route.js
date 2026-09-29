@@ -1,11 +1,9 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return getSupabaseLib();
 }
 
 export async function GET(req) {
@@ -19,7 +17,7 @@ export async function GET(req) {
 
     const supabase = getSupabase();
 
-    const { data: rows } = await supabase.from('products').select('*').eq('Store ID', String(storeID).trim());
+    const { data: rows } = await supabase.from('products').select('"Product ID", "Product Name", Image, Price, Unit, Category, "Weight Points", Available, "Stock Qty", Description').eq('Store ID', String(storeID).trim());
 
     const products = (rows||[]).map(row => {
         return {
