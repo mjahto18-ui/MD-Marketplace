@@ -1,11 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return getSupabaseLib();
 }
 
 export async function GET(req, { params }) {
@@ -24,7 +22,7 @@ export async function GET(req, { params }) {
     // ============================
     // 1) جلب جدول Products
     // ============================
-    const { data: products } = await supabase.from('products').select('*').eq('Product ID', productID).limit(1);
+    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points"').eq('Product ID', productID).limit(1);
     let product = products?.[0];
 
     if (!product) {
@@ -38,7 +36,7 @@ export async function GET(req, { params }) {
     // 2) جلب جدول Stores
     // ============================
     const storeId = product['Store ID'];
-    const { data: stores } = await supabase.from('stores').select('*').eq('Store ID', storeId).limit(1);
+    const { data: stores } = await supabase.from('stores').select('"Store ID", "Store Name"').eq('Store ID', storeId).limit(1);
     let store = stores?.[0];
 
     // ============================
