@@ -1,11 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return getSupabaseLib();
 }
 
 export async function GET(req) {
@@ -17,7 +15,7 @@ export async function GET(req) {
 
     const supabase = getSupabase();
 
-    let query = supabase.from('products').select('*', { count: 'exact' });
+    let query = supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points"', { count: 'exact' });
 
     if (storeID) {
       query = query.eq('Store ID', String(storeID).trim());
@@ -38,7 +36,7 @@ export async function GET(req) {
     const storeIds = [...new Set((productsRows||[]).map(r => r['Store ID']).filter(Boolean))];
     let storesMap = {};
     if (storeIds.length > 0) {
-      const { data: storesValues } = await supabase.from('stores').select('*').in('Store ID', storeIds);
+      const { data: storesValues } = await supabase.from('stores').select('"Store ID", "Store Name"').in('Store ID', storeIds);
       (storesValues||[]).forEach(s => {
         storesMap[s['Store ID']] = s['Store Name'];
       });
