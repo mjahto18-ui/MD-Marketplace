@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { getSupabase as getSupabaseLib, normalizePhone } from "@/lib/supabase";
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 import { cookies } from "next/headers";
 
 function getSupabase() {
@@ -18,27 +18,22 @@ async function getCustomerIDFromSession(supabase) {
   } catch { phone = sessionCookie; }
   if (!phone) return null;
 
-  const normalized = normalizePhone(phone);
+  const phoneStr = String(phone).trim();
+  const phoneNoZero = phoneStr.replace(/^0+/, '');
 
-  // هلا مع Index - دغري!
+  // 1. جرب بالـ Mobile متل ما هو - مع Index
   const { data: customer } = await supabase.from('customers')
-   .select('"Customer ID"')
-   .eq('Mobile', normalized)
-   .maybeSingle();
+  .select('"Customer ID"')
+  .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+  .maybeSingle();
 
   if (customer) return customer["Customer ID"];
 
-  // fallback - جرب بلا نورمالايز (للكود القديم)
-  const { data: customer2 } = await supabase.from('customers')
-   .select('"Customer ID"')
-   .eq('Mobile', String(phone).trim())
-   .maybeSingle();
-  if (customer2) return customer2["Customer ID"];
-
+  // 2. جرب users - مع Index
   const { data: user } = await supabase.from('users')
-   .select('"Customer ID", "User ID"')
-   .eq('Mobile', normalized)
-   .maybeSingle();
+  .select('"Customer ID", "User ID"')
+  .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+  .maybeSingle();
 
   return user? (user["Customer ID"] || user["User ID"]) : null;
 }
@@ -51,19 +46,18 @@ export async function GET(req) {
       return NextResponse.json({ success: true, cart: [], totalWeight: 0, subtotal: 0, baseDeliveryFee: 0, deliveryFee: 0, freeDeliveryRemaining: 0 });
     }
 
-    // هلا بس سلة هالزبون - مش كل الزباين!
     const { data: cartRows } = await supabase.from('cart')
-     .select('"Cart ID", "Customer ID", "Product ID", Qty, "Line Total", "Line Points", "Checked Out"')
-     .eq('Customer ID', customerID)
-     .eq('Checked Out', 'FALSE');
+    .select('"Cart ID", "Customer ID", "Product ID", Qty, "Line Total", "Line Points", "Checked Out"')
+    .eq('Customer ID', customerID)
+    .eq('Checked Out', 'FALSE');
 
     const productIds = [...new Set((cartRows||[]).map(r => r['Product ID']).filter(Boolean))];
 
     let productsMap = {};
     if (productIds.length > 0) {
       const { data: productsRows } = await supabase.from('products')
-       .select('"Product ID", "Product Name", Image')
-       .in('Product ID', productIds);
+      .select('"Product ID", "Product Name", Image')
+      .in('Product ID', productIds);
       (productsRows||[]).forEach(p => productsMap[p['Product ID']] = p);
     }
 
