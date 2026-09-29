@@ -1,12 +1,10 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib, normalizePhone } from "@/lib/supabase";
 import { cookies } from "next/headers";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return getSupabaseLib();
 }
 
 async function getCustomerIDFromSession(supabase) {
@@ -20,15 +18,29 @@ async function getCustomerIDFromSession(supabase) {
   } catch { phone = sessionCookie; }
   if (!phone) return null;
 
-  const { data: customers } = await supabase.from('customers').select('*');
-  for (const c of customers || []) {
-    if (String(c["Mobile"] || "").trim() === String(phone).trim()) {
-      return c["Customer ID"];
-    }
-  }
-  const { data: users } = await supabase.from('users').select('*');
-  const user = (users||[]).find(row => String(row["Mobile"] || "").trim() === String(phone).trim());
-  return user ? (user["Customer ID"] || user["User ID"]) : null;
+  const normalized = normalizePhone(phone);
+
+  // هلا مع Index - دغري!
+  const { data: customer } = await supabase.from('customers')
+   .select('"Customer ID"')
+   .eq('Mobile', normalized)
+   .maybeSingle();
+
+  if (customer) return customer["Customer ID"];
+
+  // fallback - جرب بلا نورمالايز (للكود القديم)
+  const { data: customer2 } = await supabase.from('customers')
+   .select('"Customer ID"')
+   .eq('Mobile', String(phone).trim())
+   .maybeSingle();
+  if (customer2) return customer2["Customer ID"];
+
+  const { data: user } = await supabase.from('users')
+   .select('"Customer ID", "User ID"')
+   .eq('Mobile', normalized)
+   .maybeSingle();
+
+  return user? (user["Customer ID"] || user["User ID"]) : null;
 }
 
 export async function GET(req) {
@@ -39,31 +51,38 @@ export async function GET(req) {
       return NextResponse.json({ success: true, cart: [], totalWeight: 0, subtotal: 0, baseDeliveryFee: 0, deliveryFee: 0, freeDeliveryRemaining: 0 });
     }
 
-    const [{ data: cartRows }, { data: productsRows }, { data: storesRows }, { data: ratesRows }, { data: customersRows }] = await Promise.all([
-      supabase.from('cart').select('*'),
-      supabase.from('products').select('*'),
-      supabase.from('stores').select('*'),
-      supabase.from('delivery_rates').select('*'),
-      supabase.from('customers').select('*'),
+    // هلا بس سلة هالزبون - مش كل الزباين!
+    const { data: cartRows } = await supabase.from('cart')
+     .select('"Cart ID", "Customer ID", "Product ID", Qty, "Line Total", "Line Points", "Checked Out"')
+     .eq('Customer ID', customerID)
+     .eq('Checked Out', 'FALSE');
+
+    const productIds = [...new Set((cartRows||[]).map(r => r['Product ID']).filter(Boolean))];
+
+    let productsMap = {};
+    if (productIds.length > 0) {
+      const { data: productsRows } = await supabase.from('products')
+       .select('"Product ID", "Product Name", Image')
+       .in('Product ID', productIds);
+      (productsRows||[]).forEach(p => productsMap[p['Product ID']] = p);
+    }
+
+    const [{ data: ratesRows }, { data: customerRow }] = await Promise.all([
+      supabase.from('delivery_rates').select('"Min Points", "Max Points", "Delivery Fee"'),
+      supabase.from('customers').select('"Free Delivery Remaining", "Last Free Delivery Date"').eq('Customer ID', customerID).maybeSingle(),
     ]);
 
-    const customerCart = (cartRows||[]).filter((r) => {
-      const cid = String(r["Customer ID"] || "").trim();
-      const checked = String(r["Checked Out"] || "FALSE").toUpperCase();
-      return cid === String(customerID).trim() && checked === "FALSE";
-    });
-
-    const cartItems = customerCart.map((row) => {
+    const cartItems = (cartRows||[]).map((row) => {
       const productID = row["Product ID"];
-      const product = (productsRows||[]).find((p) => String(p["Product ID"] || "").trim() === String(productID).trim());
+      const product = productsMap[productID];
       const qty = Number(row["Qty"] || 0);
       const lineTotal = Number(row["Line Total"] || 0);
       return {
         cartID: row["Cart ID"],
         productID: productID,
-        name: product ? product["Product Name"] : "منتج محذوف",
-        image: product ? product["Image"] : "",
-        unitPrice: qty ? lineTotal / qty : 0,
+        name: product? product["Product Name"] : "منتج محذوف",
+        image: product? product["Image"] : "",
+        unitPrice: qty? lineTotal / qty : 0,
         qty,
         lineTotal,
         linePoints: Number(row["Line Points"] || 0),
@@ -73,9 +92,8 @@ export async function GET(req) {
     const totalWeight = cartItems.reduce((s, i) => s + i.qty * i.linePoints, 0);
     const subtotal = cartItems.reduce((s, i) => s + i.lineTotal, 0);
 
-    const customerRow = (customersRows||[]).find((r) => String(r["Customer ID"] || "").trim() === String(customerID).trim());
-    const freeDeliveryRemaining = customerRow ? Number(customerRow["Free Delivery Remaining"] || 0) : 0;
-    const lastFreeDeliveryDate = customerRow ? customerRow["Last Free Delivery Date"] || "" : "";
+    const freeDeliveryRemaining = customerRow? Number(customerRow["Free Delivery Remaining"] || 0) : 0;
+    const lastFreeDeliveryDate = customerRow? customerRow["Last Free Delivery Date"] || "" : "";
     const today = new Date().toLocaleDateString("en-GB");
 
     let baseDeliveryFee = 0;
@@ -86,8 +104,8 @@ export async function GET(req) {
     });
     if (rateRow) baseDeliveryFee = Number(rateRow["Delivery Fee"] || 0);
 
-        const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate !== today;
-    const finalDeliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
+    const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
+    const finalDeliveryFee = isFreeDelivery? 0 : baseDeliveryFee;
 
     return NextResponse.json({
       success: true,
