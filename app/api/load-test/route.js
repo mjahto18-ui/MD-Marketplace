@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-// app/api/load-test/route.js - V4.1 مصلح - uuid صالح
+// app/api/load-test/route.js - V4.2 واقعي - كل سائق order مختلف
 
 export async function GET(req) {
   const BASE_URL = 'https://www.md-marketplace.store';
@@ -9,8 +9,7 @@ export async function GET(req) {
 
   const now = Date.now();
   const testId = `load-${now}`;
-  // ✅ uuid صالح بدل test-order-123 يلي كان يعمل 500
-  const TEST_UUID = '00000000-0000-0000-0000-000000000123';
+  const genUUID = (i) => `00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`;
 
   const scenarios = [
     {
@@ -19,17 +18,17 @@ export async function GET(req) {
       name: 'POST /api/taxi/tracking - سائق يحدث موقع (3 writes)',
       method: 'POST',
       url: `${BASE_URL}/api/taxi/tracking`,
-      body: { order_id: TEST_UUID, taxi_id: 'T001', lat: 33.8938, lng: 35.5018, speed: 40, heading: 90 },
       count: DRIVERS,
       expectedMs: 400,
-      critical: true
+      critical: true,
+      isTracking: true
     },
     {
       level: 1,
       group: '🔴 خريطة حية',
       name: 'GET /api/taxi/track/[order_id] - زبون يتابع',
       method: 'GET',
-      url: `${BASE_URL}/api/taxi/track/${TEST_UUID}`,
+      url: `${BASE_URL}/api/taxi/track/${genUUID(0)}`,
       count: CUSTOMERS,
       expectedMs: 300,
       critical: true
@@ -142,7 +141,19 @@ export async function GET(req) {
           if (scen.method === 'POST') {
             opts.method = 'POST';
             opts.headers = { ...opts.headers, 'Content-Type': 'application/json' };
-            opts.body = JSON.stringify(scen.body || {});
+            // ✅ كل سائق order_id مختلف
+            if (scen.isTracking) {
+              opts.body = JSON.stringify({
+                order_id: genUUID(i),
+                taxi_id: `T${String(i+1).padStart(3,'0')}`,
+                lat: 33.8938 + (i*0.001),
+                lng: 35.5018 + (i*0.001),
+                speed: 40,
+                heading: 90
+              });
+            } else {
+              opts.body = JSON.stringify(scen.body || {});
+            }
           }
           const res = await fetch(targetUrl, opts);
           const text = await res.text();
@@ -186,8 +197,8 @@ export async function GET(req) {
       statusCodes: statusCounts,
       errors: errors,
       health: failed===0 && avg <= scen.expectedMs ? '✅ ممتاز' : 
-              failed===0 && avg <= scen.expectedMs*2 ? '⚠️ بطيء' : 
-              failed/scenResponses.length < 0.05 ? '⚠️ فشل قليل' : '❌ فشل',
+              failed===0 && avg <= scen.expectedMs*2 ? '⚠ بطيء' : 
+              failed/scenResponses.length < 0.05 ? '⚠ فشل قليل' : '❌ فشل',
       critical: scen.critical
     });
   }
@@ -199,7 +210,7 @@ export async function GET(req) {
   const totalP95 = allDurations.sort((a,b)=>a-b)[Math.floor(allDurations.length*0.95)];
 
   const criticalFails = results.filter(r => r.critical && r.health.includes('❌'));
-  const slowCritical = results.filter(r => r.critical && r.health.includes('⚠️'));
+  const slowCritical = results.filter(r => r.critical && r.health.includes('⚠'));
 
   const alerts = [];
   if (results.find(r => r.scenario.includes('tracking') && parseInt(r.avg) > 400)) alerts.push('🔴 tracking POST بطيء');
@@ -209,13 +220,13 @@ export async function GET(req) {
   if (criticalFails.length > 0) alerts.push(`❌ ${criticalFails.length} سيناريو حرج فشل`);
 
   const verdict = criticalFails.length === 0 && slowCritical.length === 0 ? '✅ بينجح عالأرض' :
-                  criticalFails.length === 0 ? '⚠️ بينجح بس بطيء - لازم تصلح قبل ما يزيدو السائقين' :
+                  criticalFails.length === 0 ? '⚠ بينجح بس بطيء - لازم تصلح قبل ما يزيدو السائقين' :
                   '❌ رح يفشل عالأرض - لازم تصلح فورا';
 
   return new Response(JSON.stringify({
-    meta: { timestamp: new Date().toISOString(), testId, scenario: `أسوأ سيناريو: ${DRIVERS} سائق + ${CUSTOMERS} زبون`, writesPerMin, readsPerMin, totalReqPerMin, totalAvg: totalAvg + 'ms', totalP95: totalP95 + 'ms', totalRequests: allDurations.length },
+    meta: { timestamp: new Date().toISOString(), testId, scenario: `أسوأ سيناريو: ${DRIVERS} سائق + ${CUSTOMERS} زبون - كل order مختلف`, writesPerMin, readsPerMin, totalReqPerMin, totalAvg: totalAvg + 'ms', totalP95: totalP95 + 'ms', totalRequests: allDurations.length },
     verdict,
-    summary: { totalScenarios: results.length, passed: results.filter(r => r.health.includes('✅')).length, slow: results.filter(r => r.health.includes('⚠️')).length, failed: results.filter(r => r.health.includes('❌')).length, criticalFails: criticalFails.length },
+    summary: { totalScenarios: results.length, passed: results.filter(r => r.health.includes('✅')).length, slow: results.filter(r => r.health.includes('⚠')).length, failed: results.filter(r => r.health.includes('❌')).length, criticalFails: criticalFails.length },
     results, alerts
   }, null, 2), { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
