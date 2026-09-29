@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib, normalizePhone, getUserByWhatsAppNumber as getUserByWhatsAppNumberLib, getCustomerRowByPhone as getCustomerRowByPhoneLib } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +10,7 @@ const GROQ_KEY = process.env.GROQ_API_KEY_2;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.md-marketplace.store";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return getSupabaseLib(); // Singleton - مش createClient كل مرة
 }
 
 function mapTable(sheetName) {
@@ -53,7 +51,17 @@ async function getSheetRows(sheetName) {
   const supabase = getSupabase();
   const promise = (async () => {
     try {
-      const { data, error } = await supabase.from(table).select('*');
+      // FIXED - select محدد مش *
+      let cols = '*';
+      if (table === 'products') cols = '"Product ID", "Product Name", "Store ID", "Area", "Price", "Available", "Active", "Unit", "Category", "Weight Points", "Description"';
+      else if (table === 'stores') cols = '"Store ID", "Store Name", "Adress", "Area", "Open Time", "Close Time"';
+      else if (table === 'areas') cols = '"Area ID", "Area Name"';
+      else if (table === 'customers') cols = '"Customer ID", "Area", "Adress", "Current Latitude", "Current Longtitude", "Registration Latitude", "Registration Longitude", "Mobile"';
+      else if (table === 'users') {
+        console.log("⚠ getSheetRows users ممنوع - استعمل المكتبة");
+        return [];
+      }
+      const { data, error } = await supabase.from(table).select(cols);
       if (error) { console.error(`❌ قراءة ${table}:`, error.message); return []; }
       const result = data || [];
       if (useCache) setCache(table, result);
@@ -65,16 +73,7 @@ async function getSheetRows(sheetName) {
 }
 
 function normalizeWhatsAppNumber(phone) {
-  let c = String(phone || "").replace(/\D/g, "");
-  if (!c) return null;
-  if (c.startsWith("961")) return c;
-  if (c.startsWith("966")) return c;
-  if (c.startsWith("0")) c = c.substring(1);
-  if (c.length === 9 && c.startsWith("5")) return "966" + c;
-  if (c.length === 10 && c.startsWith("5")) return "966" + c;
-  if (c.length === 7 && c.startsWith("3")) return "961" + c;
-  if (c.length === 8) return "961" + c;
-  return c;
+  return normalizePhone(phone);
 }
 function normalizeText(text) {
   return String(text || "").toLowerCase().trim().replace(/[إأآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[؟?!.,،:؛]/g, " ").replace(/\s+/g, " ");
@@ -97,29 +96,22 @@ async function sendMessage(to, text) {
   } catch (error) { console.error("❌ WhatsApp Send Error:", error); }
 }
 async function getUserByWhatsAppNumber(phone) {
-  const normalized = normalizeWhatsAppNumber(phone);
-  const users = await getSheetRows("Users");
-  for (const row of users) {
-    const rowPhone = normalizeWhatsAppNumber(row["WhatsApp Number"] || row["Mobile"] || "");
-    if (rowPhone === normalized) {
-      return {
-        userId: row["User ID"] || "", customerId: row["Customer ID"] || "", name: row["Name"] || "",
-        mobile: row["Mobile"] || "", whatsappNumber: row["WhatsApp Number"] || phone,
-        role: row["Role"] || "", area: row["Area"] || "", status: row["Status"] || "", active: row["Active"] || ""
-      };
-    }
+  // FIXED - بيستعمل eq + Index
+  try {
+    return await getUserByWhatsAppNumberLib(phone);
+  } catch (e) {
+    console.log("getUserByWhatsAppNumber error", e.message);
+    return null;
   }
-  return null;
 }
 async function getCustomer(customerID) {
   if (!customerID) return null;
-  const customers = await getSheetRows("Customers");
-  const wanted = String(customerID).trim();
-  for (const row of customers) {
-    const id = String(row["Customer ID"] || "").trim();
-    if (id === wanted) return row;
-  }
-  return null;
+  try {
+    const supabase = getSupabase();
+    // FIXED - eq بدل loop
+    const { data } = await supabase.from('customers').select('"Customer ID", "Area", "Adress", "Current Latitude", "Current Longtitude", "Registration Latitude", "Registration Longitude", "Mobile"').eq('Customer ID', String(customerID).trim()).maybeSingle();
+    return data || null;
+  } catch { return null; }
 }
 async function findArea(input) {
   const areas = await getSheetRows("Areas");
@@ -156,7 +148,7 @@ function cartRowToObject(row) {
 }
 async function getCustomerCart(customerID) {
   const supabase = getSupabase();
-  const { data } = await supabase.from('cart').select('*').eq('Customer ID', customerID).or('"Checked Out".is.null,"Checked Out".eq.FALSE');
+  const { data } = await supabase.from('cart').select('Cart ID, "Customer ID", "Product ID", "Qty", "Store ID", "Line Total", "Checked Out", "Check Out Flag", "Line Points"').eq('Customer ID', customerID).or('"Checked Out".is.null,"Checked Out".eq.FALSE');
   let rows = data || [];
   return rows.map(cartRowToObject).filter(c => String(c.customerId).trim()===String(customerID).trim() && c.checkedOut!=="TRUE");
 }
@@ -264,8 +256,11 @@ function productToObject(row) {
     productId: String(row["Product ID"] || "").trim(), productName: String(row["Product Name"] || "").trim(),
     unit: String(row["Unit"] || "").trim(), price, points,
     storeId: String(row["Store ID"] || "").trim(), areaId: String(row["Area"] || "").trim(),
-    available: normalizeText(row["Available"] || ""), active: String(row["Active"] || "").toUpperCase(),
-    category: String(row["Category"] || "").trim()
+    available: row["Available"] !== undefined ? normalizeText(row["Available"]) : "", // FIXED - اذا مش موجود ما منفلتر
+    active: row["Active"] !== undefined ? String(row["Active"] || "").toUpperCase() : "", // FIXED
+    category: String(row["Category"] || "").trim(),
+    _rawAvailable: row["Available"],
+    _rawActive: row["Active"]
   };
 }
 async function searchProducts(message, customerID) {
@@ -278,13 +273,22 @@ async function searchProducts(message, customerID) {
   const stopWords = ["بدي","بدّي","اريد","أريد","عايز","عندي","من","عطيني","اعطيني","لو سمحت","please","موجود","عندكم","سعر","كم","في","فيه","شو","شو عندكم","منتج","منتجات","قطعة","قطع","واحد","اتنين","اثنين","ثلاثة","تلاته","اربعة","خمسة","و","ال"];
   const words = normalized.split(" ").filter(word => word.length >= 2 &&!stopWords.includes(word));
   if (!words.length) return [];
+  console.log(`🔍 BOT2 Search: كلمة الزبون بعد الفلترة:`, words, `| عدد المنتجات الكلي: ${productsRows.length}`);
   const results = [];
   for (const row of productsRows) {
     const product = productToObject(row);
     if (!product.productId ||!product.productName) continue;
-    const isAvailable = product.available === "yes" || product.available === "نعم" || product.available === "true";
-    const isActive = product.active === "TRUE";
-    if (!isAvailable ||!isActive) continue;
+    
+    // ===== FIXED - فلتر متسامح - اذا العمود مش موجود ما منكب المنتج =====
+    if (product._rawAvailable !== undefined && product._rawAvailable !== null && String(product._rawAvailable).trim() !== "") {
+      const isAvailable = product.available === "yes" || product.available === "نعم" || product.available === "true";
+      if (!isAvailable) continue;
+    }
+    if (product._rawActive !== undefined && product._rawActive !== null && String(product._rawActive).trim() !== "") {
+      const isActive = product.active === "TRUE";
+      if (!isActive) continue;
+    }
+    
     const name = normalizeText(product.productName);
     let score = 0;
     for (const word of words) {
@@ -298,33 +302,25 @@ async function searchProducts(message, customerID) {
     results.push({...product, storeName: store?.["Store Name"] || product.storeId, storeAddress: store?.["Adress"] || "", score });
   }
   results.sort((a, b) => b.score - a.score);
+  console.log(`✅ BOT2 Results: ${results.length} | اول نتيجة: ${results[0]?.productName || 'لا يوجد'}`);
   return results.slice(0, 10);
 }
 function extractQuantity(message) {
   const raw = convertArabicNumbers(String(message || ""));
   const normalized = normalizeText(raw);
-
-  // 1. كلمات عربية
   const arabicNumbers = { "واحد": 1,"وحدة": 1,"قطعة": 1,"اتنين": 2,"اثنين": 2,"تنين": 2,"ثلاثة": 3,"تلاته": 3,"تلات": 3,"اربعة": 4,"خمسة": 5,"ستة": 6,"سبعة": 7,"ثمانية": 8,"تسعة": 9,"عشرة": 10 };
   for (const key in arabicNumbers) {
     if (normalized.includes(key)) return arabicNumbers[key];
   }
-  // 2. اول رقم بالجملة هو الكمية - مش اخر رقم
   const m = raw.match(/(\d+)/);
   if (m) return Number(m[1]);
-
   return 1;
 }
 function detectCartCommand(message) {
   const text = normalizeText(message);
-  // SHOW
   if (text.includes("شو في") || text.includes("شو بالسله") || text.includes("عرض السله") || text.includes("السله") && text.includes("شو")) return "SHOW";
   if (text.includes("طلباتي") || text.includes("سلتي")) return "SHOW";
-
-  // REMOVE
   if (text.includes("امحي") || text.includes("امسح") || text.includes("احذف") || text.includes("شيل")) return "REMOVE";
-
-  // UPDATE - هي الاهم
   if (text.includes("عدد") || text.includes("عدل") || text.includes("غير") || text.includes("اعمل")) {
     if (/\d/.test(text)) return "UPDATE";
   }
@@ -446,7 +442,6 @@ async function handleCart(customerID, message) {
   }
   if (command === "UPDATE") {
     const qty = extractQuantity(message);
-    // اذا في منتج واحد بالسلة - عدلو دغري بلا ما يدور عالاسم
     let found = null;
     if (cart.items.length === 1) {
       found = cart.items[0];
