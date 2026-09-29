@@ -53,7 +53,7 @@ async function getSheetRows(sheetName) {
     try {
       // FIXED - select محدد مش *
       let cols = '*';
-      if (table === 'products') cols = '"Product ID", "Product Name", "Store ID", "Area", "Price", "Available", "Active", "Unit", "Category", "Weight Points", "Description"';
+      if (table === 'products') cols = '"Product ID", "Product Name", "Store ID",  "Price", "Available", "Active", "Unit", "Category", "Weight Points", "Description"';
       else if (table === 'stores') cols = '"Store ID", "Store Name", "Adress", "Area", "Open Time", "Close Time"';
       else if (table === 'areas') cols = '"Area ID", "Area Name"';
       else if (table === 'customers') cols = '"Customer ID", "Area", "Adress", "Current Latitude", "Current Longtitude", "Registration Latitude", "Registration Longitude", "Mobile"';
