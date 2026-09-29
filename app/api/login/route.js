@@ -22,6 +22,13 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "رقم الهاتف أو رمز الدخول غير صحيح." }, { status: 401 });
     }
 
+    // ✅ الفحص الجديد - بس Admin و Customer بيفوتو هون
+    const role = String(user['Role'] || '').trim();
+    const allowedRoles = ['Admin', 'Customer'];
+    if(!allowedRoles.includes(role)){
+      return NextResponse.json({ success: false, message: `دورك ${role} غير مسموح حاليا` }, { status: 403 });
+    }
+
     const userStatus = user['Status'] || "";
     const lockStatus = user['isLocked'] || "";
     const storedPin = String(user['PIN'] || "").trim();
@@ -42,7 +49,6 @@ export async function POST(req) {
     }
 
     if (storedPin === String(pin).trim()) {
-      // صح - صفر المحاولات
       await supabase.from('users').update({
         'failedAttempts': "0",
         'isLocked': "FALSE"
@@ -81,16 +87,13 @@ export async function POST(req) {
       });
     }
 
-    // PIN غلط - 3 محاولات
     let newAttempts = attempts + 1;
-
     if (newAttempts >= 3) {
       await supabase.from('users').update({
         'failedAttempts': String(newAttempts),
         'PIN': "",
         'isLocked': "TRUE"
       }).eq('Mobile', phoneStr);
-
       return NextResponse.json({
         success: false,
         message: "تم قفل الحساب بسبب محاولات دخول غير صحيحة. يرجى التواصل مع فريق الدعم أو طلب إعادة تعيين رمز الدخول لإعادة تفعيل الحساب."

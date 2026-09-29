@@ -173,7 +173,7 @@ export default function GenericTable(){
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث سريع..." className="bg-transparent outline-none text-[13px] font-medium text-white placeholder:text-white/20 w-40 mono"/>
             </div>
             {perm.can_add && (<button onClick={()=>setShowAdd(true)} className="h-11 px-5 rounded-full bg-[#FFD700] text-black text-[13px] font-black tracking-wide hover:bg-white hover:shadow-[0_0_20px_rgba(255,215,0,0.3)] active:scale-[0.98] transition-all">+ إضافة جديد</button>)}
-            <a href="/admin/dashboard" className="h-11 px-5 rounded-full bg-white/[0.06] border border-white/[0.08] text-white text-[13px] font-bold hover:bg-white/[0.1] transition">لوحة التحكم</a>
+            <a href="/admin/dashboard" className="h-11 px-5 rounded-full bg-white/[0.06] border border-white/[0.08] text-white text-[13px] font-bold hover:bg-white/[0.1] transition">Dashboard</a>
           </div>
         </div>
       </header>

@@ -2,29 +2,33 @@
 import { useState } from "react";
 import Image from "next/image";
 
-export default function TermsApproval() {
+export default function AdminTermsApproval() {
   const [loading, setLoading] = useState(false);
 
   async function handleApprove() {
     const agree = document.getElementById("agree");
-
+    
     if (!agree?.checked) {
-      alert("يجب الموافقة أولاً");
+      alert("يجب الموافقة على الشروط أولاً");
       return;
     }
 
     setLoading(true);
     try {
-      await fetch("/api/update-terms", {
+      const res = await fetch("/api/admin/update-terms", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ AcceptedTerms: true }),
       });
 
-      window.location.href = "/shop";
+      const data = await res.json();
+
+      if (data.success) {
+        window.location.href = data.redirectTo || "/admin";
+      } else {
+        throw new Error(data.error);
+      }
     } catch (e) {
       setLoading(false);
       alert("حدث خطأ، حاول مرة أخرى");
@@ -38,8 +42,8 @@ export default function TermsApproval() {
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-20" style={{ background: "linear-gradient(135deg, #6366f1, #a855f7)" }}></div>
       </div>
 
-      <div className="bg-white shadow-2xl rounded-[24px] p-8 w-full max-w-[420px] relative z-10">
-        
+      <div className="bg-white shadow-2xl rounded-[24px] p-8 w-full max-w-[480px] relative z-10">
+
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center mb-3 shadow-lg">
             <Image
@@ -50,26 +54,24 @@ export default function TermsApproval() {
               className="w-full h-full object-cover"
             />
           </div>
-          <h3 className="text-[15px] font-bold tracking-widest text-slate-800">MD-MARKETPLACE</h3>
-          <p className="text-[11px] text-slate-400 mt-1 tracking-wide">منصة التسوق الموثوقة</p>
+          <h3 className="text-[11px] font-bold tracking-widest text-slate-800">MD-MARKETPLACE</h3>
+          <p className="text-[10px] text-slate-400 mt-1 tracking-wide">لوحة تحكم العمل - نادي خاص مغلق</p>
         </div>
 
-        <h2 className="text-[22px] font-bold mb-2 text-center text-slate-900 leading-tight">
-          الموافقة على الشروط
+        <h2 className="text-[18px] font-bold mb-2 text-center text-slate-900 leading-tight">
+          الموافقة على شروط العمل
         </h2>
-        <p className="text-[13px] text-slate-500 text-center mb-7 leading-relaxed">
-          للمتابعة في تصفح المتجر، يرجى الاطلاع والموافقة على سياساتنا
+        <p className="text-[12px] text-slate-500 text-center mb-7 leading-relaxed">
+          للمتابعة الى لوحة التحكم، يرجى الموافقة على سياسات المنصة
         </p>
 
         <div className="space-y-3 mb-7">
           <a href="/terms" className="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 hover:border-violet-200 transition group">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition">
-                📄
-              </div>
+              <div className="w-9 h-9 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition">📄</div>
               <div>
                 <p className="text-[13.5px] font-semibold text-slate-800">الشروط والأحكام</p>
-                <p className="text-[11px] text-slate-400">اقرأ شروط الاستخدام</p>
+                <p className="text-[11px] text-slate-400">النادي المغلق والوساطة</p>
               </div>
             </div>
             <span className="text-slate-300 group-hover:text-violet-500">←</span>
@@ -77,22 +79,31 @@ export default function TermsApproval() {
 
           <a href="/privacy" className="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 hover:border-violet-200 transition group">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition">
-                🔒
-              </div>
+              <div className="w-9 h-9 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition">🔒</div>
               <div>
                 <p className="text-[13.5px] font-semibold text-slate-800">سياسة الخصوصية</p>
-                <p className="text-[11px] text-slate-400">كيف نحمي بياناتك</p>
+                <p className="text-[11px] text-slate-400">سرية بيانات الزبائن</p>
               </div>
             </div>
             <span className="text-slate-300 group-hover:text-violet-500">←</span>
           </a>
+
+          <a href="/work-terms" className="flex items-center justify-between p-3.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-50 hover:border-amber-300 transition group">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-white border border-amber-100 flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition">🛡️</div>
+              <div>
+                <p className="text-[13.5px] font-bold text-slate-900">شروط العمل</p>
+                <p className="text-[11px] text-amber-700">التزامات الطاقم - تحذيرات</p>
+              </div>
+            </div>
+            <span className="text-amber-300 group-hover:text-amber-600">←</span>
+          </a>
         </div>
 
         <div className="flex items-start gap-3 mb-7 p-3 rounded-xl bg-violet-50/50 border border-violet-100">
-          <input type="checkbox" id="agree" className="w-[18px] h-[18px] mt-0.5 rounded accent-violet-600 cursor-pointer" />
-          <label htmlFor="agree" className="text-[13px] leading-5 text-slate-700 cursor-pointer select-none">
-            أوافق على <span className="font-semibold text-slate-900">الشروط والأحكام</span> و <span className="font-semibold text-slate-900">سياسة الخصوصية</span> الخاصة بـ MD-Marketplace
+          <input type="checkbox" id="agree" className="w-4 h-4 mt-0.5 rounded accent-violet-600 cursor-pointer" />
+          <label htmlFor="agree" className="text-[12px] leading-5 text-slate-700 cursor-pointer select-none">
+            أوافق على <span className="font-semibold text-slate-900">الشروط والأحكام</span> و <span className="font-semibold text-slate-900">سياسة الخصوصية</span> و <span className="font-semibold text-slate-900">شروط العمل</span>
           </label>
         </div>
 
@@ -102,10 +113,10 @@ export default function TermsApproval() {
           className="w-full text-white py-3.5 rounded-xl font-semibold text-[14.5px] shadow-lg shadow-violet-200 hover:shadow-xl hover:shadow-violet-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
           style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #a855f7 40%, #ec4899 100%)" }}
         >
-          {loading ? "جاري الحفظ..." : "موافقة ومتابعة للتسوق"}
+          {loading ? "جاري الحفظ..." : "موافقة ومتابعة للعمل"}
         </button>
 
-        <p className="text-[11px] text-center text-slate-400 mt-6">
+        <p className="text-[10px] text-center text-slate-400 mt-6">
           © 2026 MD-Marketplace. جميع الحقوق محفوظة
         </p>
       </div>

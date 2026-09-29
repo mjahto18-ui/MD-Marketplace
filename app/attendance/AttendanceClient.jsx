@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 function AttendanceInner(){
   const searchParams = useSearchParams()
   const qr = searchParams.get('qr')
-  const [msg, setMsg] = useState('عم جهز بصمة تلفونك...')
+  const [msg, setMsg] = useState('يتم الأن توثيق الجهاز...')
 
   const generateStableFingerprint = () => {
     // امسح القديم الضعيف

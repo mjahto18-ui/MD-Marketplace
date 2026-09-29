@@ -188,14 +188,14 @@ export async function POST(req) {
     const fullMsg = `السائق ${driver?.full_name} في الطريق اليك - السعر النهائي ${finalTotal.toLocaleString()} ل.ل - كود الرحلة ${order.secret_code}`;
 
     // 2- push_queue = بس الكود + مع User ID مشان توصل
-    await supabase.from('push_queue').insert({
-      'Customer ID': updated.customer_id,
-      'User ID': customerUserId, // هون صار ينسخ User ID
-      'Title': 'تم قبول طلبك',
-      'Message': order.secret_code, // هون بس الكود
-      'Status': 'Pending',
-      'Code': 'TAXI_ACCEPTED'
-    }).then(()=>{},(e)=>{ console.log('push_queue insert err', e.message) });
+    //await supabase.from('push_queue').insert({
+    //  'Customer ID': updated.customer_id,
+    //'User ID': customerUserId, // هون صار ينسخ User ID
+    //  'Title': 'تم قبول طلبك',
+     // 'Message': order.secret_code, // هون بس الكود
+     // 'Status': 'Pending',
+     // 'Code': 'TAXI_ACCEPTED'
+    //}).then(()=>{},(e)=>{ console.log('push_queue insert err', e.message) });
 
     // 3- webhook = المسج الكامل + بس Customer ID
     await supabase.from('webhook').insert({

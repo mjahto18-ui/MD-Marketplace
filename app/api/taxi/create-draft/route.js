@@ -81,6 +81,23 @@ export async function POST(req) {
     }
     if (!customerRow) return Response.json({ success: false, message: "حسابك مش موجود بجدول customers" }, { status: 401 });
 
+    // ✅ فحص taxi من جدول users - جديد
+    const phoneForUsers = String(phone).trim();
+    const phoneForUsersNorm = normalizePhone(phoneForUsers);
+    const { data: usersRows } = await supabase.from('users').select('*');
+    let userRow = null;
+    for (const u of usersRows || []) {
+      const m = String(u['Mobile'] || '').trim();
+      const mNorm = normalizePhone(m);
+      if (m === phoneForUsers || mNorm === phoneForUsersNorm) { userRow = u; break; }
+    }
+    if (!userRow) {
+      userRow = (usersRows||[]).find(row => String(row['Mobile'] || "").trim() === String(phone).trim());
+    }
+    if (!userRow || userRow['taxi']!== 'yes') {
+      return Response.json({ success: false, message: "🔒 خدمة MD-TAXI متوقفة لهذا الحساب" }, { status: 403 });
+    }
+
     // ✅ هون عم ننسخ اسمك ورقمك و ID تلقائي
     const customer_id = customerRow["Customer ID"]?.toString();
     const customer_name = customerRow["Name"] || customerRow["Customer Name"] || "";
