@@ -1,5 +1,5 @@
 
-import { getSupabase, getUserByWhatsAppNumber as getUserByWhatsAppNumberLib, normalizePhone, getCachedTable } from "@/lib/supabase";
+import { getSupabase as getSupabaseLib, getUserByWhatsAppNumber as getUserByWhatsAppNumberLib, normalizePhone, getCustomerRowByPhone as getCustomerRowByPhoneLib, canOpenBot2 } from "@/lib/supabase";
 import { PERSONAS_PHOTOS, PERSONAS_FALLBACK } from "@/lib/personas";
 export const dynamic = "force-dynamic";
 
@@ -40,8 +40,10 @@ function getCache(key) {
 }
 function setCache(key, value) { SHEETS_CACHE.set(key, { v: value, t: Date.now() }); }
 
-// getSupabase صار من lib/supabase.js - Singleton + Index
-// import من فوق
+function getSupabase() {
+  // بنستعمل المكتبة المركزية - Singleton
+  return getSupabaseLib();
+}
 
 // ===== الحارس - Rate Limit - الديفولت 10 ======
 const DEFAULT_MAX_PER_MINUTE = 10;
@@ -107,7 +109,6 @@ function mapTable(sheetName) {
 }
 
 function normalizeWhatsAppNumber(phone) {
-  // Wrapper - بيستعمل normalizePhone من المكتبة المركزية
   return normalizePhone(phone);
 }
 
@@ -293,7 +294,10 @@ async function getSheetRows(sheetName) {
       if (table === 'products') selectCols = '"Product ID", "Product Name", "Price", "Store ID", "Available", "Active", "Unit", "Description"';
       else if (table === 'stores') selectCols = '"Store ID", "Store Name", "Adress", "Area", "Open Time", "Close Time"';
       else if (table === 'areas') selectCols = '"Area ID", "Area Name"';
-      else if (table === 'users') { console.log("⚠️ getSheetRows('users') ممنوع - استعمل getUserByWhatsAppNumberLib بدالو"); return []; }
+      else if (table === 'users') {
+        console.log("⚠ getSheetRows('users') ممنوع - استعمل getUserByWhatsAppNumberLib بدالو");
+        return [];
+      }
       const { data, error } = await supabase.from(table).select(selectCols);
       if (error) { console.error(`❌ خطأ قراءة ${table}:`, error.message); return []; }
       const result = data || [];
@@ -403,8 +407,6 @@ async function getSmartMemory(user) {
 }
 async function getUserByWhatsAppNumber(whatsappNumber) {
   // ===== جديد - بتستعمل lib/supabase.js + idx_users_whatsapp_number =====
-  // قبل: full scan + loop 2000 بالـ JS
-  // هلا: eq('WhatsApp Number', normalized) + Index -> 20ms
   try {
     const user = await getUserByWhatsAppNumberLib(whatsappNumber);
     if (user) {
@@ -419,19 +421,13 @@ async function getUserByWhatsAppNumber(whatsappNumber) {
   }
 }
 async function getCustomerRowByPhone(whatsappNumber, customerId) {
+  // ===== زبطنا - بيستعمل eq + Index - بدون select('*') + loop =====
   try {
-    const supabase = getSupabase();
-    const phoneNorm = String(whatsappNumber||"").replace(/\D/g,"");
-    const custIdNorm = String(customerId||"").trim();
-    const { data } = await supabase.from('customers').select('"Customer ID", "Mobile", "Name"');
-    for (const c of data||[]) {
-      const cid = String(c["Customer ID"]||c["customer ID"]||"").trim();
-      if (custIdNorm && cid && cid === custIdNorm) return c;
-      const m = String(c["Mobile"]||"").replace(/\D/g,"");
-      if (m === phoneNorm || m.endsWith(phoneNorm.slice(-8)) || phoneNorm.endsWith(m.slice(-8))) return c;
-    }
-  } catch(e){}
-  return null;
+    return await getCustomerRowByPhoneLib(whatsappNumber, customerId);
+  } catch(e) {
+    console.log("getCustomerRowByPhone error", e.message);
+    return null;
+  }
 }
 
 async function appSheetAction(tableName, action, rows) {
@@ -557,6 +553,7 @@ async function sendToBot3({ from, user, originalMessage }) {
   } catch (error) { console.error("❌ فشل Bridge إلى BOT3:", error); return false; }
 }
 async function transferToBot3({ from, user, originalMessage }) {
+  // ===== بوابة 3 - ما منلمسها - شروطها لحال =====
   if (!user) {
     await sendMessage(from, `تكرم عينك! 😊 حتى اقدر بلشلك طلب تاكسي، بس سجل حساب سريع على موقعنا ${WEBSITE_URL} وبس تخلص قلي بدي تاكسي وانا جاهز دغري 🚕`);
     return false;
@@ -690,7 +687,7 @@ async function buildOrderContext(user, userMessage) {
   };
 }
 
-// ===== GEMINI - بدل Groq - مع تقليل توكن =====
+// ===== GEMINI - مع السيستم بروموت الأصلي كامل - ما لمسناه =====
 async function getAIReply(userMessage, user, productResults, orderContext, history, persona, smartMemory) {
   if (!GEMINI_API_KEY) { return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"; }
   try {
@@ -982,7 +979,7 @@ export async function POST(req) {
       await saveToAppSheet(from, `صورة باركود ${decoded}`, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BARCODE_IMAGE_OFF" });
       return Response.json({ status: "ok" }, { status: 200 });
     }
-    // ===== LOCATION FORWARD TO BOT3 - مصلح (كان عندك تيست مكرر) =====
+    // ===== LOCATION FORWARD TO BOT3 - مصلح =====
     if (message?.type === "location") {
       const whatsappNumberEarly = normalizeWhatsAppNumber(from);
       const sessionEarly = await getBotSessionTable(whatsappNumberEarly);
@@ -1041,10 +1038,7 @@ export async function POST(req) {
       const first = low.split(/\s+/)[0];
       if (simpleYes.includes(first) || simpleYes.includes(low)) {
         const supabase = getSupabase();
-        const { data: allMsgs } = await supabase.from('messages').select('Phone, CustomerMessage, AIReply, Date, "Bot Session", Reassurance_Sent, Reassurance_At, _supa_synced_at')
-      .eq('Phone', whatsappNumber)
-      .order('_supa_synced_at', { ascending: false })
-      .limit(1);
+        const { data: allMsgs } = await supabase.from('messages').select('Phone, CustomerMessage, AIReply, Date, "Bot Session", Reassurance_Sent, Reassurance_At, _supa_synced_at').eq('Phone', whatsappNumber).order('_supa_synced_at', { ascending: false }).limit(1);
         const lastRow = allMsgs?.[0];
         if (lastRow && String(lastRow["Reassurance_Sent"] || "").toUpperCase() === "YES") {
           const reassAt = lastRow["Reassurance_At"] || lastRow["Date"];
@@ -1121,7 +1115,7 @@ export async function POST(req) {
       } catch (e) { console.error("❌ فشل تحويل لـ BOT2:", e.message); }
       return Response.json({ status: "ok", forwarded_to: "BOT2" }, { status: 200 });
     }
-    // ===== TAXI INTENT CHECK - جديد - مع شرط الكوستمر =====
+    // ===== TAXI INTENT - بوابة 3 - ما منلمسها =====
     if (isTaxiIntent(userText)) {
       console.log(`🚕 Taxi intent detected: ${userText} from ${whatsappNumber}`);
       const transferredTaxi = await transferToBot3({ from: whatsappNumber, user, originalMessage: userText });
@@ -1131,11 +1125,17 @@ export async function POST(req) {
         return Response.json({ status: "ok", blocked: "taxi_blocked" }, { status: 200 });
       }
     }
+    // ===== بوابة 2 - القانون الجديد =====
     const newOrderIntent = isNewOrderIntent(userText);
     if (newOrderIntent) {
       if (!user) {
         await sendMessage(from, `تكرم عينك! 😊 حتى اقدر بلشلك الأوردر، بس سجل حساب سريع على موقعنا ${WEBSITE_URL} وبس تخلص قلي شو حابب تطلب وانا جاهز دغري`);
         return Response.json({ status: "ok", blocked: "not_customer" }, { status: 200 });
+      }
+      // قانون: اذا Customer ID نول/فاضي -> ما بيفتح بوابة 2
+      if (!canOpenBot2(user)) {
+        await sendMessage(from, `لقيت اسمك يا ${user.name || ''} بس بعدك مش مسجل كزبون 😊 كمل تسجيلك على ${WEBSITE_URL} وبس تخلص قلي شو حابب تطلب وانا جاهز دغري`);
+        return Response.json({ status: "ok", blocked: "no_customer_id" }, { status: 200 });
       }
       const custRow = await getCustomerRowByPhone(whatsappNumber, user?.customerId);
       if (!custRow) {
