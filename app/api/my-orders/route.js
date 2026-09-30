@@ -1,18 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
-
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key, {
-    global: {
-      fetch: (input, init) =>
-        fetch(input, {...init, cache: 'no-store' }),
-    },
-    auth: { persistSession: false },
-  });
-}
+import { getSupabase } from "@/lib/supabase";
 
 export async function GET(req) {
   try {
@@ -20,49 +8,44 @@ export async function GET(req) {
     if (!customerID) return NextResponse.json({ success: true, orders: [] });
 
     const supabase = getSupabase();
-    const custIdLower = customerID.toString().trim().toLowerCase();
+    const custId = String(customerID).trim();
 
-    const { data: rows, error } = await supabase.from('order_requuest').select('*').order('Cerated Date', { ascending: false });
+    // صار بفلتر عالسيرفر مو بالـ JS - بيستعمل الاندكس
+    const { data: rows, error } = await supabase
+      .from('order_requuest')
+      .select('"Request ID", "Cerated Date", "Pickup At", "Items Cost", "Delivery Fee", "Total Amount", "Approval Status", "Delivery Status", "Free Delivery Used", "Customer Latitude", "Customer Longitude", "Current Location"')
+      .ilike('"customer ID"', custId)
+      .order('"Cerated Date"', { ascending: false })
+      .limit(50);
 
-    console.log('my-orders debug:', { customerID, custIdLower, rowsCount: rows?.length, error });
-    if (error) {
-      console.error('Supabase error in my-orders:', error);
-      return NextResponse.json({ success: false, orders: [], error: error.message, details: error });
-    }
+    if (error) throw error;
 
-    const orders = (rows||[])
- .filter(r => String(r['customer ID'] || "").trim().toLowerCase() === custIdLower)
- .map(r => {
-        const currentLocation = String(r['Current Location'] || "").trim();
-        let driverLat = null;
-        let driverLng = null;
+    const orders = (rows||[]).map(r => {
+      const currentLocation = String(r['Current Location'] || "").trim();
+      let driverLat = null, driverLng = null;
+      if (currentLocation.includes(",")) {
+        const [lat,lng] = currentLocation.split(",");
+        driverLat = lat?.trim() || null;
+        driverLng = lng?.trim() || null;
+      }
+      return {
+        requestID: r['Request ID'],
+        date: r['Cerated Date'],
+        pickupAt: r['Pickup At'],
+        itemsCost: r['Items Cost'],
+        deliveryFee: r['Delivery Fee'],
+        total: r['Total Amount'],
+        approvalStatus: r['Approval Status'],
+        status: r['Delivery Status'],
+        freeUsed: String(r['Free Delivery Used'] || "").toUpperCase() === "TRUE",
+        customerLat: String(r['Customer Latitude'] || "").trim(),
+        customerLng: String(r['Customer Longitude'] || "").trim(),
+        driverLat, driverLng,
+      };
+    });
 
-        if (currentLocation && currentLocation.includes(",")) {
-          const parts = currentLocation.split(",");
-          driverLat = parts[0]?.trim() || null;
-          driverLng = parts[1]?.trim() || null;
-        }
-
-        return {
-          requestID: r['Request ID'],
-          date: r['Cerated Date'],
-          pickupAt: r['Pickup At'], // <-- هاد السطر الوحيد اللي زدناه - هو اللي بيبلش من عند السائق
-          itemsCost: r['Items Cost'],
-          deliveryFee: r['Delivery Fee'],
-          total: r['Total Amount'],
-          approvalStatus: r['Approval Status'],
-          status: r['Delivery Status'],
-          freeUsed: String(r['Free Delivery Used'] || "").toUpperCase() === "TRUE",
-          customerLat: String(r['Customer Latitude'] || "").trim(),
-          customerLng: String(r['Customer Longitude'] || "").trim(),
-          driverLat: driverLat,
-          driverLng: driverLng,
-        };
-      });
-
-    return NextResponse.json({ success: true, orders });
+    return NextResponse.json({ success: true, orders }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
-    console.error('Catch error in my-orders:', e);
     return NextResponse.json({ success: false, orders: [], error: e.message });
   }
 }
