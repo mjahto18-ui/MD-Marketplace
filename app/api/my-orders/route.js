@@ -10,13 +10,11 @@ export async function GET(req) {
     const supabase = getSupabase();
     const custId = String(customerID).trim();
 
-    // صار بفلتر عالسيرفر مو بالـ JS - بيستعمل الاندكس
     const { data: rows, error } = await supabase
       .from('order_requuest')
       .select('"Request ID", "Cerated Date", "Pickup At", "Items Cost", "Delivery Fee", "Total Amount", "Approval Status", "Delivery Status", "Free Delivery Used", "Customer Latitude", "Customer Longitude", "Current Location"')
       .ilike('"customer ID"', custId)
-      .order('"Cerated Date"', { ascending: false })
-      .limit(50);
+      .order('"Cerated Date"', { ascending: false });
 
     if (error) throw error;
 
