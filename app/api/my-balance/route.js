@@ -30,15 +30,18 @@ export async function GET(req) {
     
     const ownerUserId = userRow?.["User ID"] || null;
 
-    // 2- 3 ضربات - بس كل وحدة بتجيب سطر واحد أو sum من الداتا بيز
+    // 2- 3 ضربات - كل وحدة سطر واحد
     const [rewardsRes, walletRes, historyRes] = await Promise.all([
-      // نقاط - خليها جمع متل ما هي
+      // نقاط - هلق سطر واحد عمود واحد Bonus Balance متل Balance After
       supabase.from('rewards')
-        .select('"Points Added", "Points Used"')
+        .select('"Bonus Balance"')
         .eq('Customer ID', custId)
-        .limit(1000),
+        .order('Transaction Date', { ascending: false })
+        .order('supa_id', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
 
-      // والت - أهم شي - جيب Balance After من آخر سطر بس - مش جمع 2000 سطر
+      // والت - سطر واحد
       ownerUserId 
         ? supabase.from('wallet_transactions')
             .select('"Balance After"')
@@ -49,7 +52,7 @@ export async function GET(req) {
             .maybeSingle()
         : supabase.from('wallet_transactions')
             .select('"Balance After"')
-            .eq('Owner User ID', custId) // fallback اذا ما لقى User ID
+            .eq('Owner User ID', custId)
             .order('Created At', { ascending: false })
             .limit(1)
             .maybeSingle(),
@@ -60,12 +63,10 @@ export async function GET(req) {
         .limit(2000)
     ]);
 
-    let points = 0;
-    (rewardsRes.data || []).forEach(r => {
-      points += Number(r['Points Added'] || 0) - Number(r['Points Used'] || 0);
-    });
+    // نقاط من Bonus Balance مباشرة
+    const points = Number(rewardsRes.data?.["Bonus Balance"] || 0);
 
-    // والت هلق سطر واحد بس - حتى لو 5000 حركة
+    // والت سطر واحد
     const wallet = Number(walletRes.data?.["Balance After"] || 0);
 
     let total_spent = 0;
