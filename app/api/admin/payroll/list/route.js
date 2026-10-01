@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from 'next/headers'
 import { NextResponse } from "next/server"
+import { canAccess } from '@/lib/checkSub'
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,13 @@ export async function GET(req){
 
     const supabase = getSupabase()
 
+    // === حماية الاشتراك ===
+    const check = await canAccess(supabase, store_id, 'payroll')
+    if(!check.ok){
+      return NextResponse.json({success:false, message: check.msg, rows:[]}, {status:402})
+    }
+    // === نهاية الحماية ===
+
     const { data: rows, error } = await supabase.from('payroll_runs')
       .select(`
         id, amount, base_amount, overtime_amount, overtime_hours, total_hours,
@@ -33,7 +41,7 @@ export async function GET(req){
         employees ( full_name, department, store_id )
       `)
       .eq('month_year', month)
-      .eq('store_id', store_id) // <-- هي كل القصة
+      .eq('store_id', store_id)
       .order('created_at', {ascending:false})
 
     if(error) throw error
