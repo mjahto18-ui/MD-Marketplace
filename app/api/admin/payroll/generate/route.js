@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from 'next/headers'
 import { NextResponse } from "next/server"
+import { canAccess } from '@/lib/checkSub'
 export const dynamic = "force-dynamic";
 
 function getSupabase() {
@@ -25,13 +26,20 @@ export async function POST(req){
     if(!month) return NextResponse.json({success:false, message:'حدد الشهر'}, {status:400})
     if(!store_id) return NextResponse.json({success:false, message:'حدد المتجر store_id'}, {status:400})
 
+    const supabase = getSupabase()
+
+    // === حماية الاشتراك ===
+    const check = await canAccess(supabase, store_id, 'payroll')
+    if(!check.ok){
+      return NextResponse.json({success:false, message: check.msg}, {status:402})
+    }
+    // === نهاية الحماية ===
+
     const month_year = month
     const [y,m] = month.split('-').map(Number)
     const start = new Date(y, m-1, 1)
     const end = new Date(y, m, 1)
 
-    const supabase = getSupabase()
-    // هون التعديل - بس موظفين هالمتجر
     const { data: emps, error: empErr } = await supabase.from('employees')
       .select('id, full_name, department, salary_type, base_salary, required_hours, is_active, store_id')
       .eq('is_active', true)
@@ -110,7 +118,7 @@ export async function POST(req){
       const { error } = await supabase.from('payroll_runs').insert({
         employee_id: emp.id,
         month_year,
-        store_id, // <-- مهم
+        store_id,
         total_hours,
         amount,
         secret_code_5: code,
