@@ -373,7 +373,7 @@ export default function StoreDashboard(){
                         <span style={{background: isDeduct?'#fee2e2':'#dcfce7', color: isDeduct?'#ef4444':'#16a34a', padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:900}}>{isDeduct?'🔴 حسم':'🟢 ADD'}</span>
                         <span style={{fontWeight:900, fontSize:14, color: isDeduct?'#ef4444':'#16a34a'}}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
                       </div>
-                      <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || '-'}</div>
+                      <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || "-"}</div>
                       <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB'): (t['Created At']? new Date(t['Created At']).toLocaleString('ar-LB'):'')}}</div>
                     </div>
                   </div>
