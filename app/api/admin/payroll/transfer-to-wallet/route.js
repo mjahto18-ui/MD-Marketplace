@@ -14,20 +14,29 @@ function getSupabaseAdmin() {
 export async function POST(req){
   try{
     const supabaseAdmin = getSupabaseAdmin();
-    const { payroll_id } = await req.json();
+    const { payroll_id, store_id } = await req.json();
     
     if(!payroll_id){
       return NextResponse.json({ success: false, message: 'payroll_id مطلوب' }, { status: 400 });
     }
+    if(!store_id){
+      return NextResponse.json({ success: false, message: 'store_id مطلوب' }, { status: 400 });
+    }
 
     const { data: payroll, error: fetchErr } = await supabaseAdmin
       .from('payroll_runs')
-      .select('id, employee_id, amount, status, employees!inner(user_id, full_name)')
+      .select('id, employee_id, amount, status, store_id, employees!inner(user_id, full_name, store_id)')
       .eq('id', payroll_id)
+      .eq('store_id', store_id) // <-- لازم يكون لنفس المتجر
       .single();
 
     if(fetchErr || !payroll){
-      return NextResponse.json({ success: false, message: 'الراتب مش موجود' }, { status: 404 });
+      return NextResponse.json({ success: false, message: 'الراتب مش موجود بهالمتجر' }, { status: 404 });
+    }
+
+    // أمان إضافي: تأكد موظف بنفس المتجر
+    if(payroll.employees?.store_id !== store_id){
+      return NextResponse.json({ success: false, message: `الموظف تابع لمتجر ${payroll.employees?.store_id} مش ${store_id}` }, { status: 403 });
     }
 
     if(payroll.status !== 'pending'){
@@ -42,11 +51,12 @@ export async function POST(req){
       .from('payroll_runs')
       .update({ status: 'in_wallet' })
       .eq('id', payroll_id)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .eq('store_id', store_id); // حماية إضافية
 
     if(error) throw error;
 
-    return NextResponse.json({ success: true, message: 'تم التحويل للمحفظة' });
+    return NextResponse.json({ success: true, message: `تم التحويل للمحفظة - متجر ${store_id}` });
 
   }catch(e){
     console.error('transfer error', e);
