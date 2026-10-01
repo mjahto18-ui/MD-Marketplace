@@ -29,6 +29,8 @@ export default function StoreDashboard(){
   const [payrollLoading, setPayrollLoading] = useState(false)
   const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0,7))
   const [origin, setOrigin] = useState("")
+  // --- اشتراك - جديد فقط ---
+  const [sub, setSub] = useState(null)
 
   useEffect(()=>{
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
@@ -48,6 +50,11 @@ export default function StoreDashboard(){
           setWallet(w.wallet||0)
           setWalletTx(w.transactions||[])
         }
+      }catch{}
+      // --- جلب الاشتراك - جديد ---
+      try{
+        const s = await fetch(`/api/stores/sub-info?store_id=${me.storeId}`, {cache:'no-store'}).then(r=>r.json())
+        setSub(s)
       }catch{}
       const { data: storeData } = await supabase.from('stores').select('*').eq('Store ID', me.storeId).maybeSingle()
       setStore(storeData)
@@ -162,6 +169,34 @@ export default function StoreDashboard(){
           <div style={{fontSize:32, flexShrink:0}}>💳</div>
         </div>
 
+        {/* === بانر الاشتراك - جديد فقط - لا يكسر الصفحة === */}
+        {sub?.enabled && (
+          <div style={{
+            margin:'0 0 12px 0',
+            padding:'10px 12px',
+            borderRadius:'12px',
+            textAlign:'center',
+            fontSize:'12px',
+            fontWeight:'800',
+            lineHeight:'1.4',
+            wordBreak:'break-word',
+            whiteSpace:'normal',
+            width:'100%',
+            boxSizing:'border-box',
+            background: sub.expired ? 'linear-gradient(135deg,#fee2e2,#fecaca)' : (sub.daysLeft<=5 ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : 'linear-gradient(135deg,#dcfce7,#bbf7d0)'),
+            color: sub.expired ? '#991b1b' : (sub.daysLeft<=5 ? '#92400e' : '#166534'),
+            border: `2px solid ${sub.expired ? '#ef4444' : (sub.daysLeft<=5 ? '#f59e0b' : '#22c55e')}`
+          }}>
+            {sub.expired ? (
+              <>⛔ انتهى الاشتراك بتاريخ {sub.end}<br/><span style={{fontSize:'11px', fontWeight:'600', opacity:0.9}}>هذه الميزة لا تؤثر على بصمة الموظفين والدوام - البصمة شغالة بالخلفية</span></>
+            ) : sub.daysLeft<=5 ? (
+              <>⚠️ لديك {sub.daysLeft} ايام لتجديد الباقة الشهرية<br/><span style={{fontSize:'11px', fontWeight:'600'}}>ينتهي بتاريخ {sub.end} - جدد الآن</span></>
+            ) : (
+              <>✅ اشتراك مفعل - باقي {sub.daysLeft} يوم<br/><span style={{fontSize:'11px', fontWeight:'600'}}>ينتهي بتاريخ {sub.end}</span></>
+            )}
+          </div>
+        )}
+
         <div style={{display:'flex', gap:8, padding:'0 0 12px', overflowX:'auto', width:'100%', boxSizing:'border-box', scrollbarWidth:'none'}}>
           {[
             {id:'orders', label:`الطلبات (${preparing.length})`},
@@ -170,7 +205,7 @@ export default function StoreDashboard(){
             {id:'add', label:'إضافة منتجات'},
             {id:'attendance', label:'الدوام'},
             {id:'payroll', label:'الرواتب'},
-            {id:'display', label:'🖥️ شاشة الدوام'},
+            {id:'display', label:'🖥 شاشة الدوام'},
           ].map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'9px 16px', borderRadius:10, border:'1px solid rgba(255,255,255,0.1)', background:tab===t.id?'linear-gradient(135deg,#ec4899,#8b5cf6)':'rgba(255,255,255,0.06)', color:'white', whiteSpace:'nowrap', fontWeight: tab===t.id? '900':'500', flexShrink:0}}>{t.label}</button>
           ))}
@@ -269,6 +304,14 @@ export default function StoreDashboard(){
 
               {/* --- تابات جديدة فقط - بدون لمس القديم --- */}
               {tab==='attendance' && (
+                <>
+                {sub?.expired ? (
+                  <div style={{...glassCard, padding:20, borderRadius:16, textAlign:'center'}}>
+                    <div style={{fontSize:40}}>⛔</div>
+                    <div style={{fontWeight:900, marginTop:8}}>انتهى اشتراك الدوام</div>
+                    <div style={{fontSize:12, opacity:0.7, marginTop:6, lineHeight:1.5}}>انتهى بتاريخ {sub.end}<br/>بصمة الموظفين والدوام شغالة بالخلفية<br/>فقط عرض الدوام مقفول</div>
+                  </div>
+                ) : (
                 <div style={{display:'grid', gap:12}}>
                   <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px,1fr))', gap:'10px'}}>
                     {[
@@ -304,9 +347,19 @@ export default function StoreDashboard(){
                     ))}
                   </div>
                 </div>
+                )}
+                </>
               )}
 
               {tab==='payroll' && (
+                <>
+                {sub?.expired ? (
+                  <div style={{...glassCard, padding:20, borderRadius:16, textAlign:'center'}}>
+                    <div style={{fontSize:40}}>⛔</div>
+                    <div style={{fontWeight:900, marginTop:8}}>انتهى اشتراك الرواتب</div>
+                    <div style={{fontSize:12, opacity:0.7, marginTop:6}}>انتهى بتاريخ {sub.end}<br/>الرواتب مقفولة</div>
+                  </div>
+                ) : (
                 <div style={{...glassCard, borderRadius:'16px', padding:'14px'}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px'}}>
                     <div style={{fontWeight:'900'}}>💰 رواتب {me.storeId}</div>
@@ -325,11 +378,13 @@ export default function StoreDashboard(){
                     </div>
                   ))}
                 </div>
+                )}
+                </>
               )}
 
               {tab==='display' && (
                 <div style={{...glassCard, borderRadius:'16px', padding:'16px'}}>
-                  <div style={{fontWeight:'900', fontSize:'16px'}}>🖥️ شاشة الدوام - {me.storeId}</div>
+                  <div style={{fontWeight:'900', fontSize:'16px'}}>🖥 شاشة الدوام - {me.storeId}</div>
                   <div style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', marginTop:'6px'}}>افتح الرابط على جهاز منفصل بالمكتب - QR بيتجدد كل 5 دقايق - نفس صفحة office-display</div>
                   <div style={{marginTop:'12px', background:'rgba(0,0,0,0.4)', border:'1px dashed rgba(255,255,255,0.2)', padding:'10px', borderRadius:'10px', fontSize:'11px', wordBreak:'break-all', color:'rgba(255,255,255,0.7)'}}>
                     {displayLink}
@@ -337,7 +392,7 @@ export default function StoreDashboard(){
                   <div style={{display:'flex', gap:'8px', marginTop:'12px', flexWrap:'wrap'}}>
                     <button onClick={()=>{navigator.clipboard.writeText(displayLink); alert('تم نسخ رابط الشاشة')}} style={{padding:'10px 16px', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.08)', color:'white', fontWeight:'700', cursor:'pointer'}}>نسخ الرابط 📋</button>
                     <button onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent('شاشة دوام '+ me.storeId + ' - افتحها على شاشة المكتب: ' + displayLink)}`,'_blank')} style={{padding:'10px 16px', borderRadius:'10px', border:'none', background:'#25D366', color:'white', fontWeight:'900', cursor:'pointer'}}>مشاركة واتساب 📱</button>
-                    <button onClick={()=>window.open(displayLink,'_blank')} style={{padding:'10px 16px', borderRadius:'10px', border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:'900', cursor:'pointer'}}>فتح الشاشة 🖥️</button>
+                    <button onClick={()=>window.open(displayLink,'_blank')} style={{padding:'10px 16px', borderRadius:'10px', border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:'900', cursor:'pointer'}}>فتح الشاشة 🖥</button>
                   </div>
                   <div style={{marginTop:'14px', background:'white', padding:'12px', borderRadius:'12px', display:'inline-block'}}>
                     <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(displayLink)}`} alt="QR Display" style={{width:'180px', height:'180px', display:'block'}} />
