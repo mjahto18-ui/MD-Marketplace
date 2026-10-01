@@ -169,8 +169,8 @@ export default function StoreDashboard(){
           <div style={{fontSize:32, flexShrink:0}}>💳</div>
         </div>
 
-        {/* === بانر الاشتراك - جديد فقط - لا يكسر الصفحة === */}
-        {sub?.enabled && (
+        {/* === بانر الاشتراك - مصلح - بيعرض بدها باقة و انتهى === */}
+        {sub && (sub.needSub || sub.expired) && (
           <div style={{
             margin:'0 0 12px 0',
             padding:'10px 12px',
@@ -183,14 +183,36 @@ export default function StoreDashboard(){
             whiteSpace:'normal',
             width:'100%',
             boxSizing:'border-box',
-            background: sub.expired ? 'linear-gradient(135deg,#fee2e2,#fecaca)' : (sub.daysLeft<=5 ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : 'linear-gradient(135deg,#dcfce7,#bbf7d0)'),
-            color: sub.expired ? '#991b1b' : (sub.daysLeft<=5 ? '#92400e' : '#166534'),
-            border: `2px solid ${sub.expired ? '#ef4444' : (sub.daysLeft<=5 ? '#f59e0b' : '#22c55e')}`
+            background: sub.needSub? 'linear-gradient(135deg,#fef3c7,#fde68a)' : 'linear-gradient(135deg,#fee2e2,#fecaca)',
+            color: sub.needSub? '#92400e' : '#991b1b',
+            border: `2px solid ${sub.needSub? '#f59e0b' : '#ef4444'}`
           }}>
-            {sub.expired ? (
+            {sub.needSub? (
+              <>🔒 هالخدمة بدها باقة اشتراك تتفعل<br/><span style={{fontSize:'11px', fontWeight:'600', opacity:0.9}}>الدوام والرواتب ميزات مدفوعة - فعل الباقة - بصمة الموظفين شغالة بالخلفية</span></>
+            ) : (
               <>⛔ انتهى الاشتراك بتاريخ {sub.end}<br/><span style={{fontSize:'11px', fontWeight:'600', opacity:0.9}}>هذه الميزة لا تؤثر على بصمة الموظفين والدوام - البصمة شغالة بالخلفية</span></>
-            ) : sub.daysLeft<=5 ? (
-              <>⚠️ لديك {sub.daysLeft} ايام لتجديد الباقة الشهرية<br/><span style={{fontSize:'11px', fontWeight:'600'}}>ينتهي بتاريخ {sub.end} - جدد الآن</span></>
+            )}
+          </div>
+        )}
+        {sub?.enabled &&!sub.expired &&!sub.needSub && (
+          <div style={{
+            margin:'0 0 12px 0',
+            padding:'10px 12px',
+            borderRadius:'12px',
+            textAlign:'center',
+            fontSize:'12px',
+            fontWeight:'800',
+            lineHeight:'1.4',
+            wordBreak:'break-word',
+            whiteSpace:'normal',
+            width:'100%',
+            boxSizing:'border-box',
+            background: sub.daysLeft<=5? 'linear-gradient(135deg,#fef3c7,#fde68a)' : 'linear-gradient(135deg,#dcfce7,#bbf7d0)',
+            color: sub.daysLeft<=5? '#92400e' : '#166534',
+            border: `2px solid ${sub.daysLeft<=5? '#f59e0b' : '#22c55e'}`
+          }}>
+            {sub.daysLeft<=5? (
+              <>⚠ لديك {sub.daysLeft} ايام لتجديد الباقة الشهرية<br/><span style={{fontSize:'11px', fontWeight:'600'}}>ينتهي بتاريخ {sub.end} - جدد الآن</span></>
             ) : (
               <>✅ اشتراك مفعل - باقي {sub.daysLeft} يوم<br/><span style={{fontSize:'11px', fontWeight:'600'}}>ينتهي بتاريخ {sub.end}</span></>
             )}
@@ -305,11 +327,11 @@ export default function StoreDashboard(){
               {/* --- تابات جديدة فقط - بدون لمس القديم --- */}
               {tab==='attendance' && (
                 <>
-                {sub?.expired ? (
+                {(sub?.needSub || sub?.expired)? (
                   <div style={{...glassCard, padding:20, borderRadius:16, textAlign:'center'}}>
-                    <div style={{fontSize:40}}>⛔</div>
-                    <div style={{fontWeight:900, marginTop:8}}>انتهى اشتراك الدوام</div>
-                    <div style={{fontSize:12, opacity:0.7, marginTop:6, lineHeight:1.5}}>انتهى بتاريخ {sub.end}<br/>بصمة الموظفين والدوام شغالة بالخلفية<br/>فقط عرض الدوام مقفول</div>
+                    <div style={{fontSize:40}}>{sub?.needSub? '🔒' : '⛔'}</div>
+                    <div style={{fontWeight:900, marginTop:8}}>{sub?.needSub? 'هالخدمة بدها باقة اشتراك تتفعل' : 'انتهى اشتراك الدوام'}</div>
+                    <div style={{fontSize:12, opacity:0.7, marginTop:6, lineHeight:1.5}}>{sub?.needSub? <>الدوام والرواتب ميزات مدفوعة<br/>فعل الباقة لعرض الدوام<br/>بصمة الموظفين شغالة بالخلفية</> : <>انتهى بتاريخ {sub.end}<br/>بصمة الموظفين والدوام شغالة بالخلفية<br/>فقط عرض الدوام مقفول</>}</div>
                   </div>
                 ) : (
                 <div style={{display:'grid', gap:12}}>
@@ -353,11 +375,11 @@ export default function StoreDashboard(){
 
               {tab==='payroll' && (
                 <>
-                {sub?.expired ? (
+                {(sub?.needSub || sub?.expired)? (
                   <div style={{...glassCard, padding:20, borderRadius:16, textAlign:'center'}}>
-                    <div style={{fontSize:40}}>⛔</div>
-                    <div style={{fontWeight:900, marginTop:8}}>انتهى اشتراك الرواتب</div>
-                    <div style={{fontSize:12, opacity:0.7, marginTop:6}}>انتهى بتاريخ {sub.end}<br/>الرواتب مقفولة</div>
+                    <div style={{fontSize:40}}>{sub?.needSub? '🔒' : '⛔'}</div>
+                    <div style={{fontWeight:900, marginTop:8}}>{sub?.needSub? 'هالخدمة بدها باقة اشتراك تتفعل' : 'انتهى اشتراك الرواتب'}</div>
+                    <div style={{fontSize:12, opacity:0.7, marginTop:6}}>{sub?.needSub? <>الرواتب ميزة مدفوعة<br/>فعل الباقة</> : <>انتهى بتاريخ {sub.end}<br/>الرواتب مقفولة</>}</div>
                   </div>
                 ) : (
                 <div style={{...glassCard, borderRadius:'16px', padding:'14px'}}>
@@ -425,11 +447,11 @@ export default function StoreDashboard(){
     <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 10px', borderBottom:'1px solid #eee'}}>
       <div style={{flex:1}}>
         <div style={{display:'flex', gap:6, alignItems:'center'}}>
-          <span style={{background: isDeduct ? "#fee2e2" : "#dcfce7", color: isDeduct ? "#ef4444" : "#16a34a", padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:900}}>{isDeduct ? "🔴 حسم" : "🟢 ADD"}</span>
-          <span style={{fontWeight:900, fontSize:14, color: isDeduct ? "#ef4444" : "#16a34a"}}>{isDeduct ? "-" : "+"}{formatLBP(amt)}</span>
+          <span style={{background: isDeduct? "#fee2e2" : "#dcfce7", color: isDeduct? "#ef4444" : "#16a34a", padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:900}}>{isDeduct? "🔴 حسم" : "🟢 ADD"}</span>
+          <span style={{fontWeight:900, fontSize:14, color: isDeduct? "#ef4444" : "#16a34a"}}>{isDeduct? "-" : "+"}{formatLBP(amt)}</span>
         </div>
         <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || "-"}</div>
-        <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date ? new Date(t.Date).toLocaleString('ar-LB') : (t["Created At"] ? new Date(t["Created At"]).toLocaleString('ar-LB') : "")}</div>
+        <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB') : (t["Created At"]? new Date(t["Created At"]).toLocaleString('ar-LB') : "")}</div>
       </div>
     </div>
   )
