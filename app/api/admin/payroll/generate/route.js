@@ -28,10 +28,13 @@ export async function POST(req){
 
     const supabase = getSupabase()
 
-    // === حماية الاشتراك ===
-    const check = await canAccess(supabase, store_id, 'payroll')
-    if(!check.ok){
-      return NextResponse.json({success:false, message: check.msg}, {status:402})
+    // === حماية الاشتراك - الادمن مستثنى ===
+    const isAdmin = ['Admin','Assistant Admin','Accounting'].includes(session.role)
+    if(!isAdmin){
+      const check = await canAccess(supabase, store_id, 'payroll', true)
+      if(!check.ok){
+        return NextResponse.json({success:false, message: check.msg}, {status:402})
+      }
     }
     // === نهاية الحماية ===
 
