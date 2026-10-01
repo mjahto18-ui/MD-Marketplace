@@ -393,7 +393,7 @@ export default function StoreDashboard(){
                     const empName = r.employees?.full_name || r.employee_id
                     const amtStr = Number(r.amount||0).toLocaleString()
                     const storeName = store?.['Store Name'] || me.storeId
-                    const waMsg = `مرحبا ${empName} 👋%0Aراتبك لشهر ${r.month_year} جاهز ✅%0Aالمتجر: ${storeName}%0A%0A💰 المبلغ: ${amtStr} ل.ل%0A⏰ مجموع ${r.total_hours||0}س - اضافي ${r.overtime_hours||0}س%0A🔑 كود الاستلام: ${r.secret_code_5}%0A%0Aلا تشارك الكود مع احد سوا المحاسب.`
+                    const waMsg = `مرحبا ${empName} 👋%0Aراتبك لشهر ${r.month_year} جاهز ✅%0Aالمتجر: ${storeName}%0A%0A💰 المبلغ: ${amtStr} ل.ل%0A⏰ مجموع ${r.total_hours||0}س - اضافي ${r.overtime_hours||0}س%0A🔑 كود الاستلام: ${r.secret_code_5}%0A%0Aلا تشارك الرمز الاستلام مع اي شخص .`
                     return (
                     <div key={r.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)', gap:'10px'}}>
                       <div style={{flex:1, minWidth:0}}>
