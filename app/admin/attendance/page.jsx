@@ -1,6 +1,7 @@
 "use client"
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react"
+import { createClient } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
 import BackToDashboard from "@/components/BackToDashboard"
 
@@ -10,13 +11,26 @@ export default function AttendancePage(){
   const [stats, setStats] = useState({on_now:0, today_total:0, present_today:0, absent:0})
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState('MD_HQ_001')
+  const [storesList, setStoresList] = useState([])
   const [showManual, setShowManual] = useState(false)
   const [manualType, setManualType] = useState('on')
   const [selectedEmp, setSelectedEmp] = useState("")
   const [otHours, setOtHours] = useState("")
   const [otReason, setOtReason] = useState("")
 
+  useEffect(()=>{
+    const loadStores = async ()=>{
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      const supabase = createClient(url, key)
+      const { data } = await supabase.from('stores').select('"Store ID", "Store Name"').eq('Status','Active').order('"Store Name"')
+      if(data && data.length) setStoresList(data)
+    }
+    loadStores()
+  },[])
+
   const load = async ()=>{
+    if(!storeId) return
     setLoading(true)
     try{
       const res = await fetch(`/api/admin/attendance/today?store_id=${storeId}`)
@@ -64,6 +78,8 @@ export default function AttendancePage(){
     }catch(e){ alert("خطأ") }
   }
 
+  const currentStoreName = storesList.find(s=>s['Store ID']===storeId)?.['Store Name'] || storeId
+
   return (
     <div style={{
       minHeight:'100vh',
@@ -73,10 +89,10 @@ export default function AttendancePage(){
       color:'white'
     }}>
       <BackToDashboard />
-      
+
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px'}}>
         <div>
-          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الدوام - {storeId}</h1>
+          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الدوام - {currentStoreName}</h1>
           <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px'}}></div>
           <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'6px'}}>حضور وغياب متجر {storeId}</div>
         </div>
@@ -84,10 +100,16 @@ export default function AttendancePage(){
           <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{
             padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'
           }}>
-            <option value="MD_HQ_001">MD_HQ_001 - HQ</option>
-            <option value="STORE_ZAHERIEH">ZAHERIEH</option>
-            <option value="STORE_TEBBANEH">TEBBANEH</option>
-            <option value="STORE_QOBBEH">QOBBEH</option>
+            {storesList.length===0? (
+              <>
+                <option value="MD_HQ_001">MD_HQ_001 - HQ</option>
+                <option value="STORE_ZAHERIEH">ZAHERIEH</option>
+                <option value="STORE_TEBBANEH">TEBBANEH</option>
+                <option value="STORE_QOBBEH">QOBBEH</option>
+              </>
+            ) : storesList.map(s=>(
+              <option key={s['Store ID']} value={s['Store ID']}>{s['Store Name']} - {s['Store ID']}</option>
+            ))}
           </select>
           <button onClick={()=>setShowManual(true)} style={{
             background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
@@ -122,8 +144,8 @@ export default function AttendancePage(){
           border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
         }}>
           <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>🟢 بالدوام حاليا - {storeId}</h3>
-          {loading ? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)', padding:'20px'}}>جاري التحميل...</div> :
-          live.length===0 ? <div style={{textAlign:'center', color:'rgba(255,255,255,0.4)', padding:'30px', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد احد ON حاليا في {storeId}</div> :
+          {loading? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)', padding:'20px'}}>جاري التحميل...</div> :
+          live.length===0? <div style={{textAlign:'center', color:'rgba(255,255,255,0.4)', padding:'30px', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد احد ON حاليا في {storeId}</div> :
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {live.map(row=>(
               <div key={row.id} style={{
@@ -165,13 +187,13 @@ export default function AttendancePage(){
               }}>
                 <div>
                   <div style={{fontWeight:'700', fontSize:'14px'}}>{em.full_name}</div>
-                  <div style={{fontSize:'12px', marginTop:'4px', color: em.device_type ? '#4ade80' : '#ef4444'}}>
-                    {em.device_type ? `📱 ${em.device_type} | ${em.device_fingerprint ? em.device_fingerprint.slice(0,20) : ''}` : 'لم يوثق الجهاز بعد ❌'} 
-                    <span style={{color:'rgba(255,255,255,0.4)', marginRight:'8px'}}>{em.device_registered_at ? new Date(em.device_registered_at).toLocaleDateString('ar-LB') : ''}</span>
+                  <div style={{fontSize:'12px', marginTop:'4px', color: em.device_type? '#4ade80' : '#ef4444'}}>
+                    {em.device_type? `📱 ${em.device_type} | ${em.device_fingerprint? em.device_fingerprint.slice(0,20) : ''}` : 'لم يوثق الجهاز بعد ❌'}
+                    <span style={{color:'rgba(255,255,255,0.4)', marginRight:'8px'}}>{em.device_registered_at? new Date(em.device_registered_at).toLocaleDateString('ar-LB') : ''}</span>
                   </div>
                 </div>
-                <button onClick={()=>resetDevice(em.id, em.full_name)} disabled={!em.device_fingerprint && !em.device_type} style={{
-                  background: (em.device_fingerprint || em.device_type) ? 'rgba(251,146,60,0.15)' : 'rgba(255,255,255,0.05)',
+                <button onClick={()=>resetDevice(em.id, em.full_name)} disabled={!em.device_fingerprint &&!em.device_type} style={{
+                  background: (em.device_fingerprint || em.device_type)? 'rgba(251,146,60,0.15)' : 'rgba(255,255,255,0.05)',
                   border:'1px solid rgba(251,146,60,0.3)', color:'#fdba74',
                   padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'12px'
                 }}>تصفير 🔄</button>
@@ -196,8 +218,8 @@ export default function AttendancePage(){
               ].map(t=>(
                 <button key={t.k} onClick={()=>setManualType(t.k)} style={{
                   flex:1, padding:'10px', borderRadius:'10px', border:'1px solid', cursor:'pointer', fontSize:'13px',
-                  background: manualType===t.k ? 'linear-gradient(135deg, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.05)',
-                  borderColor: manualType===t.k ? 'transparent' : 'rgba(255,255,255,0.1)',
+                  background: manualType===t.k? 'linear-gradient(135deg, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.05)',
+                  borderColor: manualType===t.k? 'transparent' : 'rgba(255,255,255,0.1)',
                   color:'white'
                 }}>{t.l}</button>
               ))}
