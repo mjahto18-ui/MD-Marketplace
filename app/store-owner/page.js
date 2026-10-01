@@ -384,7 +384,7 @@ export default function StoreDashboard(){
                 ) : (
                 <div style={{...glassCard, borderRadius:'16px', padding:'14px'}}>
                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px'}}>
-                    <div style={{fontWeight:'900'}}>💰 رواتب {me.storeId}</div>
+                    <div style={{fontWeight:'900'}}>💰 رواتب {store?.['Store Name'] || me.storeId}</div>
                     <input type="month" value={payrollMonth} onChange={e=>setPayrollMonth(e.target.value)} style={{padding:'6px 10px', borderRadius:'8px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
                   </div>
                   {payrollLoading? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)', padding:'20px'}}>تحميل الرواتب...</div> :
@@ -392,7 +392,8 @@ export default function StoreDashboard(){
                   payrollRows.map(r=>{
                     const empName = r.employees?.full_name || r.employee_id
                     const amtStr = Number(r.amount||0).toLocaleString()
-                    const waMsg = `مرحبا ${empName} 👋%0Aراتبك لشهر ${r.month_year} جاهز ✅%0Aالمتجر: ${me.storeId}%0A%0A💰 المبلغ: ${amtStr} ل.ل%0A⏰ مجموع ${r.total_hours||0}س - اضافي ${r.overtime_hours||0}س%0A🔑 كود الاستلام: ${r.secret_code_5}%0A%0Aعطي هالكود للكاشير لتقبض.`
+                    const storeName = store?.['Store Name'] || me.storeId
+                    const waMsg = `مرحبا ${empName} 👋%0Aراتبك لشهر ${r.month_year} جاهز ✅%0Aالمتجر: ${storeName}%0A%0A💰 المبلغ: ${amtStr} ل.ل%0A⏰ مجموع ${r.total_hours||0}س - اضافي ${r.overtime_hours||0}س%0A🔑 كود الاستلام: ${r.secret_code_5}%0A%0Aلا تشارك الكود مع احد سوا المحاسب.`
                     return (
                     <div key={r.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)', gap:'10px'}}>
                       <div style={{flex:1, minWidth:0}}>
