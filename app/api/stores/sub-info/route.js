@@ -22,7 +22,7 @@ export async function GET(req){
   // جرب id اول، اذا ما لقى جرب Store ID
   let { data, error } = await supabase.from('stores')
    .select('subscription_enabled, subscription_end, "Store ID", store_id')
-   .eq('id', store_id).maybeSingle()
+   .eq('Store ID', store_id).maybeSingle()
 
   if(!data){
     const r2 = await supabase.from('stores')
