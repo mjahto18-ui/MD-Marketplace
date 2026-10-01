@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 function getSupabase() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -13,26 +15,35 @@ function getSupabase() {
 export async function GET(req){
   const { searchParams } = new URL(req.url)
   const store_id = searchParams.get('store_id')
-  if(!store_id) return NextResponse.json({enabled:false})
+  if(!store_id) return NextResponse.json({enabled:false}, {headers:{'Cache-Control':'no-store'}})
 
   const supabase = getSupabase()
 
-  const { data, error } = await supabase.from('stores')
-   .select('subscription_enabled, subscription_end')
-   .eq('Store ID', store_id).single()
+  // جرب id اول، اذا ما لقى جرب Store ID
+  let { data, error } = await supabase.from('stores')
+   .select('subscription_enabled, subscription_end, "Store ID", id')
+   .eq('id', store_id).maybeSingle()
+
+  if(!data){
+    const r2 = await supabase.from('stores')
+     .select('subscription_enabled, subscription_end, "Store ID", id')
+     .eq('Store ID', store_id).maybeSingle()
+    data = r2.data
+    error = r2.error
+  }
 
   console.log('sub-info check', store_id, data, error)
 
-  if(error || !data) return NextResponse.json({enabled:false, error: error?.message})
-  if(!data.subscription_enabled) return NextResponse.json({enabled:false})
+  if(error || !data) return NextResponse.json({enabled:false, error: error?.message}, {headers:{'Cache-Control':'no-store'}})
+  if(!data.subscription_enabled) return NextResponse.json({enabled:false}, {headers:{'Cache-Control':'no-store'}})
 
   if(!data.subscription_end){
     return NextResponse.json({
       enabled:true,
       end: null,
       daysLeft: -1,
-      expired: true
-    })
+      expired: false
+    }, {headers:{'Cache-Control':'no-store'}})
   }
 
   const end = new Date(data.subscription_end)
@@ -43,5 +54,5 @@ export async function GET(req){
     end: data.subscription_end,
     daysLeft: diff,
     expired: diff < 0
-  })
+  }, {headers:{'Cache-Control':'no-store, no-cache, must-revalidate'}})
 }
