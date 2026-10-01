@@ -20,7 +20,7 @@ export async function GET(req){
   try {
     const { searchParams } = new URL(req.url)
     const store_id = searchParams.get('store_id')
-    if(!store_id) return NextResponse.json({enabled:false}, {headers:{'Cache-Control':'no-store'}})
+    if(!store_id) return NextResponse.json({enabled:false, needSub:true, expired:true, daysLeft:0}, {headers:{'Cache-Control':'no-store'}})
 
     const supabase = getSupabase()
 
@@ -31,35 +31,42 @@ export async function GET(req){
 
     console.log('sub-info check', store_id, data, error)
 
-    if(error || !data) return NextResponse.json({enabled:false, error: error?.message}, {headers:{'Cache-Control':'no-store'}})
-    if(!data.subscription_enabled) return NextResponse.json({enabled:false}, {headers:{'Cache-Control':'no-store'}})
+    if(error || !data) return NextResponse.json({enabled:false, needSub:true, expired:true, daysLeft:0}, {headers:{'Cache-Control':'no-store'}})
 
-    if(!data.subscription_end){
+    const enabled = data.subscription_enabled === true
+    const endStr = data.subscription_end
+
+    // 1 - ما في اشتراك او ما في تاريخ = بدها باقة
+    if(!enabled || !endStr){
       return NextResponse.json({
-        enabled:true,
+        enabled: false,
+        needSub: true,
+        expired: true,
         end: null,
-        daysLeft: 999,
-        expired: false
+        daysLeft: 0,
+        msg: '🔒 هالخدمة بدها باقة اشتراك تتفعل'
       }, {headers:{'Cache-Control':'no-store'}})
     }
 
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    // 2 - في تاريخ - نحسب لآخر النهار 23:59:59
+    const now = new Date()
+    const end = new Date(endStr)
+    end.setHours(23,59,59,999)
 
-    const end = new Date(data.subscription_end);
-    end.setHours(0,0,0,0);
-
-    const diff = Math.round((end - today) / 86400000);
+    const diff = Math.ceil((end - now) / 86400000)
+    const expired = end < now
 
     return NextResponse.json({
-      enabled:true,
-      end: data.subscription_end,
-      daysLeft: diff,
-      expired: diff < 0
+      enabled: true,
+      needSub: false,
+      end: endStr,
+      daysLeft: expired ? 0 : diff,
+      expired,
+      msg: expired ? `⛔ انتهت الخدمة بتاريخ ${endStr} ولازم تتجدد` : `✅ باقي ${diff} يوم`
     }, {headers:{'Cache-Control':'no-store, no-cache, must-revalidate'}})
 
   } catch(e) {
     console.log('sub-info catch', e.message)
-    return NextResponse.json({enabled:false, error: e.message}, {headers:{'Cache-Control':'no-store'}})
+    return NextResponse.json({enabled:false, needSub:true, expired:true, daysLeft:0, error: e.message}, {headers:{'Cache-Control':'no-store'}})
   }
 }
