@@ -9,6 +9,7 @@ export default function AttendancePage(){
   const [employees, setEmployees] = useState([])
   const [stats, setStats] = useState({on_now:0, today_total:0, present_today:0, absent:0})
   const [loading, setLoading] = useState(true)
+  const [storeId, setStoreId] = useState('MD_HQ_001')
   const [showManual, setShowManual] = useState(false)
   const [manualType, setManualType] = useState('on')
   const [selectedEmp, setSelectedEmp] = useState("")
@@ -18,7 +19,7 @@ export default function AttendancePage(){
   const load = async ()=>{
     setLoading(true)
     try{
-      const res = await fetch('/api/admin/attendance/today')
+      const res = await fetch(`/api/admin/attendance/today?store_id=${storeId}`)
       const j = await res.json()
       if(j.success){
         setLive(j.live || [])
@@ -29,11 +30,11 @@ export default function AttendancePage(){
     setLoading(false)
   }
 
-  useEffect(()=>{ load() }, [])
+  useEffect(()=>{ load() }, [storeId])
 
   const doManual = async ()=>{
     if(!selectedEmp) return alert("اختار موظف")
-    const body = { employee_id: selectedEmp, type: manualType }
+    const body = { employee_id: selectedEmp, type: manualType, store_id: storeId }
     if(manualType === 'overtime'){
       if(!otHours) return alert("حط عدد الساعات")
       body.hours = parseFloat(otHours)
@@ -55,7 +56,7 @@ export default function AttendancePage(){
       const res = await fetch('/api/admin/attendance/reset-device',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ employee_id: empId })
+        body:JSON.stringify({ employee_id: empId, store_id: storeId })
       })
       const j = await res.json()
       if(j.success){ load() }
@@ -73,21 +74,32 @@ export default function AttendancePage(){
     }}>
       <BackToDashboard />
       
-      <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+      <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px'}}>
         <div>
-          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الدوام - جدول الحضور اليومي</h1>
+          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الدوام - {storeId}</h1>
           <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px'}}></div>
+          <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'6px'}}>حضور وغياب متجر {storeId}</div>
         </div>
-        <button onClick={()=>setShowManual(true)} style={{
-          background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-          padding:'10px 18px', borderRadius:'12px', border:'none', color:'white', fontWeight:'bold', cursor:'pointer',
-          boxShadow:'0 8px 20px rgba(139,92,246,0.4)'
-        }}>تحكم يدوي +</button>
+        <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+          <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{
+            padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'
+          }}>
+            <option value="MD_HQ_001">MD_HQ_001 - HQ</option>
+            <option value="STORE_ZAHERIEH">ZAHERIEH</option>
+            <option value="STORE_TEBBANEH">TEBBANEH</option>
+            <option value="STORE_QOBBEH">QOBBEH</option>
+          </select>
+          <button onClick={()=>setShowManual(true)} style={{
+            background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+            padding:'10px 18px', borderRadius:'12px', border:'none', color:'white', fontWeight:'bold', cursor:'pointer',
+            boxShadow:'0 8px 20px rgba(139,92,246,0.4)'
+          }}>تحكم يدوي +</button>
+        </div>
       </div>
 
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px,1fr))', gap:'14px'}}>
         {[
-          {label:'لا يزال في الدوام ON', value: stats.on_now, color:'#22c55e'},
+          {label:`لا يزال في الدوام ON - ${storeId}`, value: stats.on_now, color:'#22c55e'},
           {label:'حضور اليوم', value: stats.present_today, color:'#3b82f6'},
           {label:'غايب اليوم', value: stats.absent, color:'#ef4444'},
           {label:'مجموع ساعات اليوم', value: Number(stats.today_total).toFixed(1), color:'#a78bfa'},
@@ -109,9 +121,9 @@ export default function AttendancePage(){
           backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
           border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
         }}>
-          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>🟢 بالدوام حاليا</h3>
+          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>🟢 بالدوام حاليا - {storeId}</h3>
           {loading ? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)', padding:'20px'}}>جاري التحميل...</div> :
-          live.length===0 ? <div style={{textAlign:'center', color:'rgba(255,255,255,0.4)', padding:'30px', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد احد ON حاليا</div> :
+          live.length===0 ? <div style={{textAlign:'center', color:'rgba(255,255,255,0.4)', padding:'30px', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد احد ON حاليا في {storeId}</div> :
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {live.map(row=>(
               <div key={row.id} style={{
@@ -126,7 +138,7 @@ export default function AttendancePage(){
                 <div style={{display:'flex', gap:'8px'}}>
                   <button onClick={async()=>{
                     if(!confirm(`تسكير دوام ${row.full_name}؟`)) return
-                    await fetch('/api/admin/attendance/manual',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({employee_id:row.employee_id, type:'off'})})
+                    await fetch('/api/admin/attendance/manual',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({employee_id:row.employee_id, type:'off', store_id: storeId})})
                     load()
                   }} style={{background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#fca5a5', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'12px'}}>جعل الوظف OFF</button>
                 </div>
@@ -137,14 +149,13 @@ export default function AttendancePage(){
         </div>
       </div>
 
-      {/* قسم الاجهزة - جديد */}
       <div style={{maxWidth:'1200px', margin:'0 auto'}}>
         <div style={{
           background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
           backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
           border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
         }}>
-          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>📱 الأجهزة الموثوقة</h3>
+          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>📱 الأجهزة الموثوقة - {storeId}</h3>
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {employees.map(em=>(
               <div key={em.id} style={{
@@ -176,7 +187,7 @@ export default function AttendancePage(){
             background:'linear-gradient(180deg, #1e1e2e, #11111a)', borderRadius:'20px', padding:'24px', width:'420px',
             border:'1px solid rgba(255,255,255,0.1)', boxShadow:'0 25px 60px rgba(0,0,0,0.8)'
           }}>
-            <h3 style={{marginBottom:'16px'}}>تحكم يدوي - Admin</h3>
+            <h3 style={{marginBottom:'16px'}}>تحكم يدوي - {storeId}</h3>
             <div style={{display:'flex', gap:'8px', marginBottom:'16px'}}>
               {[
                 {k:'on', l:'اجعل الموظف ON'},
@@ -195,7 +206,7 @@ export default function AttendancePage(){
             <select value={selectedEmp} onChange={e=>setSelectedEmp(e.target.value)} style={{
               width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.1)', color:'white', marginBottom:'12px'
             }}>
-              <option value="">اختيار موظف</option>
+              <option value="">اختيار موظف من {storeId}</option>
               {employees.map(em=><option key={em.id} value={em.id}>{em.full_name} - {em.department}</option>)}
             </select>
 
