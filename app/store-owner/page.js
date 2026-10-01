@@ -389,18 +389,29 @@ export default function StoreDashboard(){
                   </div>
                   {payrollLoading? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)', padding:'20px'}}>تحميل الرواتب...</div> :
                   payrollRows.length===0? <div style={{textAlign:'center', padding:'20px', color:'rgba(255,255,255,0.4)'}}>لا يوجد رواتب لشهر {payrollMonth} في {me.storeId}</div> :
-                  payrollRows.map(r=>(
-                    <div key={r.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)'}}>
-                      <div>
-                        <div style={{fontWeight:'800', fontSize:'13px'}}>{r.employees?.full_name || r.employee_id}</div>
-                        <div style={{fontSize:'11px', opacity:0.6}}>
+                  payrollRows.map(r=>{
+                    const empName = r.employees?.full_name || r.employee_id
+                    const amtStr = Number(r.amount||0).toLocaleString()
+                    const waMsg = `مرحبا ${empName} 👋%0Aراتبك لشهر ${r.month_year} جاهز ✅%0Aالمتجر: ${me.storeId}%0A%0A💰 المبلغ: ${amtStr} ل.ل%0A⏰ مجموع ${r.total_hours||0}س - اضافي ${r.overtime_hours||0}س%0A🔑 كود الاستلام: ${r.secret_code_5}%0A%0Aعطي هالكود للكاشير لتقبض.`
+                    return (
+                    <div key={r.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)', gap:'10px'}}>
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{fontWeight:'800', fontSize:'13px'}}>{empName}</div>
+                        <div style={{fontSize:'11px', opacity:0.6, marginTop:'2px', lineHeight:'1.5'}}>
                          مجموع {r.total_hours||0}س - اضافي {r.overtime_hours||0}س | {Number(r.base_amount||0).toLocaleString()} + {Number(r.overtime_amount||0).toLocaleString()} = {Number(r.amount||0).toLocaleString()} ل.ل
                          </div>
-                        {r.status==='in_wallet' && r.secret_code_5 && <div style={{fontSize:'12px', color:'#fde68a', marginTop:'4px', background:'rgba(251,191,36,0.15)', padding:'2px 6px', borderRadius:'6px', display:'inline-block'}}>🔑 الكود: {r.secret_code_5}</div>}
+                        {r.status==='in_wallet' && r.secret_code_5 && (
+                          <div style={{marginTop:'8px', display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center'}}>
+                            <div style={{fontSize:'12px', color:'#fde68a', background:'rgba(251,191,36,0.15)', padding:'6px 10px', borderRadius:'8px', fontWeight:900, border:'1px dashed #f59e0b'}}>🔑 الكود: {r.secret_code_5}</div>
+                            <button onClick={()=>{navigator.clipboard.writeText(String(r.secret_code_5)); alert('تم نسخ الكود: '+r.secret_code_5)}} style={{padding:'6px 10px', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.08)', color:'white', fontSize:'11px', cursor:'pointer'}}>📋 نسخ</button>
+                            <button onClick={()=>window.open(`https://wa.me/?text=${waMsg}`,'_blank')} style={{padding:'6px 12px', borderRadius:'8px', border:'none', background:'#25D366', color:'white', fontSize:'11px', fontWeight:900, cursor:'pointer'}}>واتساب 📱 مشاركة</button>
+                          </div>
+                        )}
+                        {r.status==='pending' && <div style={{fontSize:'10px', opacity:0.4, marginTop:'6px'}}>⏳ بانتظار تحويل الادمن للمحفظة</div>}
                       </div>
-                      <div style={{fontSize:'11px', padding:'4px 8px', borderRadius:'20px', height:'fit-content', background: r.status==='pending'?'rgba(251,191,36,0.15)': r.status==='in_wallet'?'rgba(59,130,246,0.15)':'rgba(34,197,94,0.15)', color: r.status==='pending'?'#fde68a': r.status==='in_wallet'?'#60a5fa':'#4ade80'}}>{r.status}</div>
+                      <div style={{fontSize:'11px', padding:'4px 8px', borderRadius:'20px', height:'fit-content', background: r.status==='pending'?'rgba(251,191,36,0.15)': r.status==='in_wallet'?'rgba(59,130,246,0.15)':'rgba(34,197,94,0.15)', color: r.status==='pending'?'#fde68a': r.status==='in_wallet'?'#60a5fa':'#4ade80', flexShrink:0}}>{r.status}</div>
                     </div>
-                  ))}
+                  )})}
                 </div>
                 )}
                 </>
