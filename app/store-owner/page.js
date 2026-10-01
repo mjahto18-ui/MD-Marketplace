@@ -20,12 +20,22 @@ export default function StoreDashboard(){
   const [wallet, setWallet] = useState(0)
   const [walletTx, setWalletTx] = useState([])
   const [showWallet, setShowWallet] = useState(false)
+  // --- اضافات جديدة فقط - دوام + رواتب + ديسبلاي ---
+  const [attendanceLive, setAttendanceLive] = useState([])
+  const [attendanceEmployees, setAttendanceEmployees] = useState([])
+  const [attendanceStats, setAttendanceStats] = useState({on_now:0, today_total:0, present_today:0, absent:0})
+  const [attendanceLoading, setAttendanceLoading] = useState(false)
+  const [payrollRows, setPayrollRows] = useState([])
+  const [payrollLoading, setPayrollLoading] = useState(false)
+  const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0,7))
+  const [origin, setOrigin] = useState("")
 
   useEffect(()=>{
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     setSupabase(createClient(url, key))
     fetch('/api/admin/me').then(r=>r.json()).then(setMe)
+    setOrigin(window.location.origin)
   },[])
 
   useEffect(()=>{
@@ -56,6 +66,39 @@ export default function StoreDashboard(){
     }
     load()
   },[supabase, me])
+
+  // --- تحميل دوام و رواتب بس لما يفتح التاب - اضافة جديدة فقط ---
+  useEffect(()=>{
+    if(!me?.storeId) return
+    if(tab==='attendance'){
+      const loadAtt = async ()=>{
+        setAttendanceLoading(true)
+        try{
+          const res = await fetch(`/api/admin/attendance/today?store_id=${me.storeId}`, {cache:'no-store'})
+          const j = await res.json()
+          if(j.success){
+            setAttendanceLive(j.live||[])
+            setAttendanceEmployees(j.employees||[])
+            setAttendanceStats(j.stats||{on_now:0, today_total:0, present_today:0, absent:0})
+          }
+        }catch(e){ console.log(e) }
+        setAttendanceLoading(false)
+      }
+      loadAtt()
+    }
+    if(tab==='payroll'){
+      const loadPay = async ()=>{
+        setPayrollLoading(true)
+        try{
+          const res = await fetch(`/api/admin/payroll/list?month=${payrollMonth}&store_id=${me.storeId}`, {cache:'no-store'})
+          const j = await res.json()
+          if(j.success) setPayrollRows(j.rows||[])
+        }catch(e){ console.log(e) }
+        setPayrollLoading(false)
+      }
+      loadPay()
+    }
+  }, [tab, payrollMonth, me])
 
   const formatLBP = (n) => {
     if(!n && n!==0) return '0 ل.ل'
@@ -97,9 +140,10 @@ export default function StoreDashboard(){
     boxShadow:'0 10px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
   }
 
+  const displayLink = `${origin || ''}/admin/office-display?store_id=${me?.storeId || ''}`
+
   return (
     <div style={{minHeight:'100vh', background:'radial-gradient(1200px at 20% -10%, #1a0b2e 0%, #0a0a14 45%, #080811 100%)', color:'white', fontFamily:'Cairo, sans-serif', width:'100%', maxWidth:'100vw', overflowX:'hidden', boxSizing:'border-box'}}>
-      {/* هيدر نفس ادمن لوغ ان */}
       <div style={{...glassCard, background:'rgba(10,10,20,0.6)', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'10px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:10, width:'100%', maxWidth:'100vw', boxSizing:'border-box'}}>
         <div style={{display:'flex', alignItems:'center', gap:10, minWidth:0}}>
           <img src="/icon-dark.png" alt="logo" style={{height:32, borderRadius:8}} />
@@ -109,7 +153,6 @@ export default function StoreDashboard(){
       </div>
 
       <div style={{maxWidth:1150, width:'100%', margin:'0 auto', padding:'0 12px', boxSizing:'border-box', overflowX:'hidden'}}>
-        {/* --- كرت المحفظة --- */}
         <div onClick={()=>setShowWallet(true)} style={{margin:'12px 0', background:'linear-gradient(135deg,#10b981,#059669)', color:'white', borderRadius:16, padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', border:'2px solid rgba(255,255,255,0.2)', width:'100%', boxSizing:'border-box'}}>
           <div style={{minWidth:0}}>
             <div style={{fontSize:11, opacity:0.9}}>👛 محفظتي</div>
@@ -125,6 +168,9 @@ export default function StoreDashboard(){
             {id:'products', label:`منتجاتي (${filteredProducts.length})`},
             {id:'store', label:'المتجر'},
             {id:'add', label:'إضافة منتجات'},
+            {id:'attendance', label:'الدوام'},
+            {id:'payroll', label:'الرواتب'},
+            {id:'display', label:'🖥️ شاشة الدوام'},
           ].map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'9px 16px', borderRadius:10, border:'1px solid rgba(255,255,255,0.1)', background:tab===t.id?'linear-gradient(135deg,#ec4899,#8b5cf6)':'rgba(255,255,255,0.06)', color:'white', whiteSpace:'nowrap', fontWeight: tab===t.id? '900':'500', flexShrink:0}}>{t.label}</button>
           ))}
@@ -220,6 +266,85 @@ export default function StoreDashboard(){
                   </div>
                 </div>
               )}
+
+              {/* --- تابات جديدة فقط - بدون لمس القديم --- */}
+              {tab==='attendance' && (
+                <div style={{display:'grid', gap:12}}>
+                  <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px,1fr))', gap:'10px'}}>
+                    {[
+                      {label:'ON هلق', value: attendanceStats.on_now, color:'#22c55e'},
+                      {label:'حضور اليوم', value: attendanceStats.present_today, color:'#3b82f6'},
+                      {label:'غايب', value: attendanceStats.absent, color:'#ef4444'},
+                      {label:'ساعات اليوم', value: Number(attendanceStats.today_total).toFixed(1), color:'#a78bfa'},
+                    ].map((c,i)=>(
+                      <div key={i} style={{...glassCard, borderRadius:'14px', padding:'14px'}}>
+                        <div style={{fontSize:'11px', color:'rgba(255,255,255,0.6)'}}>{c.label}</div>
+                        <div style={{fontSize:'22px', fontWeight:'900', color:c.color, marginTop:'4px'}}>{attendanceLoading?'...':c.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{...glassCard, borderRadius:'16px', padding:'14px'}}>
+                    <div style={{fontWeight:'900', marginBottom:'10px'}}>🟢 بالدوام حاليا - {me.storeId} (قراءة فقط)</div>
+                    {attendanceLoading? <div style={{color:'rgba(255,255,255,0.5)', textAlign:'center', padding:'20px'}}>تحميل...</div> :
+                    attendanceLive.length===0? <div style={{textAlign:'center', padding:'20px', background:'rgba(0,0,0,0.2)', borderRadius:'10px', color:'rgba(255,255,255,0.4)'}}>لا يوجد احد ON في {me.storeId}</div> :
+                    attendanceLive.map(row=>(
+                      <div key={row.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'10px 12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)'}}>
+                        <div><div style={{fontWeight:'700', fontSize:'13px'}}>{row.full_name} - {row.department}</div><div style={{fontSize:'11px', opacity:0.5}}>دخل {row.clock_in? new Date(row.clock_in).toLocaleTimeString('ar-LB'):''} - {Number(row.hours_now||0).toFixed(1)}س</div></div>
+                        <span style={{fontSize:'11px', background:'rgba(34,197,94,0.15)', color:'#4ade80', padding:'2px 8px', borderRadius:'20px', height:'fit-content'}}>ON</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{...glassCard, borderRadius:'16px', padding:'14px'}}>
+                    <div style={{fontWeight:'900', marginBottom:'10px'}}>📱 كل موظفي {me.storeId}</div>
+                    {attendanceEmployees.map(em=>(
+                      <div key={em.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.2)', padding:'10px 12px', borderRadius:'10px', marginBottom:'6px'}}>
+                        <div style={{fontSize:'13px', fontWeight:'700'}}>{em.full_name}</div>
+                        <div style={{fontSize:'11px', color: em.device_fingerprint?'#4ade80':'#ef4444'}}>{em.device_fingerprint?'✅ موثوق':'⏳ غير موثوق'}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {tab==='payroll' && (
+                <div style={{...glassCard, borderRadius:'16px', padding:'14px'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px'}}>
+                    <div style={{fontWeight:'900'}}>💰 رواتب {me.storeId}</div>
+                    <input type="month" value={payrollMonth} onChange={e=>setPayrollMonth(e.target.value)} style={{padding:'6px 10px', borderRadius:'8px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+                  </div>
+                  {payrollLoading? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)', padding:'20px'}}>تحميل الرواتب...</div> :
+                  payrollRows.length===0? <div style={{textAlign:'center', padding:'20px', color:'rgba(255,255,255,0.4)'}}>لا يوجد رواتب لشهر {payrollMonth} في {me.storeId}</div> :
+                  payrollRows.map(r=>(
+                    <div key={r.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)'}}>
+                      <div>
+                        <div style={{fontWeight:'800', fontSize:'13px'}}>{r.employees?.full_name || r.employee_id}</div>
+                        <div style={{fontSize:'11px', opacity:0.6, marginTop:'2px'}}>{Number(r.amount||0).toLocaleString('ar-LB')} ل.ل - {r.status}</div>
+                        {r.status==='in_wallet' && r.secret_code && <div style={{fontSize:'12px', color:'#fde68a', marginTop:'4px', background:'rgba(251,191,36,0.15)', padding:'2px 6px', borderRadius:'6px', display:'inline-block'}}>🔑 الكود: {r.secret_code}</div>}
+                      </div>
+                      <div style={{fontSize:'11px', padding:'4px 8px', borderRadius:'20px', height:'fit-content', background: r.status==='pending'?'rgba(251,191,36,0.15)': r.status==='in_wallet'?'rgba(59,130,246,0.15)':'rgba(34,197,94,0.15)', color: r.status==='pending'?'#fde68a': r.status==='in_wallet'?'#60a5fa':'#4ade80'}}>{r.status}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {tab==='display' && (
+                <div style={{...glassCard, borderRadius:'16px', padding:'16px'}}>
+                  <div style={{fontWeight:'900', fontSize:'16px'}}>🖥️ شاشة الدوام - {me.storeId}</div>
+                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.6)', marginTop:'6px'}}>افتح الرابط على جهاز منفصل بالمكتب - QR بيتجدد كل 5 دقايق - نفس صفحة office-display</div>
+                  <div style={{marginTop:'12px', background:'rgba(0,0,0,0.4)', border:'1px dashed rgba(255,255,255,0.2)', padding:'10px', borderRadius:'10px', fontSize:'11px', wordBreak:'break-all', color:'rgba(255,255,255,0.7)'}}>
+                    {displayLink}
+                  </div>
+                  <div style={{display:'flex', gap:'8px', marginTop:'12px', flexWrap:'wrap'}}>
+                    <button onClick={()=>{navigator.clipboard.writeText(displayLink); alert('تم نسخ رابط الشاشة')}} style={{padding:'10px 16px', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.08)', color:'white', fontWeight:'700', cursor:'pointer'}}>نسخ الرابط 📋</button>
+                    <button onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent('شاشة دوام '+ me.storeId + ' - افتحها على شاشة المكتب: ' + displayLink)}`,'_blank')} style={{padding:'10px 16px', borderRadius:'10px', border:'none', background:'#25D366', color:'white', fontWeight:'900', cursor:'pointer'}}>مشاركة واتساب 📱</button>
+                    <button onClick={()=>window.open(displayLink,'_blank')} style={{padding:'10px 16px', borderRadius:'10px', border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:'900', cursor:'pointer'}}>فتح الشاشة 🖥️</button>
+                  </div>
+                  <div style={{marginTop:'14px', background:'white', padding:'12px', borderRadius:'12px', display:'inline-block'}}>
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(displayLink)}`} alt="QR Display" style={{width:'180px', height:'180px', display:'block'}} />
+                    <div style={{color:'#111', fontSize:'10px', textAlign:'center', marginTop:'6px', fontWeight:'700'}}>{me.storeId}</div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -249,7 +374,7 @@ export default function StoreDashboard(){
                         <span style={{fontWeight:900, fontSize:14, color: isDeduct?'#ef4444':'#16a34a'}}>{isDeduct?'-':'+'}{formatLBP(amt)}</span>
                       </div>
                       <div style={{fontSize:12, marginTop:4, color:'#333'}}>{t.Notes || t.Reason || '-'}</div>
-                      <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB'): (t['Created At']? new Date(t['Created At']).toLocaleString('ar-LB'):'')}</div>
+                      <div style={{fontSize:10, opacity:0.5, marginTop:2}}>{t.Date? new Date(t.Date).toLocaleString('ar-LB'): (t['Created At']? new Date(t['Created At']).toLocaleString('ar-LB'):'')}}</div>
                     </div>
                   </div>
                 )
