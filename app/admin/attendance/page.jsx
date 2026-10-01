@@ -2,8 +2,13 @@
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react"
 import { createClient } from "@supabase/supabase-js"
-import { useRouter } from "next/navigation"
 import BackToDashboard from "@/components/BackToDashboard"
+
+function getSupabase(){
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return createClient(url, key)
+}
 
 export default function AttendancePage(){
   const [live, setLive] = useState([])
@@ -20,10 +25,9 @@ export default function AttendancePage(){
 
   useEffect(()=>{
     const loadStores = async ()=>{
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
-      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      const supabase = createClient(url, key)
-      const { data } = await supabase.from('stores').select('"Store ID", "Store Name"').eq('Status','Active').order('"Store Name"')
+      const supabase = getSupabase()
+      const { data, error } = await supabase.from('stores').select('"Store ID", "Store Name"').eq('Status','Active').order('"Store Name"')
+      console.log('storesList', data, error)
       if(data && data.length) setStoresList(data)
     }
     loadStores()
@@ -32,19 +36,28 @@ export default function AttendancePage(){
   const load = async ()=>{
     if(!storeId) return
     setLoading(true)
+    setLive([])
+    setEmployees([]) // اهم سطر - فضي القديم مشان ما يعلق 18
     try{
-      const res = await fetch(`/api/admin/attendance/today?store_id=${storeId}`)
+      // اهم سطر - منع الكاش + timestamp
+      const res = await fetch(`/api/admin/attendance/today?store_id=${storeId}&_=${Date.now()}`, {cache:'no-store'})
       const j = await res.json()
+      console.log('LOAD', storeId, '=>', j.employees?.length, 'موظف', j)
       if(j.success){
         setLive(j.live || [])
         setEmployees(j.employees || [])
         setStats(j.stats || {on_now:0, today_total:0, present_today:0, absent:0})
+      }else{
+        console.log('API blocked', j)
       }
     }catch(e){ console.log(e) }
     setLoading(false)
   }
 
-  useEffect(()=>{ load() }, [storeId])
+  useEffect(()=>{ 
+    console.log('switching filter to', storeId)
+    load() 
+  }, [storeId])
 
   const doManual = async ()=>{
     if(!selectedEmp) return alert("اختار موظف")
@@ -98,7 +111,7 @@ export default function AttendancePage(){
         </div>
         <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
           <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{
-            padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'
+            padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white', minWidth:'220px'
           }}>
             {storesList.length===0? (
               <>
@@ -113,15 +126,14 @@ export default function AttendancePage(){
           </select>
           <button onClick={()=>setShowManual(true)} style={{
             background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-            padding:'10px 18px', borderRadius:'12px', border:'none', color:'white', fontWeight:'bold', cursor:'pointer',
-            boxShadow:'0 8px 20px rgba(139,92,246,0.4)'
+            padding:'10px 18px', borderRadius:'12px', border:'none', color:'white', fontWeight:'bold', cursor:'pointer'
           }}>تحكم يدوي +</button>
         </div>
       </div>
 
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px,1fr))', gap:'14px'}}>
         {[
-          {label:`لا يزال في الدوام ON - ${storeId}`, value: stats.on_now, color:'#22c55e'},
+          {label:`ON - ${storeId}`, value: stats.on_now, color:'#22c55e'},
           {label:'حضور اليوم', value: stats.present_today, color:'#3b82f6'},
           {label:'غايب اليوم', value: stats.absent, color:'#ef4444'},
           {label:'مجموع ساعات اليوم', value: Number(stats.today_total).toFixed(1), color:'#a78bfa'},
@@ -129,7 +141,7 @@ export default function AttendancePage(){
           <div key={i} style={{
             background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
             backdropFilter:'blur(20px)', borderRadius:'18px', padding:'18px',
-            border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 10px 30px rgba(0,0,0,0.3)'
+            border:'1px solid rgba(255,255,255,0.08)'
           }}>
             <div style={{fontSize:'13px', color:'rgba(255,255,255,0.6)', marginBottom:'8px'}}>{c.label}</div>
             <div style={{fontSize:'28px', fontWeight:'800', color:c.color}}>{c.value}</div>
@@ -141,9 +153,9 @@ export default function AttendancePage(){
         <div style={{
           background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
           backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
-          border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
+          border:'1px solid rgba(255,255,255,0.08)'
         }}>
-          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>🟢 بالدوام حاليا - {storeId}</h3>
+          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>🟢 بالدوام حاليا - {storeId} {loading && '(جاري...)'}</h3>
           {loading? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)', padding:'20px'}}>جاري التحميل...</div> :
           live.length===0? <div style={{textAlign:'center', color:'rgba(255,255,255,0.4)', padding:'30px', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد احد ON حاليا في {storeId}</div> :
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
@@ -154,16 +166,14 @@ export default function AttendancePage(){
                 border:'1px solid rgba(255,255,255,0.06)'
               }}>
                 <div>
-                  <div style={{fontWeight:'700', fontSize:'15px'}}>{row.full_name} <span style={{fontSize:'11px', background:'rgba(34,197,94,0.15)', color:'#4ade80', padding:'2px 8px', borderRadius:'20px', marginRight:'8px'}}>{row.department}</span> {row.device_type && <span style={{fontSize:'10px', background:'rgba(139,92,246,0.15)', color:'#a78bfa', padding:'2px 8px', borderRadius:'20px'}}>📱 {row.device_type.slice(0,20)}</span>}</div>
-                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>دخل {new Date(row.clock_in).toLocaleTimeString('ar-LB')} - دوام {Number(row.hours_now).toFixed(1)} ساعة</div>
+                  <div style={{fontWeight:'700', fontSize:'15px'}}>{row.full_name} <span style={{fontSize:'11px', background:'rgba(34,197,94,0.15)', color:'#4ade80', padding:'2px 8px', borderRadius:'20px', marginRight:'8px'}}>{row.department}</span></div>
+                  <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)', marginTop:'4px'}}>دخل {new Date(row.clock_in).toLocaleTimeString('ar-LB')} - {Number(row.hours_now).toFixed(1)} ساعة</div>
                 </div>
-                <div style={{display:'flex', gap:'8px'}}>
-                  <button onClick={async()=>{
-                    if(!confirm(`تسكير دوام ${row.full_name}؟`)) return
-                    await fetch('/api/admin/attendance/manual',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({employee_id:row.employee_id, type:'off', store_id: storeId})})
-                    load()
-                  }} style={{background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#fca5a5', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'12px'}}>جعل الوظف OFF</button>
-                </div>
+                <button onClick={async()=>{
+                  if(!confirm(`تسكير دوام ${row.full_name}؟`)) return
+                  await fetch('/api/admin/attendance/manual',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({employee_id:row.employee_id, type:'off', store_id: storeId})})
+                  load()
+                }} style={{background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#fca5a5', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'12px'}}>OFF</button>
               </div>
             ))}
           </div>
@@ -175,9 +185,9 @@ export default function AttendancePage(){
         <div style={{
           background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
           backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
-          border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
+          border:'1px solid rgba(255,255,255,0.08)'
         }}>
-          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>📱 الأجهزة الموثوقة - {storeId}</h3>
+          <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700'}}>📱 الأجهزة - {storeId} ({employees.length})</h3>
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {employees.map(em=>(
               <div key={em.id} style={{
@@ -186,15 +196,13 @@ export default function AttendancePage(){
                 border:'1px solid rgba(255,255,255,0.06)'
               }}>
                 <div>
-                  <div style={{fontWeight:'700', fontSize:'14px'}}>{em.full_name}</div>
+                  <div style={{fontWeight:'700', fontSize:'14px'}}>{em.full_name} - {em.store_id}</div>
                   <div style={{fontSize:'12px', marginTop:'4px', color: em.device_type? '#4ade80' : '#ef4444'}}>
-                    {em.device_type? `📱 ${em.device_type} | ${em.device_fingerprint? em.device_fingerprint.slice(0,20) : ''}` : 'لم يوثق الجهاز بعد ❌'}
-                    <span style={{color:'rgba(255,255,255,0.4)', marginRight:'8px'}}>{em.device_registered_at? new Date(em.device_registered_at).toLocaleDateString('ar-LB') : ''}</span>
+                    {em.device_type? `📱 ${em.device_type}` : 'لم يوثق ❌'}
                   </div>
                 </div>
-                <button onClick={()=>resetDevice(em.id, em.full_name)} disabled={!em.device_fingerprint &&!em.device_type} style={{
-                  background: (em.device_fingerprint || em.device_type)? 'rgba(251,146,60,0.15)' : 'rgba(255,255,255,0.05)',
-                  border:'1px solid rgba(251,146,60,0.3)', color:'#fdba74',
+                <button onClick={()=>resetDevice(em.id, em.full_name)} style={{
+                  background:'rgba(251,146,60,0.15)', border:'1px solid rgba(251,146,60,0.3)', color:'#fdba74',
                   padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'12px'
                 }}>تصفير 🔄</button>
               </div>
@@ -204,45 +212,13 @@ export default function AttendancePage(){
       </div>
 
       {showManual && (
-        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, padding:'20px'}}>
-          <div style={{
-            background:'linear-gradient(180deg, #1e1e2e, #11111a)', borderRadius:'20px', padding:'24px', width:'420px',
-            border:'1px solid rgba(255,255,255,0.1)', boxShadow:'0 25px 60px rgba(0,0,0,0.8)'
-          }}>
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, padding:'20px'}}>
+          <div style={{background:'#1e1e2e', borderRadius:'20px', padding:'24px', width:'420px', border:'1px solid rgba(255,255,255,0.1)'}}>
             <h3 style={{marginBottom:'16px'}}>تحكم يدوي - {storeId}</h3>
-            <div style={{display:'flex', gap:'8px', marginBottom:'16px'}}>
-              {[
-                {k:'on', l:'اجعل الموظف ON'},
-                {k:'off', l:'اجعل الموظف OFF'},
-                {k:'overtime', l:'اضافة اوفرتايم'},
-              ].map(t=>(
-                <button key={t.k} onClick={()=>setManualType(t.k)} style={{
-                  flex:1, padding:'10px', borderRadius:'10px', border:'1px solid', cursor:'pointer', fontSize:'13px',
-                  background: manualType===t.k? 'linear-gradient(135deg, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.05)',
-                  borderColor: manualType===t.k? 'transparent' : 'rgba(255,255,255,0.1)',
-                  color:'white'
-                }}>{t.l}</button>
-              ))}
-            </div>
-
-            <select value={selectedEmp} onChange={e=>setSelectedEmp(e.target.value)} style={{
-              width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.1)', color:'white', marginBottom:'12px'
-            }}>
+            <select value={selectedEmp} onChange={e=>setSelectedEmp(e.target.value)} style={{width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.1)', color:'white', marginBottom:'12px'}}>
               <option value="">اختيار موظف من {storeId}</option>
-              {employees.map(em=><option key={em.id} value={em.id}>{em.full_name} - {em.department}</option>)}
+              {employees.map(em=><option key={em.id} value={em.id}>{em.full_name}</option>)}
             </select>
-
-            {manualType==='overtime' && (
-              <>
-                <input value={otHours} onChange={e=>setOtHours(e.target.value)} type="number" placeholder="عدد الساعات الاضافية مثلا 2" style={{
-                  width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.1)', color:'white', marginBottom:'12px'
-                }}/>
-                <input value={otReason} onChange={e=>setOtReason(e.target.value)} placeholder="السبب: مثال تسليم طلبية متأخرة" style={{
-                  width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.1)', color:'white', marginBottom:'12px'
-                }}/>
-              </>
-            )}
-
             <div style={{display:'flex', gap:'10px', marginTop:'16px'}}>
               <button onClick={()=>setShowManual(false)} style={{flex:1, padding:'12px', borderRadius:'10px', background:'rgba(255,255,255,0.08)', border:'none', color:'white', cursor:'pointer'}}>الغاء</button>
               <button onClick={doManual} style={{flex:1, padding:'12px', borderRadius:'10px', background:'linear-gradient(135deg, #ec4899, #8b5cf6)', border:'none', color:'white', cursor:'pointer', fontWeight:'bold'}}>تأكيد</button>
