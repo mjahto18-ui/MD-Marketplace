@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
 function getSupabase() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const url = rawUrl?.replace('/rest/v1','').replace(/\/$/,'');
-  // تصليح 1: SERVICE_ROLE اول مشان يقرا كل الجداول بدون RLS
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   return createClient(url, key);
 }
@@ -30,18 +29,19 @@ export async function GET(request){
     const { searchParams } = new URL(request.url)
     let store_id = searchParams.get('store_id')
 
-    // تصليح 2: الفلتر - هاد هو سبب المشكلة عندك
     const isStoreUser = session.storeId && (role === 'Store Owner' || role === 'Store Manager' || role === 'Store Assistant' || role?.includes('Store'))
     if(isStoreUser){
-      // Store Owner -> مجبور يشوف متجرو بس
       store_id = session.storeId
     }
-    // Admin -> بياخد يلي بالفلتر ?store_id=STORE_TEBBANEH
+
+    // === هون التعديل الأهم ===
+    const isAdmin = role === 'Admin' || role === 'Assistant Admin'
+    // الأدمن بيستثنى من فحص الاشتراك - بيشوف كلشي
 
     const supabase = getSupabase()
 
-    // === حماية الاشتراك - مع canAccess الجديد ===
-    if(store_id){
+    // حماية الاشتراك - بس للزباين مو للأدمن
+    if(store_id && !isAdmin){
       const check = await canAccess(supabase, store_id, 'attendance')
       if(!check.ok){
         return NextResponse.json({
