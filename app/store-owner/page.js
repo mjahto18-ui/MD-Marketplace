@@ -393,7 +393,9 @@ export default function StoreDashboard(){
                     <div key={r.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)'}}>
                       <div>
                         <div style={{fontWeight:'800', fontSize:'13px'}}>{r.employees?.full_name || r.employee_id}</div>
-                        <div style={{fontSize:'11px', opacity:0.6, marginTop:'2px'}}>{Number(r.amount||0).toLocaleString('ar-LB')} ل.ل - {r.status}</div>
+                        <div style={{fontSize:'11px', opacity:0.6}}>
+                         مجموع {r.total_hours||0}س - اضافي {r.overtime_hours||0}س | {Number(r.base_amount||0).toLocaleString()} + {Number(r.overtime_amount||0).toLocaleString()} = {Number(r.amount||0).toLocaleString()} ل.ل
+                         </div>
                         {r.status==='in_wallet' && r.secret_code_5 && <div style={{fontSize:'12px', color:'#fde68a', marginTop:'4px', background:'rgba(251,191,36,0.15)', padding:'2px 6px', borderRadius:'6px', display:'inline-block'}}>🔑 الكود: {r.secret_code_5}</div>}
                       </div>
                       <div style={{fontSize:'11px', padding:'4px 8px', borderRadius:'20px', height:'fit-content', background: r.status==='pending'?'rgba(251,191,36,0.15)': r.status==='in_wallet'?'rgba(59,130,246,0.15)':'rgba(34,197,94,0.15)', color: r.status==='pending'?'#fde68a': r.status==='in_wallet'?'#60a5fa':'#4ade80'}}>{r.status}</div>
