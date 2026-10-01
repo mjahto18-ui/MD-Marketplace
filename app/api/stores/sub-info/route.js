@@ -45,13 +45,17 @@ export async function GET(req){
     }, {headers:{'Cache-Control':'no-store'}})
   }
 
-  const end = new Date(data.subscription_end)
-  const diff = Math.ceil((end - new Date()) / 86400000)
+  const today = new Date();
+today.setHours(0,0,0,0);
 
-  return NextResponse.json({
-    enabled:true,
-    end: data.subscription_end,
-    daysLeft: diff,
-    expired: diff < 0
-  }, {headers:{'Cache-Control':'no-store, no-cache, must-revalidate'}})
-}
+const end = new Date(data.subscription_end);
+end.setHours(0,0,0,0);
+
+const diff = Math.round((end - today) / 86400000);
+
+return NextResponse.json({
+  enabled:true,
+  end: data.subscription_end,
+  daysLeft: diff,
+  expired: diff < 0
+}, {headers:{'Cache-Control':'no-store, no-cache, must-revalidate'}})
