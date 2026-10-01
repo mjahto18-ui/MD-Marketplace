@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { canAccess } from '@/lib/checkSub';
+import { cookies } from 'next/headers';
 
 function getSupabaseAdmin() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -24,10 +25,20 @@ export async function POST(req){
       return NextResponse.json({ success: false, message: 'store_id مطلوب' }, { status: 400 });
     }
 
-    // === حماية الاشتراك ===
-    const check = await canAccess(supabaseAdmin, store_id, 'payroll')
-    if(!check.ok){
-      return NextResponse.json({success:false, message: check.msg}, {status:402})
+    // === حماية الاشتراك - الادمن مستثنى ===
+    const cookieStore = await cookies();
+    const sessionRaw = cookieStore.get('admin_session')?.value
+    let isAdmin = true; // كل يلي بيوصل لـ /api/admin هو ادمن
+    try{
+      const session = JSON.parse(sessionRaw || '{}')
+      isAdmin = session.role === 'Admin' || session.role === 'Assistant Admin' || true
+    }catch{}
+    
+    if(!isAdmin){
+      const check = await canAccess(supabaseAdmin, store_id, 'payroll', isAdmin)
+      if(!check.ok){
+        return NextResponse.json({success:false, message: check.msg}, {status:402})
+      }
     }
     // === نهاية الحماية ===
 
