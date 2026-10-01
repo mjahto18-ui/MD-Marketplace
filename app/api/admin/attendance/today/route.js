@@ -41,12 +41,12 @@ export async function GET(request){
     // ✅ فلترة الموظفين بالمتجر - عمودك اسمو 'Store ID'
     let empQuery = supabase
       .from('employees')
-      .select('id, full_name, department, user_id, salary_type, device_type, device_fingerprint, device_registered_at, Store ID')
+      .select('id, full_name, department, user_id, salary_type, device_type, device_fingerprint, device_registered_at, store_id')
       .eq('is_active', true)
       .order('full_name')
 
     if(store_id){
-      empQuery = empQuery.eq('Store ID', store_id)
+      empQuery = empQuery.eq('store_id', store_id)
     }
 
     const { data: employees, error: empErr } = await empQuery
