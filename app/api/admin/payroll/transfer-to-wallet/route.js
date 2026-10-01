@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { canAccess } from '@/lib/checkSub';
 
 function getSupabaseAdmin() {
   const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -23,18 +24,24 @@ export async function POST(req){
       return NextResponse.json({ success: false, message: 'store_id مطلوب' }, { status: 400 });
     }
 
+    // === حماية الاشتراك ===
+    const check = await canAccess(supabaseAdmin, store_id, 'payroll')
+    if(!check.ok){
+      return NextResponse.json({success:false, message: check.msg}, {status:402})
+    }
+    // === نهاية الحماية ===
+
     const { data: payroll, error: fetchErr } = await supabaseAdmin
       .from('payroll_runs')
       .select('id, employee_id, amount, status, store_id, employees!inner(user_id, full_name, store_id)')
       .eq('id', payroll_id)
-      .eq('store_id', store_id) // <-- لازم يكون لنفس المتجر
+      .eq('store_id', store_id)
       .single();
 
     if(fetchErr || !payroll){
       return NextResponse.json({ success: false, message: 'الراتب مش موجود بهالمتجر' }, { status: 404 });
     }
 
-    // أمان إضافي: تأكد موظف بنفس المتجر
     if(payroll.employees?.store_id !== store_id){
       return NextResponse.json({ success: false, message: `الموظف تابع لمتجر ${payroll.employees?.store_id} مش ${store_id}` }, { status: 403 });
     }
@@ -52,7 +59,7 @@ export async function POST(req){
       .update({ status: 'in_wallet' })
       .eq('id', payroll_id)
       .eq('status', 'pending')
-      .eq('store_id', store_id); // حماية إضافية
+      .eq('store_id', store_id);
 
     if(error) throw error;
 
