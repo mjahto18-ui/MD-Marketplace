@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { canAccess } from '@/lib/checkSub'
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,6 @@ export async function GET(request){
     const session = JSON.parse(sessionRaw)
     const role = session.role
     
-    // ✅ سماح للتاجر كمان
     const allowed = ['Admin','Assistant Admin','Store Owner','Store Manager','Store Assistant','Manager','Owner']
     if(!allowed.includes(role) && !session.storeId){
       return NextResponse.json({success:false, message:`ما عندك صلاحية - دورك ${role}`}, {status:403})
@@ -29,16 +29,28 @@ export async function GET(request){
     const { searchParams } = new URL(request.url)
     let store_id = searchParams.get('store_id')
 
-    // اذا تاجر - اجباري متجرو هو
     if(session.storeId){
       store_id = session.storeId
     }
 
     const supabase = getSupabase()
+
+    // === حماية الاشتراك - جديد ===
+    const check = await canAccess(supabase, store_id, 'attendance')
+    if(!check.ok){
+      return NextResponse.json({
+        success:false, 
+        message: check.msg,
+        employees: [],
+        live: [],
+        stats:{ on_now:0, present_today:0, absent:0, today_total:0 }
+      }, {status:402})
+    }
+    // === نهاية الحماية ===
+
     const todayStart = new Date()
     todayStart.setHours(0,0,0,0)
 
-    // ✅ فلترة الموظفين بالمتجر - عمودك اسمو 'Store ID'
     let empQuery = supabase
       .from('employees')
       .select('id, full_name, department, user_id, salary_type, device_type, device_fingerprint, device_registered_at, store_id')
@@ -54,7 +66,6 @@ export async function GET(request){
 
     const employeeIds = (employees||[]).map(e=>e.id)
 
-    // اذا ما في موظفين بهالمتجر - رجع فاضي بس مع احصائيات صفر
     if(employeeIds.length===0){
       return NextResponse.json({
         success:true,
