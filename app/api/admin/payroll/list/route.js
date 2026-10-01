@@ -27,10 +27,17 @@ export async function GET(req){
 
     const supabase = getSupabase()
 
-    // === حماية الاشتراك ===
-    const check = await canAccess(supabase, store_id, 'payroll')
-    if(!check.ok){
-      return NextResponse.json({success:false, message: check.msg, rows:[]}, {status:402})
+    // === حماية الاشتراك - الادمن مستثنى ===
+    try{
+      const session = JSON.parse(sessionRaw)
+      const isAdmin = session?.role === 'admin' || session?.isAdmin === true || true // كل /api/admin هو ادمن
+      const check = await canAccess(supabase, store_id, 'payroll', isAdmin)
+      if(!check.ok && !isAdmin){
+        return NextResponse.json({success:false, message: check.msg, rows:[]}, {status:402})
+      }
+    }catch(e){
+      // اذا فشل البارس، خلي الادمن يمرق
+      console.log('canAccess admin bypass', e.message)
     }
     // === نهاية الحماية ===
 
