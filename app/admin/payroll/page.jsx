@@ -1,22 +1,16 @@
 "use client"
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
 import BackToDashboard from "@/components/BackToDashboard"
 
 export default function PayrollPage(){
-  const searchParams = useSearchParams()
-  const urlStoreId = searchParams.get('store_id') || 'MD_HQ_001'
-  const [storeId, setStoreId] = useState(urlStoreId)
-
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [genLoading, setGenLoading] = useState(false)
   const [month, setMonth] = useState(new Date().toISOString().slice(0,7))
+  const [storeId, setStoreId] = useState('MD_HQ_001')
   const [showCode, setShowCode] = useState({})
   const [transferring, setTransferring] = useState({})
-
-  useEffect(()=>{ setStoreId(urlStoreId) }, [urlStoreId])
 
   const load = async ()=>{
     setLoading(true)
@@ -24,7 +18,7 @@ export default function PayrollPage(){
       const res = await fetch(`/api/admin/payroll/list?month=${month}&store_id=${storeId}`)
       const j = await res.json()
       if(j.success) setRows(j.rows || [])
-      else alert(j.message)
+      else console.log(j.message)
     }catch(e){ console.log(e) }
     setLoading(false)
   }
@@ -38,7 +32,7 @@ export default function PayrollPage(){
       const res = await fetch('/api/admin/payroll/generate',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({month, store_id: storeId})
+        body:JSON.stringify({ month, store_id: storeId })
       })
       const j = await res.json()
       if(j.success){ alert(`تم تنزيل ${j.count} راتب لمتجر ${storeId}`); load() }
@@ -79,14 +73,14 @@ export default function PayrollPage(){
       color:'white'
     }}>
       <BackToDashboard />
-
+      
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px'}}>
         <div>
           <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الرواتب - {storeId}</h1>
           <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px', marginBottom:'8px'}}></div>
           <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>كل راتب كود من 5 ارقام - المتجر: {storeId}</div>
         </div>
-        <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+        <div style={{display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
           <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{
             padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'
           }}>
@@ -102,7 +96,7 @@ export default function PayrollPage(){
             background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
             padding:'10px 18px', borderRadius:'12px', border:'none', color:'white', fontWeight:'bold', cursor:'pointer',
             boxShadow:'0 8px 20px rgba(139,92,246,0.4)', opacity: genLoading?0.6:1
-          }}>{genLoading?'يتم الاصدار...':'اصدار رواتب'}</button>
+          }}>{genLoading?'يتم الاصدار...':'اصدار رواتب لشهر'}</button>
         </div>
       </div>
 
@@ -112,8 +106,8 @@ export default function PayrollPage(){
           backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
           border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
         }}>
-          {loading? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.5)'}}>جاري التحميل...</div> :
-          rows.length===0? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.4)', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد رواتب لهذا الشهر بمتجر {storeId} - اضغط اصدار رواتب الشهر</div> :
+          {loading ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.5)'}}>جاري التحميل...</div> :
+          rows.length===0 ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.4)', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد رواتب لهذا الشهر بمتجر {storeId} - اضغط اصدار رواتب الشهر</div> :
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {rows.map(r=>{
               const s = getStatusConfig(r.status)
@@ -137,23 +131,23 @@ export default function PayrollPage(){
                       padding:'8px 14px', borderRadius:'10px', border:'none', color:'black', fontWeight:'800', fontSize:'12px', cursor:'pointer',
                       opacity: transferring[r.id]?0.6:1
                     }}>
-                      {transferring[r.id]? 'يتم التحويل...' : 'تحويل للمحفظة'}
+                      {transferring[r.id] ? 'يتم التحويل...' : 'تحويل للمحفظة'}
                     </button>
                   )}
                   <div style={{textAlign:'center'}}>
                     <div style={{fontSize:'10px', color:'rgba(255,255,255,0.4)'}}>الرمز السري</div>
                     <div style={{
-                      fontSize: showCode[r.id]? '22px':'18px',
+                      fontSize: showCode[r.id] ? '22px':'18px',
                       fontWeight:'800',
                       letterSpacing:'3px',
-                      background: r.status==='pending'? 'rgba(255,255,255,0.08)' : r.status==='in_wallet'? 'rgba(59,130,246,0.15)' : 'rgba(34,197,94,0.15)',
-                      color: r.status==='pending'? 'white' : s.color,
+                      background: r.status==='pending' ? 'rgba(255,255,255,0.08)' : r.status==='in_wallet' ? 'rgba(59,130,246,0.15)' : 'rgba(34,197,94,0.15)',
+                      color: r.status==='pending' ? 'white' : s.color,
                       padding:'6px 14px',
                       borderRadius:'8px',
                       border:'1px dashed rgba(255,255,255,0.15)',
                       cursor:'pointer'
                     }} onClick={()=>setShowCode({...showCode, [r.id]:!showCode[r.id]})}>
-                      {showCode[r.id]? r.secret_code_5 : '*****'}
+                      {showCode[r.id] ? r.secret_code_5 : '*****'}
                     </div>
                   </div>
                   <div style={{
