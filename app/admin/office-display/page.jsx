@@ -1,8 +1,12 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import BackToDashboard from "@/components/BackToDashboard"
 
 export default function OfficeDisplayPage(){
+  const searchParams = useSearchParams()
+  const storeId = searchParams.get('store_id') // مجبور
+
   const [qrLink, setQrLink] = useState("")
   const [baseToken, setBaseToken] = useState("")
   const [countdown, setCountdown] = useState(300)
@@ -12,41 +16,36 @@ export default function OfficeDisplayPage(){
   const [origin, setOrigin] = useState("")
   const selectedRef = useRef(null)
 
-  // مشان ما نستخدم window بالـ SSR
-  useEffect(()=>{
-    setOrigin(window.location.origin)
-  }, [])
-
-  useEffect(()=>{
-    selectedRef.current = selectedEmp
-  }, [selectedEmp])
+  useEffect(()=>{ setOrigin(window.location.origin) }, [])
+  useEffect(()=>{ selectedRef.current = selectedEmp }, [selectedEmp])
 
   const generateQR = async (empId = null)=>{
+    if(!storeId) return
     const targetId = empId?? selectedRef.current?.id?? null
     try{
-      const res = await fetch('/api/office-qr/generate')
+      // هون صار يطلب store_id إجباري
+      const res = await fetch(`/api/office-qr/generate?store_id=${storeId}`)
       const j = await res.json()
-      const bToken = j.success && j.token? j.token : `QR-${Date.now()}`
+      if(!j.success) throw new Error(j.message)
+      const bToken = j.token
       setBaseToken(bToken)
-      const finalToken = targetId? `${bToken}::${targetId}` : bToken
+      // الجديد: token::store_id::employee_id
+      const finalToken = targetId? `${bToken}::${storeId}::${targetId}` : `${bToken}::${storeId}`
       const link = `${origin || window.location.origin}/attendance?qr=${finalToken}`
       setQrLink(link)
       setCountdown(300)
-    }catch{
-      const bToken = `QR-${Date.now()}`
-      setBaseToken(bToken)
-      const finalToken = targetId? `${bToken}::${targetId}` : bToken
-      setQrLink(`${origin || window.location.origin}/attendance?qr=${finalToken}`)
-      setCountdown(300)
+    }catch(e){
+      console.log(e)
     }
   }
 
   const loadEmployees = async ()=>{
+    if(!storeId){ setLoading(false); return }
     try{
-      const res = await fetch('/api/admin/attendance/today')
+      // هون صار يفلتر حسب المتجر
+      const res = await fetch(`/api/admin/attendance/today?store_id=${storeId}`)
       const j = await res.json()
       if(j.success){
-        // لغينا الفلتر - صار للتنين
         setEmployees(j.employees || [])
       }
     }catch(e){ console.log(e) }
@@ -54,14 +53,14 @@ export default function OfficeDisplayPage(){
   }
 
   useEffect(()=>{
+    if(!storeId) return
     generateQR()
     loadEmployees()
-    // صلحنا الـ interval - ما عاد يمسح الـ ID
     const interval = setInterval(()=>generateQR(), 5*60*1000)
     const poll = setInterval(loadEmployees, 5000)
     const cd = setInterval(()=> setCountdown(c => c>0? c-1 : 0), 1000)
     return ()=> { clearInterval(interval); clearInterval(poll); clearInterval(cd) }
-  }, [origin])
+  }, [origin, storeId])
 
   const handleSelect = (emp)=>{
     if(selectedEmp?.id === emp.id){
@@ -73,6 +72,18 @@ export default function OfficeDisplayPage(){
       selectedRef.current = emp
       generateQR(emp.id)
     }
+  }
+
+  // إذا فاتح الشاشة بدون store_id -> بلوك
+  if(!storeId){
+    return (
+      <div style={{minHeight:'100vh', background:'#0a0a14', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontFamily:'Cairo'}}>
+        <div style={{textAlign:'center', background:'rgba(255,0,0,0.1)', padding:'30px', borderRadius:'20px', border:'1px solid rgba(255,0,0,0.3)'}}>
+          <h2 style={{fontSize:'22px', marginBottom:'10px'}}>❌ الشاشة غير مربوطة بمتجر</h2>
+          <p style={{color:'rgba(255,255,255,0.6)'}}>افتحها من داشبورد المتجر: <br/>/office-display?store_id=MD_HQ_001</p>
+        </div>
+      </div>
+    )
   }
 
   const minutes = Math.floor(countdown/60)
@@ -91,10 +102,8 @@ export default function OfficeDisplayPage(){
       flexDirection:'column',
       alignItems:'center'
     }}>
-      
       <BackToDashboard />
-
-      <h1 style={{fontSize:'28px', fontWeight:'800', marginBottom:'8px'}}>شاشة المكتب - ربط </h1>
+      <h1 style={{fontSize:'28px', fontWeight:'800', marginBottom:'8px'}}>شاشة {storeId} - ربط</h1>
       <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px', marginBottom:'20px'}}></div>
 
       <div style={{
@@ -109,10 +118,10 @@ export default function OfficeDisplayPage(){
           />
         ) : <div style={{width:'300px', height:'300px', background:'#eee'}}></div>}
         <div style={{color:'#111', marginTop:'10px', fontWeight:'bold', fontSize:'14px'}}>
-          {selectedEmp? `جاهز لـ ${selectedEmp.full_name} - صوّر من تلفونك` : 'جاهز للدوام - التقط من جهازك'}
+          {selectedEmp? `جاهز لـ ${selectedEmp.full_name} - صوّر من تلفونك` : `جاهز للدوام - متجر ${storeId}`}
         </div>
         <div style={{color:'#111', fontSize:'13px', marginTop:'4px'}}>صالح لـ {minutes}:{seconds.toString().padStart(2,'0')}</div>
-        <div style={{color:'#666', fontSize:'10px', marginTop:'4px', wordBreak:'break-all', maxWidth:'300px'}}>{baseToken.slice(0,35)}...</div>
+        <div style={{color:'#666', fontSize:'10px', marginTop:'4px', wordBreak:'break-all', maxWidth:'300px'}}>{storeId} - {baseToken.slice(0,20)}...</div>
       </div>
 
       <button onClick={()=>generateQR()} style={{
@@ -129,8 +138,8 @@ export default function OfficeDisplayPage(){
           textAlign:'center', color: selectedEmp.device_fingerprint? '#60a5fa' : '#4ade80', fontSize:'14px', fontWeight:'700'
         }}>
           {selectedEmp.device_fingerprint
-           ? `ℹ️ ${selectedEmp.full_name} الجهاز موثوق من قبل - تصوير الـ QR سوف يسجل وقت الدخول و الخروج`
-            : `✅ يا ${selectedEmp.full_name} افتح هاتفك صفحة /attendance وصوّر الـ QR الظاهر - سوف يتوثق بصمة حهازك`
+          ? `ℹ ${selectedEmp.full_name} الجهاز موثوق - تصوير الـ QR سوف يسجل دخول/خروج`
+            : `✅ يا ${selectedEmp.full_name} افتح /attendance وصوّر الـ QR - سوف يتوثق جهازك لمتجر ${storeId}`
           }
         </div>
       )}
@@ -141,7 +150,7 @@ export default function OfficeDisplayPage(){
         backdropFilter:'blur(20px)', borderRadius:'24px', padding:'24px',
         border:'1px solid rgba(255,255,255,0.08)'
       }}>
-        <h3 style={{marginBottom:'16px', fontSize:'18px', fontWeight:'700'}}>👥 الأجهزة الغير موثوقة ({unbound.length}) - اختر اسمك</h3>
+        <h3 style={{marginBottom:'16px', fontSize:'18px', fontWeight:'700'}}>👥 الغير موثوقة ({unbound.length}) - {storeId}</h3>
         {loading? <div style={{textAlign:'center', color:'rgba(255,255,255,0.5)'}}>جاري التحميل...</div> :
           unbound.length===0? <div style={{textAlign:'center', padding:'20px', background:'rgba(34,197,94,0.1)', borderRadius:'12px', color:'#4ade80'}}>كل الأجهزة موثوقة ✅</div> :
           <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px', marginBottom:'24px'}}>
@@ -156,8 +165,7 @@ export default function OfficeDisplayPage(){
             ))}
           </div>
         }
-
-        <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700', color:'rgba(255,255,255,0.7)'}}>✅ الأجهزة الموثوقة ({bound.length}) - دوام مباشر</h3>
+        <h3 style={{marginBottom:'16px', fontSize:'16px', fontWeight:'700', color:'rgba(255,255,255,0.7)'}}>✅ الموثوقة ({bound.length})</h3>
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px'}}>
           {bound.map(em=>(
             <button key={em.id} onClick={()=>handleSelect(em)} style={{
