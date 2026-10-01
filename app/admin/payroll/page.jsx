@@ -1,6 +1,7 @@
 "use client"
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react"
+import { createClient } from "@supabase/supabase-js"
 import BackToDashboard from "@/components/BackToDashboard"
 
 export default function PayrollPage(){
@@ -9,8 +10,22 @@ export default function PayrollPage(){
   const [genLoading, setGenLoading] = useState(false)
   const [month, setMonth] = useState(new Date().toISOString().slice(0,7))
   const [storeId, setStoreId] = useState('MD_HQ_001')
+  const [storesList, setStoresList] = useState([])
   const [showCode, setShowCode] = useState({})
   const [transferring, setTransferring] = useState({})
+
+  useEffect(()=>{
+    const loadStores = async ()=>{
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      const supabase = createClient(url, key)
+      const { data } = await supabase.from('stores').select('"Store ID", "Store Name"').eq('Status','Active').order('"Store Name"')
+      if(data && data.length){
+        setStoresList(data)
+      }
+    }
+    loadStores()
+  },[])
 
   const load = async ()=>{
     setLoading(true)
@@ -23,7 +38,7 @@ export default function PayrollPage(){
     setLoading(false)
   }
 
-  useEffect(()=>{ load() }, [month, storeId])
+  useEffect(()=>{ if(storeId) load() }, [month, storeId])
 
   const generate = async ()=>{
     if(!confirm(`فرز رواتب شهر ${month} لمتجر ${storeId}؟`)) return
@@ -64,6 +79,8 @@ export default function PayrollPage(){
     return { text: status, bg: 'rgba(255,255,255,0.1)', color: 'white' }
   }
 
+  const currentStoreName = storesList.find(s=>s['Store ID']===storeId)?.['Store Name'] || storeId
+
   return (
     <div style={{
       minHeight:'100vh',
@@ -76,7 +93,7 @@ export default function PayrollPage(){
       
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px'}}>
         <div>
-          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الرواتب - {storeId}</h1>
+          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الرواتب - {currentStoreName}</h1>
           <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px', marginBottom:'8px'}}></div>
           <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>كل راتب كود من 5 ارقام - المتجر: {storeId}</div>
         </div>
@@ -84,10 +101,16 @@ export default function PayrollPage(){
           <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{
             padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'
           }}>
-            <option value="MD_HQ_001">MD_HQ_001 - HQ</option>
-            <option value="STORE_ZAHERIEH">ZAHERIEH</option>
-            <option value="STORE_TEBBANEH">TEBBANEH</option>
-            <option value="STORE_QOBBEH">QOBBEH</option>
+            {storesList.length===0 ? (
+              <>
+                <option value="MD_HQ_001">MD_HQ_001 - HQ</option>
+                <option value="STORE_ZAHERIEH">ZAHERIEH</option>
+                <option value="STORE_TEBBANEH">TEBBANEH</option>
+                <option value="STORE_QOBBEH">QOBBEH</option>
+              </>
+            ) : storesList.map(s=>(
+              <option key={s['Store ID']} value={s['Store ID']}>{s['Store Name']} - {s['Store ID']}</option>
+            ))}
           </select>
           <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{
             padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'
