@@ -20,9 +20,20 @@ function getFriendlyDeviceType(ua = '') {
   return 'Unknown'
 }
 
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // متر
+  const toRad = x => x * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 export async function POST(req){
   try{
-    let { employee_id, device_fingerprint, device_type, qr_token } = await req.json()
+    let { employee_id, device_fingerprint, device_type, qr_token, lat, lng, accuracy } = await req.json()
     if(!qr_token || !device_fingerprint)
       return NextResponse.json({success:false, message:'ناقص بيانات'})
 
@@ -103,19 +114,49 @@ export async function POST(req){
       return NextResponse.json({success:false, message:'هذا ليس جهازك الموثق!'})
     }
 
-    // 6. حضور / انصراف - مع حفظ store_id
+    // ===== الجديد: فحص المسافة 150 متر - اذا مافي لوكايشن بالمتجر بيمرق =====
+    if(lat && lng){
+      const { data: store } = await supabase.from('stores')
+        .select('"Store ID", "Current Latitude", "Current Longtitude", "Geofence Enabled", "Geofence Radius"')
+        .eq('"Store ID"', finalStoreId).single()
+
+      const enabled = store?.["Geofence Enabled"] ?? true
+      const radius = store?.["Geofence Radius"] ?? 150
+      const sLat = parseFloat(store?.["Current Latitude"])
+      const sLng = parseFloat(store?.["Current Longtitude"])
+
+      if(enabled && sLat && sLng && !isNaN(sLat) && !isNaN(sLng)){
+        const dist = haversine(parseFloat(lat), parseFloat(lng), sLat, sLng)
+        if(dist > radius){
+          return NextResponse.json({success:false, message:`بعيد ${Math.round(dist)}م عن المتجر - لازم تكون ضمن ${radius}م ❌`})
+        }
+      }
+      // اذا Geofence Enabled = false او مافي لوكايشن بالمتجر -> بيمرق عادي
+    }
+
+    // 6. حضور / انصراف - مع حفظ store_id + location
     const { data: live } = await supabase.from('timesheet')
       .select('id, clock_in').eq('employee_id', employee_id).is('clock_out', null).maybeSingle()
 
     if(live){
       const hours = (Date.now() - new Date(live.clock_in).getTime())/1000/60/60
-      await supabase.from('timesheet').update({clock_out: new Date().toISOString(), total_hours: hours}).eq('id', live.id)
+      await supabase.from('timesheet').update({
+        clock_out: new Date().toISOString(), 
+        total_hours: hours,
+        location_lat: lat ? parseFloat(lat) : null,
+        location_lng: lng ? parseFloat(lng) : null,
+        notes: accuracy ? `acc:${Math.round(accuracy)}m` : null
+      }).eq('id', live.id)
       return NextResponse.json({success:true, action:'clock_out', message:`تم تسجيل الخروج ${emp.full_name} ✅`})
     }else{
       await supabase.from('timesheet').insert({
         employee_id, 
         clock_in: new Date().toISOString(),
-        store_id: finalStoreId // هون بنحفظ الحضور مربوط بالمتجر
+        store_id: finalStoreId, // هون بنحفظ الحضور مربوط بالمتجر
+        location_lat: lat ? parseFloat(lat) : null,
+        location_lng: lng ? parseFloat(lng) : null,
+        source: 'app',
+        notes: accuracy ? `acc:${Math.round(accuracy)}m` : null
       })
       return NextResponse.json({success:true, action:'clock_in', message:`تم تسجيل الدخول ${emp.full_name} ✅`})
     }
