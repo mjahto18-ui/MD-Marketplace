@@ -117,13 +117,13 @@ export async function POST(req){
     // ===== الجديد: فحص المسافة 150 متر - اذا مافي لوكايشن بالمتجر بيمرق =====
     if(lat && lng){
       const { data: store } = await supabase.from('stores')
-        .select('"Store ID", "Current Latitude", "Current Longtitude", "Geofence Enabled", "Geofence Radius"')
+        .select('"Store ID", "Current Latitude", "Current Longitude", "Geofence Enabled", "Geofence Radius"')
         .eq('"Store ID"', finalStoreId).single()
 
       const enabled = store?.["Geofence Enabled"] ?? true
       const radius = store?.["Geofence Radius"] ?? 150
       const sLat = parseFloat(store?.["Current Latitude"])
-      const sLng = parseFloat(store?.["Current Longtitude"])
+      const sLng = parseFloat(store?.["Current Longitude"])
 
       if(enabled && sLat && sLng && !isNaN(sLat) && !isNaN(sLng)){
         const dist = haversine(parseFloat(lat), parseFloat(lng), sLat, sLng)
