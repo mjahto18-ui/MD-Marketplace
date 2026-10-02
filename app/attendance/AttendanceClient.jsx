@@ -63,21 +63,46 @@ function AttendanceInner(){
 
     const bind = async ()=>{
       const fingerprint = generateStableFingerprint()
+      setMsg('جاري جلب الموقع... 📍')
 
-      try{
-        const res = await fetch('/api/attendance/clock',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            employee_id: null,
-            device_fingerprint: fingerprint,
-            device_type: navigator.userAgent.slice(0,250),
-            qr_token: qr
+      // ===== الجديد: جيب GPS الموظف قبل البصمة =====
+      if(!navigator.geolocation){
+        setMsg('❌ جهازك ما بيدعم الموقع')
+        return
+      }
+
+      navigator.geolocation.getCurrentPosition(async (pos)=>{
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        const accuracy = pos.coords.accuracy
+
+        if(accuracy > 120){
+          setMsg(`❌ GPS ضعيف ${Math.round(accuracy)}م - اطلع برا المحل شوي وحاول`)
+          return
+        }
+
+        setMsg(`الموقع: ${Math.round(accuracy)}م - جاري التوثيق...`)
+        try{
+          const res = await fetch('/api/attendance/clock',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              employee_id: null,
+              device_fingerprint: fingerprint,
+              device_type: navigator.userAgent.slice(0,250),
+              qr_token: qr,
+              lat, lng, accuracy
+            })
           })
-        })
-        const j = await res.json()
-        setMsg(j.success? `✅ ${j.message}\n${fingerprint}` : `❌ ${j.message}\n${fingerprint}`)
-      }catch(e){ setMsg('خطأ شبكة') }
+          const j = await res.json()
+          setMsg(j.success? `✅ ${j.message}\n${fingerprint}` : `❌ ${j.message}\n${fingerprint}`)
+        }catch(e){ setMsg('خطأ شبكة') }
+
+      }, (err)=>{
+        if(err.code === 1) setMsg('❌ لازم تفعل الموقع - ما في بصمة بلا GPS\nفعل Location من الاعدادات')
+        else if(err.code === 2) setMsg('❌ ما قدر يحدد موقعك - تأكد النت شغال')
+        else setMsg('❌ خطأ GPS - حاول مرة تانية')
+      }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
     }
     bind()
   }, [qr])
