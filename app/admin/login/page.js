@@ -36,6 +36,42 @@ export default function AdminLogin(){
       const res = await fetch('/api/admin/login',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone,pin})})
       const j = await res.json()
       if(j.success){ 
+
+        // ✅ رجعنا OneSignal هون - نفس تبع الكوستمر
+        try{
+          if(typeof window !== "undefined" && window.OneSignal){
+            await window.OneSignal.login(phone);
+
+            // Tag للمتجر والرول
+            const storeId = j.store_id || j.storeId || j.user?.store_id || j.user?.storeId || "admin";
+            await window.OneSignal.User.addTag("store_id", storeId);
+            await window.OneSignal.User.addTag("role", j.role || "admin");
+            await window.OneSignal.User.addTag("userId", j.userId || phone);
+
+            let subId = null;
+            for(let i=0;i<10;i++){
+              try{ subId = await window.OneSignal.User.PushSubscription.id; }catch{}
+              if(subId) break;
+              await new Promise(r=>setTimeout(r,500));
+            }
+
+            if(subId){
+              const userIdForSub = j.userId || j.user?.userId || j.userID || phone;
+              await fetch("/api/save-subscription",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({ 
+                  userId: userIdForSub, 
+                  subscriptionId: subId,
+                  store_id: storeId,
+                  role: j.role
+                })
+              });
+            }
+          }
+        }catch(e){ console.log("OneSignal admin error", e) }
+        // ✅ نهاية OneSignal
+
         if(j.redirectTo) router.push(j.redirectTo)
         else {
           if(j.role === 'Store Owner') router.push('/store-owner')
@@ -128,7 +164,6 @@ export default function AdminLogin(){
         const j = await res.json()
         if(!res.ok) throw new Error(j.error || "فشل التسجيل")
         alert(j.message || "تم التسجيل وحرق الكود")
-        // بعد كل ابديت و نجاح ينمحو الاسطر يردع البوكس نضيف
         resetForm()
         setShowRegister(false)
         setVerifiedCode("")
