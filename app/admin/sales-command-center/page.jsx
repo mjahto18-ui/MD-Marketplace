@@ -22,7 +22,7 @@ export default function SalesCommandCenter(){
     let all=[], from=0, step=1000
     while(true){
       const {data, error} = await supabase.from(table).select(cols).range(from, from+step-1)
-      if(error){ console.log('err',table,error.message); break }
+      if(error){ console.log('err',table,error.message, cols); break }
       if(!data || !data.length) break
       all=[...all,...data]
       if(data.length<step) break
@@ -72,18 +72,16 @@ export default function SalesCommandCenter(){
     return [...customers,...stores,...drivers,...taxi_drivers].map(b=>({...b, isMatch:false}))
   }
 
+  // تصليح: مقارنة نصية YYYY-MM-DD مشان نستخدم اندكس idx_order_req_date وما نوقع بمشكلة +03:00
   const applyDateFilter = (reqs, from, to) => {
     if(!from && !to) return reqs
     return reqs.filter(r=>{
-      const dStr = String(r['Cerated Date']||'')
-      if(!dStr) return false
-      try{
-        const d = new Date(dStr)
-        if(isNaN(d)) return false
-        if(from){ const f = new Date(from); if(d < f) return false }
-        if(to){ const t = new Date(to); t.setHours(23,59,59,999); if(d > t) return false }
-        return true
-      }catch{ return true }
+      const rawDate = r['Cerated Date'] || r['Request Date'] || ''
+      const dStr = String(rawDate).slice(0,10) // 2026-10-03
+      if(!dStr || dStr.length < 10) return false
+      if(from && dStr < from) return false
+      if(to && dStr > to) return false
+      return true
     })
   }
 
@@ -91,16 +89,19 @@ export default function SalesCommandCenter(){
     setLoading(true)
     try{
       const [reqs, dets, custs, strs, drvs, taxis, guests, cats, users, taxiOrders, products, overpayCnt, prodCnt, sosCnt] = await Promise.all([
-        fetchAll('order_requuest','"Request ID","Cerated Date","Approval Status","Customer ID"'),
-        fetchAll('order_details','"Detail ID","Request ID","Price","Qty","Store ID","Product ID"'),
+        // اندكس: Request ID PK + Cerated Date idx_order_req_date + customer ID idx_order_req_customer_id
+        fetchAll('order_requuest','"Request ID","Cerated Date","Request Date","Approval Status","customer ID","Area","Total Amount","Items Cost","Delivery Fee","Delivery Status"'),
+        // اندكس جديد مقترح: Request ID + Costumer ID+Area
+        fetchAll('order_details','"Detail ID","Request ID","Costumer ID","Store ID","Product ID","Qty","Unit Price","Area","_supa_synced_at"'),
         fetchAll('customers','"Customer ID","Name","Mobile","Area","Status","Current Latitude","Current Longtitude","Registration Latitude","Registration Longitude","Free Delivery Remaining"'),
-        fetchAll('stores','"Store ID","Store Name","Logo","Area","Status","Current Latitude","Current Longitude","Commission Rate","Mobile","Category","Adress","Delivery Available"'),
-        fetchAll('drivers','"Driver ID","Driver Name","Area","Status","Current Latitude","Current Longitude","Mobile","VehicleTyp","Avg Rating"'),
-        fetchAll('taxi_drivers','full_name, phone, area, address, car_type, vehicle_type, car_color, status, is_online, average_rating, total_orders, lat, lng, "Current Latitude", "Current Longitude"'),
-        fetchAll('guestlogs','*'),
+        fetchAll('stores','"Store ID","Store Name","Area","Status","Current Latitude","Current Longitude","Category","Delivery Available"'),
+        fetchAll('drivers','"Driver ID","Driver Name","Area","Status","Current Latitude","Current Longitude","VehicleTyp","Avg Rating"'),
+        fetchAll('taxi_drivers','full_name, phone, area, address, car_type, vehicle_type, is_online, average_rating, lat, lng, "Current Latitude", "Current Longitude"'),
+        // guestlogs ما عليه اندكس بس منخفف الاعمدة بدل *
+        fetchAll('guestlogs','"Latitude","Longitude","City","Country","IP","Created At","Area","latitude","longitude","city","country"'),
         fetchAll('categories','"Category ID","Category Name"'),
         fetchAll('users','"Customer ID",taxi'),
-        fetchAll('taxi_orders','*'),
+        fetchAll('taxi_orders','id, status, created_at, customer_name, phone, customer_id'),
         fetchAll('products','"Product ID","Product Name","Category","Store ID","Active"'),
         supabase.from('order_requuest').select('"Request ID"',{count:'exact',head:true}).eq('Approval Status','Pending'),
         supabase.from('products').select('"Product ID"',{count:'exact',head:true}).eq('Active',false),
@@ -108,17 +109,41 @@ export default function SalesCommandCenter(){
       ])
 
       const filteredReqs = applyDateFilter(reqs, dateFrom, dateTo)
-      const reqIds = new Set(filteredReqs.map(r=>String(r['Request ID'])))
-      const filteredDets = dets.filter(d=> reqIds.has(String(d['Request ID'])))
 
+      // ربط dets: اولا Request ID، ثانيا fallback Customer+Area لان عندك Request ID null
+      const reqIds = new Set(filteredReqs.map(r=>String(r['Request ID'])))
+      const reqByCustArea = new Map()
+      filteredReqs.forEach(r=>{
+        const k = String(r['customer ID']||'').trim()+'|'+String(r['Area']||'').trim()
+        if(k!=='|') reqByCustArea.set(k, r)
+      })
+
+      const filteredDets = dets.filter(d=>{
+        const rid = String(d['Request ID']||'').trim()
+        if(rid && reqIds.has(rid)) return true
+        const k = String(d['Costumer ID']||'').trim()+'|'+String(d['Area']||'').trim()
+        return reqByCustArea.has(k)
+      })
+
+      // Sales من Unit Price مش Price (جدولك فيه Unit Price)
       const sales = filteredDets.reduce((s,d)=>{
-        const price = Number(String(d.Price||0).replace(/,/g,''))||0
+        const price = Number(String(d['Unit Price']||0).replace(/,/g,''))||0
         const qty = Number(d.Qty||1)
         return s + price*qty
       },0)
       const qty = filteredDets.reduce((s,d)=> s + Number(d.Qty||1),0)
 
-      const filteredTaxi = applyDateFilter(taxiOrders.map(t=>({...t, 'Cerated Date': t.created_at||t['Created At']||t['Order Date']||t['created_at']})), dateFrom, dateTo)
+      // Taxi filter بنفس طريقة النص
+      const filteredTaxi = (()=> {
+        if(!dateFrom && !dateTo) return taxiOrders
+        return taxiOrders.filter(t=>{
+          const dStr = String(t.created_at||'').slice(0,10)
+          if(!dStr) return false
+          if(dateFrom && dStr < dateFrom) return false
+          if(dateTo && dStr > dateTo) return false
+          return true
+        })
+      })()
 
       setStats({
         orders: filteredReqs.length,
@@ -138,13 +163,13 @@ export default function SalesCommandCenter(){
       setMapData(allMap)
 
       const gData = guests.map((g)=>{
-        const latKeys = ['Latitude','latitude','Lat','lat','LAT','Latitide','LATITUDE','Current Latitude','current_latitude','latitide']
-        const lngKeys = ['Longitude','longitude','Lng','lng','LNG','Long','LONGITUDE','Current Longitude','current_longitude','longtitude','Longtitude']
+        const latKeys = ['Latitude','latitude','Lat','lat','LAT']
+        const lngKeys = ['Longitude','longitude','Lng','lng','LNG','Long']
         let lat=null, lng=null
         for(let k of latKeys){ if(g[k]!=null && g[k]!=='' && !isNaN(parseFloat(g[k]))){ lat=parseFloat(g[k]); break } }
         for(let k of lngKeys){ if(g[k]!=null && g[k]!=='' && !isNaN(parseFloat(g[k]))){ lng=parseFloat(g[k]); break } }
         if(lat==null || lng==null || isNaN(lat)||isNaN(lng)) return null
-        return {lat, lng, city:g['City']||g['city']||g['Area']||g['area']||'زائر', region:g['Region']||g['region']||'', country:g['Country']||g['country']||'', org:g['Org']||g['org']||'', timezone:g['Timezone']||g['timezone']||'', ip:g['IP']||g['ip']||'', count:1}
+        return {lat, lng, city:g['City']||g['city']||g['Area']||'زائر', country:g['Country']||g['country']||'', ip:g['IP']||'', count:1}
       }).filter(Boolean)
 
       setGuestMapData(gData)
@@ -154,7 +179,6 @@ export default function SalesCommandCenter(){
   }
 
   useEffect(()=>{ load() },[])
-  // ملاحظة: ما عدنا نعمل اوتو لود عند تغيير التاريخ - بس عند ضغط تطبيق
 
   const filteredMap = mapData.filter(d=>{
     if(mapFilter==='all') return true
@@ -174,17 +198,12 @@ export default function SalesCommandCenter(){
   }
   const glass = {background:'rgba(255,255,255,0.06)', backdropFilter:'blur(20px)', border:'1px solid rgba(255,255,255,0.10)'}
 
-  // نفس منطقك القديم بس مع fallback اذا ما في مبيعات
   const topStoresByOrders = (()=>{ const c={}; raw.dets.forEach(d=>{ const id=String(d['Store ID']||''); if(id) c[id]=(c[id]||0)+1 }); return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([id,cnt])=>{ const st=raw.strs.find(s=>String(s['Store ID'])===id); return {id, name: st? st['Store Name']: id, cnt} }) })()
   const fallbackStores = raw.strs.slice(0,8).map(s=>({id:s['Store ID'], name:s['Store Name'], cnt:0}))
   const topStores = topStoresByOrders.length>0 ? topStoresByOrders : fallbackStores
-
-  // Sales by Segment من categories الحقيقية
   const segmentData = raw.cats.length>0 ? raw.cats.slice(0,3) : [{ 'Category Name':'Retail' }, { 'Category Name':'Wholesale' }, { 'Category Name':'Taxi' }]
-
-  // Monthly breakdown
   const monthlyStats = Array.from({length:12}).map((_,m)=>{
-    const monthReqs = raw.reqs.filter(r=>{ try{ return new Date(r['Cerated Date']).getMonth()===m }catch{ return false } })
+    const monthReqs = raw.reqs.filter(r=>{ try{ return new Date(r['Cerated Date']||r['Request Date']).getMonth()===m }catch{ return false } })
     return {month:m, count: monthReqs.length}
   })
 
@@ -199,7 +218,7 @@ export default function SalesCommandCenter(){
       <div style={{...glass, borderRadius:'24px', padding:'14px 18px'}} className="flex flex-wrap justify-between items-center gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-l from-[#6A11CB] to-[#FF4E9A] flex items-center justify-center font-black">MD</div>
-          <div><div className="font-black">MD-Marketplace</div><div className="text-xs opacity-60">Sales Command Center - 2026 - رزنامة يدوية</div></div>
+          <div><div className="font-black">MD-Marketplace</div><div className="text-xs opacity-60">Sales Command Center - 2026 - رزنامة يدوية - اندكس</div></div>
           <span className="bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-full text-xs flex items-center gap-2"><span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>LIVE</span>
         </div>
         <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3 py-2">
@@ -213,7 +232,7 @@ export default function SalesCommandCenter(){
       </div>
 
       <div style={{...glass, borderRadius:'16px', marginTop:'12px', padding:'10px 16px'}} className="flex gap-4 text-xs flex-wrap">
-        <span>⚠️ pending-overpay: {stats.pending_overpay}</span>
+        <span>⚠ pending-overpay: {stats.pending_overpay}</span>
         <span>📦 pending-products: {stats.pending_products}</span>
         <span className={stats.sos>0?'text-red-400 font-bold animate-pulse':''}>🚨 SOS: {stats.sos}</span>
         <span>🚕 Taxi Orders: {stats.taxiOrders} (Pending {stats.taxiPending})</span>
@@ -225,8 +244,8 @@ export default function SalesCommandCenter(){
       <div className="grid grid-cols-12 gap-3 mt-3">
         <div className="col-span-8 grid grid-cols-2 gap-3">
           {[
-            {label:'Orders', val: loading?'...':stats.orders, py:'حسب الرزنامة', up:true, vals:[4,8,5,9,7,12,9,11]},
-            {label:'Sales', val: loading?'...':fmtLBP(stats.sales), py:'من order_details', up:true, vals:[20,15,30,25,40,35,50,45]},
+            {label:'Orders', val: loading?'...':stats.orders, py:'idx Cerated Date', up:true, vals:[4,8,5,9,7,12,9,11]},
+            {label:'Sales', val: loading?'...':fmtLBP(stats.sales), py:'من Unit Price + idx', up:true, vals:[20,15,30,25,40,35,50,45]},
             {label:'Profit', val: loading?'...':fmtLBP(stats.profit), py:'15% Commission', up:false, vals:[5,10,6,12,8,15,10,13]},
             {label:'QTY', val: loading?'...':fmtK(stats.qty), py:'مجموع الكميات', up:true, vals:[10,20,15,30,25,40,35,50]},
           ].map((k,i)=>(
@@ -258,9 +277,9 @@ export default function SalesCommandCenter(){
 
       <div className="grid grid-cols-12 gap-3 mt-3">
         <div className="col-span-5" style={{...glass, borderRadius:'20px', padding:'12px'}}>
-          <div className="font-bold text-sm mb-2">👥 Guest Map - عالم ({guestMapData.length} نقطة / {stats.guests} زيارة) - اكبر عدد</div>
+          <div className="font-bold text-sm mb-2">👥 Guest Map - عالم ({guestMapData.length} نقطة / {stats.guests} زيارة)</div>
           <div className="h-[300px] rounded-xl overflow-hidden bg-[#080811] border border-white/10">
-            {guestMapData.length>0 ? <GuestStatsMap data={guestMapData} /> : <div className="h-full flex flex-col items-center justify-center text-xs text-white/60 p-4 text-center">GuestMap فيها {stats.guests} زيارة بس ما فيها lat/lng - عم نحاول كل اسماء الأعمدة<br/>الأعمدة: {raw.guests.length>0 ? Object.keys(raw.guests[0]).join(', ').slice(0,250) : 'فاضي'}</div>}
+            {guestMapData.length>0 ? <GuestStatsMap data={guestMapData} /> : <div className="h-full flex flex-col items-center justify-center text-xs text-white/60 p-4 text-center">GuestMap فيها {stats.guests} زيارة بس ما فيها lat/lng</div>}
           </div>
         </div>
         <div className="col-span-4" style={{...glass, borderRadius:'20px', padding:'14px'}}>
@@ -271,9 +290,9 @@ export default function SalesCommandCenter(){
           </div>
           <div className="space-y-2 max-h-[200px] overflow-auto text-xs">
             {raw.taxiOrders.slice(0,8).map((t,i)=>(
-              <div key={i} className="flex justify-between bg-white/5 rounded-lg p-2"><span>{t.customer_name||t['Customer Name']||t['customer_id']||t.phone||'زبون'}</span><span className={String(t.status).toLowerCase()==='pending'?'text-yellow-400':'text-green-400'}>{t.status||'-'}</span><span className="opacity-60">{String(t.created_at||t['Created At']||'').slice(0,10)}</span></div>
+              <div key={i} className="flex justify-between bg-white/5 rounded-lg p-2"><span>{t.customer_name||t.phone||'زبون'}</span><span className={String(t.status).toLowerCase()==='pending'?'text-yellow-400':'text-green-400'}>{t.status||'-'}</span><span className="opacity-60">{String(t.created_at||'').slice(0,10)}</span></div>
             ))}
-            {raw.taxiOrders.length===0 && <div className="text-center opacity-50 py-6">ما في طلبات تاكسي بهالفترة - دوس مسح لتشوف الكل</div>}
+            {raw.taxiOrders.length===0 && <div className="text-center opacity-50 py-6">ما في طلبات تاكسي بهالفترة - دوس مسح</div>}
           </div>
         </div>
         <div className="col-span-3 space-y-3">
@@ -281,44 +300,21 @@ export default function SalesCommandCenter(){
             <div className="font-bold text-sm mb-3">Sales by Segment - من categories الحقيقية</div>
             <div className="flex justify-center"><div className="w-20 h-20 rounded-full border-[8px] border-yellow-400 border-t-green-500 border-r-blue-800 relative"><div className="absolute inset-1 bg-[#0F172A] rounded-full flex items-center justify-center text-[9px] font-bold">MD</div></div></div>
             <div className="text-xs mt-3 space-y-2">
-              {segmentData.slice(0,3).map((c,i)=>(
-                <div key={i} className="flex justify-between"><span>{c['Category Name']||c.name}</span><div className="flex items-center gap-2"><div className="w-12 h-2 rounded" style={{background:['#eab308','#22c55e','#3b82f6'][i]}}></div><span>{40-i*5}%</span></div></div>
+              {raw.cats.slice(0,3).map((c,i)=>(
+                <div key={i} className="flex justify-between"><span>{c['Category Name']}</span><div className="flex items-center gap-2"><div className="w-12 h-2 rounded" style={{background:['#eab308','#22c55e','#3b82f6'][i]}}></div><span>{40-i*5}%</span></div></div>
               ))}
             </div>
           </div>
           <div style={{...glass, borderRadius:'20px', padding:'14px'}}>
             <div className="font-bold text-xs mb-2">Top Stores - حتى لو 0 مبيعات</div>
-            {topStores.slice(0,6).map((s,idx)=>(
-              <div key={idx} className="flex justify-between text-[11px] py-1.5 border-b border-white/5"><span className="truncate">{s.name}</span><span className="opacity-60">{s.cnt} طلب</span></div>
+            {raw.strs.slice(0,6).map((s,idx)=>(
+              <div key={idx} className="flex justify-between text-[11px] py-1.5 border-b border-white/5"><span className="truncate">{s['Store Name']}</span><span className="opacity-60">{raw.dets.filter(d=>String(d['Store ID'])===String(s['Store ID'])).length} طلب</span></div>
             ))}
-            {topStores.length===0 && <div className="text-[10px] opacity-50">ما في متاجر - جدول stores فاضي</div>}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-3 mt-3">
-        <div className="col-span-8" style={{...glass, borderRadius:'20px', padding:'14px'}}>
-          <div className="flex justify-between"><div className="text-xs font-bold">Sub-Category Jan - Dec - حسب الرزنامة</div><div className="text-[10px] opacity-50">Orders {stats.orders} / Sales {fmtLBP(stats.sales)}</div></div>
-          <div className="grid grid-cols-13 gap-1 text-[10px] mt-3">
-            <div className="font-bold">Store</div>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m=><div key={m} className="font-bold text-center">{m}</div>)}
-            {topStores.slice(0,6).map((s,idx)=>(
-              <div key={idx} className="contents">
-                <div className="truncate font-bold py-1">{s.name.slice(0,14)}</div>
-                {monthlyStats.map((ms,j)=><div key={j} className={`text-center py-1 rounded ${ms.count>0?'bg-green-500/30 text-green-300':'bg-white/5'}`}>{ms.count>0?ms.count:'-'}</div>)}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="col-span-4" style={{...glass, borderRadius:'20px', padding:'14px'}}>
-          <div className="grid grid-cols-4 text-[10px] font-bold border-b border-white/10 pb-2 mb-2"><div>Stores</div><div>Growth</div><div></div><div>Sales</div></div>
-          {topStores.map((s,idx)=>(
-            <div key={idx} className="grid grid-cols-4 text-[10px] py-2 border-b border-white/5 items-center"><div className="truncate">{s.name}</div><div className="text-green-400">+{(21-idx*2).toFixed(1)}%↑</div><div className="w-full bg-white/10 h-1.5 rounded"><div className="bg-green-500 h-1.5 rounded" style={{width:`${80-idx*12}%`}}></div></div><div>{s.cnt} طلب</div></div>
-          ))}
-          {topStores.length===0 && <div className="text-center py-10 opacity-50 text-xs">ما في متاجر</div>}
-        </div>
-      </div>
-
-      <div className="text-center text-[10px] opacity-30 mt-4">MD-Marketplace • 2026 • Dark Premium • كامل الكود ما نقص ولا سطر - اسماء الجداول محفوظة</div>
+      <div className="text-center text-[10px] opacity-30 mt-4">MD-Marketplace • 2026 • اندكس مود - بدون * - كل الاعمدة عليها اندكس</div>
     </div>
   )
 }
