@@ -126,7 +126,7 @@ export default function DriverDashboard(){
         const curr = prev[reqId]?? 0
         if(curr <= 1){
           clearInterval(timersRef.current[reqId])
-          supabase?.from('order_requuest').update({ 'Admin Note': `تأخر - ${reqId} - ${new Date().toLocaleString()}` }).eq('supa_id', order.supa_id).then(()=>{})
+          supabase?.from('order_requuest').update({ 'Admin Note': `تأخر - ${reqId} - ${new Date().toLocaleString()}` }).eq('Request ID', order['Request ID']).then(()=>{})
           return {...prev, [reqId]: 0}
         }
         return {...prev, [reqId]: curr - 1}
@@ -230,35 +230,51 @@ export default function DriverDashboard(){
     const nowIso = new Date().toISOString()
     const updatedRow = {...row, 'Delivery Status': newStatus}
     if(newStatus==='Picked Up') updatedRow['Pickup At'] = nowIso
-    setRequests(prev=>prev.map(r=> r.supa_id===row.supa_id? updatedRow : r))
+    setRequests(prev=>prev.map(r=> r['Request ID']===row['Request ID']? updatedRow : r))
     setSelectedOrder(updatedRow)
     let updateData = { 'Delivery Status': newStatus }
     if(newStatus==='Picked Up') updateData['Pickup At'] = nowIso
-    await supabase.from('order_requuest').update(updateData).eq('supa_id', row.supa_id)
+    await supabase.from('order_requuest').update(updateData).eq('Request ID', row['Request ID'])
     if(newStatus==='Picked Up'){ startTimerForOrder(updatedRow); startLiveTracking(row,'Picked Up') }
     if(newStatus==='On The Way'){ startLiveTracking(row,'On The Way') }
   }
  const confirmDelivery = async ()=>{
-    const now = new Date()
-    const nowIso = now.toISOString()
-    const pickupStr = selectedOrder['Pickup At']
-    let durationMin = null
-    if(pickupStr) durationMin = Math.ceil((now - new Date(pickupStr))/60000)
-    const { error } = await supabase.from('order_requuest').update({
-      'Delivery Status':'Delivered',
-      'Delivered At': nowIso,
-      'Delivery Duration': durationMin,
-      'Collected Amount': parseFloat(collected) || 0,
-      'Driver Note': driverNote,
-      'Final Payment Method': paymentMethod,
-      'Approval Status': 'Complete Orders'
-    }).eq('Request ID', selectedOrder['Request ID'])
-    if(error) setDebug(`خطأ حفظ الوقت: ${error.message}`)
-    else {
-      if(trackRef.current) clearInterval(trackRef.current)
-      location.reload()
-    }
+  const amt = Number(collected)
+  if(!amt){
+    setDebug('⚠️ حط المبلغ - مثلا 300000')
+    alert('حط المبلغ يلي استلمتو')
+    return
   }
+
+  const now = new Date()
+  const pickupStr = selectedOrder['Pickup At']
+  let durationMin = null
+  if(pickupStr) durationMin = Math.ceil((now - new Date(pickupStr))/60000)
+
+  console.log('ببعت:', { id: selectedOrder['Request ID'], amt, durationMin })
+
+  const { data, error } = await supabase.from('order_requuest').update({
+    'Delivery Status':'Delivered',
+    'Delivered At': now.toISOString(),
+    'Delivery Duration': durationMin,
+    'Collected Amount': amt,
+    'Driver Note': driverNote,
+    'Final Payment Method': paymentMethod,
+    'Approval Status': 'Complete Orders'
+  }).eq('Request ID', selectedOrder['Request ID']).select()
+
+  if(error){
+    console.error(error)
+    setDebug(`❌ خطأ: ${error.message}`)
+    alert(`خطأ: ${error.message}`)
+    return // هون منترك ما منعمل reload
+  }
+
+  console.log('نجح:', data)
+  setDebug(`✅ تم - ${amt}`)
+  if(trackRef.current) clearInterval(trackRef.current)
+  location.reload()
+}
   const openGoogleMaps = ()=>{ if(!selectedPoint) return; window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedPoint.lat},${selectedPoint.lng}&travelmode=driving`,'_blank') }
 
   const glassCard = {
@@ -350,7 +366,7 @@ export default function DriverDashboard(){
           if(orderTotal===0) orderTotal = parseFloat(r['Total Amount'] || 0)
 
           return (
-            <div key={r.supa_id} style={{...glassCard, borderRadius:14, padding:14, marginBottom:12, border: isPicked? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.08)', width:'100%', boxSizing:'border-box', overflowX:'hidden'}}>
+            <div key={r['Request ID']} style={{...glassCard, borderRadius:14, padding:14, marginBottom:12, border: isPicked? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.08)', width:'100%', boxSizing:'border-box', overflowX:'hidden'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:8}}>
                 <b style={{color:'white'}}>{r['Request ID']}</b>
                 <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
