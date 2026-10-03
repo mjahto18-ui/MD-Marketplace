@@ -15,7 +15,9 @@ export default function SalesCommandCenter(){
   const [loading, setLoading] = useState(true)
 
   const fetchAll = async (table, cols) => {
-    let all=[], from=0, step=1000
+    let all=[]
+    let from=0
+    const step=1000
     while(true){
       const {data, error} = await supabase.from(table).select(cols).range(from, from+step-1)
       if(error){ console.log('err',table,error); break }
@@ -44,11 +46,17 @@ export default function SalesCommandCenter(){
           supabase.from('products').select('"Product ID"',{count:'exact',head:true}).eq('Active',false),
           supabase.from('taxi_sos').select('id',{count:'exact',head:true}).eq('status','open'),
         ])
-        const sales = dets.reduce((s,d)=> s + (Number(String(d.Price||0).replace(/,/g,''))||0)*(Number(d.Qty||1))),0)
-        const qty = dets.reduce((s,d)=> s + (Number(d.Qty||1)),0)
-        // Top stores by orders count
+        const sales = dets.reduce((s,d)=>{
+          const price = Number(String(d.Price||0).replace(/,/g,''))||0
+          const qty = Number(d.Qty||1)
+          return s + price*qty
+        },0)
+        const qty = dets.reduce((s,d)=> s + Number(d.Qty||1),0)
         const storeCounts = {}
-        dets.forEach(d=>{ const sid = String(d['Store ID']||''); if(sid) storeCounts[sid]=(storeCounts[sid]||0)+1 })
+        dets.forEach(d=>{
+          const sid = String(d['Store ID']||'')
+          if(sid) storeCounts[sid]=(storeCounts[sid]||0)+1
+        })
         const topStores = Object.entries(storeCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([id,cnt])=>{
           const st = strs.find(s=>String(s['Store ID'])===id)
           return {id, name: st? st['Store Name'] : id, cnt, logo: st?.Logo||''}
@@ -74,31 +82,28 @@ export default function SalesCommandCenter(){
   const fmtLBP = (n)=> new Intl.NumberFormat('en-LB').format(Math.round(n||0)) + ' ل.ل'
   const fmtK = (n)=> n>=1000? (n/1000).toFixed(1)+'K' : String(n)
 
-  // mini chart data - from real months
   const chartPath = (vals)=>{
-    const max = Math.max(...vals,1), min = Math.min(...vals)
+    const max = Math.max(...vals,1)
+    const min = Math.min(...vals)
     const h=36, w=80
-    const points = vals.map((v,i)=>`${i===0?'M':'L'}${(i/(vals.length-1))*w},${h - ((v-min)/(max-min||1))*h*0.8 - 4}`).join(' ')
+    const points = vals.map((v,i)=>{
+      const x = (i/(vals.length-1))*w
+      const y = h - ((v-min)/(max-min||1))*h*0.8 - 4
+      return `${i===0?'M':'L'}${x},${y}`
+    }).join(' ')
     return points
   }
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-black" style={{fontFamily:'Tajawal, sans-serif'}}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap');
-        @keyframes marquee { 0% { transform: translateX(100%) } 100% { transform: translateX(-100%) } }
-        .marquee { animation: marquee 25s linear infinite; }
-        .mini-chart { overflow: visible; }
-      `}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap'); @keyframes marquee { 0% { transform: translateX(100%) } 100% { transform: translateX(-100%) } } .marquee { animation: marquee 25s linear infinite; } .mini-chart { overflow: visible; }`}</style>
 
-      {/* Moving strip - same as screenshot style */}
       <div className="bg-black text-white text-xs py-2 overflow-hidden whitespace-nowrap relative">
         <div className="marquee inline-block">
-          Orders {stats.orders} • Sales {fmtLBP(stats.sales)} • Profit {fmtLBP(stats.profit)} • QTY {stats.qty} • Customers {stats.customers} • Pending Overpay {stats.pending_overpay} • Pending Products {stats.pending_products} • SOS {stats.sos} • Guests {stats.guests} • MD-Marketplace LIVE • Orders {stats.orders} • Sales {fmtLBP(stats.sales)} • 
+          Orders {stats.orders} • Sales {fmtLBP(stats.sales)} • Profit {fmtLBP(stats.profit)} • QTY {stats.qty} • Customers {stats.customers} • Pending Overpay {stats.pending_overpay} • Pending Products {stats.pending_products} • SOS {stats.sos} • Guests {stats.guests} • MD-Marketplace LIVE •
         </div>
       </div>
 
-      {/* Header - same as screenshot */}
       <div className="bg-white border-b px-6 py-3 flex justify-between items-center">
         <div className="font-black text-xl">Sales Dashboard</div>
         <div className="flex gap-6 text-sm">
@@ -108,7 +113,6 @@ export default function SalesCommandCenter(){
         </div>
       </div>
 
-      {/* Row 1 - KPIs like screenshot */}
       <div className="grid grid-cols-12 gap-3 p-3">
         <div className="col-span-8 grid grid-cols-2 gap-3">
           {[
@@ -147,7 +151,6 @@ export default function SalesCommandCenter(){
         </div>
       </div>
 
-      {/* Row 2 */}
       <div className="grid grid-cols-12 gap-3 px-3">
         <div className="col-span-4 bg-white border rounded-lg p-3">
           <div className="flex justify-between text-xs mb-3"><span>Category</span><span>Sub-Category</span></div>
@@ -185,17 +188,16 @@ export default function SalesCommandCenter(){
         </div>
       </div>
 
-      {/* Row 3 - Tables like screenshot */}
       <div className="grid grid-cols-12 gap-3 p-3">
         <div className="col-span-8 bg-white border rounded-lg p-3 overflow-auto">
           <div className="text-xs font-bold mb-2">Sub-Category Jan - Dec - Live from order_details</div>
           <div className="grid grid-cols-13 gap-1 text-[10px]">
             <div>Sub-Cat</div>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m=><div key={m}>{m}</div>)}
             {maps.topStores.slice(0,6).map((s,idx)=>(
-              <>
-                <div key={'n'+idx} className="truncate">{s.name.slice(0,10)}</div>
+              <div key={`row-${idx}`} className="contents">
+                <div className="truncate">{s.name.slice(0,10)}</div>
                 {Array.from({length:12}).map((_,j)=><div key={j} className={`${j%2===0?'bg-red-100':'bg-gray-900 text-white'} px-1`}>${876+j*12}</div>)}
-              </>
+              </div>
             ))}
           </div>
         </div>
