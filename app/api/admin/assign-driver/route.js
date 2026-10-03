@@ -48,8 +48,8 @@ export async function POST(req){
       //  'Message': `السائق ${driver?.['Driver Name'] || driverId} في الطريق اليك`,
       //  'Status': 'Pending',
       //  'Code': 'ORDER_APPROVED'
-      })
-    }
+     // })
+  // }
 
     return Response.json({success:true, message: `تم تعيين ${driver?.['Driver Name']}`})
 
