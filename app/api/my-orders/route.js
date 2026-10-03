@@ -1,11 +1,23 @@
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 
 export async function GET(req) {
   try {
     const customerID = req.nextUrl.searchParams.get("customerID");
-    if (!customerID) return NextResponse.json({ success: true, orders: [] });
+    if (!customerID) {
+      return NextResponse.json({ success: true, orders: [] }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
+    }
 
     const supabase = getSupabase();
     const custId = String(customerID).trim();
@@ -42,8 +54,22 @@ export async function GET(req) {
       };
     });
 
-    return NextResponse.json({ success: true, orders }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ success: true, orders }, { 
+      headers: { 
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
+      } 
+    });
   } catch (e) {
-    return NextResponse.json({ success: false, orders: [], error: e.message });
+    return NextResponse.json({ success: false, orders: [], error: e.message }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   }
 }
