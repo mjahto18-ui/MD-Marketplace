@@ -248,11 +248,11 @@ export default function DriverDashboard(){
       'Delivery Status':'Delivered',
       'Delivered At': nowIso,
       'Delivery Duration': durationMin,
-      'Collected Amount': collected,
+      'Collected Amount': parseFloat(collected) || 0,
       'Driver Note': driverNote,
       'Final Payment Method': paymentMethod,
       'Approval Status': 'Complete Orders'
-    }).eq('supa_id', selectedOrder.supa_id)
+    }).eq('Request ID', selectedOrder['Request ID'])
     if(error) setDebug(`خطأ حفظ الوقت: ${error.message}`)
     else {
       if(trackRef.current) clearInterval(trackRef.current)
