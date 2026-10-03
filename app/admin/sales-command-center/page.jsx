@@ -287,7 +287,13 @@ export default function SalesCommandCenter(){
         <div className="col-span-3 space-y-3">
           <div style={{...glass, borderRadius:'20px', padding:'14px'}}>
             <div className="font-bold text-sm mb-3">Sales by Segment - حقيقي</div>
-            <div className="flex justify-center"><div className="w-20 h-20 rounded-full relative" style={{background:`conic-gradient(${segmentCalc.map((s,i)=>`${['#eab308','#22c55e','#3b82f6'][i]} ${segmentCalc.slice(0,i).reduce((a,b)=>a+b.pct,0)}% ${segmentCalc.slice(0,i+1).reduce((a,b)=>a+b.pct,0)}%`).join(',')})`}}><div className="absolute inset-2 bg-[#0F172A] rounded-full flex items-center justify-center text-[9px] font-bold"><img src="/logo.png" className="w-6 h-6 object-contain" onError={(e)=>e.currentTarget.style.display='none'}/><span>MD</span></div></div></div>
+            <div className="flex justify-center">
+  <div className="w-20 h-20 rounded-full relative" style={{background:`conic-gradient(${segmentCalc.map((s,i)=>`${['#eab308','#22c55e','#3b82f6'][i]} ${segmentCalc.slice(0,i).reduce((a,b)=>a+b.pct,0)}% ${segmentCalc.slice(0,i+1).reduce((a,b)=>a+b.pct,0)}%`).join(',')})`}}>
+    <div className="absolute inset-3 bg-[#0F172A] rounded-full flex items-center justify-center">
+      <img src="/logo.png" className="w-10 h-10 object-contain rounded-full" alt="MD" onError={(e)=>e.currentTarget.style.display='none'} />
+    </div>
+  </div>
+</div>
             <div className="text-xs mt-3 space-y-2">
               {segmentCalc.map((c,i)=>(
                 <div key={i} className="flex justify-between"><span>{c.name}</span><div className="flex items-center gap-2"><div className="w-12 h-2 rounded" style={{background:['#eab308','#22c55e','#3b82f6'][i]}}></div><span>{c.pct}%</span></div></div>
