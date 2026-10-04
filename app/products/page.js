@@ -27,7 +27,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
- .then(async (res) => {
+.then(async (res) => {
         if (!res.ok) { router.push('/login'); return; }
         const data = await res.json();
         if (!data.user) { router.push('/login'); return; }
@@ -41,7 +41,7 @@ export default function ProductsPage() {
           setIsCustomer(false);
         }
       })
- .catch(() => router.push('/login'));
+.catch(() => router.push('/login'));
   }, [router]);
 
   const fetchProducts = useCallback(async (pageNum, searchText, isNewSearch = false) => {
@@ -112,25 +112,43 @@ export default function ProductsPage() {
     }
     if (!customerID) { router.push('/login'); return; }
     setAddingId(productID);
-    try {
-      const prod = [...products,...filtered].find(p => p.productID === productID);
-      const res = await fetch('/api/cart/add', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productID, qty: 1 })
-      });
-      const data = await res.json();
-      if (!res.ok ||!data.success) {
-        setToast(data.message || "فشل الاضافة");
-        setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
-        return;
+
+    const doAdd = async (lat, lng) => {
+      try {
+        const prod = [...products,...filtered].find(p => p.productID === productID);
+        const res = await fetch('/api/cart/add', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productID, qty: 1, lat, lng })
+        });
+        const data = await res.json();
+        if (!res.ok ||!data.success) {
+          setToast(data.message || "فشل الاضافة");
+          setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
+          return;
+        }
+        setToast(prod? `${prod.name} - تمت الإضافة` : 'تمت الإضافة');
+        setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
+      } catch (e) {
+        setToast("خطأ بالاتصال");
+        setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
       }
-      setToast(prod? `${prod.name} - تمت الإضافة` : 'تمت الإضافة');
-      setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
-    } catch (e) {
-      setToast("خطأ بالاتصال");
-      setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
+    };
+
+    if (!navigator.geolocation) {
+      setToast("متصفحك ما بيدعم تحديد الموقع");
+      setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => doAdd(pos.coords.latitude, pos.coords.longitude),
+      () => {
+        setToast("لازم تسمح بالموقع لتضيف عالسلة");
+        setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   if (loading) return (
@@ -159,7 +177,7 @@ export default function ProductsPage() {
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
           {filtered.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-              <div className="relative w-full h-[140px] bg-white flex items-center justify-center overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
+              <div className="relative w-full h- bg-white flex items-center justify-center overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-2 truncate">المتجر: {product.storeName}</p>
