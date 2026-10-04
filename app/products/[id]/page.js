@@ -45,22 +45,40 @@ export default function ProductDetailPage({ params }) {
       return;
     }
     setAdding(true);
-    try {
-      const res = await fetch('/api/cart/add', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productID: product.productID, qty: 1 })
-      });
-      const data = await res.json();
-      if (!data.success) {
-        setToast(data.message || "فشل الاضافة");
-      } else {
-        setToast(`${product.name} - تمت الإضافة`);
+
+    const doAdd = async (lat, lng) => {
+      try {
+        const res = await fetch('/api/cart/add', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productID: product.productID, qty: 1, lat, lng })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          setToast(data.message || "فشل الاضافة");
+        } else {
+          setToast(`${product.name} - تمت الإضافة`);
+        }
+      } catch {
+        setToast("خطأ بالاتصال");
       }
-    } catch {
-      setToast("خطأ بالاتصال");
+      setTimeout(()=>{ setToast(null); setAdding(false); }, 2000);
+    };
+
+    if (!navigator.geolocation) {
+      setToast("متصفحك ما بيدعم تحديد الموقع");
+      setTimeout(()=>{ setToast(null); setAdding(false); }, 3000);
+      return;
     }
-    setTimeout(()=>{ setToast(null); setAdding(false); }, 2000);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => doAdd(pos.coords.latitude, pos.coords.longitude),
+      () => {
+        setToast("لازم تسمح بالموقع لتضيف عالسلة");
+        setTimeout(()=>{ setToast(null); setAdding(false); }, 3000);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   if (loading) return (
