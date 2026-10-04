@@ -1,44 +1,43 @@
 export const dynamic = "force-dynamic";
-import { createClient } from "@supabase/supabase-js";
-
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
-}
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 
 export async function POST(req) {
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabaseLib();
     const { order_id, taxi_id, lat, lng, speed, heading } = await req.json();
-
     if (!order_id || !lat || !lng) return Response.json({ error: 'order_id, lat, lng required' }, { status: 400 });
 
-    // حدث موقع التاكسي الحي بالطلب
-    await supabase.from('taxi_orders').update({
-      taxi_lat_live: lat,
-      taxi_lng_live: lng,
-      updated_at: new Date().toISOString()
-    }).eq('id', order_id);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(order_id)) return Response.json({ success: true, test: true });
 
-    // وحدث موقع السايق نفسه - نفس منطق الدلفري
+    const now = new Date().toISOString();
+
+    // ✅ أهم شي - بس 2 updates - بلا ما تستنى الـ insert
+    const [orderRes, driverRes] = await Promise.all([
+      supabase.from('taxi_orders').update({
+        taxi_lat_live: Number(lat),
+        taxi_lng_live: Number(lng),
+        updated_at: now
+      }).eq('id', order_id),
+      
+      taxi_id ? supabase.from('taxi_drivers').update({
+        lat: Number(lat),
+        lng: Number(lng),
+        "Last Location Update": now
+      }).eq('Taxi_ID', taxi_id) : Promise.resolve({ error: null })
+    ]);
+
+    // ✅ fire-and-forget - لا تستناه
     if (taxi_id) {
-      await supabase.from('taxi_drivers').update({
-        lat,
-        lng,
-        "Last Location Update": new Date().toISOString()
-      }).eq('Taxi_ID', taxi_id);
+      supabase.from('taxi_live_tracking').insert({
+        order_id,
+        taxi_id,
+        lat: Number(lat),
+        lng: Number(lng),
+        speed: Number(speed) || 0,
+        heading: Number(heading) || 0
+      }).then(() => {}, () => {});
     }
-
-    // اذا عندك جدول تتبع منفصل مثل الدلفري driver_live_tracking
-    await supabase.from('taxi_live_tracking').insert({
-      order_id,
-      taxi_id,
-      lat,
-      lng,
-      speed: speed ?? 0,
-      heading: heading ?? 0
-    });
 
     return Response.json({ success: true });
   } catch (e) {

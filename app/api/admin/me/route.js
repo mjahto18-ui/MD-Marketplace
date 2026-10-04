@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from 'next/headers';
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+
+function getSupabase() {
+  return getSupabaseLib();
+}
 
 export async function GET(){
   const cookieStore = await cookies();
@@ -16,8 +20,8 @@ export async function GET(){
     return NextResponse.json({ logged:true, ...session })
   }
 
-  // جيب لايف من الداتا بيز
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+  // FIXED - مكتبة بدل createClient
+  const supabase = getSupabase();
   const { data: driver } = await supabase.from('taxi_drivers')
     .select('Taxi_ID, full_name, vehicle_type, engine_cc, car_type, is_online, status')
     .eq('Taxi_ID', taxiId)

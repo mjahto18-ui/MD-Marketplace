@@ -59,7 +59,7 @@ export default function CustomersPendingPage() {
     }
 
     const name = customer['Name'] || ''
-    const pin = customer['PIN'] || customer['New PIN'] || ''
+    const pin = customer['New PIN'] || customer['PIN'] || ''
 
     // نص الرسالة
     const message = `مرحبًا يا ${name} 👋
@@ -145,7 +145,7 @@ https://md-marketplace.store/
                 <div className="font-bold">#{c['Customer ID']} - {c['Name']} <span className="text-sm font-normal text-gray-500">📞 {c['Mobile']}</span></div>
                 <div className="text-sm text-gray-600">{c['Adress']} - {areaName}</div>
                 <div className="text-xs mt-1 text-gray-400">
-                  Lat: {c['Current Latitude']||c['Registration Latitude']} , Lng: {c['Current Longtitude']||c['Registration Longitude']} | PIN: {c['PIN']}
+                 Lat: {c['Current Latitude']||c['Registration Latitude']} , Lng: {c['Current Longtitude']||c['Registration Longitude']} | PIN: {c['New PIN'] || c['PIN']}
                 </div>
               </div>
               <div className="flex gap-2">

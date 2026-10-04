@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 import { cookies } from "next/headers";
 import { getGlobalConfig } from "@/lib/getGlobalConfig";
 
 export const dynamic = "force-dynamic";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
-}
-
-function normalizePhone(p) {
-  return String(p || "").replace(/\D/g, "").trim();
+  return getSupabaseLib();
 }
 
 export async function POST(req) {
@@ -47,37 +41,49 @@ export async function POST(req) {
     } catch { phone = sessionCookie; }
 
     const supabase = getSupabase();
-    const phoneNorm = normalizePhone(phone);
+    const phoneStr = String(phone).trim();
+    const phoneNoZero = phoneStr.replace(/^0+/, '');
 
-    // Customers من Supabase
-    const { data: customers } = await supabase.from('customers').select('*');
+    // === Customers - هلا مع Index - بلا نورمالايز 961 ===
     let customerID = null;
-    for (const c of customers || []) {
-      const mobile = normalizePhone(c["Mobile"] || "");
-      const rawPhone = String(c["Mobile"] || "").trim();
-      if (mobile === phoneNorm || rawPhone === phone || String(c["Customer ID"] || "") === phone) {
-        customerID = c["Customer ID"];
-        break;
-      }
-    }
-    if (!customerID) {
-      const found = (customers || []).find(c => String(c["Mobile"] || "").trim() === String(phone).trim());
-      if (found) customerID = found["Customer ID"];
+
+    let { data: customer } = await supabase.from('customers')
+   .select('"Customer ID"')
+   .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+   .maybeSingle();
+
+    if (customer) {
+      customerID = customer["Customer ID"];
+    } else {
+      // جرب Customer ID دغري
+      const { data: customer3 } = await supabase.from('customers')
+     .select('"Customer ID"')
+     .eq('Customer ID', phoneStr)
+     .maybeSingle();
+      if (customer3) customerID = customer3["Customer ID"];
     }
 
     if (!customerID) return NextResponse.json({ success: false, message: "حسابك مش موجود" }, { status: 401 });
 
-    // Products من Supabase
-    const { data: products } = await supabase.from('products').select('*');
-    const product = (products || []).find((row) => String(row["Product ID"] || "").trim() === String(productID).trim());
+    // === Products - بس المنتج المطلوب! ===
+    const { data: product } = await supabase.from('products')
+   .select('"Product ID", Price, "Store ID", "Weight Points"')
+   .eq('Product ID', productID)
+   .maybeSingle();
+
     if (!product) return NextResponse.json({ success: false, message: "المنتج غير موجود" });
 
     const unitPrice = Number(product["Price"] || 0);
     const storeID = product["Store ID"] || "";
     const linePoints = Number(product["Weight Points"] || 0);
 
-    // Cart من Supabase
-    const { data: cartRows } = await supabase.from('cart').select('*').eq('Customer ID', customerID).eq('Product ID', productID).eq('Checked Out', 'FALSE');
+    // === Cart - بس سلة هالمنتج ===
+    const { data: cartRows } = await supabase.from('cart')
+   .select('"Cart ID", Qty')
+   .eq('Customer ID', customerID)
+   .eq('Product ID', productID)
+   .eq('Checked Out', 'FALSE');
+
     let existing = (cartRows || [])[0];
 
     if (existing) {

@@ -1,6 +1,7 @@
 "use client"
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react"
+import { createClient } from "@supabase/supabase-js"
 import BackToDashboard from "@/components/BackToDashboard"
 
 export default function PayrollPage(){
@@ -8,61 +9,77 @@ export default function PayrollPage(){
   const [loading, setLoading] = useState(true)
   const [genLoading, setGenLoading] = useState(false)
   const [month, setMonth] = useState(new Date().toISOString().slice(0,7))
+  const [storeId, setStoreId] = useState('MD_HQ_001')
+  const [storesList, setStoresList] = useState([])
   const [showCode, setShowCode] = useState({})
   const [transferring, setTransferring] = useState({})
+
+  useEffect(()=>{
+    const loadStores = async ()=>{
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      const supabase = createClient(url, key)
+      const { data } = await supabase.from('stores').select('"Store ID", "Store Name"').eq('Status','Active').order('"Store Name"')
+      if(data && data.length){
+        setStoresList(data)
+      }
+    }
+    loadStores()
+  },[])
 
   const load = async ()=>{
     setLoading(true)
     try{
-      const res = await fetch(`/api/admin/payroll/list?month=${month}`)
+      const res = await fetch(`/api/admin/payroll/list?month=${month}&store_id=${storeId}`)
       const j = await res.json()
       if(j.success) setRows(j.rows || [])
+      else console.log(j.message)
     }catch(e){ console.log(e) }
     setLoading(false)
   }
 
-  useEffect(()=>{ load() }, [month])
+  useEffect(()=>{ if(storeId) load() }, [month, storeId])
 
   const generate = async ()=>{
-    if(!confirm(`فرز رواتب شهر ${month} لكل الموظفين؟`)) return
+    if(!confirm(`فرز رواتب شهر ${month} لمتجر ${storeId}؟`)) return
     setGenLoading(true)
     try{
       const res = await fetch('/api/admin/payroll/generate',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({month})
+        body:JSON.stringify({ month, store_id: storeId })
       })
       const j = await res.json()
-      if(j.success){ alert(`تم تنزيل ${j.count} راتب`); load() }
+      if(j.success){ alert(`تم تنزيل ${j.count} راتب لمتجر ${storeId}`); load() }
       else alert(j.message || 'فشل')
     }catch(e){ alert('خطأ اتصال') }
     setGenLoading(false)
   }
 
-  // --- فسة التحويل للمحفظة - بتغير الحالة بس والـ Trigger بيشتغل ---
   const transferToWallet = async (row)=>{
-    if(!confirm(`تحويل راتب ${row.employees?.full_name} - ${Number(row.amount||0).toLocaleString()} ل.ل لمحفظتو؟\nسوف يتم قطع المبلغ من المحفظة و يضاف عند الموظف مع رسالة SALARY شهر ${month}`)) return
+    if(!confirm(`تحويل راتب ${row.employees?.full_name} - ${Number(row.amount||0).toLocaleString()} ل.ل لمحفظتو؟\nمتجر ${storeId}`)) return
     setTransferring(p=>({...p, [row.id]: true}))
     try{
       const res = await fetch('/api/admin/payroll/transfer-to-wallet',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ payroll_id: row.id })
+        body:JSON.stringify({ payroll_id: row.id, store_id: storeId })
       })
       const j = await res.json()
       if(j.success){ alert('تم التحويل للمحفظة'); load() }
-      else alert(j.message || 'فشل التحويل - يرجى التأكد ان الموظف لديه رمز تعريف مسجل')
+      else alert(j.message || 'فشل التحويل')
     }catch(e){ alert('خطأ اتصال') }
     setTransferring(p=>({...p, [row.id]: false}))
   }
 
-  // --- هون الـ 3 حالات تبع العرض بس ---
   const getStatusConfig = (status) => {
     if(status === 'pending') return { text: 'بانتظار التحويل', bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' }
     if(status === 'in_wallet') return { text: 'داخل المحفظة ', bg: 'rgba(59,130,246,0.2)', color: '#60a5fa' }
     if(status === 'claimed') return { text: 'استلام كاش', bg: 'rgba(34,197,94,0.2)', color: '#4ade80' }
     return { text: status, bg: 'rgba(255,255,255,0.1)', color: 'white' }
   }
+
+  const currentStoreName = storesList.find(s=>s['Store ID']===storeId)?.['Store Name'] || storeId
 
   return (
     <div style={{
@@ -76,11 +93,25 @@ export default function PayrollPage(){
       
       <div style={{maxWidth:'1200px', margin:'0 auto 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px'}}>
         <div>
-          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الرواتب - كود التوثيق</h1>
+          <h1 style={{fontSize:'24px', fontWeight:'800', marginBottom:'4px'}}>الرواتب - {currentStoreName}</h1>
           <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px', marginBottom:'8px'}}></div>
-          <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>كل راتب كود من 5 ارقام - الموظف يقبض به من المحاسبة</div>
+          <div style={{fontSize:'12px', color:'rgba(255,255,255,0.5)'}}>كل راتب كود من 5 ارقام - المتجر: {storeId}</div>
         </div>
-        <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+        <div style={{display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
+          <select value={storeId} onChange={e=>setStoreId(e.target.value)} style={{
+            padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'
+          }}>
+            {storesList.length===0 ? (
+              <>
+                <option value="MD_HQ_001">MD_HQ_001 - HQ</option>
+                <option value="STORE_ZAHERIEH">ZAHERIEH</option>
+                <option value="STORE_TEBBANEH">TEBBANEH</option>
+                <option value="STORE_QOBBEH">QOBBEH</option>
+              </>
+            ) : storesList.map(s=>(
+              <option key={s['Store ID']} value={s['Store ID']}>{s['Store Name']} - {s['Store ID']}</option>
+            ))}
+          </select>
           <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{
             padding:'10px 14px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'
           }}/>
@@ -99,7 +130,7 @@ export default function PayrollPage(){
           border:'1px solid rgba(255,255,255,0.08)', boxShadow:'0 25px 60px rgba(0,0,0,0.4)'
         }}>
           {loading ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.5)'}}>جاري التحميل...</div> :
-          rows.length===0 ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.4)', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد رواتب لهذا الشهر - اضغط اصدار رواتب الشهر</div> :
+          rows.length===0 ? <div style={{textAlign:'center', padding:'30px', color:'rgba(255,255,255,0.4)', background:'rgba(0,0,0,0.2)', borderRadius:'12px'}}>لا يوجد رواتب لهذا الشهر بمتجر {storeId} - اضغط اصدار رواتب الشهر</div> :
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {rows.map(r=>{
               const s = getStatusConfig(r.status)

@@ -1,16 +1,14 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return getSupabaseLib();
 }
 
 export async function GET() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const session = cookieStore.get('session');
 
   if (!session) {
@@ -19,21 +17,35 @@ export async function GET() {
 
   try {
     const { phone } = JSON.parse(session.value);
+    const phoneStr = String(phone).trim();
+    const phoneNoZero = phoneStr.replace(/^0+/, '');
     const supabase = getSupabase();
 
-    // 1. جيب معلومات اليوزر من جدول Users
-    const { data: usersRows } = await supabase.from('users').select('*');
-    const userRow = (usersRows||[]).find(row => String(row['Mobile'] || "").trim() === String(phone).trim());
+    // 1. FIXED - بلا select('*') - eq + Index دغري
+    const USER_COLS = '"User ID", "Customer ID", Name, Mobile, Role, Email, Status, "AcceptedTerms", taxi';
+    const { data: userRows, error: userErr } = await supabase.from('users')
+      .select(USER_COLS)
+      .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+      .limit(1);
+
+    if (userErr) console.error("me users error:", userErr.message);
+    const userRow = userRows?.[0];
 
     if (!userRow) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // 2. جيب معلومات الكوستومر من جدول Customers عن طريق Mobile
-    const { data: customersRows } = await supabase.from('customers').select('*');
-    const customerRow = (customersRows||[]).find(row => String(row['Mobile'] || "").trim() === String(phone).trim());
+    // 2. FIXED - بلا select('*') - eq + Index
+    const CUSTOMER_COLS = '"Customer ID", Area, Adress, "Current Latitude", "Registration Latitude", "Current Longtitude", "Registration Longitude", "Free Delivery Remaining", "Last Location Update", Mobile';
+    const { data: customerRows, error: custErr } = await supabase.from('customers')
+      .select(CUSTOMER_COLS)
+      .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+      .limit(1);
 
-    const customerData = customerRow || {};
+    if (custErr) console.error("me customers error:", custErr.message);
+    const customerRow = customerRows?.[0] || {};
+
+    const customerData = customerRow;
     const userData = userRow;
 
     // 3. اختار الاحداثيات

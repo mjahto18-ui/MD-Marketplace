@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return getSupabaseLib();
 }
 
 async function getCustomerIDFromSession(supabase) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('session')?.value;
   if (!sessionCookie) return null;
   let phone;
@@ -20,14 +18,22 @@ async function getCustomerIDFromSession(supabase) {
     phone = session.phone || session.Mobile || session.user?.phone || sessionCookie;
   } catch { phone = sessionCookie; }
   if (!phone) return null;
-  const { data: customers } = await supabase.from('customers').select('*');
-  for (const c of customers || []) {
-    if (String(c["Mobile"] || "").trim() === String(phone).trim()) {
-      return c["Customer ID"];
-    }
-  }
-  const { data: users } = await supabase.from('users').select('*');
-  const user = (users||[]).find(row => String(row["Mobile"] || "").trim() === String(phone).trim());
+
+  const phoneStr = String(phone).trim();
+  const phoneNoZero = phoneStr.replace(/^0+/, '');
+
+  const { data: customer } = await supabase.from('customers')
+ .select('"Customer ID"')
+ .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+ .maybeSingle();
+
+  if (customer) return customer["Customer ID"];
+
+  const { data: user } = await supabase.from('users')
+ .select('"Customer ID", "User ID"')
+ .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+ .maybeSingle();
+
   return user? (user["Customer ID"] || user["User ID"]) : null;
 }
 
@@ -41,7 +47,10 @@ export async function PUT(req) {
     const customerID = await getCustomerIDFromSession(supabase);
     if (!customerID) return NextResponse.json({ success: false, message: "لازم تسجل دخول" }, { status: 401 });
 
-    const { data: cartRows } = await supabase.from('cart').select('*').eq('Cart ID', cartID);
+    const { data: cartRows } = await supabase.from('cart')
+ .select('"Cart ID", "Customer ID", "Product ID"')
+ .eq('Cart ID', cartID);
+
     let cartItem = (cartRows||[])[0];
     if (!cartItem) return NextResponse.json({ success: false, message: "المنتج مش بالسلة" }, { status: 404 });
 
@@ -52,8 +61,11 @@ export async function PUT(req) {
 
     const productID = cartItem["Product ID"];
 
-    const { data: products } = await supabase.from('products').select('*');
-    const product = (products||[]).find((row) => String(row["Product ID"] || "").trim() === String(productID).trim());
+    const { data: product } = await supabase.from('products')
+ .select('"Product ID", Price')
+ .eq('Product ID', productID)
+ .maybeSingle();
+
     if (!product) return NextResponse.json({ success: false, message: "المنتج غير موجود" }, { status: 404 });
 
     const unitPrice = Number(product["Price"] || 0);

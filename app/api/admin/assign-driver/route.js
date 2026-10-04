@@ -41,15 +41,15 @@ export async function POST(req){
 
     const customerID = order['customer ID'] || order['Customer ID']
     
-    if(customerID){
-      await supabase.from('push_queue').insert({
-        'Customer ID': customerID,
-        'Title': 'تم قبول طلبك',
-        'Message': `السائق ${driver?.['Driver Name'] || driverId} في الطريق اليك`,
-        'Status': 'Pending',
-        'Code': 'ORDER_APPROVED'
-      })
-    }
+    //if(customerID){
+     // await supabase.from('push_queue').insert({
+      //  'Customer ID': customerID,
+      //  'Title': 'تم قبول طلبك',
+      //  'Message': `السائق ${driver?.['Driver Name'] || driverId} في الطريق اليك`,
+      //  'Status': 'Pending',
+      //  'Code': 'ORDER_APPROVED'
+     // })
+  // }
 
     return Response.json({success:true, message: `تم تعيين ${driver?.['Driver Name']}`})
 

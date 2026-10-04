@@ -1,4 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+
+import { getSupabase as getSupabaseLib, getUserByWhatsAppNumber as getUserByWhatsAppNumberLib, normalizePhone, getCustomerRowByPhone as getCustomerRowByPhoneLib, canOpenBot2 } from "@/lib/supabase";
 import { PERSONAS_PHOTOS, PERSONAS_FALLBACK } from "@/lib/personas";
 export const dynamic = "force-dynamic";
 
@@ -40,9 +41,8 @@ function getCache(key) {
 function setCache(key, value) { SHEETS_CACHE.set(key, { v: value, t: Date.now() }); }
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  // بنستعمل المكتبة المركزية - Singleton
+  return getSupabaseLib();
 }
 
 // ===== الحارس - Rate Limit - الديفولت 10 ======
@@ -51,11 +51,11 @@ const MAX_PER_HOUR = 30;
 
 async function checkRate(phone, text) {
   try {
-    const key = String(phone || "").replace(/\D/g, "");
+    const key = normalizePhone(phone) || "";
     if (!key) return { ok: true };
     const supabase = getSupabase();
     const now = new Date();
-    const { data: row } = await supabase.from('rate_limits').select('*').eq('phone', key).maybeSingle();
+    const { data: row } = await supabase.from('rate_limits').select('phone, minute_count, hour_count, max_per_minute, last_message, last_minute_reset, last_hour_reset, blocked_until, is_vip, is_permanent, repeat_count, reason').eq('phone', key).maybeSingle();
 
     if (!row) {
       await supabase.from('rate_limits').insert({ phone: key, minute_count: 1, hour_count: 1, max_per_minute: DEFAULT_MAX_PER_MINUTE, last_message: text, last_minute_reset: now.toISOString(), last_hour_reset: now.toISOString(), updated_at: now.toISOString() });
@@ -109,16 +109,7 @@ function mapTable(sheetName) {
 }
 
 function normalizeWhatsAppNumber(phone) {
-  let c = String(phone || "").replace(/\D/g, "");
-  if (!c) return null;
-  if (c.startsWith("961")) return c;
-  if (c.startsWith("966")) return c;
-  if (c.startsWith("0")) c = c.substring(1);
-  if (c.length === 9 && c.startsWith("5")) return "966" + c;
-  if (c.length === 10 && c.startsWith("5")) return "966" + c;
-  if (c.length === 7 && c.startsWith("3")) return "961" + c;
-  if (c.length === 8) return "961" + c;
-  return c;
+  return normalizePhone(phone);
 }
 
 async function sendMessage(to, text) {
@@ -298,7 +289,16 @@ async function getSheetRows(sheetName) {
   const loadPromise = (async () => {
     try {
       console.log(`📡 قراءة من Supabase: ${table}`);
-      const { data, error } = await supabase.from(table).select('*');
+      // ===== شيلنا الـ full select - صار select محدد حسب الجدول =====
+      let selectCols = '*';
+      if (table === 'products') selectCols = '"Product ID", "Product Name", "Price", "Store ID", "Available", "Active", "Unit", "Description"';
+      else if (table === 'stores') selectCols = '"Store ID", "Store Name", "Adress", "Area", "Open Time", "Close Time"';
+      else if (table === 'areas') selectCols = '"Area ID", "Area Name"';
+      else if (table === 'users') {
+        console.log("⚠ getSheetRows('users') ممنوع - استعمل getUserByWhatsAppNumberLib بدالو");
+        return [];
+      }
+      const { data, error } = await supabase.from(table).select(selectCols);
       if (error) { console.error(`❌ خطأ قراءة ${table}:`, error.message); return []; }
       const result = data || [];
       if (useCache) { setCache(table, result); console.log(`💾 تم تخزين ${table} في Cache`); }
@@ -406,51 +406,28 @@ async function getSmartMemory(user) {
   } catch (e) { console.log("Smart memory error", e.message); return { lastProducts: [], lastOrderText: "" }; }
 }
 async function getUserByWhatsAppNumber(whatsappNumber) {
-  const normalized = normalizeWhatsAppNumber(whatsappNumber);
-  const mobileNorm = String(whatsappNumber||"").replace(/\D/g,"");
-  console.log(`🔎 البحث في Users Supabase: ${normalized}`);
-  const rows = await getSheetRows("Users");
-  for (const row of rows) {
-    const rowWhatsApp = normalizeWhatsAppNumber(row["WhatsApp Number"] || "");
-    const rowMobile = String(row["Mobile"]||"").replace(/\D/g,"");
-    if (rowWhatsApp === normalized || rowMobile === mobileNorm || rowMobile.endsWith(mobileNorm.slice(-8)) || mobileNorm.endsWith(rowMobile.slice(-8))) {
-      const user = {
-        userId: row["User ID"] || "",
-        role: row["Role"] || "",
-        name: row["Name"] || "",
-        mobile: row["Mobile"] || "",
-        customerId: row["Customer ID"] || "",
-        whatsappNumber: row["WhatsApp Number"] || "",
-        storeId: row["Store ID"] || "",
-        area: row["Area"] || "",
-        status: row["Status"] || "",
-        active: row["Active"] || "",
-        gender: String(row["Gender"] || "").toLowerCase().trim(),
-        assignedPersona: String(row["Assigned Persona"] || "").toLowerCase().trim(),
-        acceptedTerms: row["AcceptedTerms"] || "",
-        taxi: row["taxi"] || null
-      };
-      console.log("🎯 المستخدم:", JSON.stringify(user));
+  // ===== جديد - بتستعمل lib/supabase.js + idx_users_whatsapp_number =====
+  try {
+    const user = await getUserByWhatsAppNumberLib(whatsappNumber);
+    if (user) {
+      console.log("🎯 المستخدم (من Index):", JSON.stringify(user));
       return user;
     }
+    console.log("👤 الزائر غير مسجل في Users");
+    return null;
+  } catch (e) {
+    console.log("❌ getUserByWhatsAppNumber error", e.message);
+    return null;
   }
-  console.log("👤 الزائر غير مسجل في Users");
-  return null;
 }
 async function getCustomerRowByPhone(whatsappNumber, customerId) {
+  // ===== زبطنا - بيستعمل eq + Index - بدون select('*') + loop =====
   try {
-    const supabase = getSupabase();
-    const phoneNorm = String(whatsappNumber||"").replace(/\D/g,"");
-    const custIdNorm = String(customerId||"").trim();
-    const { data } = await supabase.from('customers').select('*');
-    for (const c of data||[]) {
-      const cid = String(c["Customer ID"]||c["customer ID"]||"").trim();
-      if (custIdNorm && cid && cid === custIdNorm) return c;
-      const m = String(c["Mobile"]||"").replace(/\D/g,"");
-      if (m === phoneNorm || m.endsWith(phoneNorm.slice(-8)) || phoneNorm.endsWith(m.slice(-8))) return c;
-    }
-  } catch(e){}
-  return null;
+    return await getCustomerRowByPhoneLib(whatsappNumber, customerId);
+  } catch(e) {
+    console.log("getCustomerRowByPhone error", e.message);
+    return null;
+  }
 }
 
 async function appSheetAction(tableName, action, rows) {
@@ -576,6 +553,7 @@ async function sendToBot3({ from, user, originalMessage }) {
   } catch (error) { console.error("❌ فشل Bridge إلى BOT3:", error); return false; }
 }
 async function transferToBot3({ from, user, originalMessage }) {
+  // ===== بوابة 3 - ما منلمسها - شروطها لحال =====
   if (!user) {
     await sendMessage(from, `تكرم عينك! 😊 حتى اقدر بلشلك طلب تاكسي، بس سجل حساب سريع على موقعنا ${WEBSITE_URL} وبس تخلص قلي بدي تاكسي وانا جاهز دغري 🚕`);
     return false;
@@ -709,7 +687,7 @@ async function buildOrderContext(user, userMessage) {
   };
 }
 
-// ===== GEMINI - بدل Groq - مع تقليل توكن =====
+// ===== GEMINI - مع السيستم بروموت الأصلي كامل - ما لمسناه =====
 async function getAIReply(userMessage, user, productResults, orderContext, history, persona, smartMemory) {
   if (!GEMINI_API_KEY) { return "أهلا بك! كيف بقدر ساعدك اليوم؟ 😊"; }
   try {
@@ -1001,7 +979,7 @@ export async function POST(req) {
       await saveToAppSheet(from, `صورة باركود ${decoded}`, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BARCODE_IMAGE_OFF" });
       return Response.json({ status: "ok" }, { status: 200 });
     }
-    // ===== LOCATION FORWARD TO BOT3 - مصلح (كان عندك تيست مكرر) =====
+    // ===== LOCATION FORWARD TO BOT3 - مصلح =====
     if (message?.type === "location") {
       const whatsappNumberEarly = normalizeWhatsAppNumber(from);
       const sessionEarly = await getBotSessionTable(whatsappNumberEarly);
@@ -1060,11 +1038,7 @@ export async function POST(req) {
       const first = low.split(/\s+/)[0];
       if (simpleYes.includes(first) || simpleYes.includes(low)) {
         const supabase = getSupabase();
-        const { data: allMsgs } = await supabase.from('messages')
-      .select('*')
-      .eq('Phone', whatsappNumber)
-      .order('_supa_synced_at', { ascending: false })
-      .limit(1);
+        const { data: allMsgs } = await supabase.from('messages').select('Phone, CustomerMessage, AIReply, Date, "Bot Session", Reassurance_Sent, Reassurance_At, _supa_synced_at').eq('Phone', whatsappNumber).order('_supa_synced_at', { ascending: false }).limit(1);
         const lastRow = allMsgs?.[0];
         if (lastRow && String(lastRow["Reassurance_Sent"] || "").toUpperCase() === "YES") {
           const reassAt = lastRow["Reassurance_At"] || lastRow["Date"];
@@ -1141,7 +1115,7 @@ export async function POST(req) {
       } catch (e) { console.error("❌ فشل تحويل لـ BOT2:", e.message); }
       return Response.json({ status: "ok", forwarded_to: "BOT2" }, { status: 200 });
     }
-    // ===== TAXI INTENT CHECK - جديد - مع شرط الكوستمر =====
+    // ===== TAXI INTENT - بوابة 3 - ما منلمسها =====
     if (isTaxiIntent(userText)) {
       console.log(`🚕 Taxi intent detected: ${userText} from ${whatsappNumber}`);
       const transferredTaxi = await transferToBot3({ from: whatsappNumber, user, originalMessage: userText });
@@ -1151,11 +1125,17 @@ export async function POST(req) {
         return Response.json({ status: "ok", blocked: "taxi_blocked" }, { status: 200 });
       }
     }
+    // ===== بوابة 2 - القانون الجديد =====
     const newOrderIntent = isNewOrderIntent(userText);
     if (newOrderIntent) {
       if (!user) {
         await sendMessage(from, `تكرم عينك! 😊 حتى اقدر بلشلك الأوردر، بس سجل حساب سريع على موقعنا ${WEBSITE_URL} وبس تخلص قلي شو حابب تطلب وانا جاهز دغري`);
         return Response.json({ status: "ok", blocked: "not_customer" }, { status: 200 });
+      }
+      // قانون: اذا Customer ID نول/فاضي -> ما بيفتح بوابة 2
+      if (!canOpenBot2(user)) {
+        await sendMessage(from, `لقيت اسمك يا ${user.name || ''} بس بعدك مش مسجل كزبون 😊 كمل تسجيلك على ${WEBSITE_URL} وبس تخلص قلي شو حابب تطلب وانا جاهز دغري`);
+        return Response.json({ status: "ok", blocked: "no_customer_id" }, { status: 200 });
       }
       const custRow = await getCustomerRowByPhone(whatsappNumber, user?.customerId);
       if (!custRow) {

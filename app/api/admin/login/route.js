@@ -1,14 +1,10 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 import { cookies } from 'next/headers';
 
 function getSupabase() {
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const url = rawUrl?.replace('/rest/v1','').replace(/\/$/,'');
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url) throw new Error("Missing Supabase URL");
-  return createClient(url, key);
+  return getSupabaseLib();
 }
 
 export async function POST(req) {
@@ -20,15 +16,20 @@ export async function POST(req) {
 
     const supabase = getSupabase();
 
-    const { data: users } = await supabase.from('users')
-   .select('*')
-   .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
-   .limit(5)
+    // FIXED - بلا select('*') - بس الاعمدة يلي بدنا ياهن
+    const USER_COLS = '"User ID", Name, Mobile, Role, Status, PIN, "isLocked", "failedAttempts", "AcceptedTerms", Active, Area, "Store ID", "Related ID", "Taxi_ID"';
+
+    const { data: users, error: usersError } = await supabase.from('users')
+      .select(USER_COLS)
+      .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+      .limit(5)
+
+    if (usersError) console.error("Login users error:", usersError.message);
 
     let finalUser = users?.[0]
 
     if(!finalUser && phoneStr === '03177653'){
-      const { data } = await supabase.from('users').select('*').eq('"User ID"','Admin').maybeSingle()
+      const { data } = await supabase.from('users').select(USER_COLS).eq('User ID','Admin').maybeSingle()
       finalUser = data
     }
 
@@ -65,14 +66,14 @@ export async function POST(req) {
       await supabase.from('users').update({
         'failedAttempts': "0",
         'isLocked': "FALSE"
-      }).eq('"User ID"', finalUser['User ID']);
+      }).eq('User ID', finalUser['User ID']);
 
       let taxiData = null
       if(finalUser['Taxi_ID']){
         const { data: driver } = await supabase
           .from('taxi_drivers')
           .select('engine_cc, vehicle_type, car_type, car_color, seats, full_name')
-          .eq('"Taxi_ID"', finalUser['Taxi_ID'])
+          .eq('Taxi_ID', finalUser['Taxi_ID'])
           .single()
         taxiData = driver
       }
@@ -84,7 +85,7 @@ export async function POST(req) {
         phone: phoneStr,
         role: role,
         AcceptedTerms: acceptedTerms,
-        storeId: finalUser['Store ID'] || finalUser.Store_ID || null,
+        storeId: finalUser['Store ID'] || null,
         area: finalUser.Area || null,
         relatedId: finalUser['Related ID'] || null,
         Taxi_ID: finalUser['Taxi_ID'] || null,
@@ -96,7 +97,6 @@ export async function POST(req) {
         seats: taxiData?.seats || 4,
       }), { httpOnly: true, secure: false, sameSite: 'lax', path: '/', maxAge: 60*60*8 });
 
-      // ✅ هون الجبر - اذا ما قابل الشروط وديه عصفحة الشروط
       let redirectTo;
       if (acceptedTerms!== "TRUE") {
         redirectTo = '/admin/terms-approval';
@@ -125,14 +125,14 @@ export async function POST(req) {
         'failedAttempts': String(newAttempts),
         'PIN': "",
         'isLocked': "TRUE"
-      }).eq('"User ID"', finalUser['User ID']);
+      }).eq('User ID', finalUser['User ID']);
 
       return NextResponse.json({ success: false, message: "تم قفل الحساب بسبب محاولات دخول غير صحيحة. يرجى التواصل مع فريق الدعم أو طلب إعادة تعيين رمز الدخول لإعادة تفعيل الحساب." }, { status: 403 });
     }
 
     await supabase.from('users').update({
       'failedAttempts': String(newAttempts)
-    }).eq('"User ID"', finalUser['User ID']);
+    }).eq('User ID', finalUser['User ID']);
 
     return NextResponse.json({ success: false, message: `PIN غلط - محاولة ${newAttempts}/3` }, { status: 401 });
 

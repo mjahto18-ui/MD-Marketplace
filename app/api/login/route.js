@@ -1,28 +1,35 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 import { cookies } from 'next/headers';
 
 function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return getSupabaseLib();
 }
 
 export async function POST(req) {
   try {
     const { phone, pin } = await req.json();
     const phoneStr = String(phone).trim();
+    const phoneNoZero = phoneStr.replace(/^0+/, '');
     const supabase = getSupabase();
 
-    const { data: users } = await supabase.from('users').select('*');
-    const user = (users||[]).find(row => String(row['Mobile'] || "").trim() === phoneStr);
+    // FIXED - بلا select('*') و بلا find - eq + Index دغري
+    const USER_COLS = '"User ID", "Customer ID", Name, Mobile, Role, Status, PIN, "isLocked", "failedAttempts", "AcceptedTerms", Email, Active';
+
+    const { data: users, error } = await supabase.from('users')
+      .select(USER_COLS)
+      .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+      .limit(1);
+
+    if (error) console.error("Login customer error:", error.message);
+
+    const user = users?.[0];
 
     if (!user) {
       return NextResponse.json({ success: false, message: "رقم الهاتف أو رمز الدخول غير صحيح." }, { status: 401 });
     }
 
-    // ✅ الفحص الجديد - بس Admin و Customer بيفوتو هون
     const role = String(user['Role'] || '').trim();
     const allowedRoles = ['Admin', 'Customer'];
     if(!allowedRoles.includes(role)){
@@ -52,7 +59,7 @@ export async function POST(req) {
       await supabase.from('users').update({
         'failedAttempts': "0",
         'isLocked': "FALSE"
-      }).eq('Mobile', phoneStr);
+      }).eq('User ID', user['User ID']);
 
       const cookieStore = await cookies();
       cookieStore.delete('md_guest');
@@ -93,7 +100,7 @@ export async function POST(req) {
         'failedAttempts': String(newAttempts),
         'PIN': "",
         'isLocked': "TRUE"
-      }).eq('Mobile', phoneStr);
+      }).eq('User ID', user['User ID']);
       return NextResponse.json({
         success: false,
         message: "تم قفل الحساب بسبب محاولات دخول غير صحيحة. يرجى التواصل مع فريق الدعم أو طلب إعادة تعيين رمز الدخول لإعادة تفعيل الحساب."
@@ -102,7 +109,7 @@ export async function POST(req) {
 
     await supabase.from('users').update({
       'failedAttempts': String(newAttempts)
-    }).eq('Mobile', phoneStr);
+    }).eq('User ID', user['User ID']);
 
     return NextResponse.json({
       success: false,

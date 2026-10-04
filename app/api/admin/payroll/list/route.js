@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from 'next/headers'
 import { NextResponse } from "next/server"
+import { canAccess } from '@/lib/checkSub'
 
 export const dynamic = "force-dynamic";
 
@@ -19,20 +20,40 @@ export async function GET(req){
 
     const { searchParams } = new URL(req.url)
     const month = searchParams.get('month')
+    const store_id = searchParams.get('store_id')
+
     if(!month) return NextResponse.json({success:false, message:'حدد الشهر'}, {status:400})
+    if(!store_id) return NextResponse.json({success:false, message:'حدد المتجر store_id'}, {status:400})
 
     const supabase = getSupabase()
 
-    const { data: rows } = await supabase.from('payroll_runs')
+    // === حماية الاشتراك - الادمن مستثنى ===
+    try{
+      const session = JSON.parse(sessionRaw)
+      const isAdmin = session?.role === 'admin' || session?.isAdmin === true || true // كل /api/admin هو ادمن
+      const check = await canAccess(supabase, store_id, 'payroll', isAdmin)
+      if(!check.ok && !isAdmin){
+        return NextResponse.json({success:false, message: check.msg, rows:[]}, {status:402})
+      }
+    }catch(e){
+      // اذا فشل البارس، خلي الادمن يمرق
+      console.log('canAccess admin bypass', e.message)
+    }
+    // === نهاية الحماية ===
+
+    const { data: rows, error } = await supabase.from('payroll_runs')
       .select(`
         id, amount, base_amount, overtime_amount, overtime_hours, total_hours,
-        secret_code_5, status, claimed_at, claimed_by, month_year, created_at,
-        employees ( full_name, department )
+        secret_code_5, status, claimed_at, claimed_by, month_year, store_id, created_at,
+        employees ( full_name, department, store_id )
       `)
       .eq('month_year', month)
+      .eq('store_id', store_id)
       .order('created_at', {ascending:false})
 
-    return NextResponse.json({success:true, rows: rows||[]})
+    if(error) throw error
+
+    return NextResponse.json({success:true, rows: rows||[], store_id})
 
   }catch(e){
     console.log(e)

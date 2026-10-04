@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from 'next/headers'
 import { NextResponse } from "next/server"
+import { canAccess } from '@/lib/checkSub'
 export const dynamic = "force-dynamic";
 
 function getSupabase() {
@@ -20,18 +21,35 @@ export async function POST(req){
     if(!['Admin','Assistant Admin','Accounting'].includes(session.role)){
       return NextResponse.json({success:false, message:'ما عندك صلاحية'}, {status:403})
     }
-    const { month } = await req.json()
+    const body = await req.json()
+    const { month, store_id } = body
     if(!month) return NextResponse.json({success:false, message:'حدد الشهر'}, {status:400})
+    if(!store_id) return NextResponse.json({success:false, message:'حدد المتجر store_id'}, {status:400})
+
+    const supabase = getSupabase()
+
+    // === حماية الاشتراك - الادمن مستثنى ===
+    const isAdmin = ['Admin','Assistant Admin','Accounting'].includes(session.role)
+    if(!isAdmin){
+      const check = await canAccess(supabase, store_id, 'payroll', true)
+      if(!check.ok){
+        return NextResponse.json({success:false, message: check.msg}, {status:402})
+      }
+    }
+    // === نهاية الحماية ===
 
     const month_year = month
     const [y,m] = month.split('-').map(Number)
     const start = new Date(y, m-1, 1)
     const end = new Date(y, m, 1)
 
-    const supabase = getSupabase()
-    const { data: emps, error: empErr } = await supabase.from('employees').select('id, full_name, department, salary_type, base_salary, required_hours, is_active').eq('is_active', true)
+    const { data: emps, error: empErr } = await supabase.from('employees')
+      .select('id, full_name, department, salary_type, base_salary, required_hours, is_active, store_id')
+      .eq('is_active', true)
+      .eq('store_id', store_id)
+
     if(empErr) throw empErr
-    if(!emps || emps.length===0) return NextResponse.json({success:false, message:'ما في موظفين فعالين'})
+    if(!emps || emps.length===0) return NextResponse.json({success:false, message:`ما في موظفين فعالين بمتجر ${store_id}`})
 
     let count=0, details=[]
     for(const emp of emps){
@@ -73,10 +91,10 @@ export async function POST(req){
         .select('id, status, secret_code_5')
         .eq('employee_id', emp.id)
         .eq('month_year', month_year)
+        .eq('store_id', store_id)
         .maybeSingle()
 
       if(existing){
-        // هون التعديل الجديد - بس pending فيك تعدل
         if(existing.status === 'in_wallet' || existing.status === 'claimed'){
           details.push(`${emp.full_name}: ${existing.status === 'in_wallet' ? 'بمحفظتو - ممنوع التعديل' : 'مقبوض كاش - ممنوع التعديل'} - تخطيناه`)
           continue
@@ -95,7 +113,7 @@ export async function POST(req){
 
       let code = genCode()
       for(let i=0;i<8;i++){
-        const { data: dup } = await supabase.from('payroll_runs').select('id').eq('secret_code_5', code).eq('month_year', month_year).limit(1)
+        const { data: dup } = await supabase.from('payroll_runs').select('id').eq('secret_code_5', code).eq('month_year', month_year).eq('store_id', store_id).limit(1)
         if(!dup || dup.length===0) break
         code = genCode()
       }
@@ -103,6 +121,7 @@ export async function POST(req){
       const { error } = await supabase.from('payroll_runs').insert({
         employee_id: emp.id,
         month_year,
+        store_id,
         total_hours,
         amount,
         secret_code_5: code,
@@ -115,7 +134,7 @@ export async function POST(req){
       else details.push(`${emp.full_name}: خطأ ${error.message}`)
     }
 
-    return NextResponse.json({success:true, count, details, month_year, message:`تم ${count} راتب - الشهر ${month_year} - حضور من ${start.toISOString().slice(0,10)} - المطلوب ${emps[0]?.required_hours||286}س`})
+    return NextResponse.json({success:true, count, details, month_year, store_id, message:`تم ${count} راتب لمتجر ${store_id} - الشهر ${month_year}`})
 
   }catch(e){
     console.log(e)

@@ -1,68 +1,75 @@
 export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+export const runtime = "nodejs";
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key, {
-    global: {
-      fetch: (input, init) =>
-        fetch(input, {...init, cache: 'no-store' }),
-    },
-    auth: { persistSession: false },
-  });
-}
+import { NextResponse } from "next/server";
+import { getSupabase } from "@/lib/supabase";
 
 export async function GET(req) {
   try {
     const customerID = req.nextUrl.searchParams.get("customerID");
-    if (!customerID) return NextResponse.json({ success: true, orders: [] });
-
-    const supabase = getSupabase();
-    const custIdLower = customerID.toString().trim().toLowerCase();
-
-    const { data: rows, error } = await supabase.from('order_requuest').select('*').order('Cerated Date', { ascending: false });
-
-    console.log('my-orders debug:', { customerID, custIdLower, rowsCount: rows?.length, error });
-    if (error) {
-      console.error('Supabase error in my-orders:', error);
-      return NextResponse.json({ success: false, orders: [], error: error.message, details: error });
+    if (!customerID) {
+      return NextResponse.json({ success: true, orders: [] }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
     }
 
-    const orders = (rows||[])
- .filter(r => String(r['customer ID'] || "").trim().toLowerCase() === custIdLower)
- .map(r => {
-        const currentLocation = String(r['Current Location'] || "").trim();
-        let driverLat = null;
-        let driverLng = null;
+    const supabase = getSupabase();
+    const custId = String(customerID).trim();
 
-        if (currentLocation && currentLocation.includes(",")) {
-          const parts = currentLocation.split(",");
-          driverLat = parts[0]?.trim() || null;
-          driverLng = parts[1]?.trim() || null;
-        }
+    const { data: rows, error } = await supabase
+      .from('order_requuest')
+      .select('"Request ID", "Cerated Date", "Pickup At", "Items Cost", "Delivery Fee", "Total Amount", "Approval Status", "Delivery Status", "Free Delivery Used", "Customer Latitude", "Customer Longitude", "Current Location"')
+      .ilike('"customer ID"', custId)
+      .order('"Cerated Date"', { ascending: false });
 
-        return {
-          requestID: r['Request ID'],
-          date: r['Cerated Date'],
-          pickupAt: r['Pickup At'], // <-- هاد السطر الوحيد اللي زدناه - هو اللي بيبلش من عند السائق
-          itemsCost: r['Items Cost'],
-          deliveryFee: r['Delivery Fee'],
-          total: r['Total Amount'],
-          approvalStatus: r['Approval Status'],
-          status: r['Delivery Status'],
-          freeUsed: String(r['Free Delivery Used'] || "").toUpperCase() === "TRUE",
-          customerLat: String(r['Customer Latitude'] || "").trim(),
-          customerLng: String(r['Customer Longitude'] || "").trim(),
-          driverLat: driverLat,
-          driverLng: driverLng,
-        };
-      });
+    if (error) throw error;
 
-    return NextResponse.json({ success: true, orders });
+    const orders = (rows||[]).map(r => {
+      const currentLocation = String(r['Current Location'] || "").trim();
+      let driverLat = null, driverLng = null;
+      if (currentLocation.includes(",")) {
+        const [lat,lng] = currentLocation.split(",");
+        driverLat = lat?.trim() || null;
+        driverLng = lng?.trim() || null;
+      }
+      return {
+        requestID: r['Request ID'],
+        date: r['Cerated Date'],
+        pickupAt: r['Pickup At'],
+        itemsCost: r['Items Cost'],
+        deliveryFee: r['Delivery Fee'],
+        total: r['Total Amount'],
+        approvalStatus: r['Approval Status'],
+        status: r['Delivery Status'],
+        freeUsed: String(r['Free Delivery Used'] || "").toUpperCase() === "TRUE",
+        customerLat: String(r['Customer Latitude'] || "").trim(),
+        customerLng: String(r['Customer Longitude'] || "").trim(),
+        driverLat, driverLng,
+      };
+    });
+
+    return NextResponse.json({ success: true, orders }, { 
+      headers: { 
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
+      } 
+    });
   } catch (e) {
-    console.error('Catch error in my-orders:', e);
-    return NextResponse.json({ success: false, orders: [], error: e.message });
+    return NextResponse.json({ success: false, orders: [], error: e.message }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   }
 }
