@@ -142,7 +142,7 @@ export default function StorePage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filteredProducts.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              <div className="relative w-full h- md:h- bg-white flex items-center justify-center overflow-hidden">
+              <div className="relative w-full h-[140px] md:h-[180px] bg-white flex items-center justify-center overflow-hidden">
                 <Image
                   src={product.image}
                   alt={product.name}
