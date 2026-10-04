@@ -18,20 +18,20 @@ export default function StorePage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
-    .then(async (res) => {
+   .then(async (res) => {
         if (res.ok) {
           const data = await res.json();
           if (data.user) setUser(data.user);
         }
       })
-    .finally(() => setCheckingUser(false));
+   .finally(() => setCheckingUser(false));
   }, []);
 
   useEffect(() => {
     if (!storeID) return;
     fetch(`/api/products/by-store?id=${storeID}`)
-  .then(res => res.json())
-  .then(data => {
+ .then(res => res.json())
+ .then(data => {
         if (data.success) {
           setProducts(data.products);
           setFilteredProducts(data.products);
@@ -58,32 +58,52 @@ export default function StorePage() {
       return;
     }
     setAddingId(productID);
-    try {
-      const res = await fetch('/api/cart/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ productID, qty: 1 })
-      });
-      if (res.status === 401) {
-        router.push('/login');
-        return;
-      }
-      const data = await res.json();
-      if (data.success || res.ok) {
-        const prod = products.find(p => p.productID === productID);
-        setToast(prod? prod.name : 'المنتج');
-        setTimeout(() => {
-          setToast(null);
+
+    const doAdd = async (lat, lng) => {
+      try {
+        const res = await fetch('/api/cart/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ productID, qty: 1, lat, lng })
+        });
+        if (res.status === 401) {
+          router.push('/login');
+          return;
+        }
+        const data = await res.json();
+        if (data.success || res.ok) {
+          const prod = products.find(p => p.productID === productID);
+          setToast(prod? prod.name : 'المنتج');
+          setTimeout(() => {
+            setToast(null);
+            setAddingId(null);
+          }, 2000);
+        } else {
+          alert(data.message || 'صار خطأ');
           setAddingId(null);
-        }, 2000);
-      } else {
-        alert(data.message || 'صار خطأ');
+        }
+      } catch (e) {
         setAddingId(null);
       }
-    } catch (e) {
+    };
+
+    if (!navigator.geolocation) {
+      alert("متصفحك ما بيدعم تحديد الموقع");
       setAddingId(null);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        doAdd(pos.coords.latitude, pos.coords.longitude);
+      },
+      () => {
+        alert("لازم تسمح بالموقع لتضيف عالسلة");
+        setAddingId(null);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   if (loading || checkingUser) return (
@@ -122,7 +142,7 @@ export default function StorePage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filteredProducts.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              <div className="relative w-full h-[140px] md:h-[180px] bg-white flex items-center justify-center overflow-hidden">
+              <div className="relative w-full h- md:h- bg-white flex items-center justify-center overflow-hidden">
                 <Image
                   src={product.image}
                   alt={product.name}
