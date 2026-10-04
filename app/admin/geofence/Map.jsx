@@ -1,9 +1,8 @@
 'use client';
-import { MapContainer, TileLayer, Circle, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Marker, Popup, useMapEvents, LayerGroup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// هذا بيصلح الـ marker المكسور
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -40,12 +39,14 @@ export default function Map({ centers, onAddCenter }) {
       <ClickHandler onAdd={onAddCenter} />
       
       {centers.map(c => (
-        <div key={c.id}>
-          <Marker position={[c.center_lat, c.center_lng]} />
-          {c.is_active && c.cart_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_cart*1000} pathOptions={{color:'red', fillOpacity:0.1}} />}
-          {c.is_active && c.taxi_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_taxi*1000} pathOptions={{color:'blue', fillOpacity:0.1}} />}
-          {c.is_active && c.bot_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_bot*1000} pathOptions={{color:'orange', fillOpacity:0.1}} />}
-        </div>
+        <LayerGroup key={c.id}>
+          <Marker position={[c.center_lat, c.center_lng]}>
+            <Popup>{c.name}</Popup>
+          </Marker>
+          {c.is_active && c.cart_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_cart*1000} pathOptions={{color:'red', fillOpacity:0.1, weight:2}} />}
+          {c.is_active && c.bot_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_bot*1000} pathOptions={{color:'orange', fillOpacity:0.1, weight:2}} />}
+          {c.is_active && c.taxi_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_taxi*1000} pathOptions={{color:'blue', fillOpacity:0.1, weight:2}} />}
+        </LayerGroup>
       ))}
     </MapContainer>
   );
