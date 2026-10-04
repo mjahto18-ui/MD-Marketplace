@@ -47,8 +47,8 @@ export default function GeofenceAdmin() {
 
       {/* القائمة الجانبية */}
       <div className="w-96 bg-zinc-900 text-white p-4 overflow-y-auto">
-        <h2 className="font-bold text-xl mb-4">السنترات ({centers.length})</h2>
-        <p className="text-xs text-zinc-400 mb-4">كبوس عالخريطة لتضيف سنتر جديد</p>
+        <h2 className="font-bold text-xl mb-4">مراكز التغطية ({centers.length})</h2>
+        <p className="text-xs text-zinc-400 mb-4">اضف مركز تغطية من الخريطة </p>
 
         {centers.map(c => (
           <div key={c.id} className="bg-zinc-800 rounded-lg p-3 mb-3">
