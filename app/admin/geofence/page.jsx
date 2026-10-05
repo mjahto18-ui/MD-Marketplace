@@ -145,8 +145,8 @@ export default function GeofenceAdmin() {
       </div>
 
       <div className="w-96 bg-zinc-900 text-white p-4 overflow-y-auto">
-        <h2 className="font-bold text-xl mb-1">مراكز التغطية ({centers.length})</h2>
-        <p className="text-xs text-zinc-400 mb-4">اضغط على الخريطة لإضافة مركز</p>
+        <h2 className="font-bold text-xl mb-1">مراكز ابراج التغطية ({centers.length})</h2>
+        <p className="text-xs text-zinc-400 mb-4">اضغط على الخريطة لإضافة برج تغطية</p>
 
         {centers.map(c => (
           <CenterCard key={c.id} c={c} onSave={saveCenter} onDelete={deleteCenter} />
