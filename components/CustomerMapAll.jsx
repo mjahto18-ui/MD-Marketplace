@@ -1,5 +1,5 @@
 "use client";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, LayerGroup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect, useState } from 'react';
@@ -88,7 +88,7 @@ function FitAll({ data }){
   return null
 }
 
-export default function CustomerMapAll({ data = [] }) {
+export default function CustomerMapAll({ data = [], centers = [] }) {
   const [localData, setLocalData] = useState(data)
   const [updating, setUpdating] = useState(null)
 
@@ -167,6 +167,43 @@ export default function CustomerMapAll({ data = [] }) {
     <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <FitAll data={finalPoints} />
+      {/* ===== هون تزيد هاد - جديد ===== */}
+  {centers.map(c => (
+    <LayerGroup key={`geofence-${c.id}`}>
+      {/* اذا المركز مش نشط لا ترسمو */}
+      {c.is_active && c.cart_enabled && (
+        <Circle 
+          center={[c.center_lat, c.center_lng]} 
+          radius={c.radius_cart * 1000}
+          pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.04, weight: 2, dashArray: '5, 10' }}
+        />
+      )}
+      {c.is_active && c.bot_enabled && (
+        <Circle 
+          center={[c.center_lat, c.center_lng]} 
+          radius={c.radius_bot * 1000}
+          pathOptions={{ color: '#f97316', fillColor: '#f97316', fillOpacity: 0.04, weight: 2, dashArray: '5, 10' }}
+        />
+      )}
+      {c.is_active && c.taxi_enabled && (
+        <Circle 
+          center={[c.center_lat, c.center_lng]} 
+          radius={c.radius_taxi * 1000}
+          pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.04, weight: 2 }}
+        />
+      )}
+      {/* نقطة المركز نفسو */}
+      <Marker 
+        position={[c.center_lat, c.center_lng]} 
+        icon={new L.DivIcon({
+          html: `<div style="background:black;color:white;font-size:10px;padding:2px 6px;border-radius:10px;white-space:nowrap">📍 ${c.name}</div>`,
+          iconSize: [80, 20],
+          iconAnchor: [40, 10]
+        })}
+      />
+    </LayerGroup>
+  ))}
+  {/* ===== انتهى الجديد ===== */}
       {finalPoints.map((group, idx)=>{
         const isSingle = group.count === 1;
         const item = group.items[0];
