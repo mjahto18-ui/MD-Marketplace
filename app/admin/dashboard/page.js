@@ -471,6 +471,31 @@ export default function Dashboard(){
           </div>
         </div>
 
+        {/* === قسم المالية - Admin / Accounting فقط - هون محلو الصح === */}
+        {isFinanceRole && (
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="text-right space-y-1">
+                <h2 className="text-[16px] font-black text-white" style={{fontFamily:'Andika'}}>
+                  المالية - التقارير والبنك
+                </h2>
+                <p className="text-[12px] text-[#FFD700]/60" style={{fontFamily:'Andika'}}>
+                  Finance - Reports & Wallet Management - Admin Only
+                </p>
+              </div>
+              <div className="h-px flex-1 bg-[#FFD700]/20 mx-6" />
+              <div className="text-[10px] text-[#FFD700]/40 tracking-widest" style={{fontFamily:'Andika'}}>
+                FINANCE
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <FinanceItem label="REPORTS AMOUNT - التقارير المالية" count={0} href="/admin/reports-amount" icon="📊" />
+              <FinanceItem label="WALLET - إدارة البنك والمحافظ" count={0} href="/admin/wallet" icon="🏦" />
+            </div>
+          </section>
+        )}
+
         {/* === قسم العمليات الجديد - SOS + 3 كروت + كرت Generate Code === */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
@@ -544,13 +569,7 @@ export default function Dashboard(){
             <Item label="PENDING REVIEWS" count={counts.pendingReviewsCount} href="/admin/pending-reviews" />
             <Item label="PENDING PRODUCTS" count={counts.pendingProducts} href="/admin/pending-products" />
 
-            {/* === كروت المالية - بس Admin / Accounting - لون اسود وذهبي === */}
-            {isFinanceRole && (
-              <>
-                <FinanceItem label="REPORTS AMOUNT - التقارير المالية" count={0} href="/admin/reports-amount" icon="📊" />
-                <FinanceItem label="WALLET - إدارة البنك والمحافظ" count={0} href="/admin/wallet" icon="🏦" />
-              </>
-            )}
+           
 
           </div>
 
