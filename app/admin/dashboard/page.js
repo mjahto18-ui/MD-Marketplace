@@ -129,6 +129,8 @@ export default function Dashboard(){
       supabase.from('pending_reviews').select('*').limit(2000),
       supabase.from('products').select('*').eq('Active','FALSE').limit(2000),
       supabase.from('taxi_sos').select('id').eq('status','open').limit(100),
+      supabase.from('geofence_centers').select('id').eq('is_active', true), // <-- هاد الجديد
+
     ])
 
     const today = new Date().toISOString().split('T')[0]
