@@ -286,6 +286,13 @@ export default function Dashboard(){
             </div>
           </div>
         </div>
+              {/* Geofence Card */}
+<Link href="/admin/geofence" className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl hover:bg-zinc-800 transition block">
+  <div className="text-2xl">📍🗺️</div>
+  <div className="font-bold mt-2">Geofence - أبراج التغطية</div>
+  <div className="text-xs text-zinc-400">تحكم بمناطق السلة والتاكسي والبوت</div>
+  <div className="text-sm mt-2 font-mono">{counts.geofenceCenters || 0} برج نشط</div>
+</Link>
 
         <div className="flex items-center gap-2 relative">
           {hasAlert && (
