@@ -23,21 +23,25 @@ const SUPPORT_EMAIL = "support@md-marketplace.store";
 const CONTACT_PHONE = "03177653";
 const PROTECTION_URL = "https://www.md-marketplace.store/protection-cases";
 
-// ===== قسم الجيو - جديد - ما بيمس شي قديم =====
-const GEO_CENTERS = [
-  { lat: 33.8938, lng: 35.5018, radiusKm: 15 }, // مثال بيروت
-];
+// ===== قسم الجيو - مربوط بجدول geofence_centers =====
 const GEO_RECHECK_DAYS = 10;
-function distanceKm(lat1, lng1, lat2, lng2) {
+function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
-  const dLat = (lat2-lat1)*Math.PI/180;
-  const dLng = (lng2-lng1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-function checkGeofence(lat, lng) {
-  if (!GEO_CENTERS.length) return true;
-  return GEO_CENTERS.some(c => distanceKm(lat, lng, c.lat, c.lng) <= c.radiusKm);
+async function checkGeofenceFromTable(lat, lng, service = 'bot') {
+  const supabase = getSupabase();
+  const { data: centers } = await supabase.from('geofence_centers').select('*').eq('is_active', true).eq(`${service}_enabled`, true);
+  if (!centers?.length) return { allowed: true };
+  for (let c of centers) {
+    const radius = c[`radius_${service}`];
+    const dist = getDistance(lat, lng, c.center_lat, c.center_lng);
+    if (dist <= radius) return { allowed: true, center: c.name };
+  }
+  return { allowed: false };
 }
 // ===== نهاية قسم الجيو =====
 
@@ -1021,7 +1025,8 @@ export async function POST(req) {
           last_lng: lng,
           last_location_at: new Date().toISOString()
         }).eq('phone', whatsappNumberEarly);
-        if (!checkGeofence(lat, lng)) {
+        const geo = await checkGeofenceFromTable(lat, lng, 'bot');
+          if (!geo.allowed) {
           console.log(`🚫 GEO خارج التغطية: ${whatsappNumberEarly} ${lat},${lng}`);
           await sendMessage(from, "عذراً منطقتك خارج التغطية حالياً 🙏 اذا انتقلت بعتلي موقعك الجديد 📍");
           return Response.json({ status: "ok", geo_blocked: true }, { status: 200 });
@@ -1066,7 +1071,8 @@ export async function POST(req) {
         await sendMessage(from, "صار فترة ما حدثت موقعك 🙏 ممكن تبعتلي موقعك مرة تانية للتأكيد؟ 📍");
         return Response.json({ status: "ok", geo_recheck: true }, { status: 200 });
       }
-      if (!checkGeofence(geoRow.last_lat, geoRow.last_lng)) {
+      const geo = await checkGeofenceFromTable(geoRow.last_lat, geoRow.last_lng, 'bot');
+        if (!geo.allowed) {
         console.log(`🚫 GEO مبلوك - برا التغطية ${whatsappNumber}`);
         await sendMessage(from, "عذراً منطقتك خارج التغطية حالياً 🙏 اذا انتقلت لمكان جديد بعتلي موقعك 📍");
         return Response.json({ status: "ok", geo_blocked: true }, { status: 200 });
