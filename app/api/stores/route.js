@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const supabase = getSupabase();
 
-    const { data: dataRows } = await supabase.from('stores').select('*');
+    const { data: dataRows } = await supabase.from('stores').select('*').eq('Status', 'Active');
 
     const stores = (dataRows||[]).map((row) => ({
       storeID: row['Store ID'],
