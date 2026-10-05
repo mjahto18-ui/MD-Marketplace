@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import BackToDashboard from "@/components/BackToDashboard";
+
 import dynamic from 'next/dynamic';
 
 const supabase = createClient(
@@ -146,6 +148,7 @@ export default function GeofenceAdmin() {
       </div>
 
       <div className="w-96 bg-zinc-900 text-white p-4 overflow-y-auto">
+        <BackToDashboard />
         <h2 className="font-bold text-xl mb-1">مراكز ابراج التغطية ({centers.length})</h2>
         <p className="text-xs text-zinc-400 mb-4">اضغط على الخريطة لإضافة برج تغطية</p>
 
