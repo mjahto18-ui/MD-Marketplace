@@ -25,9 +25,19 @@ export default function MappingCustomerPage() {
   const [view, setView] = useState([])
   const [tab, setTab] = useState('all')
   const [search, setSearch] = useState("")
+  const [centers, setCenters] = useState([]) // <-- جديد
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => { 
+    fetchAll() 
+    fetchGeofence() // <-- جديد
+  }, [])
+
+  // جديد - جيب مراكز التغطية
+  const fetchGeofence = async () => {
+    const { data } = await supabase.from('geofence_centers').select('*').eq('is_active', true)
+    setCenters(data || [])
+  }
 
   const fetchAllPaginated = async (table, cols) => {
     let allData = []
@@ -129,9 +139,10 @@ export default function MappingCustomerPage() {
         <button onClick={()=>{setTab('drivers'); apply('drivers', search)}} style={btnStyle('drivers', tab==='drivers')}>🟢 Drivers {all.drivers.length}</button>
         <button onClick={()=>{setTab('taxi_drivers'); apply('taxi_drivers', search)}} style={btnStyle('taxi_drivers', tab==='taxi_drivers')}>🟡 Taxi {all.taxi_drivers.length}</button>
         <input type="text" placeholder="فلتر اسم / رقم" value={search} onChange={e=>{setSearch(e.target.value); apply(tab, e.target.value)}} className="border-2 rounded-full px-4 py-2 w-80 ml-auto outline-none" style={{borderColor: 'black', background: '#fffde7'}} />
+        {centers.length>0 && <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">📍 {centers.length} مراكز تغطية</span>}
       </div>
       <div className="flex-1">
-        <CustomerMapAll data={view} colors={COLORS} />
+        <CustomerMapAll data={view} colors={COLORS} centers={centers} />
       </div>
     </div>
   )
