@@ -54,7 +54,7 @@ function CenterCard({ c, onSave, onDelete }) {
           </div>
           <input type="range" min="1" max="100" value={local.radius_cart}
             onChange={e => update('radius_cart', parseInt(e.target.value))}
-            className="w-full accent-blue-500" />
+            className="w-full accent-red-500" />
         </div>
 
         {/* تاكسي */}
@@ -70,7 +70,7 @@ function CenterCard({ c, onSave, onDelete }) {
           </div>
           <input type="range" min="1" max="100" value={local.radius_taxi}
             onChange={e => update('radius_taxi', parseInt(e.target.value))}
-            className="w-full accent-yellow-500" />
+            className="w-full accent-blue-500" />
         </div>
 
         {/* بوت */}
@@ -86,7 +86,7 @@ function CenterCard({ c, onSave, onDelete }) {
           </div>
           <input type="range" min="1" max="100" value={local.radius_bot}
             onChange={e => update('radius_bot', parseInt(e.target.value))}
-            className="w-full accent-red-500" />
+            className="w-full accent-orange-500" />
         </div>
       </div>
 
