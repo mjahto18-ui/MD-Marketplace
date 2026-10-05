@@ -14,6 +14,19 @@ function normalizePhone(p) {
   return String(p || "").replace(/\D/g, "").trim();
 }
 
+// === اضافة جديدة - حساب المسافة - نفس check-geofence ===
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
 function getEstimateEngineCode(vehicle_type, bundle) {
   const engines = bundle?.engines? Object.values(bundle.engines) : [];
   const vt = vehicle_type;
@@ -116,6 +129,24 @@ export async function POST(req) {
     if (!origin_lat ||!origin_lng ||!dest_lat ||!dest_lng) {
       return Response.json({ error: 'origin/dest required' }, { status: 400 });
     }
+
+    // === حماية جيوفنس تاكسي - جديدة - نفس منطق check-geofence ===
+    if (!origin_lat ||!origin_lng) {
+      return Response.json({ success: false, geofenced: true, message: "ما قدرنا نحدد موقع الانطلاق" }, { status: 403 });
+    }
+    const { data: centers } = await supabase.from('geofence_centers').select('*').eq('is_active', true).eq('taxi_enabled', true);
+    let allowed = false;
+    let matchedCenter = null;
+    for (let c of (centers||[])) {
+      const radius = c['radius_taxi'];
+      if (!radius) continue;
+      const dist = getDistance(Number(origin_lat), Number(origin_lng), c.center_lat, c.center_lng);
+      if (dist <= radius) { allowed = true; matchedCenter = c; break; }
+    }
+    if (!allowed) {
+      return Response.json({ success: false, geofenced: true, message: "التاكسي خارج نطاق التغطية حالياً - نقطة الانطلاق خارج الخدمة" }, { status: 403 });
+    }
+    // === نهاية حماية جيوفنس ===
 
     const bundle = await getPricingConfig();
     const finalEngineCode = getEstimateEngineCode(vehicle_type, bundle);
