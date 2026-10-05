@@ -167,42 +167,57 @@ export default function CustomerMapAll({ data = [], centers = [] }) {
     <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <FitAll data={finalPoints} />
+      
       {/* ===== هون تزيد هاد - جديد ===== */}
   {centers.map(c => (
-    <LayerGroup key={`geofence-${c.id}`}>
-      {/* اذا المركز مش نشط لا ترسمو */}
-      {c.is_active && c.cart_enabled && (
-        <Circle 
-          center={[c.center_lat, c.center_lng]} 
-          radius={c.radius_cart * 1000}
-          pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.04, weight: 2, dashArray: '5, 10' }}
-        />
-      )}
-      {c.is_active && c.bot_enabled && (
-        <Circle 
-          center={[c.center_lat, c.center_lng]} 
-          radius={c.radius_bot * 1000}
-          pathOptions={{ color: '#f97316', fillColor: '#f97316', fillOpacity: 0.04, weight: 2, dashArray: '5, 10' }}
-        />
-      )}
-      {c.is_active && c.taxi_enabled && (
-        <Circle 
-          center={[c.center_lat, c.center_lng]} 
-          radius={c.radius_taxi * 1000}
-          pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.04, weight: 2 }}
-        />
-      )}
-      {/* نقطة المركز نفسو */}
-      <Marker 
-        position={[c.center_lat, c.center_lng]} 
-        icon={new L.DivIcon({
-          html: `<div style="background:black;color:white;font-size:10px;padding:2px 6px;border-radius:10px;white-space:nowrap">📍 ${c.name}</div>`,
-          iconSize: [80, 20],
-          iconAnchor: [40, 10]
-        })}
+  <LayerGroup key={`geofence-${c.id}`}>
+    {c.is_active && c.cart_enabled && (
+      <Circle 
+        center={[c.center_lat, c.center_lng]} 
+        radius={c.radius_cart * 1000}
+        pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.06, weight: 1.5, dashArray: '8, 8' }}
       />
-    </LayerGroup>
-  ))}
+    )}
+    {c.is_active && c.bot_enabled && (
+      <Circle 
+        center={[c.center_lat, c.center_lng]} 
+        radius={c.radius_bot * 1000}
+        pathOptions={{ color: '#f97316', fillColor: '#f97316', fillOpacity: 0.06, weight: 1.5, dashArray: '8, 8' }}
+      />
+    )}
+    {c.is_active && c.taxi_enabled && (
+      <Circle 
+        center={[c.center_lat, c.center_lng]} 
+        radius={c.radius_taxi * 1000}
+        pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.06, weight: 1.5 }}
+      />
+    )}
+    {/* نقطة صغيرة بالنص + الاسم يظهر بس عند الـ hover */}
+    <Circle
+      center={[c.center_lat, c.center_lng]}
+      radius={80}
+      pathOptions={{ color: 'black', fillColor: 'black', fillOpacity: 1, weight: 0 }}
+    />
+    <Marker 
+      position={[c.center_lat, c.center_lng]} 
+      icon={new L.DivIcon({
+        html: `<div style="font-size:9px;font-weight:800;color:black;background:rgba(255,255,255,0.9);padding:1px 4px;border-radius:4px;border:1px solid black;transform:translateY(-18px);white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.3)">${c.name}</div>`,
+        iconSize: [1, 1],
+        iconAnchor: [0, 0],
+        className: 'geofence-label'
+      })}
+    >
+      <Popup>
+        <div className="text-xs">
+          <b>📍 {c.name}</b><br/>
+          سلة: {c.radius_cart}km<br/>
+          بوت: {c.radius_bot}km<br/>
+          تاكسي: {c.radius_taxi}km
+        </div>
+      </Popup>
+    </Marker>
+  </LayerGroup>
+))}
   {/* ===== انتهى الجديد ===== */}
       {finalPoints.map((group, idx)=>{
         const isSingle = group.count === 1;
