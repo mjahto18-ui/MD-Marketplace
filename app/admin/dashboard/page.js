@@ -154,6 +154,8 @@ export default function Dashboard(){
       overpayTotal: pendingOverpay?.length||0,
       pendingReviewsCount: pendingReviews?.filter(c=>c['Status']==='Pending' || c['status']==='pending').length|| pendingReviews?.length||0,
       pendingProducts: pendingProducts?.length||0,
+       geofenceCenters: geofenceData?.length || 0,
+
     })
     // SOS count
     setSosCount(sosOpen?.length||0)
