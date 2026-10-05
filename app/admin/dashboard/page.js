@@ -117,8 +117,7 @@ export default function Dashboard(){
       }catch{}
     }
 
-    const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}] = await Promise.all([
-      supabase.from('customers').select('*').limit(1000),
+     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}, {data: geofenceData}] = await Promise.all([      supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
       supabase.from('asceses').select('*').eq('role', role),
@@ -290,13 +289,7 @@ export default function Dashboard(){
             </div>
           </div>
         </div>
-              {/* Geofence Card */}
-<Link href="/admin/geofence" className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl hover:bg-zinc-800 transition block">
-  <div className="text-2xl">📍🗺️</div>
-  <div className="font-bold mt-2">Geofence - أبراج التغطية</div>
-  <div className="text-xs text-zinc-400">تحكم بمناطق السلة والتاكسي والبوت</div>
-  <div className="text-sm mt-2 font-mono">{counts.geofenceCenters || 0} برج نشط</div>
-</Link>
+              
 
         <div className="flex items-center gap-2 relative">
           {hasAlert && (
@@ -501,6 +494,7 @@ export default function Dashboard(){
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            <OperationItem label="Geofence - أبراج التغطية" href="/admin/geofence" icon="📍" sub={`${counts.geofenceCenters || 0} برج نشط - تحكم بمناطق السلة والتاكسي والبوت`} />
             {/* 3 كروت عمليات - بلا عداد - نفس قالب Item + كرت Generate Code الجديد */}
             <OperationItem label="الحضور - مين بالدوام؟" href="/admin/attendance" icon="👥" sub="تحكم يدوي + تصفير جهاز" />
             <OperationItem label="الرواتب - الكود الخماسي" href="/admin/payroll" icon="💰" sub="احسب رواتب الشهر" />
