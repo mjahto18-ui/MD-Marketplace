@@ -1,4 +1,3 @@
-
 import { getSupabase as getSupabaseLib, getUserByWhatsAppNumber as getUserByWhatsAppNumberLib, normalizePhone, getCustomerRowByPhone as getCustomerRowByPhoneLib, canOpenBot2 } from "@/lib/supabase";
 import { PERSONAS_PHOTOS, PERSONAS_FALLBACK } from "@/lib/personas";
 export const dynamic = "force-dynamic";
@@ -23,6 +22,24 @@ const INFO_EMAIL = "info@md-marketplace.store";
 const SUPPORT_EMAIL = "support@md-marketplace.store";
 const CONTACT_PHONE = "03177653";
 const PROTECTION_URL = "https://www.md-marketplace.store/protection-cases";
+
+// ===== قسم الجيو - جديد - ما بيمس شي قديم =====
+const GEO_CENTERS = [
+  { lat: 33.8938, lng: 35.5018, radiusKm: 15 }, // مثال بيروت
+];
+const GEO_RECHECK_DAYS = 10;
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function checkGeofence(lat, lng) {
+  if (!GEO_CENTERS.length) return true;
+  return GEO_CENTERS.some(c => distanceKm(lat, lng, c.lat, c.lng) <= c.radiusKm);
+}
+// ===== نهاية قسم الجيو =====
 
 if (!globalThis._processed) globalThis._processed = new Map();
 if (!globalThis._lastProduct) globalThis._lastProduct = new Map();
@@ -862,7 +879,7 @@ ${driverContext}
     });
 
     const data = await res.json();
-    
+
     if (data.error) {
       console.error("❌ Gemini Error:", JSON.stringify(data.error));
       if (data.error.code === 429) {
@@ -884,9 +901,9 @@ ${driverContext}
     }
 
     return text;
-  } catch (error) { 
-    console.error("❌ خطأ اتصال Gemini:", error); 
-    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية."; 
+  } catch (error) {
+    console.error("❌ خطأ اتصال Gemini:", error);
+    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
   }
 }
 
@@ -979,7 +996,7 @@ export async function POST(req) {
       await saveToAppSheet(from, `صورة باركود ${decoded}`, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BARCODE_IMAGE_OFF" });
       return Response.json({ status: "ok" }, { status: 200 });
     }
-    // ===== LOCATION FORWARD TO BOT3 - مصلح =====
+    // ===== LOCATION FORWARD TO BOT3 - مصلح + GEO SAVE =====
     if (message?.type === "location") {
       const whatsappNumberEarly = normalizeWhatsAppNumber(from);
       const sessionEarly = await getBotSessionTable(whatsappNumberEarly);
@@ -994,6 +1011,26 @@ export async function POST(req) {
         } catch(e){ console.error("BOT1->BOT3 location forward error", e.message); }
         return Response.json({ status: "ok", forwarded_to: "BOT3_LOCATION" }, { status: 200 });
       }
+      // ===== GEO: حفظ لوكيشن بـ rate_limits =====
+      try {
+        const lat = message.location.latitude;
+        const lng = message.location.longitude;
+        const supabase = getSupabase();
+        await supabase.from('rate_limits').update({
+          last_lat: lat,
+          last_lng: lng,
+          last_location_at: new Date().toISOString()
+        }).eq('phone', whatsappNumberEarly);
+        if (!checkGeofence(lat, lng)) {
+          console.log(`🚫 GEO خارج التغطية: ${whatsappNumberEarly} ${lat},${lng}`);
+          await sendMessage(from, "عذراً منطقتك خارج التغطية حالياً 🙏 اذا انتقلت بعتلي موقعك الجديد 📍");
+          return Response.json({ status: "ok", geo_blocked: true }, { status: 200 });
+        }
+        console.log(`✅ GEO جوا التغطية: ${whatsappNumberEarly} ${lat},${lng}`);
+        await sendMessage(from, "شكراً! تم حفظ موقعك ✅ كيف بقدر ساعدك؟");
+        await saveToAppSheet(from, `لوكيشن ${lat},${lng}`, "تم حفظ الموقع - جوا التغطية", { botSession: BOT1_SESSION, bot: "BOT1", messageType: "GEO_LOCATION" });
+        return Response.json({ status: "ok", geo_saved: true }, { status: 200 });
+      } catch(e){ console.log("GEO save error", e.message); }
       console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude, message.location.name, message.location.address);
       return Response.json({ status: "ok" }, { status: 200 });
     }
@@ -1013,6 +1050,30 @@ export async function POST(req) {
       console.log(`🚫 Rate limited: ${whatsappNumber} - ${rate.msg || 'silent'}`);
       return Response.json({ status: "ok", rate_limited: true }, { status: 200 });
     }
+
+    // ===== GEO CHECK: كل رسالة نص =====
+    try {
+      const supabase = getSupabase();
+      const { data: geoRow } = await supabase.from('rate_limits').select('last_lat, last_lng, last_location_at').eq('phone', whatsappNumber).maybeSingle();
+      if (!geoRow?.last_lat ||!geoRow?.last_lng) {
+        console.log(`📍 GEO ما في لوكيشن لـ ${whatsappNumber} - طلب لوكيشن`);
+        await sendMessage(from, "أهلا! قبل ما نبلش ممكن تبعتلي موقعك؟ 📍 حتى اتأكد انك ضمن التغطية");
+        return Response.json({ status: "ok", geo_need_location: true }, { status: 200 });
+      }
+      const daysSince = geoRow.last_location_at? (Date.now() - new Date(geoRow.last_location_at)) / (1000*60*60*24) : 999;
+      if (daysSince > GEO_RECHECK_DAYS) {
+        console.log(`📍 GEO اعادة لوكيشن بعد ${daysSince.toFixed(1)} يوم لـ ${whatsappNumber}`);
+        await sendMessage(from, "صار فترة ما حدثت موقعك 🙏 ممكن تبعتلي موقعك مرة تانية للتأكيد؟ 📍");
+        return Response.json({ status: "ok", geo_recheck: true }, { status: 200 });
+      }
+      if (!checkGeofence(geoRow.last_lat, geoRow.last_lng)) {
+        console.log(`🚫 GEO مبلوك - برا التغطية ${whatsappNumber}`);
+        await sendMessage(from, "عذراً منطقتك خارج التغطية حالياً 🙏 اذا انتقلت لمكان جديد بعتلي موقعك 📍");
+        return Response.json({ status: "ok", geo_blocked: true }, { status: 200 });
+      }
+      console.log(`✅ GEO مسموح ${whatsappNumber}`);
+    } catch(e){ console.log("GEO check error", e.message); }
+    // ===== نهاية GEO CHECK =====
 
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
     const rawText = String(userText || "").trim();
