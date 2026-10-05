@@ -57,22 +57,7 @@ function CenterCard({ c, onSave, onDelete }) {
             className="w-full accent-red-500" />
         </div>
 
-        {/* تاكسي */}
-        <div>
-          <div className="flex justify-between">
-            <span>🚕 تاكسي</span>
-            <div className="flex gap-2 items-center">
-              <input type="number" min="1" max="100" value={local.radius_taxi}
-                onChange={e => update('radius_taxi', parseInt(e.target.value) || 1)}
-                className="bg-zinc-700 w-14 p-1 rounded text-center" />
-              <span>km</span>
-            </div>
-          </div>
-          <input type="range" min="1" max="100" value={local.radius_taxi}
-            onChange={e => update('radius_taxi', parseInt(e.target.value))}
-            className="w-full accent-blue-500" />
-        </div>
-
+        
         {/* بوت */}
         <div>
           <div className="flex justify-between">
@@ -88,13 +73,29 @@ function CenterCard({ c, onSave, onDelete }) {
             onChange={e => update('radius_bot', parseInt(e.target.value))}
             className="w-full accent-orange-500" />
         </div>
+        
+        {/* تاكسي */}
+        <div>
+          <div className="flex justify-between">
+            <span>🚕 تاكسي</span>
+            <div className="flex gap-2 items-center">
+              <input type="number" min="1" max="100" value={local.radius_taxi}
+                onChange={e => update('radius_taxi', parseInt(e.target.value) || 1)}
+                className="bg-zinc-700 w-14 p-1 rounded text-center" />
+              <span>km</span>
+            </div>
+          </div>
+          <input type="range" min="1" max="100" value={local.radius_taxi}
+            onChange={e => update('radius_taxi', parseInt(e.target.value))}
+            className="w-full accent-blue-500" />
+        </div>
       </div>
 
       <div className="flex gap-3 mt-3 text-xs">
         <label className="flex gap-1"><input type="checkbox" checked={local.is_active} onChange={e => update('is_active', e.target.checked)} /> نشط</label>
-        <label className="flex gap-1"><input type="checkbox" checked={local.cart_enabled} onChange={e => update('cart_enabled', e.target.checked)} /> سلة</label>
-        <label className="flex gap-1"><input type="checkbox" checked={local.taxi_enabled} onChange={e => update('taxi_enabled', e.target.checked)} /> تاكسي</label>
+        <label className="flex gap-1"><input type="checkbox" checked={local.cart_enabled} onChange={e => update('cart_enabled', e.target.checked)} /> سلة</label>      
         <label className="flex gap-1"><input type="checkbox" checked={local.bot_enabled} onChange={e => update('bot_enabled', e.target.checked)} /> بوت</label>
+        <label className="flex gap-1"><input type="checkbox" checked={local.taxi_enabled} onChange={e => update('taxi_enabled', e.target.checked)} /> تاكسي</label>
       </div>
 
       <button onClick={() => onDelete(local.id)} className="mt-3 text-red-400 text-xs hover:text-red-300">حذف المركز</button>
