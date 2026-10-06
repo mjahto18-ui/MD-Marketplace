@@ -31,22 +31,46 @@ export default function AdminLogin(){
   const [regLoading,setRegLoading]=useState(false)
 
   const login = async ()=>{
+    const p = phone.trim()
+    const b = pin.trim()
+
+    if(!p && !b){
+      setErr("المرجو تعبئة رقم الموبايل وكلمة المرور")
+      return
+    }
+    if(!p){
+      setErr("المرجو إدخال رقم الموبايل")
+      return
+    }
+    if(!b){
+      setErr("المرجو إدخال كلمة المرور")
+      return
+    }
+    if(!/^\d{8}$/.test(p)){
+      setErr("رقم الموبايل يجب أن يكون 8 أرقام بالضبط")
+      return
+    }
+    if(!/^\d{4}$/.test(b)){
+      setErr("كلمة المرور يجب أن تكون 4 أرقام بالضبط")
+      return
+    }
+
     setErr(""); setLoading(true)
     try{
-      const res = await fetch('/api/admin/login',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone,pin})})
+      const res = await fetch('/api/admin/login',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone:p,pin:b})})
       const j = await res.json()
       if(j.success){ 
 
         // ✅ رجعنا OneSignal هون - نفس تبع الكوستمر
         try{
           if(typeof window !== "undefined" && window.OneSignal){
-            await window.OneSignal.login(phone);
+            await window.OneSignal.login(p);
 
             // Tag للمتجر والرول
             const storeId = j.store_id || j.storeId || j.user?.store_id || j.user?.storeId || "admin";
             await window.OneSignal.User.addTag("store_id", storeId);
             await window.OneSignal.User.addTag("role", j.role || "admin");
-            await window.OneSignal.User.addTag("userId", j.userId || phone);
+            await window.OneSignal.User.addTag("userId", j.userId || p);
 
             let subId = null;
             for(let i=0;i<10;i++){
@@ -56,7 +80,7 @@ export default function AdminLogin(){
             }
 
             if(subId){
-              const userIdForSub = j.userId || j.user?.userId || j.userID || phone;
+              const userIdForSub = j.userId || j.user?.userId || j.userID || p;
               await fetch("/api/save-subscription",{
                 method:"POST",
                 headers:{"Content-Type":"application/json"},
@@ -296,11 +320,11 @@ export default function AdminLogin(){
           <div style={{width:'40px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', margin:'10px auto 0', borderRadius:'10px'}}></div>
         </div>
         <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
-          <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="رقم الموبايل" style={{width:'100%', padding:'14px 16px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
-          <input value={pin} onChange={e=>setPin(e.target.value)} type="password" placeholder="كلمة المرور" style={{width:'100%', padding:'14px 16px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+          <input value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,8))} maxLength={8} inputMode="numeric" placeholder="رقم الموبايل (8 أرقام)" style={{width:'100%', padding:'14px 16px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+          <input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,4))} maxLength={4} inputMode="numeric" type="password" placeholder="كلمة المرور (4 أرقام)" style={{width:'100%', padding:'14px 16px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
         </div>
         {err && <div style={{background:'rgba(239,68,68,0.1)', color:'#fca5a5', padding:'12px', borderRadius:'10px', fontSize:'13px', marginTop:'14px', textAlign:'center'}}>{err}</div>}
-        <button onClick={login} disabled={loading} style={{width:'100%', background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)', color:'white', padding:'14px', borderRadius:'12px', fontWeight:'bold', border:'none', marginTop:'20px', cursor:'pointer', opacity: loading?0.6:1}}>{loading?'جاري الدخول...':'دخول'}</button>
+        <button onClick={login} disabled={loading || phone.length!==8 || pin.length!==4} style={{width:'100%', background: (phone.length===8 && pin.length===4) ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'rgba(255,255,255,0.15)', color:'white', padding:'14px', borderRadius:'12px', fontWeight:'bold', border:'none', marginTop:'20px', cursor: (phone.length===8 && pin.length===4) ? 'pointer' : 'not-allowed', opacity: loading?0.6:1}}>{loading?'جاري الدخول...':'دخول'}</button>
 
         <div style={{textAlign:'center', marginTop:'22px'}}>
           <span onClick={openCodeBox} style={{color:'white', fontWeight:'800', fontSize:'17px', cursor:'pointer', textDecoration:'underline'}}>سجل الآن</span>
