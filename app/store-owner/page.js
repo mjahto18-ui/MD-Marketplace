@@ -378,7 +378,7 @@ export default function StoreDashboard(){
                 {(sub?.needSub || sub?.expired)? (
                   <div style={{...glassCard, padding:20, borderRadius:16, textAlign:'center'}}>
                     <div style={{fontSize:40}}>{sub?.needSub? '🔒' : '⛔'}</div>
-                    <div style={{fontWeight:900, marginTop:8}}>{sub?.needSub? 'هالخدمة بدها باقة اشتراك تتفعل' : 'انتهى اشتراك الرواتب'}</div>
+                    <div style={{fontWeight:900, marginTop:8}}>{sub?.needSub? 'هذه الخدمة يلزم باقة اشتراك لتفعيلها' : 'انتهى اشتراك الرواتب'}</div>
                     <div style={{fontSize:12, opacity:0.7, marginTop:6}}>{sub?.needSub? <>الرواتب ميزة مدفوعة<br/>فعل الباقة</> : <>انتهى بتاريخ {sub.end}<br/>الرواتب مقفولة</>}</div>
                   </div>
                 ) : (
@@ -394,6 +394,18 @@ export default function StoreDashboard(){
                     const amtStr = Number(r.amount||0).toLocaleString()
                     const storeName = store?.['Store Name'] || me.storeId
                     const waMsg = `مرحبا ${empName} 👋%0Aراتبك لشهر ${r.month_year} جاهز ✅%0Aالمتجر: ${storeName}%0A%0A💰 المبلغ: ${amtStr} ل.ل%0A⏰ مجموع ${r.total_hours||0}س - اضافي ${r.overtime_hours||0}س%0A🔑 كود الاستلام: ${r.secret_code_5}%0A%0Aلا تشارك الرمز الاستلام مع اي شخص .`
+                    // 2. هول الجداد اللي سألت عنهن - بتنضف الرقم
+const rawMobile = r.employees?.mobile || ''
+const cleanMobile = rawMobile.replace(/[^0-9]/g,'')
+const waNumber = cleanMobile.startsWith('961') 
+  ? cleanMobile 
+  : cleanMobile.startsWith('0') 
+    ? `961${cleanMobile.slice(1)}` 
+    : cleanMobile ? `961${cleanMobile}` : ''
+    
+const waLink = waNumber 
+  ? `https://wa.me/${waNumber}?text=${waMsg}`
+  : `https://wa.me/?text=${waMsg}`
                     return (
                     <div key={r.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)', gap:'10px'}}>
                       <div style={{flex:1, minWidth:0}}>
@@ -405,7 +417,7 @@ export default function StoreDashboard(){
                           <div style={{marginTop:'8px', display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center'}}>
                             <div style={{fontSize:'12px', color:'#fde68a', background:'rgba(251,191,36,0.15)', padding:'6px 10px', borderRadius:'8px', fontWeight:900, border:'1px dashed #f59e0b'}}>🔑 الكود: {r.secret_code_5}</div>
                             <button onClick={()=>{navigator.clipboard.writeText(String(r.secret_code_5)); alert('تم نسخ الكود: '+r.secret_code_5)}} style={{padding:'6px 10px', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.08)', color:'white', fontSize:'11px', cursor:'pointer'}}>📋 نسخ</button>
-                            <button onClick={()=>window.open(`https://wa.me/?text=${waMsg}`,'_blank')} style={{padding:'6px 12px', borderRadius:'8px', border:'none', background:'#25D366', color:'white', fontSize:'11px', fontWeight:900, cursor:'pointer'}}>واتساب 📱 مشاركة</button>
+                            <button onClick={()=>window.open(waLink,'_blank')} style={{padding:'6px 12px', borderRadius:'8px', border:'none', background:'#25D366', color:'white', fontSize:'11px', fontWeight:900, cursor:'pointer'}}>واتساب 📱 مشاركة</button>
                           </div>
                         )}
                         {r.status==='pending' && <div style={{fontSize:'10px', opacity:0.4, marginTop:'6px'}}>⏳ بانتظار تحويل الادمن للمحفظة</div>}
