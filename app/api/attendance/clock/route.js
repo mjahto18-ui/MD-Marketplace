@@ -77,23 +77,28 @@ export async function POST(req){
       return NextResponse.json({success:false, message:'QR لا يطابق المتجر'})
     }
 
-    // 3. جيب الموظف حسب البصمة إذا ما عنا ID
-    if(!qrEmployeeId && !employee_id){
-      const { data: empByPrint } = await supabase.from('employees')
-        .select('id, device_fingerprint, full_name, store_id').eq('device_fingerprint', device_fingerprint).single()
-      if(!empByPrint) return NextResponse.json({success:false, message:'جهازك غير موثق - اختر اسمك من الشاشة أول مرة'})
-      employee_id = empByPrint.id
-    }
+   // 3. جيب الموظف حسب البصمة إذا ما عنا ID
+if(!qrEmployeeId && !employee_id){
+  const { data: empByPrint } = await supabase.from('employees')
+    .select('id, full_name, is_active').eq('device_fingerprint', device_fingerprint).single()
+  
+  if(!empByPrint) return NextResponse.json({success:false, message:'جهازك غير موثق - اختر اسمك من الشاشة أول مرة'})
+  
+  if(empByPrint.is_active === false) return NextResponse.json({success:false, message:'⛔ خدماتك متوقفة -  يرجى مراجعة الإدارة'})
+  
+  employee_id = empByPrint.id
+}
 
     if(!employee_id) return NextResponse.json({success:false, message:'لايوجد ID لهذا الموظف - اختر اسمك من الشاشة'})
     
     // 4. جيب الموظف وتأكد انه تابع لنفس المتجر
     const { data: emp } = await supabase.from('employees')
-      .select('id, device_fingerprint, full_name, store_id')
-      .eq('id', employee_id).single()
-    
-    if(!emp) return NextResponse.json({success:false, message:'موظف مش موجود'})
+  .select('id, device_fingerprint, full_name, store_id, is_active') // زيد is_active
+  .eq('id', employee_id).single()
 
+   if(!emp) return NextResponse.json({success:false, message:'موظف مش موجود'})
+   if(emp.is_active === false) return NextResponse.json({success:false, message:'⛔ خدمات الموظف متوقفة - لا يستطيع تسجيل دخول'})
+    
     // --- أهم شرط أمان: الموظف لازم يكون تابع لنفس متجر الـ QR ---
     if(emp.store_id && emp.store_id !== finalStoreId){
       return NextResponse.json({success:false, message:`هذا الموظف تابع لمتجر ${emp.store_id} وليس ${finalStoreId} ❌`})
