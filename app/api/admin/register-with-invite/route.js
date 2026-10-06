@@ -46,7 +46,7 @@ export async function POST(req) {
         "Mobile": phone,
         "Area": area,
         "VehicleTyp": vehicleTyp,
-        "Status": "Active",
+        "Status": "Inactive",
         "Current Latitude": latNum,
         "Current Longitude": lngNum,
         "Last Location Update": now
@@ -79,7 +79,7 @@ export async function POST(req) {
         lng: lngNum,
         "Current Latitude": latNum,
         "Current Longitude": lngNum,
-        status: "active",
+        status: "pending",
         is_online: false,
         commission_percentage: 10,
         "Last Location Update": now
