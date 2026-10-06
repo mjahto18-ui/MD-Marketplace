@@ -128,7 +128,7 @@ export default function AdminLogin(){
     e.preventDefault()
     setRegErr(""); setRegLoading(true)
     if(!navigator.geolocation){
-      setRegErr("المتصفح ما بيدعم اللوكيشن"); setRegLoading(false); return
+      setRegErr("المتصفح لا يدعم اللوكيشن"); setRegLoading(false); return
     }
     navigator.geolocation.getCurrentPosition(async (pos)=>{
       const lat = pos.coords.latitude
@@ -163,7 +163,7 @@ export default function AdminLogin(){
         })
         const j = await res.json()
         if(!res.ok) throw new Error(j.error || "فشل التسجيل")
-        alert(j.message || "تم التسجيل وحرق الكود")
+        alert(j.message || "تم التسجيل وحظر الرمز السري")
         resetForm()
         setShowRegister(false)
         setVerifiedCode("")
@@ -173,7 +173,7 @@ export default function AdminLogin(){
       }
       setRegLoading(false)
     }, ()=>{
-      setRegErr("لازم تسمح باللوكيشن - أول نقطة إجبارية للكل")
+      setRegErr("يرجى تفعيل اللوكيشن - لتكملة التسجيل ")
       setRegLoading(false)
     })
   }
@@ -183,8 +183,8 @@ export default function AdminLogin(){
       <div style={{minHeight:'100vh', background:'radial-gradient(1200px at 20% -10%, #1a0b2e 0%, #0a0a14 45%, #080811 100%)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Cairo, sans-serif', padding:'20px'}}>
         <div style={{background:'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))', backdropFilter:'blur(20px)', padding:'28px', borderRadius:'24px', width:'500px', maxHeight:'90vh', overflowY:'auto', border:'1px solid rgba(255,255,255,0.08)'}}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px'}}>
-            <h2 style={{color:'white', fontWeight:'bold'}}>فورم التسجيل - الكود: {verifiedCode}</h2>
-            <button onClick={()=>{resetForm(); setShowRegister(false); setVerifiedCode("")}} style={{background:'rgba(255,255,255,0.1)', color:'white', border:'none', padding:'6px 12px', borderRadius:'8px', cursor:'pointer'}}>إغلاق البوكس - إلغاء</button>
+            <h2 style={{color:'white', fontWeight:'bold'}}>نموذج التسجيل - الرمز: {verifiedCode}</h2>
+            <button onClick={()=>{resetForm(); setShowRegister(false); setVerifiedCode("")}} style={{background:'rgba(255,255,255,0.1)', color:'white', border:'none', padding:'6px 12px', borderRadius:'8px', cursor:'pointer'}}> إلغاء التسجيل</button>
           </div>
 
           <div style={{display:'flex', gap:'8px', marginBottom:'12px'}}>
@@ -195,7 +195,7 @@ export default function AdminLogin(){
 
           <form onSubmit={handleRegister} style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             <input value={regForm.name} onChange={e=>setRegForm({...regForm, name:e.target.value})} placeholder={regForm.role==='store'?'اسم صاحب المتجر*':'الاسم الكامل*'} style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
-            <input value={regForm.phone} onChange={e=>setRegForm({...regForm, phone:e.target.value})} placeholder="رقم الموبايل*" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
+            <input value={regForm.phone} onChange={e=>setRegForm({...regForm, phone:e.target.value})} placeholder="رقم الهاتف*" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} required />
 
             {regForm.role==='driver' && (
               <>
@@ -211,7 +211,7 @@ export default function AdminLogin(){
 
             {regForm.role==='taxi_driver' && (
               <>
-                <input value={regForm.area} onChange={e=>setRegForm({...regForm, area:e.target.value})} placeholder="المنطقة - كتابة حرة" style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+                <input value={regForm.area} onChange={e=>setRegForm({...regForm, area:e.target.value})} placeholder="المنطقة " style={{padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
                 <div style={{display:'flex', gap:'8px'}}>
                   <select value={regForm.vehicle_type} onChange={e=>{
                     const vt = e.target.value
@@ -268,7 +268,7 @@ export default function AdminLogin(){
                     </div>
                   </div>
                 </div>
-                <div style={{color:'rgba(255,255,255,0.5)', fontSize:'10px'}}>Join Date dd/mm/yyyy now - بينحط لحالو</div>
+                <div style={{color:'rgba(255,255,255,0.5)', fontSize:'10px'}}>Join Date dd/mm/yyyy now - automatic</div>
               </>
             )}
 
@@ -309,11 +309,11 @@ export default function AdminLogin(){
         {showCodeBox && (
           <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:'20px'}}>
             <div style={{background:'linear-gradient(180deg, rgba(30,20,50,0.95), rgba(10,10,20,0.95))', padding:'24px', borderRadius:'16px', width:'360px', border:'1px solid rgba(255,255,255,0.15)'}}>
-              <h3 style={{color:'white', fontWeight:'bold', fontSize:'16px', marginBottom:'14px', textAlign:'center'}}>حط الكود</h3>
-              <input value={inviteCode} onChange={e=>setInviteCode(e.target.value)} placeholder="كود 6 أرقام" style={{width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.15)', color:'white', textAlign:'center', fontSize:'18px', letterSpacing:'4px'}} />
+              <h3 style={{color:'white', fontWeight:'bold', fontSize:'16px', marginBottom:'14px', textAlign:'center'}}>يرجى إدخال الرمز السري</h3>
+              <input value={inviteCode} onChange={e=>setInviteCode(e.target.value)} placeholder="الرمز يجب ان يكون 6 أرقام" style={{width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.15)', color:'white', textAlign:'center', fontSize:'18px', letterSpacing:'4px'}} />
               {codeErr && <div style={{background:'rgba(239,68,68,0.15)', color:'#fca5a5', padding:'8px', borderRadius:'8px', fontSize:'12px', marginTop:'10px', textAlign:'center'}}>{codeErr}</div>}
               <div style={{display:'flex', gap:'10px', marginTop:'16px'}}>
-                <button onClick={()=>setShowCodeBox(false)} style={{flex:1, background:'rgba(255,255,255,0.1)', color:'white', padding:'10px', borderRadius:'10px', border:'none', cursor:'pointer'}}>إلغاء - إغلاق البوكس</button>
+                <button onClick={()=>setShowCodeBox(false)} style={{flex:1, background:'rgba(255,255,255,0.1)', color:'white', padding:'10px', borderRadius:'10px', border:'none', cursor:'pointer'}}>إلغاء التسجيل</button>
                 <button onClick={checkCode} disabled={codeLoading} style={{flex:1, background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)', color:'white', padding:'10px', borderRadius:'10px', border:'none', fontWeight:'bold', cursor:'pointer', opacity: codeLoading?0.6:1}}>{codeLoading?'جاري...':'موافق'}</button>
               </div>
             </div>
