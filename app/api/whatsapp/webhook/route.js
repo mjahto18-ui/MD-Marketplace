@@ -274,59 +274,63 @@ async function decodeBarcodeFromImage(mediaId) {
 
     const imgRes = await fetch(mediaUrl, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
     const buffer = Buffer.from(await imgRes.arrayBuffer());
+    
+    const baseImage = await Jimp.read(buffer);
+
+    const { GlobalHistogramBinarizer } = await import('@zxing/library');
 
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
       BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, 
-      BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, 
-      BarcodeFormat.CODE_128, BarcodeFormat.CODE_39
+      BarcodeFormat.UPC_A, BarcodeFormat.CODE_128
     ]);
     hints.set(DecodeHintType.TRY_HARDER, true);
-    hints.set(DecodeHintType.PURE_BARCODE, false);
 
     const reader = new MultiFormatReader();
     reader.setHints(hints);
 
-    // نجرب كذا معالجة
-    const attempts = [
-      (img) => img.clone().greyscale().contrast(0.5).scale(3),
-      (img) => img.clone().greyscale().contrast(0.8).scale(4).brightness(0.1),
-      (img) => img.clone().greyscale().contrast(0.5).scale(3).invert(),
-      (img) => img.clone().scale(4).greyscale().contrast(1),
-      (img) => { 
-        // crop النص - احيانا في حواف بيضا بتخرب
-        const w = img.bitmap.width;
-        const h = img.bitmap.height;
-        return img.clone().crop(w*0.05, h*0.2, w*0.9, h*0.6).greyscale().scale(3).contrast(0.5);
-      },
-      (img) => img.clone().rotate(90).greyscale().scale(3), // اذا مصور بالمقلوب
-    ];
+    // 8 محاولات مع تدوير + threshold
+    for (const angle of [0, 90, 270]) {
+      for (const useThreshold of [false, true]) {
+        try {
+          let img = baseImage.clone();
+          if (angle !== 0) img = img.rotate(angle);
+          
+          img = img.greyscale().scale(3).contrast(0.7);
+          if (useThreshold) {
+            img = img.threshold({ max: 120 }); // اسود وابيض صريح
+          }
 
-    const baseImage = await Jimp.read(buffer);
+          const { data, width, height } = img.bitmap;
+          
+          // حول RGBA لـ grayscale luminance صح
+          const luminances = new Uint8ClampedArray(width * height);
+          for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            // R*0.3 + G*0.59 + B*0.11
+            luminances[j] = (data[i] * 0.3 + data[i+1] * 0.59 + data[i+2] * 0.11);
+          }
 
-    for (let i = 0; i < attempts.length; i++) {
-      try {
-        const processed = attempts[i](baseImage);
-        const { data, width, height } = processed.bitmap;
-        
-        const luminanceSource = new RGBLuminanceSource(data, width, height);
-        const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
-        
-        const result = reader.decode(binaryBitmap);
-        const text = result.getText();
-        console.log(`✅ ZXing نجح بالمحاولة ${i+1}: ${text}`);
-        return normalizeBarcode(text);
-      } catch (e) {
-        console.log(`⏭ محاولة ${i+1} فشلت`);
-        continue;
+          const luminanceSource = new RGBLuminanceSource(luminances, width, height);
+          
+          // جرب 2 binarizer
+          for (const Binarizer of [HybridBinarizer, GlobalHistogramBinarizer]) {
+            try {
+              const bitmap = new BinaryBitmap(new Binarizer(luminanceSource));
+              const result = reader.decode(bitmap);
+              console.log(`✅ نجح angle=${angle} threshold=${useThreshold} binarizer=${Binarizer.name}: ${result.getText()}`);
+              return normalizeBarcode(result.getText());
+            } catch {}
+          }
+        } catch (e) {
+          continue;
+        }
       }
     }
 
-    console.log(`❌ ZXing فشل بعد ${attempts.length} محاولات`);
+    console.log(`❌ ZXing فشل بعد كل المحاولات`);
     return null;
-
   } catch (e) {
-    console.log(`❌ ZXing error عام: ${e.message}`);
+    console.log(`❌ ZXing error عام: ${e.message} ${e.stack}`);
     return null;
   }
 }
