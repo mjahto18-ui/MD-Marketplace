@@ -123,7 +123,7 @@ export async function POST(req) {
     }).eq('code', String(code).trim());
     if (burnError) throw burnError;
 
-    return NextResponse.json({ success: true, message: 'تم التسجيل وحرق الكود - أول نقطة لوكيشن تسجلت' });
+    return NextResponse.json({ success: true, message: 'تم التسجيل وتوقف الرمز السري عن الاستعمال - يرجى انتظار رسالة بالتفعيل' });
 
   } catch (e) {
     console.error('Register error:', e);
