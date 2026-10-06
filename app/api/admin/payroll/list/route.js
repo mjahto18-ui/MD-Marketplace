@@ -45,7 +45,7 @@ export async function GET(req){
       .select(`
         id, amount, base_amount, overtime_amount, overtime_hours, total_hours,
         secret_code_5, status, claimed_at, claimed_by, month_year, store_id, created_at,
-        employees ( full_name, department, store_id )
+        employees ( full_name, department, store_id, mobile )
       `)
       .eq('month_year', month)
       .eq('store_id', store_id)
