@@ -310,7 +310,7 @@ export default function AdminLogin(){
           <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:'20px'}}>
             <div style={{background:'linear-gradient(180deg, rgba(30,20,50,0.95), rgba(10,10,20,0.95))', padding:'24px', borderRadius:'16px', width:'360px', border:'1px solid rgba(255,255,255,0.15)'}}>
               <h3 style={{color:'white', fontWeight:'bold', fontSize:'16px', marginBottom:'14px', textAlign:'center'}}>يرجى إدخال الرمز السري</h3>
-              <input value={inviteCode} onChange={e=>setInviteCode(e.target.value)} placeholder="الرمز يجب ان يكون 6 أرقام" style={{width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.15)', color:'white', textAlign:'center', fontSize:'18px', letterSpacing:'4px'}} />
+              <input value={inviteCode} onChange={e=>setInviteCode(e.target.value)} placeholder="123456" style={{width:'100%', padding:'12px', borderRadius:'10px', background:'rgba(0,0,0,0.4)', border:'1px solid rgba(255,255,255,0.15)', color:'white', textAlign:'center', fontSize:'18px', letterSpacing:'4px'}} />
               {codeErr && <div style={{background:'rgba(239,68,68,0.15)', color:'#fca5a5', padding:'8px', borderRadius:'8px', fontSize:'12px', marginTop:'10px', textAlign:'center'}}>{codeErr}</div>}
               <div style={{display:'flex', gap:'10px', marginTop:'16px'}}>
                 <button onClick={()=>setShowCodeBox(false)} style={{flex:1, background:'rgba(255,255,255,0.1)', color:'white', padding:'10px', borderRadius:'10px', border:'none', cursor:'pointer'}}>إلغاء التسجيل</button>
