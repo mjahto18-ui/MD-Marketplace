@@ -1,12 +1,17 @@
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from 'next/headers'
 import { NextResponse } from "next/server"
 export const dynamic = "force-dynamic"
 
 function getSupabase(){
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
   const url = rawUrl?.replace('/rest/v1','').replace(/\/$/,'')
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY 
+           || process.env.SUPABASE_SERVICE_KEY 
+           || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  
+  if (!url) throw new Error("SUPABASE_URL missing in env")
+  if (!key) throw new Error("supabaseKey is required - add SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY")
+  
   return createClient(url, key)
 }
 
@@ -17,11 +22,11 @@ export async function POST(req){
   if(!store_id || !full_name || !department) 
     return NextResponse.json({success:false, message:'ناقص بيانات'}, {status:400})
 
-  // 1. شوف قديش الحد المسموح لهالمتجر
+  // 1. شوف قديش الحد - صار 3
   const { data: store } = await supabase.from('stores').select('max_employees, "Store Name"').eq('Store ID', store_id).single()
-  const limit = store?.max_employees || 3
+  const limit = store?.max_employees ?? 3
 
-  // 2. عد الموظفين الحاليين
+  // 2. عد الموظفين
   const { count } = await supabase.from('employees').select('id', {count:'exact', head:true}).eq('store_id', store_id).eq('is_active', true)
 
   if(count >= limit){
