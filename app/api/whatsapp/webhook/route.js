@@ -275,31 +275,58 @@ async function decodeBarcodeFromImage(mediaId) {
     const imgRes = await fetch(mediaUrl, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
     const buffer = Buffer.from(await imgRes.arrayBuffer());
 
-    const image = await Jimp.read(buffer);
-    image.greyscale().contrast(0.3).scale(2.5); // تكبير للواتساب المضغوط
-
-    const { data, width, height } = image.bitmap;
-    const luminanceSource = new RGBLuminanceSource(data, width, height);
-    const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
-
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
       BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, 
       BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, 
-      BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE
+      BarcodeFormat.CODE_128, BarcodeFormat.CODE_39
     ]);
     hints.set(DecodeHintType.TRY_HARDER, true);
+    hints.set(DecodeHintType.PURE_BARCODE, false);
 
     const reader = new MultiFormatReader();
     reader.setHints(hints);
 
-    const result = reader.decode(binaryBitmap);
-    const text = result.getText();
-    console.log(`✅ ZXing قرا: ${text}`);
-    return normalizeBarcode(text);
+    // نجرب كذا معالجة
+    const attempts = [
+      (img) => img.clone().greyscale().contrast(0.5).scale(3),
+      (img) => img.clone().greyscale().contrast(0.8).scale(4).brightness(0.1),
+      (img) => img.clone().greyscale().contrast(0.5).scale(3).invert(),
+      (img) => img.clone().scale(4).greyscale().contrast(1),
+      (img) => { 
+        // crop النص - احيانا في حواف بيضا بتخرب
+        const w = img.bitmap.width;
+        const h = img.bitmap.height;
+        return img.clone().crop(w*0.05, h*0.2, w*0.9, h*0.6).greyscale().scale(3).contrast(0.5);
+      },
+      (img) => img.clone().rotate(90).greyscale().scale(3), // اذا مصور بالمقلوب
+    ];
+
+    const baseImage = await Jimp.read(buffer);
+
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        const processed = attempts[i](baseImage);
+        const { data, width, height } = processed.bitmap;
+        
+        const luminanceSource = new RGBLuminanceSource(data, width, height);
+        const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
+        
+        const result = reader.decode(binaryBitmap);
+        const text = result.getText();
+        console.log(`✅ ZXing نجح بالمحاولة ${i+1}: ${text}`);
+        return normalizeBarcode(text);
+      } catch (e) {
+        console.log(`⏭ محاولة ${i+1} فشلت`);
+        continue;
+      }
+    }
+
+    console.log(`❌ ZXing فشل بعد ${attempts.length} محاولات`);
+    return null;
 
   } catch (e) {
-    console.log(`❌ ZXing فشل: ${e.message}`);
+    console.log(`❌ ZXing error عام: ${e.message}`);
     return null;
   }
 }
