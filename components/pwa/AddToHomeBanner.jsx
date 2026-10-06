@@ -40,8 +40,8 @@ export default function AddToHomeBanner(){
               <div className="text-white font-black text-">ثبّت MD-Marketplace</div>
               <div className="text-white/60 text- mt-1">
                 {isIOS
-                 ? "لتوصلّك الإشعارات حتى لو الموقع مسكر"
-                  : "توصيل أسرع + إشعارات حتى لو مسكر"}
+                 ? "لتصلك الإشعارات حتى لو الموقع مسكر"
+                  : "توصيل أسرع + إشعارات "}
               </div>
             </div>
           </div>
@@ -51,7 +51,7 @@ export default function AddToHomeBanner(){
         {isIOS? (
           <div className="mt-4 bg-white/[0.06] rounded-2xl p-3 text- text-white/80 leading-relaxed">
             <div className="flex items-center gap-2">١. كبسة زر <span className="bg-white/20 px-2 py-0.5 rounded">مشاركة ⎙</span> تحت</div>
-            <div className="flex items-center gap-2 mt-2">٢. بعدين كبسة <span className="bg-[#FFD700] text-black px-2 py-0.5 rounded font-bold">إضافة إلى الشاشة الرئيسية +</span></div>
+            <div className="flex items-center gap-2 mt-2">٢. ثم كبسة <span className="bg-[#FFD700] text-black px-2 py-0.5 rounded font-bold">إضافة إلى الشاشة الرئيسية +</span></div>
           </div>
         ) : (
           <button
@@ -60,7 +60,7 @@ export default function AddToHomeBanner(){
             }}
             className="mt-4 w-full h-12 bg-[#FFD700] text-black rounded-2xl font-black text-"
           >
-            ثبّت الآن - كبسة وحدة
+            ثبّت الآن  
           </button>
         )}
       </div>
