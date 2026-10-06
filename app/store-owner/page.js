@@ -31,6 +31,8 @@ export default function StoreDashboard(){
   const [origin, setOrigin] = useState("")
   // --- اشتراك - جديد فقط ---
   const [sub, setSub] = useState(null)
+  const [empForm, setEmpForm] = useState({full_name:'', department:'موظف', salary_type:'monthly', base_salary:'', hourly_rate:'', required_hours:286, mobile:''})
+  const [empList, setEmpList] = useState([])
 
   useEffect(()=>{
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
@@ -105,13 +107,18 @@ export default function StoreDashboard(){
       }
       loadPay()
     }
-  }, [tab, payrollMonth, me])
+    // === هون بتحطها ===
+    if(tab==='employees'){
+      supabase.from('employees').select('*').eq('store_id', me.storeId).order('created_at', {ascending:false}).then(({data})=> setEmpList(data||[]))
+    }
+  }, [tab, payrollMonth, me, supabase])
 
   const formatLBP = (n) => {
     if(!n && n!==0) return '0 ل.ل'
     const num = parseFloat(String(n).replace(/,/g,'')) || 0
     return new Intl.NumberFormat('en-LB').format(num) + ' ل.ل'
   }
+  const inputStyle = {padding:'10px', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0, fontSize:13}
 
   const toggleActive = async (p)=>{
     const newVal =!p.Active
@@ -227,6 +234,7 @@ export default function StoreDashboard(){
             {id:'add', label:'إضافة منتجات'},
             {id:'attendance', label:'الدوام'},
             {id:'payroll', label:'الرواتب'},
+            {id:'employees', label:`👥 الموظفين (${empList.length})`},
             {id:'display', label:'🖥 شاشة الدوام'},
           ].map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'9px 16px', borderRadius:10, border:'1px solid rgba(255,255,255,0.1)', background:tab===t.id?'linear-gradient(135deg,#ec4899,#8b5cf6)':'rgba(255,255,255,0.06)', color:'white', whiteSpace:'nowrap', fontWeight: tab===t.id? '900':'500', flexShrink:0}}>{t.label}</button>
@@ -429,6 +437,45 @@ const waLink = waNumber
                 )}
                 </>
               )}
+              {tab==='employees' && (
+  <div style={{...glassCard, padding:14, borderRadius:16}}>
+    <div style={{display:'flex', justifyContent:'space-between'}}>
+      <div style={{fontWeight:900}}>👥 موظفين {store?.['Store Name']} ({empList.length}/{store?.max_employees || 3})</div>
+      {empList.length >= (store?.max_employees || 3) && <span style={{color:'#fca5a5', fontSize:11}}>⛔ وصلت للحد</span>}
+    </div>
+
+    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
+      <input placeholder="اسم الموظف" value={empForm.full_name} onChange={e=>setEmpForm({...empForm, full_name:e.target.value})} style={inputStyle} />
+      <input placeholder="موبايل 03/71..." value={empForm.mobile} onChange={e=>setEmpForm({...empForm, mobile:e.target.value})} style={inputStyle} />
+      <select value={empForm.department} onChange={e=>setEmpForm({...empForm, department:e.target.value})} style={inputStyle}>
+        <option>ادارة</option><option>محاسبة</option><option>مندوب</option><option>تنظيفات</option><option>تاكسي</option><option>اخرى</option><option>موظف</option><option>مسؤول</option><option>سائق</option>
+      </select>
+      <select value={empForm.salary_type} onChange={e=>setEmpForm({...empForm, salary_type:e.target.value})} style={inputStyle}>
+        <option value="monthly">شهري</option><option value="hourly">بالساعة</option>
+      </select>
+      <input placeholder="راتب اساسي" type="number" value={empForm.base_salary} onChange={e=>setEmpForm({...empForm, base_salary:e.target.value})} style={inputStyle} />
+      <input placeholder="ساعات مطلوبة 286" type="number" value={empForm.required_hours} onChange={e=>setEmpForm({...empForm, required_hours:e.target.value})} style={inputStyle} />
+    </div>
+
+    <button onClick={async()=>{
+      if(!empForm.full_name) return alert('الاسم مطلوب')
+      const res = await fetch('/api/admin/employees/create', {method:'POST', body:JSON.stringify({...empForm, store_id: me.storeId})}).then(r=>r.json())
+      if(!res.success) return alert(res.message)
+      alert('تم اضافة الموظف ✅'); setEmpList([res.employee, ...empList]); setEmpForm({full_name:'', department:'موظف', salary_type:'monthly', base_salary:'', hourly_rate:'', required_hours:286, mobile:''})
+    }} style={{marginTop:10, padding:'10px 16px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900, width:'100%'}}>
+      + اضافة موظف
+    </button>
+
+    <div style={{marginTop:14, display:'grid', gap:6}}>
+      {empList.map(em=>(
+        <div key={em.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:10, borderRadius:10}}>
+          <div><div style={{fontWeight:700, fontSize:13}}>{em.full_name} - {em.department}</div><div style={{fontSize:11, opacity:0.6}}>{em.mobile || 'لا يوجد موبايل'} | {em.salary_type}</div></div>
+          <button onClick={async()=>{ if(!confirm('حذف؟')) return; await supabase.from('employees').update({is_active:false}).eq('id', em.id); setEmpList(empList.filter(x=>x.id!==em.id))}} style={{background:'rgba(239,68,68,0.2)', border:'none', color:'#fca5a5', padding:'4px 8px', borderRadius:6}}>حذف</button>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
               {tab==='display' && (
                 <div style={{...glassCard, borderRadius:'16px', padding:'16px'}}>
