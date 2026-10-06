@@ -33,13 +33,13 @@ export function useGeofence(service) {
 export default function GeofenceGate({ service, children, fallback }) {
   const { loading, allowed, center, distance_km } = useGeofence(service);
 
-  if (loading) return <div className="p-4">عم نحدد موقعك...📍</div>;
+  if (loading) return <div className="p-4">يتم فحص الموقع ...📍</div>;
 
   if (!allowed) {
     return fallback || (
       <div className="p-6 text-center bg-gray-100 rounded-xl">
         <h3 className="font-bold">🚫 خارج التغطية حالياً</h3>
-        <p className="text-sm mt-2">خدمة الـ {service} مش متوفرة بمنطقتك بعد، قريباً منوصل لعندك!</p>
+        <p className="text-sm mt-2">خدمة الـ {service} هذه الخدمةغير متوفرة في منطقتك ، قريباً ستصل الخدمة اليك !</p>
       </div>
     );
   }
