@@ -117,7 +117,8 @@ export default function Dashboard(){
       }catch{}
     }
 
-     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}, {data: geofenceData}] = await Promise.all([      supabase.from('customers').select('*').limit(1000),
+     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}, {data: geofenceData}, {data: taxiPendingData}, {data: storesPendingData}, {data: driversPendingData}] = await Promise.all([
+      supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
       supabase.from('asceses').select('*').eq('role', role),
@@ -129,7 +130,9 @@ export default function Dashboard(){
       supabase.from('products').select('*').eq('Active','FALSE').limit(2000),
       supabase.from('taxi_sos').select('id').eq('status','open').limit(100),
       supabase.from('geofence_centers').select('id').eq('is_active', true), // <-- هاد الجديد
-
+      supabase.from('taxi_drivers').select('Taxi_ID').eq('status', 'pending').limit(2000),
+      supabase.from('stores').select('*').eq('Status', 'inactive').neq('Store ID', 'MD_HQ_001').limit(2000),
+      supabase.from('drivers').select('*').eq('Status', 'Inactive').limit(2000),
     ])
 
     const today = new Date().toISOString().split('T')[0]
@@ -153,7 +156,10 @@ export default function Dashboard(){
       overpayTotal: pendingOverpay?.length||0,
       pendingReviewsCount: pendingReviews?.filter(c=>c['Status']==='Pending' || c['status']==='pending').length|| pendingReviews?.length||0,
       pendingProducts: pendingProducts?.length||0,
-       geofenceCenters: geofenceData?.length || 0,
+      geofenceCenters: geofenceData?.length || 0,
+      taxiPending: taxiPendingData?.length || 0,
+      storesPending: storesPendingData?.length || 0,
+      driversPending: driversPendingData?.length || 0,
 
     })
     // SOS count
@@ -550,6 +556,9 @@ export default function Dashboard(){
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
 
             <Item label="CUSTOMERS PENDING" count={counts.customersPending} href="/admin/customers-pending" />
+            <Item label="TAXI PENDING" count={counts.taxiPending} href="/admin/taxi-pending" />
+            <Item label="STORES PENDING" count={counts.storesPending} href="/admin/stores-pending" />
+            <Item label="DRIVERS PENDING" count={counts.driversPending} href="/admin/drivers-pending" />      
             <Item label="PENDING ORDERS" count={counts.pendingOrders} href="/admin/pending" />
             <Item label="TODAY ORDERS" count={counts.todayOrders} href="/admin/today-orders" />
             <Item label="ACTIVE ORDERS" count={counts.activeOrders} href="/admin/active-orders" />
