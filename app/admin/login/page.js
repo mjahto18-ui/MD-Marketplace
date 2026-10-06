@@ -35,23 +35,23 @@ export default function AdminLogin(){
     const b = pin.trim()
 
     if(!p && !b){
-      setErr("المرجو تعبئة رقم الموبايل وكلمة المرور")
+      setErr("الرجاء تعبئة رقم الهاتف ورمز المرور")
       return
     }
     if(!p){
-      setErr("المرجو إدخال رقم الموبايل")
+      setErr("الرجاء إدخال رقم الهاتف")
       return
     }
     if(!b){
-      setErr("المرجو إدخال كلمة المرور")
+      setErr("الرجاء إدخال رمز المرور")
       return
     }
     if(!/^\d{8}$/.test(p)){
-      setErr("رقم الموبايل يجب أن يكون 8 أرقام بالضبط")
+      setErr("رقم الهاتف يجب أن يتكون من 8 أرقام ")
       return
     }
     if(!/^\d{4}$/.test(b)){
-      setErr("كلمة المرور يجب أن تكون 4 أرقام بالضبط")
+      setErr("رمز المرور يجب أن يتكون 4 أرقام ")
       return
     }
 
@@ -298,7 +298,7 @@ export default function AdminLogin(){
 
             {regErr && <div style={{background:'rgba(239,68,68,0.15)', color:'#fca5a5', padding:'8px', borderRadius:'8px', fontSize:'12px'}}>{regErr}</div>}
             <div style={{display:'flex', gap:'10px', marginTop:'6px'}}>
-              <button type="button" onClick={()=>{resetForm(); setShowRegister(false); setVerifiedCode("")}} style={{flex:1, background:'rgba(255,255,255,0.1)', color:'white', padding:'12px', borderRadius:'10px', border:'none', cursor:'pointer'}}>إلغاء - إغلاق البوكس</button>
+              <button type="button" onClick={()=>{resetForm(); setShowRegister(false); setVerifiedCode("")}} style={{flex:1, background:'rgba(255,255,255,0.1)', color:'white', padding:'12px', borderRadius:'10px', border:'none', cursor:'pointer'}}>إلغاء التسجيل</button>
               <button type="submit" disabled={regLoading} style={{flex:1, background:'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)', color:'white', padding:'12px', borderRadius:'10px', fontWeight:'bold', border:'none', cursor:'pointer', opacity: regLoading?0.6:1}}>{regLoading?'جاري...':'تسجيل'}</button>
             </div>
           </form>
@@ -320,8 +320,8 @@ export default function AdminLogin(){
           <div style={{width:'40px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', margin:'10px auto 0', borderRadius:'10px'}}></div>
         </div>
         <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
-          <input value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,8))} maxLength={8} inputMode="numeric" placeholder="رقم الموبايل (8 أرقام)" style={{width:'100%', padding:'14px 16px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
-          <input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,4))} maxLength={4} inputMode="numeric" type="password" placeholder="كلمة المرور (4 أرقام)" style={{width:'100%', padding:'14px 16px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+          <input value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,8))} maxLength={8} inputMode="numeric" placeholder="رقم الهاتف" style={{width:'100%', padding:'14px 16px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
+          <input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,4))} maxLength={4} inputMode="numeric" type="password" placeholder="رمز المرور" style={{width:'100%', padding:'14px 16px', borderRadius:'12px', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(255,255,255,0.1)', color:'white'}} />
         </div>
         {err && <div style={{background:'rgba(239,68,68,0.1)', color:'#fca5a5', padding:'12px', borderRadius:'10px', fontSize:'13px', marginTop:'14px', textAlign:'center'}}>{err}</div>}
         <button onClick={login} disabled={loading || phone.length!==8 || pin.length!==4} style={{width:'100%', background: (phone.length===8 && pin.length===4) ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'rgba(255,255,255,0.15)', color:'white', padding:'14px', borderRadius:'12px', fontWeight:'bold', border:'none', marginTop:'20px', cursor: (phone.length===8 && pin.length===4) ? 'pointer' : 'not-allowed', opacity: loading?0.6:1}}>{loading?'جاري الدخول...':'دخول'}</button>
