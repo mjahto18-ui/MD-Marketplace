@@ -106,7 +106,7 @@ export async function POST(req) {
         "Current Latitude": String(latNum),
         "Current Longitude": String(lngNum),
         "Current Store LatLong": `${latNum},${lngNum}`,
-        "Status": "Active",
+        "Status": "inactive",
         "Open Time": openTime || null,
         "Close Time": closeTime || null
       });
