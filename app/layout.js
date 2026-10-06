@@ -3,6 +3,7 @@ import OneSignalInit from "@/components/onesignal/OneSignalInit";
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import Script from 'next/script';
+import AddToHomeBanner from "@/components/pwa/AddToHomeBanner";
 
 export const metadata = {
   metadataBase: new URL("https://www.md-marketplace.store"),
@@ -106,8 +107,9 @@ export default function RootLayout({ children }) {
           }}
         />
 
-        <OneSignalInit />
+        <OneSignalInit /> 
         {children}
+          <AddToHomeBanner />
         <Analytics />
         <SpeedInsights />
       </body>
