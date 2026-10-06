@@ -1,6 +1,9 @@
 import { getSupabase as getSupabaseLib, getUserByWhatsAppNumber as getUserByWhatsAppNumberLib, normalizePhone, getCustomerRowByPhone as getCustomerRowByPhoneLib, canOpenBot2 } from "@/lib/supabase";
 import { PERSONAS_PHOTOS, PERSONAS_FALLBACK } from "@/lib/personas";
+import { MultiFormatReader, BarcodeFormat, DecodeHintType, RGBLuminanceSource, BinaryBitmap, HybridBinarizer } from '@zxing/library';
+import Jimp from 'jimp';
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; // ADD - مهم لـ jimp
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -263,21 +266,44 @@ async function getMediaUrlFromMeta(mediaId) {
     return data.url || null;
   } catch { return null; }
 }
+// ===== REPLACE - هاي الفنكشن كلها بدل القديمة =====
 async function decodeBarcodeFromImage(mediaId) {
   try {
     const mediaUrl = await getMediaUrlFromMeta(mediaId);
     if (!mediaUrl) return null;
+
     const imgRes = await fetch(mediaUrl, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
-    const buffer = await imgRes.arrayBuffer();
-    const form = new FormData();
-    form.append('file', new Blob([buffer]), 'barcode.jpg');
-    const decodeRes = await fetch('https://api.qrserver.com/v1/read-qr-code/', { method: 'POST', body: form });
-    const decodeData = await decodeRes.json();
-    const barcode = decodeData?.[0]?.symbol?.[0]?.data || null;
-    if (barcode) return normalizeBarcode(barcode);
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
+
+    const image = await Jimp.read(buffer);
+    image.greyscale().contrast(0.3).scale(2.5); // تكبير للواتساب المضغوط
+
+    const { data, width, height } = image.bitmap;
+    const luminanceSource = new RGBLuminanceSource(data, width, height);
+    const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
+
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, 
+      BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, 
+      BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE
+    ]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+
+    const reader = new MultiFormatReader();
+    reader.setHints(hints);
+
+    const result = reader.decode(binaryBitmap);
+    const text = result.getText();
+    console.log(`✅ ZXing قرا: ${text}`);
+    return normalizeBarcode(text);
+
+  } catch (e) {
+    console.log(`❌ ZXing فشل: ${e.message}`);
     return null;
-  } catch (e) { console.error("decode error", e.message); return null; }
+  }
 }
+// ===== END REPLACE =====
 async function getCaloriesFromNet(barcode, productName) {
   const p = await getProductFromOFF(barcode);
   if (p) return buildCaloriesText(p);
