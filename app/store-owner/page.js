@@ -439,41 +439,78 @@ const waLink = waNumber
               )}
               {tab==='employees' && (
   <div style={{...glassCard, padding:14, borderRadius:16}}>
-    <div style={{display:'flex', justifyContent:'space-between'}}>
-      <div style={{fontWeight:900}}>👥 موظفين {store?.['Store Name']} ({empList.length}/{store?.max_employees || 3})</div>
-      {empList.length >= (store?.max_employees || 3) && <span style={{color:'#fca5a5', fontSize:11}}>⛔ وصلت للحد</span>}
-    </div>
+    {(() => {
+      const activeCount = empList.filter(e=>e.is_active).length
+      const limit = store?.max_employees || 3
+      const isFull = activeCount >= limit
+      return (
+        <>
+          <div style={{display:'flex', justifyContent:'space-between'}}>
+            <div style={{fontWeight:900}}>👥 موظفين {store?.['Store Name']} ({activeCount}/{limit}) {activeCount !== empList.length && ` - الكل ${empList.length}`}</div>
+            {isFull && <span style={{color:'#fca5a5', fontSize:11}}>⛔ وصلت للحد</span>}
+          </div>
 
-    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
-      <input placeholder="اسم الموظف" value={empForm.full_name} onChange={e=>setEmpForm({...empForm, full_name:e.target.value})} style={inputStyle} />
-      <input placeholder="موبايل 03/71..." value={empForm.mobile} onChange={e=>setEmpForm({...empForm, mobile:e.target.value})} style={inputStyle} />
-      <select value={empForm.department} onChange={e=>setEmpForm({...empForm, department:e.target.value})} style={inputStyle}>
-        <option>ادارة</option><option>محاسبة</option><option>مندوب</option><option>تنظيفات</option><option>تاكسي</option><option>اخرى</option><option>موظف</option><option>مسؤول</option><option>سائق</option>
-      </select>
-      <select value={empForm.salary_type} onChange={e=>setEmpForm({...empForm, salary_type:e.target.value})} style={inputStyle}>
-        <option value="monthly">شهري</option><option value="hourly">بالساعة</option>
-      </select>
-      <input placeholder="راتب اساسي" type="number" value={empForm.base_salary} onChange={e=>setEmpForm({...empForm, base_salary:e.target.value})} style={inputStyle} />
-      <input placeholder="ساعات مطلوبة 286" type="number" value={empForm.required_hours} onChange={e=>setEmpForm({...empForm, required_hours:e.target.value})} style={inputStyle} />
-    </div>
+          {/* ... الفورم تبعك خليه نفسه ... */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
+            <input placeholder="اسم الموظف" value={empForm.full_name} onChange={e=>setEmpForm({...empForm, full_name:e.target.value})} style={inputStyle} />
+            <input placeholder="موبايل 03/71..." value={empForm.mobile} onChange={e=>setEmpForm({...empForm, mobile:e.target.value})} style={inputStyle} />
+            <select value={empForm.department} onChange={e=>setEmpForm({...empForm, department:e.target.value})} style={inputStyle}>
+              <option>ادارة</option><option>محاسبة</option><option>مندوب</option><option>تنظيفات</option><option>تاكسي</option><option>اخرى</option><option>موظف</option><option>مسؤول</option><option>سائق</option>
+            </select>
+            <select value={empForm.salary_type} onChange={e=>setEmpForm({...empForm, salary_type:e.target.value})} style={inputStyle}>
+              <option value="monthly">شهري</option><option value="hourly">بالساعة</option>
+            </select>
+            <input placeholder="راتب اساسي" type="number" value={empForm.base_salary} onChange={e=>setEmpForm({...empForm, base_salary:e.target.value})} style={inputStyle} />
+            <input placeholder="ساعات مطلوبة 286" type="number" value={empForm.required_hours} onChange={e=>setEmpForm({...empForm, required_hours:e.target.value})} style={inputStyle} />
+          </div>
 
-    <button onClick={async()=>{
-      if(!empForm.full_name) return alert('الاسم مطلوب')
-      const res = await fetch('/api/admin/employees/create', {method:'POST', body:JSON.stringify({...empForm, store_id: me.storeId})}).then(r=>r.json())
-      if(!res.success) return alert(res.message)
-      alert('تم اضافة الموظف ✅'); setEmpList([res.employee, ...empList]); setEmpForm({full_name:'', department:'موظف', salary_type:'monthly', base_salary:'', hourly_rate:'', required_hours:286, mobile:''})
-    }} style={{marginTop:10, padding:'10px 16px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900, width:'100%'}}>
-      + اضافة موظف
-    </button>
+          <button onClick={async()=>{
+            if(!empForm.full_name) return alert('الاسم مطلوب')
+            const res = await fetch('/api/admin/employees/create', {method:'POST', body:JSON.stringify({...empForm, store_id: me.storeId})}).then(r=>r.json())
+            if(!res.success) return alert(res.message)
+            setEmpList([res.employee, ...empList]); setEmpForm({full_name:'', department:'موظف', salary_type:'monthly', base_salary:'', hourly_rate:'', required_hours:286, mobile:''})
+          }} style={{marginTop:10, padding:'10px 16px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900, width:'100%'}}>
+            + اضافة موظف
+          </button>
 
-    <div style={{marginTop:14, display:'grid', gap:6}}>
-      {empList.map(em=>(
-        <div key={em.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:10, borderRadius:10}}>
-          <div><div style={{fontWeight:700, fontSize:13}}>{em.full_name} - {em.department}</div><div style={{fontSize:11, opacity:0.6}}>{em.mobile || 'لا يوجد موبايل'} | {em.salary_type}</div></div>
-          <button onClick={async()=>{ if(!confirm('حذف؟')) return; await supabase.from('employees').update({is_active:false}).eq('id', em.id); setEmpList(empList.filter(x=>x.id!==em.id))}} style={{background:'rgba(239,68,68,0.2)', border:'none', color:'#fca5a5', padding:'4px 8px', borderRadius:6}}>حذف</button>
-        </div>
-      ))}
-    </div>
+          <div style={{marginTop:14, display:'grid', gap:6}}>
+            {empList.map(em=>{
+              const isInactive = !em.is_active
+              return (
+                <div key={em.id} style={{
+                  display:'flex', justifyContent:'space-between', 
+                  background: isInactive ? 'rgba(100,100,100,0.15)' : 'rgba(0,0,0,0.3)', 
+                  padding:10, borderRadius:10, 
+                  opacity: isInactive ? 0.5 : 1,
+                  border: isInactive ? '1px dashed rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <div>
+                    <div style={{fontWeight:700, fontSize:13}}>
+                      {em.full_name} - {em.department} {isInactive && <span style={{color:'#fca5a5', fontSize:11}}>(غير مفعل - موقوف)</span>}
+                    </div>
+                    <div style={{fontSize:11, opacity:0.6}}>{em.mobile || 'لا يوجد موبايل'} | {em.salary_type}</div>
+                  </div>
+                  {isInactive ? (
+                    <button onClick={async()=>{
+                      const res = await fetch('/api/admin/employees/toggle', {method:'POST', body:JSON.stringify({employee_id: em.id, store_id: me.storeId, action:'activate'})}).then(r=>r.json())
+                      if(!res.success) return alert(res.message)
+                      setEmpList(empList.map(x=> x.id===em.id ? {...x, is_active:true} : x))
+                    }} style={{background:'rgba(34,197,94,0.2)', border:'none', color:'#4ade80', padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:900}}>▶️ تفعيل</button>
+                  ) : (
+                    <button onClick={async()=>{
+                      if(!confirm(`ايقاف خدمات ${em.full_name}؟`)) return
+                      const res = await fetch('/api/admin/employees/toggle', {method:'POST', body:JSON.stringify({employee_id: em.id, store_id: me.storeId, action:'deactivate'})}).then(r=>r.json())
+                      if(!res.success) return alert(res.message)
+                      setEmpList(empList.map(x=> x.id===em.id ? {...x, is_active:false} : x))
+                    }} style={{background:'rgba(251,191,36,0.15)', border:'none', color:'#fde68a', padding:'4px 10px', borderRadius:6, fontSize:11}}>⏸️ ايقاف</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )
+    })()}
   </div>
 )}
 
