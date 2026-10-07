@@ -5,11 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "install-graph": "npm install --save-dev dependency-cruiser madge",
-    "draw-graph": "depcruise app --include-only \"^app\" --output-type dot | dot -T svg > public/md-architecture-graph.svg",
-    "draw-graph:png": "depcruise app --include-only \"^app\" --output-type dot | dot -T png > public/md-architecture-graph.png",
-    "check-circular": "madge --circular --extensions js,jsx,ts,tsx app/"
+    "start": "next start"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
@@ -28,8 +24,6 @@
   "devDependencies": {
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.1",
-    "dependency-cruiser": "^16.6.0",
-    "madge": "^8.0.0"
+    "tailwindcss": "^3.4.1"
   }
 }
