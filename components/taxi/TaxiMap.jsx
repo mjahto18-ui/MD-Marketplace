@@ -264,7 +264,7 @@ export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
         </div>
         {permission === 'denied' && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-2 text-center">
-            <p className="text-xs text-red-700 mb-1">🚫 الموقع مقفل - كبوس السماح</p>
+            <p className="text-xs text-red-700 mb-1">🚫 الموقع مقفل - يرجى تفعيل السماح للموقع</p>
             <button onClick={()=>requestLocation(false)} className="text-xs bg-red-600 text-white px-3 py-1 rounded-full">🔓 اطلب الاذن مرة تانية</button>
           </div>
         )}
@@ -275,7 +275,7 @@ export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[800] bg-white rounded-2xl shadow-2xl p-5 w-[85%] max-w- text-center">
             <p className="text-2xl mb-2">📍</p>
             <p className="font-bold text-sm mb-1">اسمح باستخدام موقعك؟</p>
-            <p className="text-xs text-gray-500 mb-3">حتى نجيبك عالخريطة دغري وين انت</p>
+            <p className="text-xs text-gray-500 mb-3">لتحديد موقعك مباشرة على الخريطة</p>
             <button onClick={()=>requestLocation(true)} className="w-full bg-black text-white py-3 rounded-xl font-bold text-sm">✅ السماح بالموقع</button>
           </div>
         )}
@@ -295,7 +295,7 @@ export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
 
       <div className="bg-white border-t rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.2)] z-[700] shrink-0">
         <div className="p-4 space-y-2">
-          {loading && <p className="text-sm text-center animate-pulse">عم بحسب المسافة...</p>}
+          {loading && <p className="text-sm text-center animate-pulse">جاري حساب المسافة...</p>}
           {!origin && <p className="text-sm text-center text-gray-600">📍 كبوس <b>موقعي</b> أو حط دبوس الانطلاق</p>}
           {origin &&!dest && <p className="text-sm text-center text-gray-600">🎯 هلأ حط دبوس الوصول الأحمر</p>}
           {info && (
