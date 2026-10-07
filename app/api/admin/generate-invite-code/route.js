@@ -37,7 +37,6 @@ export async function POST(req) {
     const note = body.note || null;
     const count = Math.min(Math.max(parseInt(body.count) || 1, 1), 20); // بين 1 و 20 كود مرة وحدة
 
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     const codesToInsert = [];
     
     // جنريت count أكواد unique
@@ -66,33 +65,35 @@ export async function POST(req) {
         codesToInsert.push({
           code: code,
           is_used: false,
-          expires_at: expiresAt,
           created_by: createdBy,
           note: note,
+          // 💡 تم حذف سطر expiresAt اليدوي من الجافا سكريبت
+          // تركنا الحقل فارغاً هنا لتجبر السيرفر على تطبيق الـ Default الفعلي للجدول وهو 48 ساعة
         });
       }
     }
 
     if (codesToInsert.length === 0) {
-      return NextResponse.json({ error: 'ما قدرنا نولد كود، جرب مرة تانية' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'ما قدرنا نولد كود، جرب مرة تانية' }, { status: 500 });
     }
 
+    // جلب الصفوف كاملة ومؤكدة بأسماء الحقول الصريحة بعد الإدخال والمطابقة
     const { data, error } = await supabase
       .from('admin_invite_codes')
       .insert(codesToInsert)
-      .select();
+      .select('id, code, is_used, used_by, used_at, expires_at, created_by, created_at, note, area');
 
     if (error) throw error;
 
     return NextResponse.json({
       success: true,
-      codes: data, // مصفوفة
-      count: data.length
+      codes: data || [], 
+      count: data?.length || 0
     });
 
   } catch (e) {
     console.error('Generate invite error:', e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
 }
 
@@ -100,15 +101,19 @@ export async function POST(req) {
 export async function GET() {
   try {
     const supabase = getSupabase();
+    
+    // جلب الأعمدة صراحة بالتسميات الصغيرة النظيفة المتوافقة مع الفرونت إند
     const { data, error } = await supabase
       .from('admin_invite_codes')
-      .select('*')
+      .select('id, code, is_used, used_by, used_at, expires_at, created_by, created_at, note, area')
       .order('created_at', { ascending: false })
       .limit(50);
     
     if (error) throw error;
-    return NextResponse.json({ codes: data });
+    
+    // توحيد بنية الرد المرتجع ليتوافق 100% مع واجهة المكون
+    return NextResponse.json({ success: true, codes: data || [] });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
 }
