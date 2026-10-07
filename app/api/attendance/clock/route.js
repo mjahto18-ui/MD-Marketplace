@@ -96,7 +96,7 @@ if(!qrEmployeeId && !employee_id){
   .select('id, device_fingerprint, full_name, store_id, is_active') // زيد is_active
   .eq('id', employee_id).single()
 
-   if(!emp) return NextResponse.json({success:false, message:'موظف مش موجود'})
+   if(!emp) return NextResponse.json({success:false, message:'الموظف مش موجود'})
    if(emp.is_active === false) return NextResponse.json({success:false, message:'⛔ خدمات الموظف متوقفة - لا يستطيع تسجيل دخول'})
     
     // --- أهم شرط أمان: الموظف لازم يكون تابع لنفس متجر الـ QR ---
@@ -133,7 +133,7 @@ if(!qrEmployeeId && !employee_id){
       if(enabled && sLat && sLng && !isNaN(sLat) && !isNaN(sLng)){
         const dist = haversine(parseFloat(lat), parseFloat(lng), sLat, sLng)
         if(dist > radius){
-          return NextResponse.json({success:false, message:`بعيد ${Math.round(dist)}م عن المتجر - لازم تكون ضمن ${radius}م ❌`})
+          return NextResponse.json({success:false, message:`بعيد ${Math.round(dist)}م عن المتجر - يجب ان تكون ضمن ${radius}م ❌`})
         }
       }
       // اذا Geofence Enabled = false او مافي لوكايشن بالمتجر -> بيمرق عادي
