@@ -16,10 +16,10 @@ export async function POST(req){
   try{
     const cookieStore = await cookies();
     const sessionRaw = cookieStore.get('admin_session')?.value
-    if(!sessionRaw) return NextResponse.json({success:false, message:'مو مسجل دخول'}, {status:401})
+    if(!sessionRaw) return NextResponse.json({success:false, message:'لست مسجل دخول'}, {status:401})
     const session = JSON.parse(sessionRaw)
     if(!['Admin','Assistant Admin','Accounting'].includes(session.role)){
-      return NextResponse.json({success:false, message:'ما عندك صلاحية'}, {status:403})
+      return NextResponse.json({success:false, message:'ليس لديك صلاحية'}, {status:403})
     }
     const body = await req.json()
     const { month, store_id } = body
@@ -49,7 +49,7 @@ export async function POST(req){
       .eq('store_id', store_id)
 
     if(empErr) throw empErr
-    if(!emps || emps.length===0) return NextResponse.json({success:false, message:`ما في موظفين فعالين بمتجر ${store_id}`})
+    if(!emps || emps.length===0) return NextResponse.json({success:false, message:`لايوجد موظفين فعالين بمتجر ${store_id}`})
 
     let count=0, details=[]
     for(const emp of emps){
@@ -96,7 +96,7 @@ export async function POST(req){
 
       if(existing){
         if(existing.status === 'in_wallet' || existing.status === 'claimed'){
-          details.push(`${emp.full_name}: ${existing.status === 'in_wallet' ? 'بمحفظتو - ممنوع التعديل' : 'مقبوض كاش - ممنوع التعديل'} - تخطيناه`)
+          details.push(`${emp.full_name}: ${existing.status === 'in_wallet' ? 'بمحفظته - ممنوع التعديل' : 'مقبوض كاش - ممنوع التعديل'} - تخطيناه`)
           continue
         }
         await supabase.from('payroll_runs').update({
