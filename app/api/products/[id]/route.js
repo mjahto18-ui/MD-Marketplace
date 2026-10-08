@@ -1,4 +1,7 @@
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 import { NextResponse } from "next/server";
 import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 
@@ -7,7 +10,7 @@ function getSupabase() {
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371;
+  const R = 6371; // كيلو
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
@@ -15,7 +18,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
+  return R * c; // كيلو
 }
 
 export async function GET(req, { params }) {
@@ -26,7 +29,11 @@ export async function GET(req, { params }) {
     const lng = parseFloat(searchParams.get("lng"));
 
     if (!productID) {
-      return NextResponse.json({ success: false, message: "Missing product ID" });
+      const res = NextResponse.json({ success: false, message: "Missing product ID" });
+      res.headers.set('Cache-Control', 'no-store');
+      res.headers.set('CDN-Cache-Control', 'no-store');
+      res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+      return res;
     }
 
     const supabase = getSupabase();
@@ -35,16 +42,19 @@ export async function GET(req, { params }) {
     let product = products?.[0];
 
     if (!product) {
-      return NextResponse.json({ success: false, message: "المنتج غير موجود" }, { status: 404 });
+      const res = NextResponse.json({ success: false, message: "المنتج غير موجود" }, { status: 404 });
+      res.headers.set('Cache-Control', 'no-store');
+      res.headers.set('CDN-Cache-Control', 'no-store');
+      res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+      return res;
     }
 
     // === فلتر البرج - اذا في موقع ===
     if (lat && lng) {
-      const { data: centers } = await supabase
-       .from('geofence_centers')
-       .select('*')
-       .eq('is_active', true)
-       .eq('cart_enabled', true);
+      const { data: centersRaw } = await supabase
+      .from('geofence_centers')
+      .select('*');
+      const centers = (centersRaw||[]).filter(c => c.is_active === true && c.cart_enabled === true);
 
       const coveringCenters = [];
       for (let c of (centers||[])) {
@@ -54,11 +64,15 @@ export async function GET(req, { params }) {
       }
 
       if (coveringCenters.length === 0) {
-        return NextResponse.json({
+        const res = NextResponse.json({
           success: false,
           allowed: false,
           message: 'خارج نطاق التغطية - هالمنتج مش ضمن برجك'
         }, { status: 403 });
+        res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.headers.set('CDN-Cache-Control', 'no-store');
+        res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+        return res;
       }
 
       // جيب المتجر تبع المنتج
@@ -79,11 +93,15 @@ export async function GET(req, { params }) {
         }
 
         if (!storeAllowed) {
-          return NextResponse.json({
+          const res = NextResponse.json({
             success: false,
             allowed: false,
             message: 'هالمنتج من متجر بالقبة وانت بالمينا - مش ضمن نطاقك'
           }, { status: 403 });
+          res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+          res.headers.set('CDN-Cache-Control', 'no-store');
+          res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+          return res;
         }
       }
     }
@@ -108,10 +126,18 @@ export async function GET(req, { params }) {
       storeName: store? store['Store Name'] : "متجر محذوف",
     };
 
-    return NextResponse.json({ success: true, product: productData });
+    const res = NextResponse.json({ success: true, product: productData });
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.headers.set('Pragma', 'no-cache');
+    res.headers.set('Expires', '0');
+    res.headers.set('CDN-Cache-Control', 'no-store');
+    res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+    return res;
 
   } catch (err) {
     console.error("Product GET Error:", err);
-    return NextResponse.json({ success: false, message: "خطأ بجلب المنتج" }, { status: 500 });
+    const res = NextResponse.json({ success: false, message: "خطأ بجلب المنتج" }, { status: 500 });
+    res.headers.set('Cache-Control', 'no-store');
+    return res;
   }
 }
