@@ -27,7 +27,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-     .then(async (res) => {
+    .then(async (res) => {
         if (!res.ok) { router.push('/login'); return; }
         const data = await res.json();
         if (!data.user) { router.push('/login'); return; }
@@ -38,29 +38,30 @@ export default function ProductsPage() {
           setIsCustomer(false);
         }
       })
-     .catch(() => router.push('/login'));
+    .catch(() => router.push('/login'));
   }, [router]);
 
-  // === نفس فكرة المتاجر - جيب الموقع بصمت ===
-  const getLocationParams = () => {
-    const lat = localStorage.getItem('user_lat');
-    const lng = localStorage.getItem('user_lng');
-    if (lat && lng) return `&lat=${lat}&lng=${lng}`;
-    return '';
-  };
-
-  // حدث الموقع بالخلفية مرة وحدة (بصمت)
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        localStorage.setItem('user_lat', pos.coords.latitude);
-        localStorage.setItem('user_lng', pos.coords.longitude);
-      },
-      () => {}, // لو رفض ما منزعجو
-      { enableHighAccuracy: false, timeout: 5000 }
-    );
-  }, []);
+  async function getLocationFast() {
+    const cachedLat = localStorage.getItem('user_lat');
+    const cachedLng = localStorage.getItem('user_lng');
+    if (cachedLat && cachedLng) {
+      return { lat: cachedLat, lng: cachedLng };
+    }
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          localStorage.setItem('user_lat', lat);
+          localStorage.setItem('user_lng', lng);
+          resolve({ lat, lng });
+        },
+        () => resolve(null),
+        { enableHighAccuracy: false, timeout: 8000 }
+      );
+    });
+  }
 
   const fetchProducts = useCallback(async (pageNum, searchText, isNewSearch = false) => {
     if (isNewSearch) {
@@ -69,14 +70,18 @@ export default function ProductsPage() {
     } else if (pageNum > 1) setLoadingMore(true);
 
     try {
+      const loc = await getLocationFast();
+
       const params = new URLSearchParams();
       params.set('limit', '20');
       params.set('page', String(pageNum));
       if (searchText.trim()) params.set('search', searchText.trim());
+      if (loc) {
+        params.set('lat', loc.lat);
+        params.set('lng', loc.lng);
+      }
 
-      // ضيف الموقع بصمت اذا موجود
-      const loc = getLocationParams();
-      const res = await fetch(`/api/products?${params.toString()}${loc}`);
+      const res = await fetch(`/api/products?${params.toString()}`);
       const data = await res.json();
 
       if (data.success) {
@@ -155,7 +160,6 @@ export default function ProductsPage() {
       }
     };
 
-    // هون بس وقت الاضافة للسلة منطلب الموقع - مش وقت عرض المنتجات
     const cachedLat = localStorage.getItem('user_lat');
     const cachedLng = localStorage.getItem('user_lng');
     if (cachedLat && cachedLng) {
@@ -205,7 +209,13 @@ export default function ProductsPage() {
         {isSearching && <p className="text-xs text-purple-300 mt-2 mr-2">عم دوّر...</p>}
       </header>
       <div className="px-4 pb-6">
-        {filtered.length === 0 &&!isSearching && (<div className="text-center py-20"><Package className="w-16 h-16 text-purple-400 mx-auto mb-4" /><p className="text-xl font-bold mb-2">ما لقينا منتجات</p></div>)}
+        {filtered.length === 0 &&!isSearching && (
+          <div className="text-center py-20">
+            <Package className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+            <p className="text-xl font-bold mb-2">لا يوجد منتجات ضمن نطاقك الجغرافي</p>
+            <p className="text-sm text-purple-300 mt-2">يبدو أنك خارج مناطق التغطية الحالية</p>
+          </div>
+        )}
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
           {filtered.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
