@@ -30,11 +30,10 @@ export async function GET(req) {
     const supabase = getSupabase();
 
     // 1. جيب كل الأبراج النشطة يلي السلة مفتوحة فيها
-    const { data: centers } = await supabase
+    const { data: centersRaw } = await supabase
       .from('geofence_centers')
-      .select('*')
-      .eq('is_active', true)
-      .eq('cart_enabled', true);
+      .select('*');
+    const centers = (centersRaw||[]).filter(c => c.is_active === true && c.cart_enabled === true);
 
     // 2. جيب كل المتاجر النشطة
     const { data: dataRows } = await supabase.from('stores').select('*').eq('Status', 'Active');
