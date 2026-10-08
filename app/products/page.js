@@ -15,7 +15,7 @@ export default function ProductsPage() {
   const [toast, setToast] = useState(null);
   const [addingId, setAddingId] = useState(null);
   const [customerID, setCustomerID] = useState(null);
-  const [isCustomer, setIsCustomer] = useState(false); // جديد
+  const [isCustomer, setIsCustomer] = useState(false);
   const [globalCfg, setGlobalCfg] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -27,22 +27,40 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-.then(async (res) => {
+     .then(async (res) => {
         if (!res.ok) { router.push('/login'); return; }
         const data = await res.json();
         if (!data.user) { router.push('/login'); return; }
-
-        // هون التعديل - اذا مسجل بيخليك تشوف
         if (data.user?.customerId) {
           setCustomerID(data.user.customerId);
           setIsCustomer(true);
         } else {
-          // مسجل بس مش كوستيمر - ادمن - بيقدر يشوف بس بلا سلة
           setIsCustomer(false);
         }
       })
-.catch(() => router.push('/login'));
+     .catch(() => router.push('/login'));
   }, [router]);
+
+  // === نفس فكرة المتاجر - جيب الموقع بصمت ===
+  const getLocationParams = () => {
+    const lat = localStorage.getItem('user_lat');
+    const lng = localStorage.getItem('user_lng');
+    if (lat && lng) return `&lat=${lat}&lng=${lng}`;
+    return '';
+  };
+
+  // حدث الموقع بالخلفية مرة وحدة (بصمت)
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        localStorage.setItem('user_lat', pos.coords.latitude);
+        localStorage.setItem('user_lng', pos.coords.longitude);
+      },
+      () => {}, // لو رفض ما منزعجو
+      { enableHighAccuracy: false, timeout: 5000 }
+    );
+  }, []);
 
   const fetchProducts = useCallback(async (pageNum, searchText, isNewSearch = false) => {
     if (isNewSearch) {
@@ -56,7 +74,9 @@ export default function ProductsPage() {
       params.set('page', String(pageNum));
       if (searchText.trim()) params.set('search', searchText.trim());
 
-      const res = await fetch(`/api/products?${params.toString()}`);
+      // ضيف الموقع بصمت اذا موجود
+      const loc = getLocationParams();
+      const res = await fetch(`/api/products?${params.toString()}${loc}`);
       const data = await res.json();
 
       if (data.success) {
@@ -103,7 +123,7 @@ export default function ProductsPage() {
   }, [page, hasMore, loadingMore, loading, isSearching, search, fetchProducts]);
 
   const addToCart = async (productID) => {
-    if (!isCustomer) return; // حماية اضافية
+    if (!isCustomer) return;
     if (addingId) return;
     if (globalCfg?.isCartClosed) {
       setToast(globalCfg.cart_closed_message || "السلة مغلقة حالياً");
@@ -135,6 +155,14 @@ export default function ProductsPage() {
       }
     };
 
+    // هون بس وقت الاضافة للسلة منطلب الموقع - مش وقت عرض المنتجات
+    const cachedLat = localStorage.getItem('user_lat');
+    const cachedLng = localStorage.getItem('user_lng');
+    if (cachedLat && cachedLng) {
+      doAdd(cachedLat, cachedLng);
+      return;
+    }
+
     if (!navigator.geolocation) {
       setToast("متصفحك ما بيدعم تحديد الموقع");
       setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
@@ -142,7 +170,11 @@ export default function ProductsPage() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => doAdd(pos.coords.latitude, pos.coords.longitude),
+      (pos) => {
+        localStorage.setItem('user_lat', pos.coords.latitude);
+        localStorage.setItem('user_lng', pos.coords.longitude);
+        doAdd(pos.coords.latitude, pos.coords.longitude);
+      },
       () => {
         setToast("لازم تسمح بالموقع لتضيف عالسلة");
         setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
@@ -177,12 +209,11 @@ export default function ProductsPage() {
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
           {filtered.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-              <div className="relative w-full h-[140px] bg-white flex items-center justify-center overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
+              <div className="relative w-full h- bg-white flex items-center justify-center overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-2 truncate">المتجر: {product.storeName}</p>
                 <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p></div>
-
                 {isCustomer? (
                   <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
                     {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
@@ -190,7 +221,6 @@ export default function ProductsPage() {
                 ) : (
                   <div className="w-full bg-white/5 py-2.5 rounded-xl text-center text-xs text-purple-300">عرض فقط - للكوستيمر</div>
                 )}
-
               </div>
             </div>
           ))}
