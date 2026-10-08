@@ -1,4 +1,7 @@
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 import { NextResponse } from "next/server";
 import { getSupabase as getSupabaseLib } from "@/lib/supabase";
 
@@ -7,7 +10,7 @@ function getSupabase() {
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371;
+  const R = 6371; // كيلو
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
@@ -15,7 +18,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
+  return R * c; // كيلو
 }
 
 export async function GET(req) {
@@ -26,18 +29,21 @@ export async function GET(req) {
     const lng = parseFloat(searchParams.get("lng"));
 
     if (!storeID) {
-      return NextResponse.json({ success: false, message: "Missing store ID" });
+      const res = NextResponse.json({ success: false, message: "Missing store ID" });
+      res.headers.set('Cache-Control', 'no-store');
+      res.headers.set('CDN-Cache-Control', 'no-store');
+      res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+      return res;
     }
 
     const supabase = getSupabase();
 
     // === فلتر البرج اذا في موقع ===
     if (lat && lng) {
-      const { data: centers } = await supabase
-       .from('geofence_centers')
-       .select('*')
-       .eq('is_active', true)
-       .eq('cart_enabled', true);
+      const { data: centersRaw } = await supabase
+      .from('geofence_centers')
+      .select('*');
+      const centers = (centersRaw||[]).filter(c => c.is_active === true && c.cart_enabled === true);
 
       const coveringCenters = [];
       for (let c of (centers||[])) {
@@ -47,7 +53,11 @@ export async function GET(req) {
       }
 
       if (coveringCenters.length === 0) {
-        return NextResponse.json({ success: true, products: [], allowed: false, message: 'خارج التغطية' });
+        const res = NextResponse.json({ success: true, products: [], allowed: false, message: 'خارج التغطية' });
+        res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.headers.set('CDN-Cache-Control', 'no-store');
+        res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+        return res;
       }
 
       // جيب موقع المتجر المطلوب
@@ -64,12 +74,16 @@ export async function GET(req) {
           }
         }
         if (!allowed) {
-          return NextResponse.json({
+          const res = NextResponse.json({
             success: true,
             products: [],
             allowed: false,
             message: 'هالمتجر بالقبة وانت بالمينا - مش ضمن نطاقك'
           });
+          res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+          res.headers.set('CDN-Cache-Control', 'no-store');
+          res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+          return res;
         }
       }
     }
@@ -90,10 +104,18 @@ export async function GET(req) {
       description: row['Description'] || "",
     }));
 
-    return NextResponse.json({ success: true, products });
+    const res = NextResponse.json({ success: true, products });
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.headers.set('Pragma', 'no-cache');
+    res.headers.set('Expires', '0');
+    res.headers.set('CDN-Cache-Control', 'no-store');
+    res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+    return res;
 
   } catch (err) {
     console.error("by-store error:", err);
-    return NextResponse.json({ success: false, error: err.message || "Server Error" });
+    const res = NextResponse.json({ success: false, error: err.message || "Server Error" });
+    res.headers.set('Cache-Control', 'no-store');
+    return res;
   }
 }
