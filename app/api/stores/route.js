@@ -1,11 +1,16 @@
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return createClient(url, key);
+  return createClient(url, key, {
+    auth: { persistSession: false }
+  });
 }
 
 // نفس دالة المسافة يلي عندك بـ check-geofence
@@ -60,11 +65,15 @@ export async function GET(req) {
 
     // اذا الزبون ما بعت موقع - رجع كلشي (توافق خلفي)
     if (!lat || !lng) {
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         stores: allStores,
         filtered: false
       });
+      res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.headers.set('Pragma', 'no-cache');
+      res.headers.set('Expires', '0');
+      return res;
     }
 
     // 3. شوف أي أبراج بتغطي الزبون
@@ -78,7 +87,7 @@ export async function GET(req) {
 
     // برا التغطية
     if (coveringCenters.length === 0) {
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         stores: [],
         filtered: true,
@@ -86,6 +95,8 @@ export async function GET(req) {
         message: 'خارج نطاق التغطية حالياً - أنت بالقبة ما بتشوف متاجر المينا',
         covering_centers: []
       });
+      res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      return res;
     }
 
     // 4. فلتر المتاجر - المتجر لازم يكون ضمن نفس البرج يلي بيغطي الزبون
@@ -104,7 +115,7 @@ export async function GET(req) {
       return false;
     });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       stores: filteredStores,
       filtered: true,
@@ -113,6 +124,12 @@ export async function GET(req) {
       total_unfiltered: allStores.length,
       total_filtered: filteredStores.length
     });
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.headers.set('Pragma', 'no-cache');
+    res.headers.set('Expires', '0');
+    res.headers.set('CDN-Cache-Control', 'no-store');
+    res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+    return res;
 
   } catch (err) {
     console.error("Stores GET Error:", err);
