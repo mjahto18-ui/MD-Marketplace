@@ -54,7 +54,7 @@ export default function StoresPage() {
     }
 
     if (!navigator.geolocation) {
-      setLocationError('متصفحك ما بيدعم تحديد الموقع');
+      setLocationError('متصفحك لا يدعم تحديد الموقع');
       fetchStoresWithoutLocation();
       return;
     }
@@ -65,14 +65,14 @@ export default function StoresPage() {
       },
       (err) => {
         console.warn('Geolocation denied', err);
-        setLocationError('لازم تسمح بالموقع لتشوف المتاجر القريبة منك بالقبة');
+        setLocationError('يجب السماح بالموقع لعرض المتاجر ضمن نطاقك الجغرافي');
         // اذا رفض الموقع - ما منخليه يشوف ولا متجر حسب طلبك
         // اذا بدك يرجع يشوف كلشي حتى لو رفض، فك التعليق عن السطر تحت
         // fetchStoresWithoutLocation();
         setStores([]);
         setFilteredStores([]);
         setLoading(false);
-        setGeoStatus({ loading: false, allowed: false, message: 'يجب تفعيل الموقع لعرض المتاجر ضمن نطاق السلة', centers: [] });
+        setGeoStatus({ loading: false, allowed: false, message: 'يجب تفعيل الموقع لعرض المتاجر ضمن نطاقك الجغرافي', centers: [] });
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -118,8 +118,8 @@ export default function StoresPage() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center text-white">
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p>جاري فحص التغطية...📍</p>
-        <p className="text-xs text-purple-300 mt-2">عم نشوف اذا انت ضمن برج القبة</p>
+        <p>جاري التحميل...</p>
+        <p className="text-xs text-purple-300 mt-2">جاري تحديد موقعك</p>
       </div>
     </div>
   );
@@ -142,12 +142,12 @@ export default function StoresPage() {
             {geoStatus.allowed ? (
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4" />
-                <span>✅ ضمن {geoStatus.centers?.map(c=>c.name || c).join(', ') || 'نطاق التغطية'} - عم تشوف {geoStatus.total || filteredStores.length} متجر قريب منك</span>
+                <span>ضمن نطاق التغطية - ترى {geoStatus.total || filteredStores.length} متجر قريب منك</span>
               </div>
             ) : (
               <div>
-                <p className="font-bold">🚫 {geoStatus.message}</p>
-                <p className="text-xs mt-1">انت بالقبة ما بتقدر تشوف متاجر المينا - والعكس صحيح. فعّل الموقع.</p>
+                <p className="font-bold">لا يوجد متاجر ضمن نطاقك الجغرافي</p>
+                <p className="text-xs mt-1">يرجى تفعيل الموقع لعرض المتاجر المتاحة في منطقتك</p>
               </div>
             )}
           </div>
@@ -155,7 +155,7 @@ export default function StoresPage() {
 
         {locationError && geoStatus.allowed && (
           <div className="mb-3 p-3 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 text-sm">
-            ⚠️ {locationError}
+            {locationError}
           </div>
         )}
 
@@ -176,13 +176,13 @@ export default function StoresPage() {
           <div className="text-center py-20">
             <Store className="w-16 h-16 text-purple-400 mx-auto mb-4" />
             <p className="text-xl font-bold mb-2">
-              {geoStatus.allowed ? 'ما لقينا متاجر' : 'خارج نطاق التغطية'}
+              {geoStatus.allowed ? 'لا يوجد متاجر ضمن نطاقك الجغرافي' : 'خارج نطاق التغطية'}
             </p>
             <p className="text-purple-300">
-              {geoStatus.allowed ? 'جرب تبحث باسم تاني - انت بتشوف بس متاجر ضمن برجك' : 'ما في متاجر ضمن برج القبة حالياً، او انت برا التغطية'}
+              {geoStatus.allowed ? 'جرب البحث باسم آخر' : 'لا يوجد متاجر ضمن نطاقك الجغرافي حالياً'}
             </p>
             {!geoStatus.allowed && (
-              <button onClick={() => window.location.reload()} className="mt-4 bg-purple-600 px-4 py-2 rounded-xl text-sm">إعادة فحص الموقع</button>
+              <button onClick={() => window.location.reload()} className="mt-4 bg-purple-600 px-4 py-2 rounded-xl text-sm">إعادة المحاولة</button>
             )}
           </div>
         )}
