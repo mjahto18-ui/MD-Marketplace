@@ -34,8 +34,8 @@ export default function StoresPendingPage() {
     setAreaNames(aMap)
   }
 
-  // 2. واتساب للمتجر
-  const getWhatsAppLink = (store) => {
+  // 2. واتساب للمتجر - صار ياخد PIN
+  const getWhatsAppLink = (store, pin) => {
     let mobile = (store['Mobile'] || '').toString()
     if (!mobile) return null
     mobile = mobile.replace(/\D/g, '')
@@ -50,6 +50,11 @@ export default function StoresPendingPage() {
 
 تستطيع الدخول الان الى لوحة التحكم:
 https://md-marketplace.store/admin/login
+
+📱 رقم الموبايل: ${store['Mobile']}
+🔑 كلمة السر الخاصة بك: ${pin}
+
+احفظ كلمة السر، سوف تحتاجها للدخول!
 
 بالتوفيق مع MD-Marketplace!`
     
@@ -74,9 +79,23 @@ https://md-marketplace.store/admin/login
     }
 
     if(newStatus === 'Active'){
-      const waLink = getWhatsAppLink(store)
+      // انتظار التريغر ليخلق اليوزر
+      await new Promise(r => setTimeout(r, 1200));
+
+      // جلب الـ PIN من جدول users يلي خلقو التريغر
+      const { data: newUser } = await supabase
+        .from('users')
+        .select('"PIN"')
+        .eq('Store ID', store['Store ID'])
+        .order('_supa_synced_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const pin = newUser?.PIN || 'تواصل مع الادارة لمعرفة كلمة السر';
+
+      const waLink = getWhatsAppLink(store, pin)
       if(waLink) window.open(waLink, '_blank')
-      else alert(`تم قبول ${store['Store Name']} بنجاح، بس ما في رقم واتساب صحيح`)
+      else alert(`تم قبول ${store['Store Name']} بنجاح، بس ما في رقم واتساب صحيح - PIN هو ${pin}`)
     }
 
     setStores(prev => prev.filter(s => s['Store ID'] !== store['Store ID']))
