@@ -29,7 +29,7 @@ export async function POST(req) {
       supabase.from('cart').select('*'),
       supabase.from('customers').select('*'),
       supabase.from('delivery_rates').select('*'),
-      supabase.from('areas').select('*'),
+      supabase.from('areas').select('"Area ID", "Area Name", "Active"'),
       supabase.from('stores').select('"Store ID", "Commission Rate"'),
     ]);
 
@@ -114,11 +114,19 @@ export async function POST(req) {
       const customerLat = customer["Current Latitude"] || "";
       const customerLng = customer["Current Longtitude"] || ""; // مع t زيادة حسب جدولك
 
-      const areaExists = (areasRows||[]).some(row => String(row["Area ID"] || "").trim() === String(customerArea).trim() || String(row["Area Name"] || "").trim() === String(customerArea).trim());
+      const areaRow = (areasRows||[]).find(row => 
+      String(row["Area ID"] || "").trim() === String(customerArea).trim() || 
+      String(row["Area Name"] || "").trim() === String(customerArea).trim()
+      );
 
-      if (!areaExists) {
-        return NextResponse.json({ success: false, message: "عذراً، منطقتك الحالية غير مدعومة للتوصيل" }, { status: 400 });
-      }
+      if (!areaRow) {
+    return NextResponse.json({ success: false, message: "عذراً، منطقتك الحالية غير مدعومة للتوصيل" }, { status: 400 });
+    }
+
+    // هيدا الجديد - اذا Inactive ما يقطع
+    if (String(areaRow["Active"] || "").trim().toUpperCase() !== "ACTIVE") {
+    return NextResponse.json({ success: false, message: "عذراً، منطقتك موقفة مؤقتاً - ما منوصل لعندك حالياً" }, { status: 400 });
+    }
 
       finalAreaID = customerArea;
       finalAddress = customerAddress;
@@ -126,13 +134,28 @@ export async function POST(req) {
       finalLat = customerLat;
       finalLng = customerLng;
     } else if (addressType === "new") {
-      if (!finalAreaID ||!finalAddress) {
-        return NextResponse.json({ success: false, message: "تأكد من تعبئة المنطقة والعنوان" }, { status: 400 });
-      }
-      if (!finalLat ||!finalLng) {
-        return NextResponse.json({ success: false, message: "ما قدرنا نحدد موقعك، جرّب مرة تانية" }, { status: 400 });
-      }
-    } else {
+  if (!finalAreaID ||!finalAddress) {
+    return NextResponse.json({ success: false, message: "تأكد من تعبئة المنطقة والعنوان" }, { status: 400 });
+  }
+  if (!finalLat ||!finalLng) {
+    return NextResponse.json({ success: false, message: "ما قدرنا نحدد موقعك، جرّب مرة تانية" }, { status: 400 });
+  }
+
+  // ✅ نفس فحص Active للعنوان الجديد
+  const areaRowNew = (areasRows||[]).find(row => 
+    String(row["Area ID"] || "").trim() === String(finalAreaID).trim() || 
+    String(row["Area Name"] || "").trim() === String(finalAreaID).trim()
+  );
+
+  if (!areaRowNew) {
+    return NextResponse.json({ success: false, message: "عذراً، المنطقة غير مدعومة" }, { status: 400 });
+  }
+
+  if (String(areaRowNew["Active"] || "").trim().toUpperCase() !== "ACTIVE") {
+    return NextResponse.json({ success: false, message: "عذراً، هالمنطقة موقفة مؤقتاً" }, { status: 400 });
+  }
+
+} else {
       return NextResponse.json({ success: false, message: "نوع العنوان غير معروف" }, { status: 400 });
     }
 
