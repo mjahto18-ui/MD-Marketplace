@@ -33,8 +33,8 @@ export default function TaxiPendingPage() {
     setAreaNames(aMap)
   }
 
-  // 2. واتساب للتاكسي
-  const getWhatsAppLink = (taxi) => {
+  // 2. واتساب للتاكسي - صار ياخد PIN
+  const getWhatsAppLink = (taxi, pin) => {
     let mobile = (taxi['phone'] || '').toString()
     if (!mobile) return null
     mobile = mobile.replace(/\D/g, '')
@@ -51,8 +51,13 @@ export default function TaxiPendingPage() {
 
 السيارة: ${car} - ${plate}
 
-تقدر تفوت هلق على التطبيق:
+تستطيع الدخول الى التطبيق:
 https://md-marketplace.store/admin/login
+
+📱 رقم الهاتف: ${taxi['phone']}
+🔑 رمز الخول الخاص بك: ${pin}
+
+احفظ رمز الدخول ، سوف تحتاجه للدخول!
 
 بالتوفيق!`
     
@@ -74,9 +79,23 @@ https://md-marketplace.store/admin/login
     if(error){ alert("Error: " + error.message); return }
 
     if(newStatus === 'active'){
-      const waLink = getWhatsAppLink(taxi)
+      await new Promise(r => setTimeout(r, 1200));
+
+      // جلب الـ PIN من جدول users
+      const cleanPhone = (taxi['phone'] || '').toString().replace(/\D/g, '');
+      const { data: newUser } = await supabase
+        .from('users')
+        .select('"PIN"')
+        .or(`Mobile.eq.${taxi['phone']},Mobile.eq.${cleanPhone}`)
+        .order('_supa_synced_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const pin = newUser?.PIN || taxi['pin'] || taxi['PIN'] || 'تواصل مع الادارة لمعرفة كلمة السر';
+
+      const waLink = getWhatsAppLink(taxi, pin)
       if(waLink) window.open(waLink, '_blank')
-      else alert(`تم قبول ${taxi['full_name']} بنجاح، بس ما في رقم واتساب صحيح`)
+      else alert(`تم قبول ${taxi['full_name']} بنجاح، بس ما في رقم واتساب صحيح - PIN هو ${pin}`)
     }
 
     setTaxis(prev => prev.filter(t => t['Taxi_ID'] !== taxi['Taxi_ID']))
