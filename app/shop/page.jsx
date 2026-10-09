@@ -54,6 +54,39 @@ export default function ShopPage() {
   const [kingsData, setKingsData] = useState(null);
   const [showKings, setShowKings] = useState(false);
 
+  // هون الصح - برا الـ JSX
+  const FALLBACK = '9613177653';
+  const handleFastDelivery = () => {
+    const openWhatsApp = (phone, name, center) => {
+      const clean = String(phone).replace(/\D/g,'');
+      const msg = center? `مرحبا ${name || ''}، بدي توصيل سريع من ${center}` : "مرحبا، بدي اطلب طلب خاص";
+      window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, '_blank');
+    };
+    if(!navigator.geolocation){
+      openWhatsApp(FALLBACK, '', '');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(async (pos)=>{
+      try{
+        const res = await fetch('/api/manager-by-location', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        });
+        const data = await res.json();
+        if(data.found && data.manager_phone){
+          openWhatsApp(data.manager_phone, data.manager_name, data.center);
+        }else{
+          openWhatsApp(FALLBACK, '', '');
+        }
+      }catch{
+        openWhatsApp(FALLBACK, '', '');
+      }
+    }, ()=>{
+      openWhatsApp(FALLBACK, '', '');
+    });
+  };
+
   useEffect(() => {
     if (showKings) {
       document.body.style.overflow = 'hidden';
@@ -75,7 +108,7 @@ export default function ShopPage() {
         if (data.user) {
           setUser(data.user);
           fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
-     .then(r=>r.json()).then(b=>{
+    .then(r=>r.json()).then(b=>{
             fetch('/api/loyalty-tiers').then(r=>r.json()).then(tData=>{
               const tiersList = tData.tiers || [];
               if(tiersList.length){
@@ -161,9 +194,10 @@ export default function ShopPage() {
           )}
 
           {user? (
-            <button onClick={() => window.open(`https://wa.me/9613177653?text=${encodeURIComponent("مرحبا، بدي اطلب طلب خاص")}`, '_blank')} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
+            <button onClick={handleFastDelivery} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
               <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
-              <h3 className="text-white font-bold text-xs">طلب خاص</h3>
+              <h3 className="text-white font-bold text-xs">توصيل سريع</h3>
+              <p className="text-white/60 text-">واتساب المسؤول</p>
             </button>
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-3 text-center border border-yellow-500/30 active:scale-95 relative">
@@ -173,7 +207,6 @@ export default function ShopPage() {
             </button>
           )}
 
-          {/* MD-TAXI - مع نظام taxi ENUM */}
           {user? (
             user.taxi === 'yes'? (
               <Link href="/taxi" className="glass rounded-2xl p-4 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
@@ -187,7 +220,7 @@ export default function ShopPage() {
                 </div>
                 <Car className="w-7 h-7 text-gray-400 mx-auto mb-2" />
                 <h3 className="text-white font-bold text-sm">MD-TAXI</h3>
-                <p className="text-red-300 text- mt-1 leading-tight"> الخدمة غير متاحة حاليا  <br/>تواصل مع فريق الدعم</p>
+                <p className="text-red-300 text- mt-1 leading-tight"> الخدمة غير متاحة حاليا <br/>تواصل مع فريق الدعم</p>
               </div>
             ) : null
           ) : (
