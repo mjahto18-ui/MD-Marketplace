@@ -26,30 +26,28 @@ export default function MerchantReportPage() {
     setLoading(true)
     setSelectedStore(storeId)
     
-    // 1. جيب كل order_details لهالمتجر
-    let detailsQuery = supabase.from('order_details').select('*').eq('Store ID', storeId)
-    const { data: details } = await detailsQuery
+    const { data: details } = await supabase.from('order_details').select('*').eq('Store ID', storeId)
     if(!details?.length){ setReport({details:[], orders:[], summary:{}}); setLoading(false); return }
 
     const requestIds = [...new Set(details.map(d=> d['Request ID']))]
 
-    // 2. جيب رؤوس الفواتير من order_requuest + orders_history
     let ordersQuery = supabase.from('order_requuest').select('*').in('Request ID', requestIds)
     if(from) ordersQuery = ordersQuery.gte('Request Date', new Date(from).toISOString())
-    if(to) ordersQuery = ordersQuery.lte('Request Date', new Date(to).toISOString() + 'T23:59:59')
+    if(to){
+      const toDate = new Date(to)
+      toDate.setHours(23,59,59,999)
+      ordersQuery = ordersQuery.lte('Request Date', toDate.toISOString())
+    }
     
     const { data: orders } = await ordersQuery.order('Request Date', {ascending:false})
     
-    // فلترة التفاصيل حسب الفواتير يلي لقيناها بعد التاريخ
     const validRequestIds = new Set((orders||[]).map(o=> o['Request ID']))
     const filteredDetails = details.filter(d=> validRequestIds.has(d['Request ID']))
 
-    // 3. جيب اسماء المنتجات
     const productIds = [...new Set(filteredDetails.map(d=> d['Product ID']))]
     const { data: products } = await supabase.from('products').select('*').in('Product ID', productIds)
     const pMap = {}; products?.forEach(p=> pMap[p['Product ID']] = p['Products Name'] || p['Product Name'])
 
-    // 4. احسب الملخص
     const totalSales = filteredDetails.reduce((s,d)=> s + (Number(String(d['Line Total']).replace(/,/g,''))||0), 0)
     const totalCommission = filteredDetails.reduce((s,d)=> s + (Number(String(d['Commission Amount']).replace(/,/g,''))||0), 0)
     const totalQty = filteredDetails.reduce((s,d)=> s + (Number(d['Qty'])||0), 0)
@@ -69,12 +67,18 @@ export default function MerchantReportPage() {
       <BackToDashboard />
       <h1 className="text-2xl font-black mb-6">كشف حساب التاجر - من order_details</h1>
 
-      {/* بحث */}
-      <div className="bg-white p-4 rounded-xl border shadow-sm flex gap-3 mb-6">
+      <div className="bg-white p-4 rounded-xl border shadow-sm flex gap-3 mb-6 items-center">
         <input value={q} onChange={e=> setQ(e.target.value)} placeholder="كود التاجر / Store ID / اسم المتجر" className="flex-1 border p-2 rounded-lg" />
-        <button onClick={searchStores} className="bg-black text-white px-6 rounded-lg">بحث</button>
-        <input type="date" value={from} onChange={e=> setFrom(e.target.value)} className="border p-2 rounded-lg" />
-        <input type="date" value={to} onChange={e=> setTo(e.target.value)} className="border p-2 rounded-lg" />
+        <button onClick={searchStores} className="bg-black text-white px-6 py-2 rounded-lg">بحث</button>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold">من:</span>
+          <input type="date" value={from} onChange={e=> setFrom(e.target.value)} className="border p-2 rounded-lg" />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold">الى:</span>
+          <input type="date" value={to} onChange={e=> setTo(e.target.value)} className="border p-2 rounded-lg" />
+        </div>
       </div>
 
       {stores.length>0 && (
@@ -92,7 +96,6 @@ export default function MerchantReportPage() {
 
       {report && (
         <>
-          {/* ملخص */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-xl border"><div className="text-xs text-gray-400">عدد الفواتير</div><div className="font-black text-xl">{report.summary.count}</div></div>
             <div className="bg-white p-4 rounded-xl border"><div className="text-xs text-gray-400">اجمالي المبيعات</div><div className="font-black text-xl">{report.summary.totalSales.toLocaleString()} ل.ل</div></div>
@@ -100,10 +103,20 @@ export default function MerchantReportPage() {
             <div className="bg-black text-white p-4 rounded-xl"><div className="text-xs text-gray-400">الصافي للتاجر</div><div className="font-black text-xl text-yellow-400">{report.summary.net.toLocaleString()} ل.ل</div></div>
           </div>
 
-          {/* تفاصيل */}
           <div className="bg-white rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-400"><tr><th className="p-3 text-right">التاريخ من Request Date</th><th className="p-3">رقم الطلب</th><th className="p-3">المنتج</th><th className="p-3">الكمية</th><th className="p-3">المجموع</th><th className="p-3">العمولة</th><th className="p-3">الصافي</th></tr></thead>
+              <thead className="bg-gray-50 text-xs text-gray-400">
+                <tr>
+                  <th className="p-3 text-right">#</th>
+                  <th className="p-3 text-right">التاريخ من Request Date</th>
+                  <th className="p-3">رقم الطلب</th>
+                  <th className="p-3">المنتج</th>
+                  <th className="p-3">الكمية</th>
+                  <th className="p-3">المجموع</th>
+                  <th className="p-3">العمولة</th>
+                  <th className="p-3">الصافي</th>
+                </tr>
+              </thead>
               <tbody>
                 {report.details.map((d,i)=>{
                   const order = report.orders.find(o=> o['Request ID']===d['Request ID'])
@@ -112,7 +125,8 @@ export default function MerchantReportPage() {
                   const comm = Number(String(d['Commission Amount']).replace(/,/g,''))||0
                   return (
                     <tr key={i} className="border-b">
-                      <td className="p-2 text-xs">{order?.['Request Date']?.slice(0,10) || order?.['Cerated Date'] || '-'}</td>
+                      <td className="p-2 font-bold bg-gray-50 text-center">{i+1}</td>
+                      <td className="p-2 text-xs">{order?.['Request Date'] ? new Date(order['Request Date']).toLocaleDateString('en-GB') : '-'}</td>
                       <td className="p-2 font-mono text-xs">{String(d['Request ID']).slice(0,8)}</td>
                       <td className="p-2">{pName}</td>
                       <td className="p-2 text-center">{d['Qty']}</td>
@@ -123,6 +137,15 @@ export default function MerchantReportPage() {
                   )
                 })}
               </tbody>
+              <tfoot className="bg-black text-white font-black">
+                <tr>
+                  <td colSpan={4} className="p-3 text-left">المجموع الكلي اخر الفاتورة:</td>
+                  <td className="p-3 text-center">{report.summary.totalQty}</td>
+                  <td className="p-3">{report.summary.totalSales.toLocaleString()}</td>
+                  <td className="p-3 text-red-400">{report.summary.totalCommission.toLocaleString()}</td>
+                  <td className="p-3 text-yellow-400">{report.summary.net.toLocaleString()}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
 
