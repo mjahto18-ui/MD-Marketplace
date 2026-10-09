@@ -531,6 +531,11 @@ export default function Dashboard(){
             <OperationItem label="الرواتب - الكود الخماسي" href="/admin/payroll" icon="💰" sub="احسب رواتب الشهر" />
             <OperationItem label="شاشة المكتب - QR" href="/admin/office-display" icon="📱" sub="عرض QR للموظفين" />
             <OperationItem label="Generate Code - كرت دعوة" href="/admin/invite-codes" icon="🎟️" sub="ولد كود 6 أرقام - بدون عداد - مربوط بالانفايت" />
+              {/* 3 كروت الجديدة حد Generate Code */}
+            <OperationItem label="كشف الابراج - Tower Report" href="/admin/tower-report" icon="🛰️" sub="ID البرج + كشف حساب المطورين + taxi/cart  " />
+            <OperationItem label="كشف التجار - Merchant Report" href="/admin/merchant-report" icon="🧾" sub="حساب المتاجر + كشف حساب" />
+            <OperationItem label="مسؤولين الابراج" href="/admin/geofence-managers" icon="👤" sub="مسؤولين الابراج - service_type" />
+           
           </div>
         </section>
 
