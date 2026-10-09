@@ -47,13 +47,13 @@ export default function DriversPendingPage() {
     const message = `مرحبًا يا ${name} 👋
 تم تفعيل حسابك بنجاح! 🛵
 
-تقدر تفوت هلق على التطبيق:
+تستطيع الدخول الان الى التطبيق:
 https://md-marketplace.store/admin/login
 
-📱 رقم الموبايل: ${driver['Mobile']}
-🔑 كلمة السر الخاصة بك: ${pin}
+📱 رقم الهاتف: ${driver['Mobile']}
+🔑 رمز الخول الخاص بك: ${pin}
 
-احفظ كلمة السر، سوف تحتاجها للدخول!
+احفظ الرمز السري، سوف تحتاجه للدخول!
 
 بالتوفيق!`
     
