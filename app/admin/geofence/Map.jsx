@@ -25,14 +25,21 @@ function ClickHandler({ onAdd }) {
         is_active: true,
         cart_enabled: true,
         taxi_enabled: true,
-        bot_enabled: true
+        bot_enabled: true,
+        is_24h: true,
+        cart_open: '08:00',
+        cart_close: '22:00',
+        taxi_open: '06:00',
+        taxi_close: '22:00',
+        bot_open: '08:00',
+        bot_close: '22:00'
       });
     }
   });
   return null;
 }
 
-export default function Map({ centers, onAddCenter }) {
+export default function Map({ centers, onAddCenter, onUpdateCenter }) {
   return (
     <MapContainer center={[34.4367, 35.8444]} zoom={9} className="h-full w-full">
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -40,8 +47,22 @@ export default function Map({ centers, onAddCenter }) {
       
       {centers.map(c => (
         <LayerGroup key={c.id}>
-          <Marker position={[c.center_lat, c.center_lng]}>
-            <Popup>{c.name}</Popup>
+          <Marker 
+            position={[c.center_lat, c.center_lng]}
+            draggable={true}
+            eventHandlers={{
+              dragend: (e) => {
+                const latlng = e.target.getLatLng();
+                // نفس الـ id - بس نحدث الموقع
+                onUpdateCenter({ 
+                  ...c, 
+                  center_lat: latlng.lat, 
+                  center_lng: latlng.lng 
+                });
+              }
+            }}
+          >
+            <Popup>{c.name}<br/>اسحب لتغيير الموقع</Popup>
           </Marker>
           {c.is_active && c.cart_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_cart*1000} pathOptions={{color:'red', fillOpacity:0.1, weight:2}} />}
           {c.is_active && c.bot_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_bot*1000} pathOptions={{color:'orange', fillOpacity:0.1, weight:2}} />}
