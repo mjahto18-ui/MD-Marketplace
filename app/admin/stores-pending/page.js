@@ -51,10 +51,10 @@ export default function StoresPendingPage() {
 تستطيع الدخول الان الى لوحة التحكم:
 https://md-marketplace.store/admin/login
 
-📱 رقم الموبايل: ${store['Mobile']}
-🔑 كلمة السر الخاصة بك: ${pin}
+📱 رقم الهاتف: ${store['Mobile']}
+🔑 رمز الدخول الخاص بك: ${pin}
 
-احفظ كلمة السر، سوف تحتاجها للدخول!
+احفظ الرمز السري، سوف تحتاجه للدخول!
 
 بالتوفيق مع MD-Marketplace!`
     
