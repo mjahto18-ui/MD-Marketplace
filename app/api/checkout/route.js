@@ -158,6 +158,12 @@ export async function POST(req) {
 } else {
       return NextResponse.json({ success: false, message: "نوع العنوان غير معروف" }, { status: 400 });
     }
+    // ✅ احسب مجموع الكوميشن
+  let commissionTotal = 0;
+  cartWithProducts.forEach(item => {
+  const rate = storesMap[String(item.storeID).trim()] ?? 0;
+  commissionTotal += (Number(item.lineTotal) * rate / 100);
+  });
 
     // 7) نسخ الطلب على order_requuest - بالأسماء الصحيحة 100% مع الأخطاء الإملائية اللي بالـ DB
     const orderRow = {
@@ -170,6 +176,7 @@ export async function POST(req) {
       "Delivery Fee": deliveryFee,
       "Items Cost": itemsCost,
       "Total Amount": totalAmount,
+      "Commission Total": commissionTotal, // ✅ هيدا يلي كان ناقص
       "Approval Status": "Pending",
       "Request Date": requestDate,
       "Delivery Status": "Pending",
