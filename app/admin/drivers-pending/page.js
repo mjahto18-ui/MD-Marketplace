@@ -33,8 +33,8 @@ export default function DriversPendingPage() {
     setAreaNames(aMap)
   }
 
-  // 2. نفس تابع الواتساب - بس رسالة للدرايفر
-  const getWhatsAppLink = (driver) => {
+  // 2. نفس تابع الواتساب - بس رسالة للدرايفر - صار ياخد PIN
+  const getWhatsAppLink = (driver, pin) => {
     let mobile = (driver['Mobile'] || '').toString()
     if (!mobile) return null
     mobile = mobile.replace(/\D/g, '')
@@ -49,6 +49,11 @@ export default function DriversPendingPage() {
 
 تقدر تفوت هلق على التطبيق:
 https://md-marketplace.store/admin/login
+
+📱 رقم الموبايل: ${driver['Mobile']}
+🔑 كلمة السر الخاصة بك: ${pin}
+
+احفظ كلمة السر، سوف تحتاجها للدخول!
 
 بالتوفيق!`
     
@@ -73,9 +78,22 @@ https://md-marketplace.store/admin/login
     }
 
     if(newStatus === 'Active'){
-      const waLink = getWhatsAppLink(driver)
+      await new Promise(r => setTimeout(r, 1200));
+
+      // جلب الـ PIN من جدول users - التريغر تبع الدرايفر بيخلقو
+      const { data: newUser } = await supabase
+        .from('users')
+        .select('"PIN"')
+        .eq('Mobile', driver['Mobile'])
+        .order('_supa_synced_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const pin = newUser?.PIN || driver['PIN'] || 'تواصل مع الادارة لمعرفة كلمة السر';
+
+      const waLink = getWhatsAppLink(driver, pin)
       if(waLink) window.open(waLink, '_blank')
-      else alert(`تم قبول ${driver['Driver Name']} بنجاح، بس ما في رقم واتساب صحيح`)
+      else alert(`تم قبول ${driver['Driver Name']} بنجاح، بس ما في رقم واتساب صحيح - PIN هو ${pin}`)
     }
 
     setDrivers(prev => prev.filter(d => d['Driver ID'] !== driver['Driver ID']))
