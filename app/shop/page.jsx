@@ -64,24 +64,23 @@ const handleFastDelivery = () => {
   const win = isMobile ? null : window.open('about:blank', '_blank');
 
   const openWhatsApp = (phone, name, center) => {
-    const clean = cleanPhone(phone || FALLBACK);
-    const msg = center ? `مرحبا ${name || ''}، بدي توصيل سريع من ${center}` : "مرحبا، بدي اطلب طلب خاص";
-    const text = encodeURIComponent(msg);
-    
-    const waMe = `whatsapp://send?phone=${clean}&text=${text}`;
-    
-    if (isMobile) {
-      // هاد هو السر - لازم location.href مباشرة
-      window.location.href = waMe;
+  const clean = cleanPhone(phone || FALLBACK);
+  const msg = center ? `مرحبا ${name || ''}، بدي توصيل سريع من ${center}` : "مرحبا، بدي اطلب طلب خاص";
+  const text = encodeURIComponent(msg);
+  
+  if (isMobile) {
+    // تلفون - افتح التطبيق مباشرة
+    window.location.href = `whatsapp://send?phone=${clean}&text=${text}`;
+  } else {
+    // لابتوب - افتح wa.me
+    const waMe = `https://wa.me/${clean}?text=${text}`;
+    if (win && !win.closed) {
+      win.location.href = waMe;
     } else {
-      if (win && !win.closed) {
-        win.location.href = waMe;
-      } else {
-        window.open(waMe, '_blank');
-      }
+      window.open(waMe, '_blank');
     }
-  };
-
+  }
+};
   if (!navigator.geolocation) {
     openWhatsApp(FALLBACK, '', '');
     return;
