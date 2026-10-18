@@ -56,36 +56,53 @@ export default function ShopPage() {
 
   // هون الصح - برا الـ JSX
   const FALLBACK = '9613177653';
-  const handleFastDelivery = () => {
-    const openWhatsApp = (phone, name, center) => {
-      const clean = String(phone).replace(/\D/g,'');
-      const msg = center? `مرحبا ${name || ''}، بدي توصيل سريع من ${center}` : "مرحبا، بدي اطلب طلب خاص";
-      window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, '_blank');
-    };
-    if(!navigator.geolocation){
-      openWhatsApp(FALLBACK, '', '');
-      return;
+const handleFastDelivery = () => {
+  const cleanPhone = (p) => String(p).replace(/\D/g,'');
+  
+  // 1- افتح مباشرة بنفس الضغطة - هاد بيخلي الايفون يسمح
+ const win = window.open('about:blank', '_blank');
+  
+  const openWhatsApp = (phone, name, center) => {
+    const clean = cleanPhone(phone || FALLBACK);
+    const msg = center ? `مرحبا ${name || ''}، بدي توصيل سريع من ${center}` : "مرحبا، بدي اطلب طلب خاص";
+    const url = `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+    if (win) {
+      win.location.href = url; // غير رابط النافذة يلي فتحناها
+    } else {
+      // fallback اذا المتصفح منع الـ blank
+      window.location.href = url;
     }
-    navigator.geolocation.getCurrentPosition(async (pos)=>{
-      try{
+  };
+
+  if (!navigator.geolocation) {
+    openWhatsApp(FALLBACK, '', '');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      try {
         const res = await fetch('/api/manager-by-location', {
           method: 'POST',
-          headers: {'Content-Type':'application/json'},
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         });
         const data = await res.json();
-        if(data.found && data.manager_phone){
+        if (data.found && data.manager_phone) {
           openWhatsApp(data.manager_phone, data.manager_name, data.center);
-        }else{
+        } else {
           openWhatsApp(FALLBACK, '', '');
         }
-      }catch{
+      } catch {
         openWhatsApp(FALLBACK, '', '');
       }
-    }, ()=>{
+    },
+    () => {
       openWhatsApp(FALLBACK, '', '');
-    });
-  };
+    },
+    { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 }
+  );
+};
 
   useEffect(() => {
     if (showKings) {
@@ -194,11 +211,16 @@ export default function ShopPage() {
           )}
 
           {user? (
-            <button onClick={handleFastDelivery} className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative">
-              <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
-              <h3 className="text-white font-bold text-xs">توصيل سريع</h3>
-              <p className="text-white/60 text-">واتساب المسؤول</p>
-            </button>
+  <button 
+    type="button"
+    onClick={handleFastDelivery} 
+    className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-yellow-500/30 active:scale-95 relative select-none touch-manipulation"
+    style={{ touchAction: 'manipulation' }}
+  >
+    <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
+    <h3 className="text-white font-bold text-xs">توصيل سريع</h3>
+    <p className="text-white/60 text-">واتساب المسؤول</p>
+  </button>
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-3 text-center border border-yellow-500/30 active:scale-95 relative">
               <LockBadge />
