@@ -68,7 +68,7 @@ export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
   const [gpsTried, setGpsTried] = useState(false);
   const [permission, setPermission] = useState('prompt');
 
-  const requestLocation = (withMarker = false) => {
+  const requestLocation = (withMarker = true) => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -113,8 +113,8 @@ export default function TaxiMap({ onDistanceCalculated, onConfirm }) {
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
         setPermission(result.state);
-        if (result.state === 'granted') requestLocation(false);
-        else if (result.state === 'prompt') requestLocation(false);
+        if (result.state === 'granted') requestLocation(true);
+        else if (result.state === 'prompt') requestLocation(true);
         else setGpsTried(true);
         result.onchange = () => setPermission(result.state);
       }).catch(()=> requestLocation(false));
