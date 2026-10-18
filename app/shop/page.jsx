@@ -68,7 +68,7 @@ const handleFastDelivery = () => {
     const msg = center ? `مرحبا ${name || ''}، بدي توصيل سريع من ${center}` : "مرحبا، بدي اطلب طلب خاص";
     const text = encodeURIComponent(msg);
     
-    const waMe = `https://wa.me/${clean}?text=${text}`;
+    const waMe = `whatsapp://send?phone=${clean}&text=${text}`;
     
     if (isMobile) {
       // هاد هو السر - لازم location.href مباشرة
