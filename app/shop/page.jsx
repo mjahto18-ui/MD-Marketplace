@@ -58,19 +58,27 @@ export default function ShopPage() {
   const FALLBACK = '9613177653';
 const handleFastDelivery = () => {
   const cleanPhone = (p) => String(p).replace(/\D/g,'');
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
-  // 1- افتح مباشرة بنفس الضغطة - هاد بيخلي الايفون يسمح
- const win = window.open('about:blank', '_blank');
-  
+  // افتح blank بس للابتوب
+  const win = isMobile ? null : window.open('about:blank', '_blank');
+
   const openWhatsApp = (phone, name, center) => {
     const clean = cleanPhone(phone || FALLBACK);
     const msg = center ? `مرحبا ${name || ''}، بدي توصيل سريع من ${center}` : "مرحبا، بدي اطلب طلب خاص";
-    const url = `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
-    if (win) {
-      win.location.href = url; // غير رابط النافذة يلي فتحناها
+    const text = encodeURIComponent(msg);
+    
+    const waMe = `https://wa.me/${clean}?text=${text}`;
+    
+    if (isMobile) {
+      // هاد هو السر - لازم location.href مباشرة
+      window.location.href = waMe;
     } else {
-      // fallback اذا المتصفح منع الـ blank
-      window.location.href = url;
+      if (win && !win.closed) {
+        win.location.href = waMe;
+      } else {
+        window.open(waMe, '_blank');
+      }
     }
   };
 
@@ -97,13 +105,10 @@ const handleFastDelivery = () => {
         openWhatsApp(FALLBACK, '', '');
       }
     },
-    () => {
-      openWhatsApp(FALLBACK, '', '');
-    },
+    () => openWhatsApp(FALLBACK, '', ''),
     { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 }
   );
 };
-
   useEffect(() => {
     if (showKings) {
       document.body.style.overflow = 'hidden';
