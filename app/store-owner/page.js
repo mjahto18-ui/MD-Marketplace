@@ -128,7 +128,15 @@ export default function StoreDashboard(){
 
   const addProducts = async ()=>{
     const toInsert = newProds.filter(n=>n.name && n.price).map(n=>({
-      'Store ID': me.storeId, 'Product Name': n.name, 'Unit': n.unit, 'Price': n.price, 'Image': n.image, 'Active': false, 'Stock Qty': 1
+      'Store ID': me.storeId, 
+    'Product Name': n.name, 
+    'Unit': n.unit || 'حبة', 
+    'Price': Number(n.price), 
+    'Image': n.image || null,
+    'Active': 'FALSE',      // هون صارت نص كبير
+    'Available': 'Yes',
+    'Stock Qty': '1',       // نص
+    'Weight Points': 0
     }))
     if(!toInsert.length) return alert('عبي اسم وسعر')
     const { error } = await supabase.from('products').insert(toInsert)
