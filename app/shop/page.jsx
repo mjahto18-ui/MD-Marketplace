@@ -55,7 +55,7 @@ export default function ShopPage() {
   const [showKings, setShowKings] = useState(false);
 
   // هون الصح - برا الـ JSX
-  const FALLBACK = '9613177653';
+  const FALLBACK = '96181169919';
 const handleFastDelivery = () => {
   const cleanPhone = (p) => String(p).replace(/\D/g,'');
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
