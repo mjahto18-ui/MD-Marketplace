@@ -222,7 +222,12 @@ export default function ProductsPage() {
               <div className="relative w-full h-44 bg-white rounded-t-2xl overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
-                <p className="text-xs text-purple-300 mb-2 truncate">المتجر: {product.storeName}</p>
+                <p className="text-xs text-purple-300 mb-1 truncate">المتجر: {product.storeName}</p>
+                {product.description && (
+                <p className="text-[11px] text-gray-400 leading-4 line-clamp-2 mb-2 min-h-[28px]">
+                {product.description}
+                </p>
+                )}
                 <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p></div>
                 {isCustomer? (
                   <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
