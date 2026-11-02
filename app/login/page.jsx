@@ -101,7 +101,7 @@ export default function LoginPage() {
   };
 
   const handleGuest = async () => { setLoading(true); await fetch("/api/guest", { method: "POST", credentials: "include" }); window.location.replace("/shop"); };
-  const handleWhatsApp = () => { window.open("https://wa.me/9613177653", "_blank"); };
+  const handleWhatsApp = () => { window.open("https://wa.me/96181169919", "_blank"); };
   const handleAbout = () => { window.location.href = "/about"; };
 
   if (checkingSession) return (<div className="min-h-screen gradient-bg flex items-center justify-center"><div className="text-white text-xl">جاري التحميل...</div></div>);

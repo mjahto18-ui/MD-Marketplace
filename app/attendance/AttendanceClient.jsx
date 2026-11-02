@@ -59,7 +59,7 @@ function AttendanceInner(){
   }
 
   useEffect(()=>{
-    if(!qr){ setMsg('صور الـ QR من شاشة المكتب'); return; }
+    if(!qr){ setMsg('يرجى تصوير الـ QR من شاشة المكتب'); return; }
 
     const bind = async ()=>{
       const fingerprint = generateStableFingerprint()
@@ -67,7 +67,7 @@ function AttendanceInner(){
 
       // ===== الجديد: جيب GPS الموظف قبل البصمة =====
       if(!navigator.geolocation){
-        setMsg('❌ جهازك ما بيدعم الموقع')
+        setMsg('❌ هذا الجهاز لا يدعم الموقع')
         return
       }
 
@@ -99,8 +99,8 @@ function AttendanceInner(){
         }catch(e){ setMsg('خطأ شبكة') }
 
       }, (err)=>{
-        if(err.code === 1) setMsg('❌ لازم تفعل الموقع - ما في بصمة بلا GPS\nفعل Location من الاعدادات')
-        else if(err.code === 2) setMsg('❌ ما قدر يحدد موقعك - تأكد النت شغال')
+        if(err.code === 1) setMsg('❌ يرجى تفعيل الموقع - لا يمكن تسجيل الدخول بلا GPS\nفعل Location من الاعدادات')
+        else if(err.code === 2) setMsg('❌ لا استطيع تحديد موقعك - تأكد من شبكة الانترنت')
         else setMsg('❌ خطأ GPS - حاول مرة تانية')
       }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
     }
@@ -111,7 +111,7 @@ function AttendanceInner(){
     <div style={{minHeight:'100vh', background:'#080811', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Cairo', padding:'20px'}}>
       <div style={{background:'white', color:'#111', padding:'30px', borderRadius:'20px', textAlign:'center', maxWidth:'400px', width:'100%'}}>
         <h2 style={{marginBottom:'20px', whiteSpace:'pre-wrap', wordBreak:'break-all'}}>{msg}</h2>
-        {!qr && <p>افتح كاميرا تلفونك وصوّر الـ QR يلي على شاشة المكتب</p>}
+        {!qr && <p>افتح كاميرة الهاتف وصوّر الـ QR اللذي على شاشة المكتب</p>}
       </div>
     </div>
   )

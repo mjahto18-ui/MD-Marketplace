@@ -117,7 +117,7 @@ export default function Dashboard(){
       }catch{}
     }
 
-    const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}] = await Promise.all([
+     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}, {data: geofenceData}, {data: taxiPendingData}, {data: storesPendingData}, {data: driversPendingData}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
@@ -129,6 +129,10 @@ export default function Dashboard(){
       supabase.from('pending_reviews').select('*').limit(2000),
       supabase.from('products').select('*').eq('Active','FALSE').limit(2000),
       supabase.from('taxi_sos').select('id').eq('status','open').limit(100),
+      supabase.from('geofence_centers').select('id').eq('is_active', true), // <-- هاد الجديد
+      supabase.from('taxi_drivers').select('Taxi_ID').eq('status', 'pending').limit(2000),
+      supabase.from('stores').select('*').eq('Status', 'inactive').neq('Store ID', 'MD_HQ_001').limit(2000),
+      supabase.from('drivers').select('*').eq('Status', 'Inactive').limit(2000),
     ])
 
     const today = new Date().toISOString().split('T')[0]
@@ -152,6 +156,11 @@ export default function Dashboard(){
       overpayTotal: pendingOverpay?.length||0,
       pendingReviewsCount: pendingReviews?.filter(c=>c['Status']==='Pending' || c['status']==='pending').length|| pendingReviews?.length||0,
       pendingProducts: pendingProducts?.length||0,
+      geofenceCenters: geofenceData?.length || 0,
+      taxiPending: taxiPendingData?.length || 0,
+      storesPending: storesPendingData?.length || 0,
+      driversPending: driversPendingData?.length || 0,
+
     })
     // SOS count
     setSosCount(sosOpen?.length||0)
@@ -286,6 +295,7 @@ export default function Dashboard(){
             </div>
           </div>
         </div>
+              
 
         <div className="flex items-center gap-2 relative">
           {hasAlert && (
@@ -467,6 +477,31 @@ export default function Dashboard(){
           </div>
         </div>
 
+        {/* === قسم المالية - Admin / Accounting فقط - هون محلو الصح === */}
+        {isFinanceRole && (
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="text-right space-y-1">
+                <h2 className="text-[16px] font-black text-white" style={{fontFamily:'Andika'}}>
+                  المالية - التقارير والبنك
+                </h2>
+                <p className="text-[12px] text-[#FFD700]/60" style={{fontFamily:'Andika'}}>
+                  Finance - Reports & Wallet Management - Admin Only
+                </p>
+              </div>
+              <div className="h-px flex-1 bg-[#FFD700]/20 mx-6" />
+              <div className="text-[10px] text-[#FFD700]/40 tracking-widest" style={{fontFamily:'Andika'}}>
+                FINANCE
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <FinanceItem label="REPORTS AMOUNT - التقارير المالية" count={0} href="/admin/reports-amount" icon="📊" />
+              <FinanceItem label="WALLET - إدارة البنك والمحافظ" count={0} href="/admin/wallet" icon="🏦" />
+            </div>
+          </section>
+        )}
+
         {/* === قسم العمليات الجديد - SOS + 3 كروت + كرت Generate Code === */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
@@ -490,11 +525,17 @@ export default function Dashboard(){
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            <OperationItem label="Geofence - أبراج التغطية" href="/admin/geofence" icon="📍" sub={`${counts.geofenceCenters || 0} برج نشط - تحكم بمناطق السلة والتاكسي والبوت`} />
             {/* 3 كروت عمليات - بلا عداد - نفس قالب Item + كرت Generate Code الجديد */}
             <OperationItem label="الحضور - مين بالدوام؟" href="/admin/attendance" icon="👥" sub="تحكم يدوي + تصفير جهاز" />
             <OperationItem label="الرواتب - الكود الخماسي" href="/admin/payroll" icon="💰" sub="احسب رواتب الشهر" />
             <OperationItem label="شاشة المكتب - QR" href="/admin/office-display" icon="📱" sub="عرض QR للموظفين" />
             <OperationItem label="Generate Code - كرت دعوة" href="/admin/invite-codes" icon="🎟️" sub="ولد كود 6 أرقام - بدون عداد - مربوط بالانفايت" />
+              {/* 3 كروت الجديدة حد Generate Code */}
+            <OperationItem label="كشف الابراج - Tower Report" href="/admin/tower-report" icon="🛰️" sub="ID البرج + كشف حساب المطورين + taxi/cart  " />
+            <OperationItem label="كشف التجار - Merchant Report" href="/admin/merchant-report" icon="🧾" sub="حساب المتاجر + كشف حساب" />
+            <OperationItem label="مسؤولين الابراج" href="/admin/geofence-managers" icon="👤" sub="مسؤولين الابراج - service_type" />
+           
           </div>
         </section>
 
@@ -520,6 +561,9 @@ export default function Dashboard(){
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
 
             <Item label="CUSTOMERS PENDING" count={counts.customersPending} href="/admin/customers-pending" />
+            <Item label="TAXI PENDING" count={counts.taxiPending} href="/admin/taxi-pending" />
+            <Item label="STORES PENDING" count={counts.storesPending} href="/admin/stores-pending" />
+            <Item label="DRIVERS PENDING" count={counts.driversPending} href="/admin/drivers-pending" />      
             <Item label="PENDING ORDERS" count={counts.pendingOrders} href="/admin/pending" />
             <Item label="TODAY ORDERS" count={counts.todayOrders} href="/admin/today-orders" />
             <Item label="ACTIVE ORDERS" count={counts.activeOrders} href="/admin/active-orders" />
@@ -539,13 +583,7 @@ export default function Dashboard(){
             <Item label="PENDING REVIEWS" count={counts.pendingReviewsCount} href="/admin/pending-reviews" />
             <Item label="PENDING PRODUCTS" count={counts.pendingProducts} href="/admin/pending-products" />
 
-            {/* === كروت المالية - بس Admin / Accounting - لون اسود وذهبي === */}
-            {isFinanceRole && (
-              <>
-                <FinanceItem label="REPORTS AMOUNT - التقارير المالية" count={0} href="/admin/reports-amount" icon="📊" />
-                <FinanceItem label="WALLET - إدارة البنك والمحافظ" count={0} href="/admin/wallet" icon="🏦" />
-              </>
-            )}
+           
 
           </div>
 

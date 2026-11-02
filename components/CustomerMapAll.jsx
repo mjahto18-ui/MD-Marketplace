@@ -1,5 +1,5 @@
 "use client";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, LayerGroup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect, useState } from 'react';
@@ -88,7 +88,7 @@ function FitAll({ data }){
   return null
 }
 
-export default function CustomerMapAll({ data = [] }) {
+export default function CustomerMapAll({ data = [], centers = [] }) {
   const [localData, setLocalData] = useState(data)
   const [updating, setUpdating] = useState(null)
 
@@ -167,6 +167,26 @@ export default function CustomerMapAll({ data = [] }) {
     <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <FitAll data={finalPoints} />
+      
+            {/* ===== جيو فنس - نفس تبعيت admin/geofence ===== */}
+      {centers.map(c => (
+        <LayerGroup key={`geofence-${c.id}`}>
+          <Marker position={[c.center_lat, c.center_lng]}>
+            <Popup>
+              <div style={{fontSize:'12px', minWidth:'120px'}}>
+                <b>📍 {c.name}</b><br/>
+                سلة: {c.radius_cart}km<br/>
+                بوت: {c.radius_bot}km<br/>
+                تاكسي: {c.radius_taxi}km
+              </div>
+            </Popup>
+          </Marker>
+          {c.is_active && c.cart_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_cart*1000} pathOptions={{color:'red', fillOpacity:0.08, weight:1.5}} />}
+          {c.is_active && c.bot_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_bot*1000} pathOptions={{color:'orange', fillOpacity:0.08, weight:1.5}} />}
+          {c.is_active && c.taxi_enabled && <Circle center={[c.center_lat, c.center_lng]} radius={c.radius_taxi*1000} pathOptions={{color:'blue', fillOpacity:0.08, weight:1.5}} />}
+        </LayerGroup>
+      ))}
+  {/* ===== انتهى الجديد ===== */}
       {finalPoints.map((group, idx)=>{
         const isSingle = group.count === 1;
         const item = group.items[0];

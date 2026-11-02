@@ -46,7 +46,7 @@ export async function POST(req) {
         "Mobile": phone,
         "Area": area,
         "VehicleTyp": vehicleTyp,
-        "Status": "Active",
+        "Status": "Inactive",
         "Current Latitude": latNum,
         "Current Longitude": lngNum,
         "Last Location Update": now
@@ -79,7 +79,7 @@ export async function POST(req) {
         lng: lngNum,
         "Current Latitude": latNum,
         "Current Longitude": lngNum,
-        status: "active",
+        status: "pending",
         is_online: false,
         commission_percentage: 10,
         "Last Location Update": now
@@ -106,7 +106,7 @@ export async function POST(req) {
         "Current Latitude": String(latNum),
         "Current Longitude": String(lngNum),
         "Current Store LatLong": `${latNum},${lngNum}`,
-        "Status": "Active",
+        "Status": "inactive",
         "Open Time": openTime || null,
         "Close Time": closeTime || null
       });
@@ -123,7 +123,7 @@ export async function POST(req) {
     }).eq('code', String(code).trim());
     if (burnError) throw burnError;
 
-    return NextResponse.json({ success: true, message: 'تم التسجيل وحرق الكود - أول نقطة لوكيشن تسجلت' });
+    return NextResponse.json({ success: true, message: 'تم التسجيل وتوقف الرمز السري عن الاستعمال - يرجى انتظار رسالة بالتفعيل' });
 
   } catch (e) {
     console.error('Register error:', e);

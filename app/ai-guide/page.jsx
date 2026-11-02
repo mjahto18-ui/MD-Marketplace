@@ -209,7 +209,7 @@ export default function AIGuidePage() {
         <div className="mx-auto max-w-5xl overflow-hidden rounded- bg-[#11183f] p-8 text-center text-white shadow-2xl sm:p-12">
           <div className="text-4xl">💬</div><h2 className="mt-4 text-3xl font-black">عندك استفسار أو بحاجة لمساعدة؟</h2><p className="mx-auto mt-3 max-w-xl leading-8 text-white/80">فريق MD-Marketplace موجود لمساعدتك والإجابة عن أي استفسار متعلق بالخدمة أو المنصة.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <a href="https://wa.me/9613177653" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 font-black text-[#11183f] shadow-lg transition hover:scale-105">💬 WhatsApp</a>
+            <a href="https://wa.me/96181169919" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 font-black text-[#11183f] shadow-lg transition hover:scale-105">💬 WhatsApp</a>
             <a href="mailto:info@md-marketplace.store" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-7 py-4 font-black text-white transition hover:bg-white/20">✉ البريد الإلكتروني</a>
           </div>
         </div>

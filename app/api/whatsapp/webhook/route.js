@@ -1,7 +1,9 @@
-
 import { getSupabase as getSupabaseLib, getUserByWhatsAppNumber as getUserByWhatsAppNumberLib, normalizePhone, getCustomerRowByPhone as getCustomerRowByPhoneLib, canOpenBot2 } from "@/lib/supabase";
 import { PERSONAS_PHOTOS, PERSONAS_FALLBACK } from "@/lib/personas";
+import { MultiFormatReader, BarcodeFormat, DecodeHintType, RGBLuminanceSource, BinaryBitmap, HybridBinarizer } from '@zxing/library';
+import Jimp from 'jimp';
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; // ADD - مهم لـ jimp
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -23,6 +25,28 @@ const INFO_EMAIL = "info@md-marketplace.store";
 const SUPPORT_EMAIL = "support@md-marketplace.store";
 const CONTACT_PHONE = "03177653";
 const PROTECTION_URL = "https://www.md-marketplace.store/protection-cases";
+
+// ===== قسم الجيو - مربوط بجدول geofence_centers =====
+const GEO_RECHECK_DAYS = 10;
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+async function checkGeofenceFromTable(lat, lng, service = 'bot') {
+  const supabase = getSupabase();
+  const { data: centers } = await supabase.from('geofence_centers').select('*').eq('is_active', true).eq(`${service}_enabled`, true);
+  if (!centers?.length) return { allowed: true };
+  for (let c of centers) {
+    const radius = c[`radius_${service}`];
+    const dist = getDistance(lat, lng, c.center_lat, c.center_lng);
+    if (dist <= radius) return { allowed: true, center: c.name };
+  }
+  return { allowed: false };
+}
+// ===== نهاية قسم الجيو =====
 
 if (!globalThis._processed) globalThis._processed = new Map();
 if (!globalThis._lastProduct) globalThis._lastProduct = new Map();
@@ -242,21 +266,75 @@ async function getMediaUrlFromMeta(mediaId) {
     return data.url || null;
   } catch { return null; }
 }
+// ===== REPLACE - هاي الفنكشن كلها بدل القديمة =====
 async function decodeBarcodeFromImage(mediaId) {
   try {
     const mediaUrl = await getMediaUrlFromMeta(mediaId);
     if (!mediaUrl) return null;
+
     const imgRes = await fetch(mediaUrl, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
-    const buffer = await imgRes.arrayBuffer();
-    const form = new FormData();
-    form.append('file', new Blob([buffer]), 'barcode.jpg');
-    const decodeRes = await fetch('https://api.qrserver.com/v1/read-qr-code/', { method: 'POST', body: form });
-    const decodeData = await decodeRes.json();
-    const barcode = decodeData?.[0]?.symbol?.[0]?.data || null;
-    if (barcode) return normalizeBarcode(barcode);
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
+    
+    const baseImage = await Jimp.read(buffer);
+
+    const { GlobalHistogramBinarizer } = await import('@zxing/library');
+
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, 
+      BarcodeFormat.UPC_A, BarcodeFormat.CODE_128
+    ]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+
+    const reader = new MultiFormatReader();
+    reader.setHints(hints);
+
+    // 8 محاولات مع تدوير + threshold
+    for (const angle of [0, 90, 270]) {
+      for (const useThreshold of [false, true]) {
+        try {
+          let img = baseImage.clone();
+          if (angle !== 0) img = img.rotate(angle);
+          
+          img = img.greyscale().scale(3).contrast(0.7);
+          if (useThreshold) {
+            img = img.threshold({ max: 120 }); // اسود وابيض صريح
+          }
+
+          const { data, width, height } = img.bitmap;
+          
+          // حول RGBA لـ grayscale luminance صح
+          const luminances = new Uint8ClampedArray(width * height);
+          for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            // R*0.3 + G*0.59 + B*0.11
+            luminances[j] = (data[i] * 0.3 + data[i+1] * 0.59 + data[i+2] * 0.11);
+          }
+
+          const luminanceSource = new RGBLuminanceSource(luminances, width, height);
+          
+          // جرب 2 binarizer
+          for (const Binarizer of [HybridBinarizer, GlobalHistogramBinarizer]) {
+            try {
+              const bitmap = new BinaryBitmap(new Binarizer(luminanceSource));
+              const result = reader.decode(bitmap);
+              console.log(`✅ نجح angle=${angle} threshold=${useThreshold} binarizer=${Binarizer.name}: ${result.getText()}`);
+              return normalizeBarcode(result.getText());
+            } catch {}
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+
+    console.log(`❌ ZXing فشل بعد كل المحاولات`);
     return null;
-  } catch (e) { console.error("decode error", e.message); return null; }
+  } catch (e) {
+    console.log(`❌ ZXing error عام: ${e.message} ${e.stack}`);
+    return null;
+  }
 }
+// ===== END REPLACE =====
 async function getCaloriesFromNet(barcode, productName) {
   const p = await getProductFromOFF(barcode);
   if (p) return buildCaloriesText(p);
@@ -862,7 +940,7 @@ ${driverContext}
     });
 
     const data = await res.json();
-    
+
     if (data.error) {
       console.error("❌ Gemini Error:", JSON.stringify(data.error));
       if (data.error.code === 429) {
@@ -884,9 +962,9 @@ ${driverContext}
     }
 
     return text;
-  } catch (error) { 
-    console.error("❌ خطأ اتصال Gemini:", error); 
-    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية."; 
+  } catch (error) {
+    console.error("❌ خطأ اتصال Gemini:", error);
+    return "عذراً، صار عندي مشكلة صغيرة. جرب تبعتلي مرة تانية.";
   }
 }
 
@@ -979,7 +1057,7 @@ export async function POST(req) {
       await saveToAppSheet(from, `صورة باركود ${decoded}`, reply, { botSession: BOT1_SESSION, bot: "BOT1", messageType: "BARCODE_IMAGE_OFF" });
       return Response.json({ status: "ok" }, { status: 200 });
     }
-    // ===== LOCATION FORWARD TO BOT3 - مصلح =====
+    // ===== LOCATION FORWARD TO BOT3 - مصلح + GEO SAVE =====
     if (message?.type === "location") {
       const whatsappNumberEarly = normalizeWhatsAppNumber(from);
       const sessionEarly = await getBotSessionTable(whatsappNumberEarly);
@@ -994,6 +1072,27 @@ export async function POST(req) {
         } catch(e){ console.error("BOT1->BOT3 location forward error", e.message); }
         return Response.json({ status: "ok", forwarded_to: "BOT3_LOCATION" }, { status: 200 });
       }
+      // ===== GEO: حفظ لوكيشن بـ rate_limits =====
+      try {
+        const lat = message.location.latitude;
+        const lng = message.location.longitude;
+        const supabase = getSupabase();
+        await supabase.from('rate_limits').update({
+          last_lat: lat,
+          last_lng: lng,
+          last_location_at: new Date().toISOString()
+        }).eq('phone', whatsappNumberEarly);
+        const geo = await checkGeofenceFromTable(lat, lng, 'bot');
+          if (!geo.allowed) {
+          console.log(`🚫 GEO خارج التغطية: ${whatsappNumberEarly} ${lat},${lng}`);
+          await sendMessage(from, "عذراً منطقتك خارج التغطية حالياً 🙏 اذا انتقلت بعتلي موقعك الجديد 📍");
+          return Response.json({ status: "ok", geo_blocked: true }, { status: 200 });
+        }
+        console.log(`✅ GEO جوا التغطية: ${whatsappNumberEarly} ${lat},${lng}`);
+        await sendMessage(from, "شكراً! تم حفظ موقعك ✅ كيف بقدر ساعدك؟");
+        await saveToAppSheet(from, `لوكيشن ${lat},${lng}`, "تم حفظ الموقع - جوا التغطية", { botSession: BOT1_SESSION, bot: "BOT1", messageType: "GEO_LOCATION" });
+        return Response.json({ status: "ok", geo_saved: true }, { status: 200 });
+      } catch(e){ console.log("GEO save error", e.message); }
       console.log("📍 LOCATION TEST:", message.location.latitude, message.location.longitude, message.location.name, message.location.address);
       return Response.json({ status: "ok" }, { status: 200 });
     }
@@ -1013,6 +1112,31 @@ export async function POST(req) {
       console.log(`🚫 Rate limited: ${whatsappNumber} - ${rate.msg || 'silent'}`);
       return Response.json({ status: "ok", rate_limited: true }, { status: 200 });
     }
+
+    // ===== GEO CHECK: كل رسالة نص =====
+    try {
+      const supabase = getSupabase();
+      const { data: geoRow } = await supabase.from('rate_limits').select('last_lat, last_lng, last_location_at').eq('phone', whatsappNumber).maybeSingle();
+      if (!geoRow?.last_lat ||!geoRow?.last_lng) {
+        console.log(`📍 GEO ما في لوكيشن لـ ${whatsappNumber} - طلب لوكيشن`);
+        await sendMessage(from, "أهلا! قبل ما نبلش ممكن تبعتلي موقعك؟ 📍 حتى اتأكد انك ضمن التغطية");
+        return Response.json({ status: "ok", geo_need_location: true }, { status: 200 });
+      }
+      const daysSince = geoRow.last_location_at? (Date.now() - new Date(geoRow.last_location_at)) / (1000*60*60*24) : 999;
+      if (daysSince > GEO_RECHECK_DAYS) {
+        console.log(`📍 GEO اعادة لوكيشن بعد ${daysSince.toFixed(1)} يوم لـ ${whatsappNumber}`);
+        await sendMessage(from, "صار فترة ما حدثت موقعك 🙏 ممكن تبعتلي موقعك مرة تانية للتأكيد؟ 📍");
+        return Response.json({ status: "ok", geo_recheck: true }, { status: 200 });
+      }
+      const geo = await checkGeofenceFromTable(geoRow.last_lat, geoRow.last_lng, 'bot');
+        if (!geo.allowed) {
+        console.log(`🚫 GEO مبلوك - برا التغطية ${whatsappNumber}`);
+        await sendMessage(from, "عذراً منطقتك خارج التغطية حالياً 🙏 اذا انتقلت لمكان جديد بعتلي موقعك 📍");
+        return Response.json({ status: "ok", geo_blocked: true }, { status: 200 });
+      }
+      console.log(`✅ GEO مسموح ${whatsappNumber}`);
+    } catch(e){ console.log("GEO check error", e.message); }
+    // ===== نهاية GEO CHECK =====
 
     console.log(`📩 استقبال رسالة: ${from} | ${userText}`);
     const rawText = String(userText || "").trim();

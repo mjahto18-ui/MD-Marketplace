@@ -15,7 +15,7 @@ export default function ProductsPage() {
   const [toast, setToast] = useState(null);
   const [addingId, setAddingId] = useState(null);
   const [customerID, setCustomerID] = useState(null);
-  const [isCustomer, setIsCustomer] = useState(false); // جديد
+  const [isCustomer, setIsCustomer] = useState(false);
   const [globalCfg, setGlobalCfg] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -27,22 +27,41 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
- .then(async (res) => {
+    .then(async (res) => {
         if (!res.ok) { router.push('/login'); return; }
         const data = await res.json();
         if (!data.user) { router.push('/login'); return; }
-
-        // هون التعديل - اذا مسجل بيخليك تشوف
         if (data.user?.customerId) {
           setCustomerID(data.user.customerId);
           setIsCustomer(true);
         } else {
-          // مسجل بس مش كوستيمر - ادمن - بيقدر يشوف بس بلا سلة
           setIsCustomer(false);
         }
       })
- .catch(() => router.push('/login'));
+    .catch(() => router.push('/login'));
   }, [router]);
+
+  async function getLocationFast() {
+    const cachedLat = localStorage.getItem('user_lat');
+    const cachedLng = localStorage.getItem('user_lng');
+    if (cachedLat && cachedLng) {
+      return { lat: cachedLat, lng: cachedLng };
+    }
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          localStorage.setItem('user_lat', lat);
+          localStorage.setItem('user_lng', lng);
+          resolve({ lat, lng });
+        },
+        () => resolve(null),
+        { enableHighAccuracy: false, timeout: 8000 }
+      );
+    });
+  }
 
   const fetchProducts = useCallback(async (pageNum, searchText, isNewSearch = false) => {
     if (isNewSearch) {
@@ -51,10 +70,16 @@ export default function ProductsPage() {
     } else if (pageNum > 1) setLoadingMore(true);
 
     try {
+      const loc = await getLocationFast();
+
       const params = new URLSearchParams();
       params.set('limit', '20');
       params.set('page', String(pageNum));
       if (searchText.trim()) params.set('search', searchText.trim());
+      if (loc) {
+        params.set('lat', loc.lat);
+        params.set('lng', loc.lng);
+      }
 
       const res = await fetch(`/api/products?${params.toString()}`);
       const data = await res.json();
@@ -103,7 +128,7 @@ export default function ProductsPage() {
   }, [page, hasMore, loadingMore, loading, isSearching, search, fetchProducts]);
 
   const addToCart = async (productID) => {
-    if (!isCustomer) return; // حماية اضافية
+    if (!isCustomer) return;
     if (addingId) return;
     if (globalCfg?.isCartClosed) {
       setToast(globalCfg.cart_closed_message || "السلة مغلقة حالياً");
@@ -112,25 +137,54 @@ export default function ProductsPage() {
     }
     if (!customerID) { router.push('/login'); return; }
     setAddingId(productID);
-    try {
-      const prod = [...products,...filtered].find(p => p.productID === productID);
-      const res = await fetch('/api/cart/add', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productID, qty: 1 })
-      });
-      const data = await res.json();
-      if (!res.ok ||!data.success) {
-        setToast(data.message || "فشل الاضافة");
-        setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
-        return;
+
+    const doAdd = async (lat, lng) => {
+      try {
+        const prod = [...products,...filtered].find(p => p.productID === productID);
+        const res = await fetch('/api/cart/add', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productID, qty: 1, lat, lng })
+        });
+        const data = await res.json();
+        if (!res.ok ||!data.success) {
+          setToast(data.message || "فشل الاضافة");
+          setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
+          return;
+        }
+        setToast(prod? `${prod.name} - تمت الإضافة` : 'تمت الإضافة');
+        setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
+      } catch (e) {
+        setToast("خطأ بالاتصال");
+        setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
       }
-      setToast(prod? `${prod.name} - تمت الإضافة` : 'تمت الإضافة');
-      setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
-    } catch (e) {
-      setToast("خطأ بالاتصال");
-      setTimeout(() => { setToast(null); setAddingId(null); }, 2000);
+    };
+
+    const cachedLat = localStorage.getItem('user_lat');
+    const cachedLng = localStorage.getItem('user_lng');
+    if (cachedLat && cachedLng) {
+      doAdd(cachedLat, cachedLng);
+      return;
     }
+
+    if (!navigator.geolocation) {
+      setToast("متصفحك ما بيدعم تحديد الموقع");
+      setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        localStorage.setItem('user_lat', pos.coords.latitude);
+        localStorage.setItem('user_lng', pos.coords.longitude);
+        doAdd(pos.coords.latitude, pos.coords.longitude);
+      },
+      () => {
+        setToast("لازم تسمح بالموقع لتضيف عالسلة");
+        setTimeout(() => { setToast(null); setAddingId(null); }, 3000);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   if (loading) return (
@@ -155,16 +209,26 @@ export default function ProductsPage() {
         {isSearching && <p className="text-xs text-purple-300 mt-2 mr-2">عم دوّر...</p>}
       </header>
       <div className="px-4 pb-6">
-        {filtered.length === 0 &&!isSearching && (<div className="text-center py-20"><Package className="w-16 h-16 text-purple-400 mx-auto mb-4" /><p className="text-xl font-bold mb-2">ما لقينا منتجات</p></div>)}
+        {filtered.length === 0 &&!isSearching && (
+          <div className="text-center py-20">
+            <Package className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+            <p className="text-xl font-bold mb-2">لا يوجد منتجات ضمن نطاقك الجغرافي</p>
+            <p className="text-sm text-purple-300 mt-2">يبدو أنك خارج مناطق التغطية الحالية</p>
+          </div>
+        )}
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
           {filtered.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-              <div className="relative w-full h-[140px] bg-white flex items-center justify-center overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
+              <div className="relative w-full h-44 bg-white rounded-t-2xl overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
-                <p className="text-xs text-purple-300 mb-2 truncate">المتجر: {product.storeName}</p>
+                <p className="text-xs text-purple-300 mb-1 truncate">المتجر: {product.storeName}</p>
+                {product.description && (
+                <p className="text-[11px] text-gray-400 leading-4 line-clamp-2 mb-2 min-h-[28px]">
+                {product.description}
+                </p>
+                )}
                 <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p></div>
-
                 {isCustomer? (
                   <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
                     {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
@@ -172,7 +236,6 @@ export default function ProductsPage() {
                 ) : (
                   <div className="w-full bg-white/5 py-2.5 rounded-xl text-center text-xs text-purple-300">عرض فقط - للكوستيمر</div>
                 )}
-
               </div>
             </div>
           ))}

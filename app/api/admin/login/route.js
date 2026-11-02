@@ -10,8 +10,27 @@ function getSupabase() {
 export async function POST(req) {
   try {
     const { phone, pin } = await req.json();
-    const phoneStr = String(phone).trim();
-    const pinStr = String(pin).trim();
+
+    // ✅ الحماية - قبل أي شي - 8 أرقام و 4 أرقام
+    const phoneStr = String(phone || "").trim();
+    const pinStr = String(pin || "").trim();
+
+    if(!phoneStr &&!pinStr){
+      return NextResponse.json({ success: false, message: "الرجاء تعبئة الخانتين" }, { status: 400 });
+    }
+    if(!phoneStr){
+      return NextResponse.json({ success: false, message: "رقم الهاتف مطلوب" }, { status: 400 });
+    }
+    if(!pinStr){
+      return NextResponse.json({ success: false, message: "رمز المرور مطلوب" }, { status: 400 });
+    }
+    if(!/^\d{8}$/.test(phoneStr)){
+      return NextResponse.json({ success: false, message: "رقم الهاتف يجب أن يكون 8 أرقام " }, { status: 400 });
+    }
+    if(!/^\d{4}$/.test(pinStr)){
+      return NextResponse.json({ success: false, message: "رمز المرور يجب أن يكون 4 أرقام " }, { status: 400 });
+    }
+
     const phoneNoZero = phoneStr.replace(/^0+/, '');
 
     const supabase = getSupabase();
@@ -20,9 +39,9 @@ export async function POST(req) {
     const USER_COLS = '"User ID", Name, Mobile, Role, Status, PIN, "isLocked", "failedAttempts", "AcceptedTerms", Active, Area, "Store ID", "Related ID", "Taxi_ID"';
 
     const { data: users, error: usersError } = await supabase.from('users')
-      .select(USER_COLS)
-      .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
-      .limit(5)
+     .select(USER_COLS)
+     .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
+     .limit(5)
 
     if (usersError) console.error("Login users error:", usersError.message);
 
@@ -71,10 +90,10 @@ export async function POST(req) {
       let taxiData = null
       if(finalUser['Taxi_ID']){
         const { data: driver } = await supabase
-          .from('taxi_drivers')
-          .select('engine_cc, vehicle_type, car_type, car_color, seats, full_name')
-          .eq('Taxi_ID', finalUser['Taxi_ID'])
-          .single()
+         .from('taxi_drivers')
+         .select('engine_cc, vehicle_type, car_type, car_color, seats, full_name')
+         .eq('Taxi_ID', finalUser['Taxi_ID'])
+         .single()
         taxiData = driver
       }
 
@@ -101,15 +120,15 @@ export async function POST(req) {
       if (acceptedTerms!== "TRUE") {
         redirectTo = '/admin/terms-approval';
       } else {
-        redirectTo = 
-          role === 'Store Owner' ? '/store-owner' :
-          role === 'Driver' ? '/driver-owner' :
-          role === 'Taxi Driver' ? '/taxi-driver' :
+        redirectTo =
+          role === 'Store Owner'? '/store-owner' :
+          role === 'Driver'? '/driver-owner' :
+          role === 'Taxi Driver'? '/taxi-driver' :
           '/admin';
       }
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         role,
         userId: finalUser['User ID'],
         AcceptedTerms: acceptedTerms,

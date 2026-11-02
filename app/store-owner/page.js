@@ -31,6 +31,8 @@ export default function StoreDashboard(){
   const [origin, setOrigin] = useState("")
   // --- اشتراك - جديد فقط ---
   const [sub, setSub] = useState(null)
+  const [empForm, setEmpForm] = useState({full_name:'', department:'موظف', salary_type:'monthly', base_salary:'', hourly_rate:'', required_hours:286, mobile:''})
+  const [empList, setEmpList] = useState([])
 
   useEffect(()=>{
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1','').replace(/\/$/,'')
@@ -105,13 +107,18 @@ export default function StoreDashboard(){
       }
       loadPay()
     }
-  }, [tab, payrollMonth, me])
+    // === هون بتحطها ===
+    if(tab==='employees'){
+      supabase.from('employees').select('*').eq('store_id', me.storeId).order('created_at', {ascending:false}).then(({data})=> setEmpList(data||[]))
+    }
+  }, [tab, payrollMonth, me, supabase])
 
   const formatLBP = (n) => {
     if(!n && n!==0) return '0 ل.ل'
     const num = parseFloat(String(n).replace(/,/g,'')) || 0
     return new Intl.NumberFormat('en-LB').format(num) + ' ل.ل'
   }
+  const inputStyle = {padding:'10px', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0, fontSize:13}
 
   const toggleActive = async (p)=>{
     const newVal =!p.Active
@@ -121,7 +128,15 @@ export default function StoreDashboard(){
 
   const addProducts = async ()=>{
     const toInsert = newProds.filter(n=>n.name && n.price).map(n=>({
-      'Store ID': me.storeId, 'Product Name': n.name, 'Unit': n.unit, 'Price': n.price, 'Image': n.image, 'Active': false, 'Stock Qty': 1
+      'Store ID': me.storeId, 
+    'Product Name': n.name, 
+    'Unit': n.unit || 'حبة', 
+    'Price': Number(n.price), 
+    'Image': n.image || null,
+    'Active': 'FALSE',      // هون صارت نص كبير
+    'Available': 'Yes',
+    'Stock Qty': '1',       // نص
+    'Weight Points': 0
     }))
     if(!toInsert.length) return alert('عبي اسم وسعر')
     const { error } = await supabase.from('products').insert(toInsert)
@@ -227,6 +242,7 @@ export default function StoreDashboard(){
             {id:'add', label:'إضافة منتجات'},
             {id:'attendance', label:'الدوام'},
             {id:'payroll', label:'الرواتب'},
+            {id:'employees', label:`👥 الموظفين (${empList.length})`},
             {id:'display', label:'🖥 شاشة الدوام'},
           ].map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'9px 16px', borderRadius:10, border:'1px solid rgba(255,255,255,0.1)', background:tab===t.id?'linear-gradient(135deg,#ec4899,#8b5cf6)':'rgba(255,255,255,0.06)', color:'white', whiteSpace:'nowrap', fontWeight: tab===t.id? '900':'500', flexShrink:0}}>{t.label}</button>
@@ -378,7 +394,7 @@ export default function StoreDashboard(){
                 {(sub?.needSub || sub?.expired)? (
                   <div style={{...glassCard, padding:20, borderRadius:16, textAlign:'center'}}>
                     <div style={{fontSize:40}}>{sub?.needSub? '🔒' : '⛔'}</div>
-                    <div style={{fontWeight:900, marginTop:8}}>{sub?.needSub? 'هالخدمة بدها باقة اشتراك تتفعل' : 'انتهى اشتراك الرواتب'}</div>
+                    <div style={{fontWeight:900, marginTop:8}}>{sub?.needSub? 'هذه الخدمة يلزم باقة اشتراك لتفعيلها' : 'انتهى اشتراك الرواتب'}</div>
                     <div style={{fontSize:12, opacity:0.7, marginTop:6}}>{sub?.needSub? <>الرواتب ميزة مدفوعة<br/>فعل الباقة</> : <>انتهى بتاريخ {sub.end}<br/>الرواتب مقفولة</>}</div>
                   </div>
                 ) : (
@@ -394,6 +410,18 @@ export default function StoreDashboard(){
                     const amtStr = Number(r.amount||0).toLocaleString()
                     const storeName = store?.['Store Name'] || me.storeId
                     const waMsg = `مرحبا ${empName} 👋%0Aراتبك لشهر ${r.month_year} جاهز ✅%0Aالمتجر: ${storeName}%0A%0A💰 المبلغ: ${amtStr} ل.ل%0A⏰ مجموع ${r.total_hours||0}س - اضافي ${r.overtime_hours||0}س%0A🔑 كود الاستلام: ${r.secret_code_5}%0A%0Aلا تشارك الرمز الاستلام مع اي شخص .`
+                    // 2. هول الجداد اللي سألت عنهن - بتنضف الرقم
+const rawMobile = r.employees?.mobile || ''
+const cleanMobile = rawMobile.replace(/[^0-9]/g,'')
+const waNumber = cleanMobile.startsWith('961') 
+  ? cleanMobile 
+  : cleanMobile.startsWith('0') 
+    ? `961${cleanMobile.slice(1)}` 
+    : cleanMobile ? `961${cleanMobile}` : ''
+    
+const waLink = waNumber 
+  ? `https://wa.me/${waNumber}?text=${waMsg}`
+  : `https://wa.me/?text=${waMsg}`
                     return (
                     <div key={r.id} style={{display:'flex', justifyContent:'space-between', background:'rgba(0,0,0,0.3)', padding:'12px', borderRadius:'10px', marginBottom:'8px', border:'1px solid rgba(255,255,255,0.06)', gap:'10px'}}>
                       <div style={{flex:1, minWidth:0}}>
@@ -405,7 +433,7 @@ export default function StoreDashboard(){
                           <div style={{marginTop:'8px', display:'flex', gap:'6px', flexWrap:'wrap', alignItems:'center'}}>
                             <div style={{fontSize:'12px', color:'#fde68a', background:'rgba(251,191,36,0.15)', padding:'6px 10px', borderRadius:'8px', fontWeight:900, border:'1px dashed #f59e0b'}}>🔑 الكود: {r.secret_code_5}</div>
                             <button onClick={()=>{navigator.clipboard.writeText(String(r.secret_code_5)); alert('تم نسخ الكود: '+r.secret_code_5)}} style={{padding:'6px 10px', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.08)', color:'white', fontSize:'11px', cursor:'pointer'}}>📋 نسخ</button>
-                            <button onClick={()=>window.open(`https://wa.me/?text=${waMsg}`,'_blank')} style={{padding:'6px 12px', borderRadius:'8px', border:'none', background:'#25D366', color:'white', fontSize:'11px', fontWeight:900, cursor:'pointer'}}>واتساب 📱 مشاركة</button>
+                            <button onClick={()=>window.open(waLink,'_blank')} style={{padding:'6px 12px', borderRadius:'8px', border:'none', background:'#25D366', color:'white', fontSize:'11px', fontWeight:900, cursor:'pointer'}}>واتساب 📱 مشاركة</button>
                           </div>
                         )}
                         {r.status==='pending' && <div style={{fontSize:'10px', opacity:0.4, marginTop:'6px'}}>⏳ بانتظار تحويل الادمن للمحفظة</div>}
@@ -417,6 +445,82 @@ export default function StoreDashboard(){
                 )}
                 </>
               )}
+              {tab==='employees' && (
+  <div style={{...glassCard, padding:14, borderRadius:16}}>
+    {(() => {
+      const activeCount = empList.filter(e=>e.is_active).length
+      const limit = store?.max_employees || 3
+      const isFull = activeCount >= limit
+      return (
+        <>
+          <div style={{display:'flex', justifyContent:'space-between'}}>
+            <div style={{fontWeight:900}}>👥 موظفين {store?.['Store Name']} ({activeCount}/{limit}) {activeCount !== empList.length && ` - الكل ${empList.length}`}</div>
+            {isFull && <span style={{color:'#fca5a5', fontSize:11}}>⛔ وصلت للحد</span>}
+          </div>
+
+          {/* ... الفورم تبعك خليه نفسه ... */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12}}>
+            <input placeholder="اسم الموظف" value={empForm.full_name} onChange={e=>setEmpForm({...empForm, full_name:e.target.value})} style={inputStyle} />
+            <input placeholder="موبايل 03/71..." value={empForm.mobile} onChange={e=>setEmpForm({...empForm, mobile:e.target.value})} style={inputStyle} />
+            <select value={empForm.department} onChange={e=>setEmpForm({...empForm, department:e.target.value})} style={inputStyle}>
+              <option>ادارة</option><option>محاسبة</option><option>مندوب</option><option>تنظيفات</option><option>تاكسي</option><option>اخرى</option><option>موظف</option><option>مسؤول</option><option>سائق</option>
+            </select>
+            <select value={empForm.salary_type} onChange={e=>setEmpForm({...empForm, salary_type:e.target.value})} style={inputStyle}>
+              <option value="monthly">شهري</option><option value="hourly">بالساعة</option>
+            </select>
+            <input placeholder="راتب اساسي" type="number" value={empForm.base_salary} onChange={e=>setEmpForm({...empForm, base_salary:e.target.value})} style={inputStyle} />
+            <input placeholder="ساعات مطلوبة 286" type="number" value={empForm.required_hours} onChange={e=>setEmpForm({...empForm, required_hours:e.target.value})} style={inputStyle} />
+          </div>
+
+          <button onClick={async()=>{
+            if(!empForm.full_name) return alert('الاسم مطلوب')
+            const res = await fetch('/api/admin/employees/create', {method:'POST', body:JSON.stringify({...empForm, store_id: me.storeId})}).then(r=>r.json())
+            if(!res.success) return alert(res.message)
+            setEmpList([res.employee, ...empList]); setEmpForm({full_name:'', department:'موظف', salary_type:'monthly', base_salary:'', hourly_rate:'', required_hours:286, mobile:''})
+          }} style={{marginTop:10, padding:'10px 16px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900, width:'100%'}}>
+            + اضافة موظف
+          </button>
+
+          <div style={{marginTop:14, display:'grid', gap:6}}>
+            {empList.map(em=>{
+              const isInactive = !em.is_active
+              return (
+                <div key={em.id} style={{
+                  display:'flex', justifyContent:'space-between', 
+                  background: isInactive ? 'rgba(100,100,100,0.15)' : 'rgba(0,0,0,0.3)', 
+                  padding:10, borderRadius:10, 
+                  opacity: isInactive ? 0.5 : 1,
+                  border: isInactive ? '1px dashed rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <div>
+                    <div style={{fontWeight:700, fontSize:13}}>
+                      {em.full_name} - {em.department} {isInactive && <span style={{color:'#fca5a5', fontSize:11}}>(غير مفعل - موقوف)</span>}
+                    </div>
+                    <div style={{fontSize:11, opacity:0.6}}>{em.mobile || 'لا يوجد موبايل'} | {em.salary_type}</div>
+                  </div>
+                  {isInactive ? (
+                    <button onClick={async()=>{
+                      const res = await fetch('/api/admin/employees/toggle', {method:'POST', body:JSON.stringify({employee_id: em.id, store_id: me.storeId, action:'activate'})}).then(r=>r.json())
+                      if(!res.success) return alert(res.message)
+                      setEmpList(empList.map(x=> x.id===em.id ? {...x, is_active:true} : x))
+                    }} style={{background:'rgba(34,197,94,0.2)', border:'none', color:'#4ade80', padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:900}}>▶️ تفعيل</button>
+                  ) : (
+                    <button onClick={async()=>{
+                      if(!confirm(`ايقاف خدمات ${em.full_name}؟`)) return
+                      const res = await fetch('/api/admin/employees/toggle', {method:'POST', body:JSON.stringify({employee_id: em.id, store_id: me.storeId, action:'deactivate'})}).then(r=>r.json())
+                      if(!res.success) return alert(res.message)
+                      setEmpList(empList.map(x=> x.id===em.id ? {...x, is_active:false} : x))
+                    }} style={{background:'rgba(251,191,36,0.15)', border:'none', color:'#fde68a', padding:'4px 10px', borderRadius:6, fontSize:11}}>⏸️ ايقاف</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )
+    })()}
+  </div>
+)}
 
               {tab==='display' && (
                 <div style={{...glassCard, borderRadius:'16px', padding:'16px'}}>

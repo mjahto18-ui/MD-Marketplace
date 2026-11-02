@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSupabase as getSupabaseLib, normalizePhone, getUserByWhatsAppNumber as getUserByWhatsAppNumberLib } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "mjahto123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -53,7 +55,7 @@ async function getSheetRows(sheetName) {
     try {
       let cols = '*';
       if (table === 'products') cols = '"Product ID", "Store ID", "Product Name", "Category", "Unit", "Price", "Available", "Active", "Weight Points"';
-      else if (table === 'stores') cols = '"Store ID", "Store Name", "Adress", "Area"';
+      else if (table === 'stores') cols = '"Store ID", "Store Name", "Adress", "Area", "Current Latitude", "Current Longitude"';
       else if (table === 'areas') cols = '"Area ID", "Area Name"';
       else if (table === 'customers') cols = '"Customer ID", "Area", "Adress", "Current Latitude", "Current Longtitude", "Registration Latitude", "Registration Longitude", "Mobile"';
       else if (table === 'cart') cols = '"Cart ID", "Customer ID", "Product ID", "Qty", "Store ID", "Line Total", "Checked Out", "Check Out Flag", "Line Points"';
@@ -250,7 +252,47 @@ function productToObject(row) {
     category: String(row["Category"] || "").trim()
   };
 }
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
 async function searchProducts(message, customerID) {
+  const supabase = getSupabase();
+
+  // === جيو - فلترة بالبرج ===
+  let allowedStoreIds = null;
+  try {
+    const customer = await getCustomer(customerID);
+    const cLat = parseFloat(customer?.["Current Latitude"] || customer?.["Registration Latitude"] || "");
+    const cLng = parseFloat(customer?.["Current Longtitude"] || customer?.["Registration Longitude"] || "");
+    if (cLat && cLng && !isNaN(cLat) && !isNaN(cLng)) {
+      const { data: centersRaw } = await supabase.from('geofence_centers').select('*');
+      const centers = (centersRaw||[]).filter(c => c.is_active === true && c.cart_enabled === true);
+      let covering = [];
+      for (let c of centers) {
+        const dist = getDistance(cLat, cLng, Number(c.center_lat), Number(c.center_lng));
+        if (dist <= Number(c.radius_cart)) covering.push(c);
+      }
+      if (covering.length > 0) {
+        const { data: allStores } = await supabase.from('stores').select('"Store ID", "Current Latitude", "Current Longitude"');
+        allowedStoreIds = [];
+        for (let s of (allStores||[])) {
+          const sLat = parseFloat(s["Current Latitude"]);
+          const sLng = parseFloat(s["Current Longitude"]);
+          if (!sLat || !sLng || isNaN(sLat) || isNaN(sLng)) continue;
+          for (let cen of covering) {
+            const d = getDistance(sLat, sLng, Number(cen.center_lat), Number(cen.center_lng));
+            if (d <= Number(cen.radius_cart)) { allowedStoreIds.push(String(s["Store ID"]).trim()); break; }
+          }
+        }
+      }
+    }
+  } catch (e) { console.error("GEO filter error BOT2:", e); }
+
   const productsRows = await getSheetRows("Products");
   const storesRows = await getSheetRows("Stores");
   const normalized = normalizeText(convertArabicNumbers(message));
@@ -263,6 +305,7 @@ async function searchProducts(message, customerID) {
     if (!product.productId ||!product.productName) continue;
     if (product.available === "no") continue;
     if (product.active === "FALSE") continue;
+    if (allowedStoreIds && !allowedStoreIds.includes(product.storeId)) continue;
     const name = normalizeText(product.productName);
     let score = 0;
     for (const word of words) {
@@ -463,7 +506,7 @@ export async function POST(req) {
     const body = await req.json();
     if (body.command === "START_ORDER" || body.transferKey === "START_ORDER" || body.event === "NEW_ORDER") {
       const bridgePhone = normalizeWhatsAppNumber(body.phone || body.Phone || body.from || "");
-      if (!bridgePhone) return NextResponse.json({ status: "ok", error: "NO_PHONE" });
+      if (!bridgePhone) return NextResponse.json({ status: "ok", error: "NO_PHONE" }, { headers: { 'Cache-Control': 'no-store' } });
       const now = new Date().toISOString();
       const supabase = getSupabase();
       const { error } = await supabase.from('bot_sessions').insert([{ Phone: bridgePhone, "Active Bot": "BOT2", Status: "ACTIVE", "Request ID": "", "Started At": now, "Closed At": "", "Last Activity": now }]);
@@ -471,12 +514,12 @@ export async function POST(req) {
       const startMsg = body.startMessage || "يلا نبلّش تسجيل الأوردر 😊 شو حابب تطلب؟";
       await sendMessage(bridgePhone, startMsg);
       await saveToAppSheet(bridgePhone, body.originalMessage || "بدي اعمل اوردر", startMsg);
-      return NextResponse.json({ status: "ok", bridge: "STARTED", phone: bridgePhone });
+      return NextResponse.json({ status: "ok", bridge: "STARTED", phone: bridgePhone }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     const from = message?.from || body?.from || body?.whatsappNumber || "";
     const userText = message?.text?.body || body?.text || body?.userText || "";
-    if (!from ||!userText) return NextResponse.json({ status: "ok" });
+    if (!from ||!userText) return NextResponse.json({ status: "ok" }, { headers: { 'Cache-Control': 'no-store' } });
     const whatsappNumber = normalizeWhatsAppNumber(from);
     const user = await getUserByWhatsAppNumber(whatsappNumber);
     const customerIDForChoice = user?.customerId || "";
@@ -493,26 +536,26 @@ export async function POST(req) {
             await sendMessage(whatsappNumber, reply);
             await saveToAppSheet(from, userText, reply);
             await touchBotSession(whatsappNumber);
-            return NextResponse.json({ status: "ok", action: "CHOICE_ADDED" });
+            return NextResponse.json({ status: "ok", action: "CHOICE_ADDED" }, { headers: { 'Cache-Control': 'no-store' } });
           }
         }
       }
     }
     const isTimedOut = await checkAndHandleTimeout(whatsappNumber);
-    if (isTimedOut) return NextResponse.json({ status: "ok", action: "TIMEOUT_RETURNED_TO_BOT1" });
+    if (isTimedOut) return NextResponse.json({ status: "ok", action: "TIMEOUT_RETURNED_TO_BOT1" }, { headers: { 'Cache-Control': 'no-store' } });
     await touchBotSession(whatsappNumber);
     if (!user) {
       const reply = "أهلا وسهلا فيك بـ MD-Marketplace ❤\n\nلازم يكون عندك حساب مسجل حتى أقدر ساعدك بالشراء والطلبات.";
       await sendMessage(whatsappNumber, reply);
       await saveToAppSheet(from, userText, reply);
-      return NextResponse.json({ status: "ok" });
+      return NextResponse.json({ status: "ok" }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const customerID = user.customerId;
     if (!customerID) {
       const reply = "حسابك موجود، بس ما عندي Customer ID مرتبط فيه.";
       await sendMessage(whatsappNumber, reply);
       await saveToAppSheet(from, userText, reply);
-      return NextResponse.json({ status: "ok" });
+      return NextResponse.json({ status: "ok" }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const context = { intent: "shopping" };
     if (isCheckoutConfirmation(userText) || normalizeText(userText).includes("خلص") || normalizeText(userText).includes("جاهز")) {
@@ -523,21 +566,21 @@ export async function POST(req) {
         await closeBotSessionAndReturnToBot1(whatsappNumber, "CHECKOUT_SUCCESS");
         await clearCustomerCart(customerID);
       }
-      return NextResponse.json({ status: "ok" });
+      return NextResponse.json({ status: "ok" }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const cartCommand = detectCartCommand(userText);
     if (cartCommand) {
       const result = await handleCart(customerID, userText);
       await sendMessage(whatsappNumber, result.reply);
       await saveToAppSheet(from, userText, result.reply);
-      return NextResponse.json({ status: "ok", action: "CART" });
+      return NextResponse.json({ status: "ok", action: "CART" }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const result = await handleShopping(customerID, userText);
     await sendMessage(whatsappNumber, result.reply);
     await saveToAppSheet(from, userText, result.reply);
-    return NextResponse.json({ status: "ok", action: "SHOPPING" });
+    return NextResponse.json({ status: "ok", action: "SHOPPING" }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error("❌ Bot 2 POST Error:", error);
-    return NextResponse.json({ status: "ok" }, { status: 200 });
+    return NextResponse.json({ status: "ok" }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   }
 }

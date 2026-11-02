@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    serverComponentsExternalPackages: ['@zxing/library', 'jimp']
+  },
   images: {
     remotePatterns: [
       {
@@ -39,6 +42,7 @@ const nextConfig = {
         hostname: '**.vercel-storage.com',
       },
     ],
+  
   },
 }
 

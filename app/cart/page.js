@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, ChevronRight, Plus, Minus, Trash2, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
+import GeofenceGate from '@/components/GeofenceGate';
 
 export default function CartPage() {
   const router = useRouter();
@@ -69,7 +70,7 @@ export default function CartPage() {
         setCart(data.cart || []);
         setTotalWeight(data.totalWeight);
         setSubtotal(data.subtotal);
-        
+
         // نفس منطق الـ API بالضبط - 3 شروط
         const totalPoints = data.totalWeight;
         const freeRemaining = data.freeDeliveryRemaining || 0;
@@ -78,7 +79,7 @@ export default function CartPage() {
         const baseFee = data.baseDeliveryFee || 0;
 
         let finalFee;
-        if (freeRemaining > 0 && totalPoints > 0 && totalPoints <= 10 && lastDate !== today) {
+        if (freeRemaining > 0 && totalPoints > 0 && totalPoints <= 10 && lastDate!== today) {
           finalFee = 0;
         } else {
           finalFee = baseFee;
@@ -239,47 +240,63 @@ export default function CartPage() {
           ⏰ {globalCfg.coming_soon_message || globalCfg.coming_soon?.message}
         </div>
       )}
-      <header className="px-4 pt-6 pb-4">
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button>
-          <div className="bg-white p-2 rounded- shadow-lg">
-            <Image src="/icon.png" alt="MD Marketplace" width={40} height={40} />
-          </div>
-          <div className="w-6"></div>
-        </div>
-        <div className="text-center"><h1 className="text-xl font-bold">MD Marketplace</h1></div>
-      </header>
-      <div className="px-4 pb-6">
-        <h2 className="text-2xl font-bold mb-6">إتمام الطلب</h2>
-        <div className="flex flex-col gap-3 mb-6">
-          {cart.map(item => (
-            <div key={item.cartID} className="bg-white/5 backdrop-blur-xl p-3 rounded-2xl border border-white/10 flex gap-3 items-center">
-              <img src={item.image} className="w-16 h-16 rounded-xl object-cover" alt="" />
-              <div className="flex-1">
-                <h3 className="font-bold text-sm">{item.name}</h3>
-                <p className="text-xs text-purple-300">{item.unitPrice.toLocaleString()} LBP • الكمية {item.qty}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <button onClick={() => updateQty(item.cartID, item.qty - 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90"><Minus className="w-3.5 h-3.5" /></button>
-                  <span className="font-bold text-sm w-6 text-center">{item.qty}</span>
-                  <button onClick={() => updateQty(item.cartID, item.qty + 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90"><Plus className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => removeItem(item.productID)} className="mr-auto text-red-400 p-1.5"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </div>
-              <div className="text-left font-bold">{item.lineTotal.toLocaleString()} LBP</div>
+      <GeofenceGate
+        service="cart"
+        fallback={
+          <div className="flex flex-col items-center justify-center min-h- px-6 text-center">
+            <div className="bg-white/10 backdrop-blur-xl p-8 rounded-3xl border border-white/20 max-w-md w-full">
+              <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🚫</div>
+              <h2 className="text-2xl font-bold mb-3">خارج نطاق التوصيل</h2>
+              <p className="text-white/70 mb-6">عذراً، خدمة التسويق غير متوفرة في منطقتك حالياً. قريباً سنصل اليك!</p>
+              <button onClick={handleBack} className="w-full bg-white/10 py-3 rounded-2xl font-bold flex items-center justify-center gap-2">
+                <ArrowLeft className="w-4 h-4"/> رجوع للمتجر
+              </button>
             </div>
-          ))}
-        </div>
-        <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 mb-6">
-          <h3 className="text-lg font-bold mb-4 text-center">ملخص الطلب</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between items-center"><span className="text-purple-200">المجموع الفرعي</span><span>{subtotal.toLocaleString()} LBP</span></div>
-            <div className="flex justify-between items-center"><span className="text-purple-200">رسوم التوصيل</span><span>{deliveryFee.toLocaleString()} LBP</span></div>
-            <div className="border-t border-dashed border-white/20 my-3"></div>
-            <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
           </div>
+        }
+      >
+        <header className="px-4 pt-6 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={handleBack}><ChevronRight className="w-6 h-6" /></button>
+            <div className="bg-white p-2 rounded- shadow-lg">
+              <Image src="/icon.png" alt="MD Marketplace" width={40} height={40} />
+            </div>
+            <div className="w-6"></div>
+          </div>
+          <div className="text-center"><h1 className="text-xl font-bold">MD Marketplace</h1></div>
+        </header>
+        <div className="px-4 pb-6">
+          <h2 className="text-2xl font-bold mb-6">إتمام الطلب</h2>
+          <div className="flex flex-col gap-3 mb-6">
+            {cart.map(item => (
+              <div key={item.cartID} className="bg-white/5 backdrop-blur-xl p-3 rounded-2xl border border-white/10 flex gap-3 items-center">
+                <img src={item.image} className="w-16 h-16 rounded-xl object-cover" alt="" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-sm">{item.name}</h3>
+                  <p className="text-xs text-purple-300">{item.unitPrice.toLocaleString()} LBP • الكمية {item.qty}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <button onClick={() => updateQty(item.cartID, item.qty - 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90"><Minus className="w-3.5 h-3.5" /></button>
+                    <span className="font-bold text-sm w-6 text-center">{item.qty}</span>
+                    <button onClick={() => updateQty(item.cartID, item.qty + 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90"><Plus className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => removeItem(item.productID)} className="mr-auto text-red-400 p-1.5"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+                <div className="text-left font-bold">{item.lineTotal.toLocaleString()} LBP</div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 mb-6">
+            <h3 className="text-lg font-bold mb-4 text-center">ملخص الطلب</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center"><span className="text-purple-200">المجموع الفرعي</span><span>{subtotal.toLocaleString()} LBP</span></div>
+              <div className="flex justify-between items-center"><span className="text-purple-200">رسوم التوصيل</span><span>{deliveryFee.toLocaleString()} LBP</span></div>
+              <div className="border-t border-dashed border-white/20 my-3"></div>
+              <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
+            </div>
+          </div>
+          <button onClick={handleConfirmOrder} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP</button>
         </div>
-        <button onClick={handleConfirmOrder} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP</button>
-      </div>
+      </GeofenceGate>
     </div>
   );
 }

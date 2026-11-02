@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import BackToDashboard from "@/components/BackToDashboard"
+import Sales from "@/components/Sales"
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function ReportsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [showSales, setShowSales] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -85,6 +87,12 @@ export default function ReportsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={()=>setShowSales(!showSales)}
+              className={`h-11 px-6 rounded-full font-black text-xs tracking-widest transition-all border ${showSales ? 'bg-white text-black border-white' : 'bg-[#FFD700] text-black border-[#FFD700] gold-glow hover:bg-white'}`}
+            >
+              {showSales ? '✕ سكر الـ Sales' : '📊 Sales Command'}
+            </button>
             <div className="px-4 py-2 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-[#FFD700] animate-pulse"></div>
               <span className="mono text- font-bold tracking-widest text-[#FFD700]">WALLET SYSTEM SECURED</span>
@@ -117,9 +125,15 @@ export default function ReportsPage() {
           </div>
         </div>
 
+        {showSales && (
+          <div className="rounded-[24px] bg-[#0F172A] border border-[#FFD700]/20 overflow-hidden">
+            <Sales />
+          </div>
+        )}
+
         {loading && <div className="text-center py-10 text-white/40 mono tracking-widest">عم حمّل...</div>}
 
-        {data && (
+        {!showSales && data && (
           <>
             {/* CARDS - نفس FINANCE cards من الخريطة */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPricingConfig, calculateFare } from '@/lib/taxi/pricingEngine';
+import GeofenceGate from '@/components/GeofenceGate';
 
 const TaxiMap = dynamic(() => import('@/components/taxi/TaxiMap'), { ssr: false });
 const TaxiActiveMap = dynamic(() => import('@/components/taxi/TaxiActiveMap'), { ssr: false });
@@ -76,7 +77,7 @@ export default function Page() {
     localStorage.removeItem('taxi_orders');
     let cancelled = false;
     fetch('/api/me', { cache: 'no-store', credentials: 'include' })
- .then(async (res) => {
+.then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           if (!hasRedirected.current) {
@@ -91,7 +92,7 @@ export default function Page() {
           if (!hasRedirected.current) {
             hasRedirected.current = true;
             if (d.user?.taxi === 'no') {
-              alert('🔒 خدمة MD-TAXI   غير متاحة لحسابك -  تواصل مع فريق الدعم');
+              alert('🔒 خدمة MD-TAXI غير متاحة لحسابك - تواصل مع فريق الدعم');
             }
             router.replace('/shop');
           }
@@ -107,13 +108,13 @@ export default function Page() {
           }
         }
       })
- .catch(() => {
+.catch(() => {
         if (!hasRedirected.current) {
           hasRedirected.current = true;
           router.replace('/login');
         }
       })
- .finally(() => { if (!cancelled) setMeLoading(false); });
+.finally(() => { if (!cancelled) setMeLoading(false); });
     return () => { cancelled = true; };
   }, [router]);
 
@@ -415,24 +416,43 @@ export default function Page() {
             ))}
           </div>
         </div>
-        <div style={{height:'60vh', width:'100%', maxWidth:'100%', borderRadius:16, overflow:'hidden', border:'1px solid #ddd', boxSizing:'border-box'}}><TaxiMap onDistanceCalculated={handleDistanceCalculated} onConfirm={handleConfirmMap} /></div>
 
-        <div style={{marginTop:12, background:'white', borderRadius:16, padding:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', overflowX:'hidden'}}>
-          <div style={{fontWeight:900, fontSize:13, marginBottom:8, wordBreak:'break-word'}}>🚕 السيارات القريبة ضمن 3 كم {nearbyLoading? '(جاري البحث...)': `(${nearbyDrivers.length})`}</div>
-          {nearbyDrivers.length === 0 &&!nearbyLoading && <div style={{fontSize:12, opacity:0.5, textAlign:'center', padding:10}}>لا يوجد سيارات {vehicleType} قريبة حاليا - نعتذر عن التأخير</div>}
-          {nearbyDrivers.map((d, idx) => (
-            <div key={d.Taxi_ID || idx} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom: idx!== nearbyDrivers.length-1? '1px solid #f3f4f6' : 'none', fontSize:12, width:'100%', boxSizing:'border-box'}}>
-              <div style={{flex:1, minWidth:0, overflow:'hidden'}}>
-                <div style={{fontWeight:900, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{idx+1}. {d.full_name} - {d.car_type || d.vehicle_type}</div>
-                <div style={{fontSize:11, opacity:0.7, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>المحرك: {d.engine_cc || '1500'} - اللوحة: {d.plate_number || '-'}</div>
-              </div>
-              <div style={{textAlign:'left', flexShrink:0, marginLeft:8}}>
-                <div style={{fontWeight:900, color:'#0a1930'}}>{d.distance_km?.toFixed(2)} كم</div>
-                <div style={{fontSize:10, color: d.is_online? '#16a34a' : '#9ca3af'}}>{d.is_online? '● متاح' : 'غير متاح'}</div>
-              </div>
+        {/* === حماية جيوفنس تاكسي - جديدة - نفس السلة === */}
+        <GeofenceGate
+          service="taxi"
+          fallback={
+            <div style={{background:'white', borderRadius:16, padding:24, textAlign:'center', border:'1px solid #e5e7eb'}}>
+              <div style={{fontSize:48}}>🚫</div>
+              <h2 style={{fontWeight:900, fontSize:18, marginTop:12}}>خارج نطاق التاكسي</h2>
+              <p style={{fontSize:13, opacity:0.7, marginTop:8}}>عذراً، خدمة MD-TAXI غير متوفرة في منطقتك حالياً. قريباً سنصل اليك!</p>
+              <button onClick={()=>window.location.href='/shop'} style={{marginTop:16, width:'100%', padding:'12px', borderRadius:12, background:'#0a1930', color:'white', fontWeight:900}}>🛒 رجوع للمتجر</button>
             </div>
-          ))}
-        </div>
+          }
+        >
+          <div style={{height:'60vh', width:'100%', maxWidth:'100%', borderRadius:16, overflow:'hidden', border:'1px solid #ddd', boxSizing:'border-box'}}><TaxiMap onDistanceCalculated={handleDistanceCalculated} onConfirm={handleConfirmMap} /></div>
+
+          <div style={{marginTop:12, background:'white', borderRadius:16, padding:12, border:'1px solid #e5e7eb', width:'100%', boxSizing:'border-box', overflowX:'hidden'}}>
+            <div style={{fontWeight:900, fontSize:13, marginBottom:8, wordBreak:'break-word'}}>🚕 السيارات القريبة ضمن 3 كم {nearbyLoading? '(جاري البحث...)': `(${nearbyDrivers.length})`}</div>
+            {nearbyDrivers.length === 0 &&!nearbyLoading && <div style={{fontSize:12, opacity:0.5, textAlign:'center', padding:10}}>لا يوجد سيارات {vehicleType} قريبة حاليا - نعتذر عن التأخير</div>}
+            {nearbyDrivers.map((d, idx) => (
+              <div key={d.Taxi_ID || idx} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom: idx!== nearbyDrivers.length-1? '1px solid #f3f4f6' : 'none', fontSize:12, width:'100%', boxSizing:'border-box'}}>
+                <div style={{flex:1, minWidth:0, overflow:'hidden'}}>
+                  <div style={{fontWeight:900, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{idx+1}. {d.full_name} - {d.car_type || d.vehicle_type}</div>
+                  <div style={{fontSize:11, opacity:0.7, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>المحرك: {d.engine_cc || '1500'} - اللوحة: {d.plate_number || '-'}</div>
+                </div>
+                <div style={{textAlign:'left', flexShrink:0, marginLeft:8}}>
+                  <div style={{fontWeight:900, color:'#0a1930'}}>{d.distance_km?.toFixed(2)} كم</div>
+                  <div style={{fontSize:10, color: d.is_online? '#16a34a' : '#9ca3af'}}>{d.is_online? '● متاح' : 'غير متاح'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {pricing && distanceData && (
+            <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12, width:'100%', boxSizing:'border-box'}}><div style={{fontSize:11, opacity:0.7, wordBreak:'break-word'}}>منطقة {area} - {distanceData.totalKm} كم - محرك {getEngineCode(vehicleType, bundle)} - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمالية تغيير السعر عند الموافقة</div></div>
+          )}
+        </GeofenceGate>
+        {/* === نهاية حماية جيوفنس === */}
 
        {orders.length>0 && (
        <div style={{marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, width:'100%', boxSizing:'border-box'}}>
@@ -444,10 +464,6 @@ export default function Page() {
      <div style={{marginTop:8, width:'100%', boxSizing:'border-box'}}>
      <a href="/taxi/history" style={{display:'block', textAlign:'center', padding:12, borderRadius:12, background:'white', border:'1px solid #e5e7eb', fontWeight:900, fontSize:13, textDecoration:'none', color:'#0a1930', width:'100%', boxSizing:'border-box'}}>📜 عرض سجل الرحلات المكتملة والملغية</a>
     </div>
-
-        {pricing && distanceData && (
-          <div style={{marginTop:12, background:'#FFC107', borderRadius:12, padding:12, width:'100%', boxSizing:'border-box'}}><div style={{fontSize:11, opacity:0.7, wordBreak:'break-word'}}>منطقة {area} - {distanceData.totalKm} كم - محرك {getEngineCode(vehicleType, bundle)} - {tripType==='scheduled'?'مسبق':''}</div><div style={{fontSize:22, fontWeight:900}}>{pricing.customer_pays_lbp?.toLocaleString()} ل.ل</div><div style={{fontSize:10, opacity:0.6}}>احتمالية تغيير السعر عند الموافقة</div></div>
-        )}
 
       </div>
     </div>

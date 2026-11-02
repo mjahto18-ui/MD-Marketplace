@@ -18,16 +18,33 @@ export default function CategoryPage() {
     const loadStores = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/stores/by-category?id=${id}`);
+        const lat = localStorage.getItem('user_lat');
+        const lng = localStorage.getItem('user_lng');
+        let url = `/api/stores/by-category?id=${id}`;
+        if (lat && lng) url += `&lat=${lat}&lng=${lng}`;
+
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setStores(data.stores);
           setFilteredStores(data.stores);
         } else {
-          console.error("API Error:", data.message);
           setStores([]);
           setFilteredStores([]);
         }
+
+        // حدث الموقع بالخلفية بصمت
+        if (!lat || !lng) {
+          navigator.geolocation.getCurrentPosition(
+            pos => {
+              localStorage.setItem('user_lat', pos.coords.latitude);
+              localStorage.setItem('user_lng', pos.coords.longitude);
+            },
+            () => {},
+            { enableHighAccuracy: false, timeout: 3000 }
+          );
+        }
+
       } catch (err) {
         console.error("Fetch error:", err);
         setStores([]);
@@ -66,10 +83,7 @@ export default function CategoryPage() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: "rtl" }}>
       <header className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3 mb-4">
-          <button
-            onClick={() => router.back()}
-            className="bg-white/10 p-2 rounded-xl active:scale-90 transition"
-          >
+          <button onClick={() => router.back()} className="bg-white/10 p-2 rounded-xl active:scale-90 transition">
             <ChevronRight className="w-5 h-5" />
           </button>
           <h1 className="text-2xl font-bold">المتاجر</h1>
@@ -91,9 +105,7 @@ export default function CategoryPage() {
           <div className="text-center py-20">
             <Store className="w-16 h-16 text-purple-400 mx-auto mb-4" />
             <p className="text-xl font-bold mb-2">لا يوجد متاجر</p>
-            <p className="text-purple-300">
-              {searchQuery ? 'جرب تبحث باسم تاني' : 'لا يوجد متاجر ضمن هذه الفئة حالياً'}
-            </p>
+            <p className="text-purple-300">{searchQuery ? 'جرب تبحث باسم تاني' : 'لا يوجد متاجر ضمن هذه الفئة حالياً'}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
@@ -102,20 +114,10 @@ export default function CategoryPage() {
               const storeName = store.store_name || store.storeName;
               const storeLogo = store.logo || store.image;
               return (
-              <Link
-                href={`/store/${storeId}`}
-                key={storeId}
-              >
+              <Link href={`/store/${storeId}`} key={storeId}>
                 <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden active:scale-95 transition cursor-pointer hover:border-purple-500/50">
                   <div className="relative w-full h-28 md:h-32 bg-white flex items-center justify-center overflow-hidden">
-                    <Image
-                      src={storeLogo || 'https://via.placeholder.com/200x200?text=No+Image'}
-                      alt={storeName}
-                      fill
-                      sizes="25vw"
-                      className="object-contain p-3"
-                      loading="lazy"
-                    />
+                    <Image src={storeLogo || 'https://via.placeholder.com/200x200?text=No+Image'} alt={storeName} fill sizes="25vw" className="object-contain p-3" loading="lazy" />
                   </div>
                   <div className="p-3">
                     <h2 className="font-bold text-sm mb-1 truncate">{storeName}</h2>

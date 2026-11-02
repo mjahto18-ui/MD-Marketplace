@@ -12,7 +12,7 @@ export async function POST(req) {
   try {
     const { code } = await req.json();
     if (!code || String(code).length !== 6) {
-      return NextResponse.json({ valid: false, error: 'الكود لازم 6 أرقام' }, { status: 400 });
+      return NextResponse.json({ valid: false, error: 'الرمز يجب ان يكون 6 أرقام' }, { status: 400 });
     }
 
     const supabase = getSupabase();
@@ -24,13 +24,13 @@ export async function POST(req) {
 
     if (error) throw error;
     if (!data) {
-      return NextResponse.json({ valid: false, error: 'الكود مش موجود' });
+      return NextResponse.json({ valid: false, error: 'الرمز السري ليس موجود' });
     }
     if (data.is_used) {
-      return NextResponse.json({ valid: false, error: 'الكود انحرق قبل، مستعمل' });
+      return NextResponse.json({ valid: false, error: 'الرمز السري غير فعال ، مستعمل' });
     }
     if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      return NextResponse.json({ valid: false, error: 'الكود انتهت صلاحيتو (24 ساعة)' });
+      return NextResponse.json({ valid: false, error: 'الرمز السري منتهي الصلاحية (24 ساعة)' });
     }
 
     return NextResponse.json({ valid: true, code: data });
