@@ -40,50 +40,53 @@ export async function GET(req) {
 
     // === فلتر البرج اذا في موقع ===
     if (lat && lng) {
-      const { data: centersRaw } = await supabase
-      .from('geofence_centers')
-      .select('*');
-      const centers = (centersRaw||[]).filter(c => c.is_active === true && c.cart_enabled === true);
-
-      const coveringCenters = [];
-      for (let c of (centers||[])) {
-        if (getDistance(lat, lng, c.center_lat, c.center_lng) <= c.radius_cart) {
-          coveringCenters.push(c);
-        }
-      }
-
-      if (coveringCenters.length === 0) {
-        const res = NextResponse.json({ success: true, products: [], allowed: false, message: 'خارج التغطية' });
-        res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-        res.headers.set('CDN-Cache-Control', 'no-store');
-        res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
-        return res;
-      }
-
-      // جيب موقع المتجر المطلوب
-      const { data: storeRows } = await supabase.from('stores').select('"Store ID", "Current Latitude", "Current Longitude"').eq('Store ID', String(storeID).trim()).limit(1);
+      // جيب موقع ونوع المتجر أول شي
+      const { data: storeRows } = await supabase.from('stores').select('"Store ID", "Current Latitude", "Current Longitude", coverage_type').eq('Store ID', String(storeID).trim()).limit(1);
       const storeLoc = storeRows?.[0];
 
-      if (storeLoc) {
-        const sLat = parseFloat(storeLoc['Current Latitude']);
-        const sLng = parseFloat(storeLoc['Current Longitude']);
-        let allowed = false;
-        for (let center of coveringCenters) {
-          if (getDistance(sLat, sLng, center.center_lat, center.center_lng) <= center.radius_cart) {
-            allowed = true; break;
+      // اذا المتجر Global - تخطى كل فحص الجيو
+      if (!storeLoc || storeLoc.coverage_type !== 'global') {
+        const { data: centersRaw } = await supabase
+        .from('geofence_centers')
+        .select('*');
+        const centers = (centersRaw||[]).filter(c => c.is_active === true && c.cart_enabled === true);
+
+        const coveringCenters = [];
+        for (let c of (centers||[])) {
+          if (getDistance(lat, lng, c.center_lat, c.center_lng) <= c.radius_cart) {
+            coveringCenters.push(c);
           }
         }
-        if (!allowed) {
-          const res = NextResponse.json({
-            success: true,
-            products: [],
-            allowed: false,
-            message: 'هالمتجر بالقبة وانت بالمينا - مش ضمن نطاقك'
-          });
+
+        if (coveringCenters.length === 0) {
+          const res = NextResponse.json({ success: true, products: [], allowed: false, message: 'خارج التغطية' });
           res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
           res.headers.set('CDN-Cache-Control', 'no-store');
           res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
           return res;
+        }
+
+        if (storeLoc) {
+          const sLat = parseFloat(storeLoc['Current Latitude']);
+          const sLng = parseFloat(storeLoc['Current Longitude']);
+          let allowed = false;
+          for (let center of coveringCenters) {
+            if (getDistance(sLat, sLng, center.center_lat, center.center_lng) <= center.radius_cart) {
+              allowed = true; break;
+            }
+          }
+          if (!allowed) {
+            const res = NextResponse.json({
+              success: true,
+              products: [],
+              allowed: false,
+              message: 'هالمتجر بالقبة وانت بالمينا - مش ضمن نطاقك'
+            });
+            res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            res.headers.set('CDN-Cache-Control', 'no-store');
+            res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+            return res;
+          }
         }
       }
     }
