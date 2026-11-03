@@ -223,6 +223,17 @@ export default function ProductsPage() {
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-1 truncate">المتجر: {product.storeName}</p>
+                 {/* هون زيد التوصيل */}
+                {product.coverage_type === 'global' ? (
+              <span className="inline-block text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full mb-2">
+             🚚 توصيل خلال 72 ساعة - لكل لبنان
+             </span>
+            ) : (
+            <span className="inline-block text-[10px] bg-green-500/20 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full mb-2">
+            ⚡ توصيل فوري - خلال 25 دقيقة
+           </span>
+           )}
+
                 {product.description && (
                 <p className="text-[11px] text-gray-400 leading-4 line-clamp-2 mb-2 min-h-[28px]">
                 {product.description}
