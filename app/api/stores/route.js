@@ -61,6 +61,7 @@ export async function GET(req) {
       openTime: row['Open Time'],
       currentLatitude: row['Current Latitude'],
       currentLongitude: row['Current Longitude'],
+      coverage_type: row['coverage_type'] || 'geofence',
     }));
 
     // اذا الزبون ما بعت موقع - رجع كلشي (توافق خلفي)
@@ -85,22 +86,24 @@ export async function GET(req) {
       }
     }
 
-    // برا التغطية
+    // برا التغطية - رجع بس متاجر Global
     if (coveringCenters.length === 0) {
+      const globalOnly = allStores.filter(s => s.coverage_type === 'global');
       const res = NextResponse.json({
         success: true,
-        stores: [],
+        stores: globalOnly,
         filtered: true,
         allowed: false,
-        message: 'خارج نطاق التغطية حالياً - أنت بالقبة ما بتشوف متاجر المينا',
+        message: 'خارج نطاق التغطية حالياً - نعرض فقط متاجر 48-72 ساعة',
         covering_centers: []
       });
       res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
       return res;
     }
 
-    // 4. فلتر المتاجر - المتجر لازم يكون ضمن نفس البرج يلي بيغطي الزبون
+    // 4. فلتر المتاجر - المتجر لازم يكون ضمن نفس البرج يلي بيغطي الزبون أو يكون Global
     const filteredStores = allStores.filter(store => {
+      if (store.coverage_type === 'global') return true;
       const sLat = parseFloat(store.currentLatitude);
       const sLng = parseFloat(store.currentLongitude);
       if (!sLat || !sLng) return false;
