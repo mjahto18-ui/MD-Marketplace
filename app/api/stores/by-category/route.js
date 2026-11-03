@@ -42,18 +42,10 @@ export async function GET(req) {
 
     const supabase = getSupabase();
 
-    // 1. جيب الأبراج النشطة للسلة - بدون .eq().eq() يلي بيعلق
-    const { data: centersRaw } = await supabase
-      .from('geofence_centers')
-      .select('*');
+    const { data: centersRaw } = await supabase.from('geofence_centers').select('*');
     const centers = (centersRaw||[]).filter(c => c.is_active === true && c.cart_enabled === true);
 
-    // 2. جيب المتاجر حسب الفئة (بس النشطة)
-    const { data: rows } = await supabase
-      .from('stores')
-      .select('*')
-      .eq('Category', String(categoryID).trim())
-      .eq('Status', 'Active');
+    const { data: rows } = await supabase.from('stores').select('*').eq('Category', String(categoryID).trim()).eq('Status', 'Active');
 
     let allStores = (rows||[]).map(row => {
         return {
@@ -66,12 +58,11 @@ export async function GET(req) {
           address: row["Adress"] || "",
           currentLatitude: row["Current Latitude"],
           currentLongitude: row["Current Longitude"],
+          coverage_type: row["coverage_type"] || 'geofence',
         };
       });
 
-    // اذا ما في موقع - رجع كلشي (توافق خلفي)
     if (!lat || !lng) {
-      // شيل الاحداثيات من الرد مشان ما نغير شكل الـ API القديم
       const clean = allStores.map(({ currentLatitude, currentLongitude, ...rest }) => rest);
       const res = NextResponse.json({ success: true, stores: clean, filtered: false });
       res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
@@ -80,22 +71,25 @@ export async function GET(req) {
       return res;
     }
 
-    // 3. أي أبراج بتغطي الزبون؟
     const coveringCenters = [];
     for (let c of (centers||[])) {
       const dist = getDistance(lat, lng, c.center_lat, c.center_lng);
-      if (dist <= c.radius_cart) { // كيلو <= كيلو
+      if (dist <= c.radius_cart) {
         coveringCenters.push(c);
       }
     }
 
+    // برا التغطية -> رجع بس الـ Global
     if (coveringCenters.length === 0) {
+      const globalOnly = allStores.filter(s => s.coverage_type === 'global');
+      const cleanGlobal = globalOnly.map(({ currentLatitude, currentLongitude, ...rest }) => rest);
       const res = NextResponse.json({ 
         success: true, 
-        stores: [], 
+        stores: cleanGlobal, 
         filtered: true,
-        allowed: false,
-        message: 'خارج نطاق التغطية' 
+        allowed: true,
+        message: 'خارج التغطية - بس متاجر التوصيل الوطني',
+        covering_centers: []
       });
       res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
       res.headers.set('CDN-Cache-Control', 'no-store');
@@ -103,20 +97,21 @@ export async function GET(req) {
       return res;
     }
 
-    // 4. فلتر المتاجر - لازم يكون ضمن نفس البرج
     const filtered = allStores.filter(store => {
+      // Global بيمشي بكل لبنان
+      if (store.coverage_type === 'global') return true;
+
       const sLat = parseFloat(store.currentLatitude);
       const sLng = parseFloat(store.currentLongitude);
       if (!sLat || !sLng) return false;
       
       for (let center of coveringCenters) {
         const d = getDistance(sLat, sLng, center.center_lat, center.center_lng);
-        if (d <= center.radius_cart) return true; // كيلو
+        if (d <= center.radius_cart) return true;
       }
       return false;
     });
 
-    // رجع بنفس الشكل القديم بدون احداثيات
     const cleanFiltered = filtered.map(({ currentLatitude, currentLongitude, ...rest }) => rest);
 
     const res = NextResponse.json({ 
