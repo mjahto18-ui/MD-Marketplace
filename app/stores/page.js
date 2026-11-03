@@ -203,7 +203,7 @@ export default function StoresPage() {
                     {store.coverage_type === 'global' ? (
                     <span className="inline-block text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full mt-1">🚚 72 ساعة - توصيل خلال</span>
                     ) : (
-                    <span className="inline-block text-[10px] bg-green-500/20 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full mt-1">⚡ توصيل حلال - 25 دقيقة</span>
+                    <span className="inline-block text-[10px] bg-green-500/20 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full mt-1">⚡ توصيل خلال - 25 دقيقة</span>
                      )}
 
                     <div className="text-xs text-yellow-400 mt-2">{renderStars(rating)} ({rating})</div>
