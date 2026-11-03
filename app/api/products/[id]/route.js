@@ -63,52 +63,57 @@ export async function GET(req, { params }) {
         }
       }
 
-      if (coveringCenters.length === 0) {
-        const res = NextResponse.json({
-          success: false,
-          allowed: false,
-          message: 'خارج نطاق التغطية - هالمنتج مش ضمن برجك'
-        }, { status: 403 });
-        res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-        res.headers.set('CDN-Cache-Control', 'no-store');
-        res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
-        return res;
-      }
-
       // جيب المتجر تبع المنتج
       const storeId = product['Store ID'];
-      const { data: storeRows } = await supabase.from('stores').select('"Store ID", "Current Latitude", "Current Longitude"').eq('Store ID', storeId).limit(1);
+      const { data: storeRows } = await supabase.from('stores').select('"Store ID", coverage_type, "Current Latitude", "Current Longitude"').eq('Store ID', storeId).limit(1);
       const storeLoc = storeRows?.[0];
-
-      if (storeLoc) {
-        const sLat = parseFloat(storeLoc['Current Latitude']);
-        const sLng = parseFloat(storeLoc['Current Longitude']);
-        let storeAllowed = false;
-
-        for (let center of coveringCenters) {
-          if (getDistance(sLat, sLng, center.center_lat, center.center_lng) <= center.radius_cart) {
-            storeAllowed = true;
-            break;
-          }
-        }
-
-        if (!storeAllowed) {
+      
+      // اذا المتجر Global - اسمح دايماً حتى لو برا التغطية
+      if (storeLoc && storeLoc.coverage_type === 'global') {
+        // لا تعمل بلوك للـ Global - كمل عادي
+      } else {
+        // فحص الجيو للـ geofence بس
+        if (coveringCenters.length === 0) {
           const res = NextResponse.json({
             success: false,
             allowed: false,
-            message: 'هالمنتج من متجر بالقبة وانت بالمينا - مش ضمن نطاقك'
+            message: 'خارج نطاق التغطية - هالمنتج مش ضمن برجك'
           }, { status: 403 });
           res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
           res.headers.set('CDN-Cache-Control', 'no-store');
           res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
           return res;
         }
+
+        if (storeLoc) {
+          const sLat = parseFloat(storeLoc['Current Latitude']);
+          const sLng = parseFloat(storeLoc['Current Longitude']);
+          let storeAllowed = false;
+          for (let center of coveringCenters) {
+            if (getDistance(sLat, sLng, center.center_lat, center.center_lng) <= center.radius_cart) {
+              storeAllowed = true;
+              break;
+            }
+          }
+          if (!storeAllowed) {
+            const res = NextResponse.json({
+              success: false,
+              allowed: false,
+              message: 'هالمنتج من متجر بالقبة وانت بالمينا - مش ضمن نطاقك'
+            }, { status: 403 });
+            res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            res.headers.set('CDN-Cache-Control', 'no-store');
+            res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+            return res;
+          }
+        }
       }
     }
 
     const storeId = product['Store ID'];
-    const { data: stores } = await supabase.from('stores').select('"Store ID", "Store Name"').eq('Store ID', storeId).limit(1);
+    const { data: stores } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type').eq('Store ID', storeId).limit(1);
     let store = stores?.[0];
+    
 
     const productData = {
       productID: product['Product ID'],
@@ -124,6 +129,7 @@ export async function GET(req, { params }) {
       active: product['Active'],
       weightPoint: Number(product['Weight Points']),
       storeName: store? store['Store Name'] : "متجر محذوف",
+      coverage_type: store ? (store.coverage_type || 'geofence') : 'geofence',
     };
 
     const res = NextResponse.json({ success: true, product: productData });
