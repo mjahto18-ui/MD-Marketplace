@@ -145,6 +145,16 @@ export default function ProductDetailPage({ params }) {
             <div>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 leading-tight">{product.name}</h2>
               <p className="text-sm md:text-base text-purple-300 mb-6">المتجر: {product.storeName} • {product.category}</p>
+              {/* زيد هون */}
+              {product.coverage_type === 'global' ? (
+             <div className="inline-flex items-center gap-2 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1.5 rounded-full mb-6">
+             🚚 توصيل خلال 72 ساعة - لكل لبنان
+             </div>
+             ) : (
+            <div className="inline-flex items-center gap-2 text-xs bg-green-500/20 text-green-300 border border-green-500/30 px-3 py-1.5 rounded-full mb-6">
+          ⚡ توصيل فوري - خلال 25 دقيقة  
+          </div>
+          )}
               <div className="bg-white/5 rounded-2xl p-4 md:p-5 mb-6 border border-white/5">
                 <p className="text-purple-200 text-sm mb-1">السعر:</p>
                 <p className="text-3xl md:text-4xl font-bold text-white">{Number(product.price).toLocaleString()} <span className="text-lg font-normal">ل.ل</span></p>
