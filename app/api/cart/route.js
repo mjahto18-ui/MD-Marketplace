@@ -21,7 +21,6 @@ async function getCustomerIDFromSession(supabase) {
   const phoneStr = String(phone).trim();
   const phoneNoZero = phoneStr.replace(/^0+/, '');
 
-  // 1. جرب بالـ Mobile متل ما هو - مع Index
   const { data: customer } = await supabase.from('customers')
   .select('"Customer ID"')
   .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
@@ -29,7 +28,6 @@ async function getCustomerIDFromSession(supabase) {
 
   if (customer) return customer["Customer ID"];
 
-  // 2. جرب users - مع Index
   const { data: user } = await supabase.from('users')
   .select('"Customer ID", "User ID"')
   .or(`Mobile.eq.${phoneStr},Mobile.eq.${phoneNoZero}`)
@@ -43,26 +41,43 @@ export async function GET(req) {
     const supabase = getSupabase();
     const customerID = await getCustomerIDFromSession(supabase);
     if (!customerID) {
-      return NextResponse.json({ success: true, cart: [], totalWeight: 0, subtotal: 0, baseDeliveryFee: 0, deliveryFee: 0, freeDeliveryRemaining: 0 });
+      return NextResponse.json({ success: true, cart: [], totalWeight: 0, subtotal: 0, baseDeliveryFee: 0, deliveryFee: 0, freeDeliveryRemaining: 0, coverage_type: 'geofence' });
     }
 
     const { data: cartRows } = await supabase.from('cart')
-    .select('"Cart ID", "Customer ID", "Product ID", Qty, "Line Total", "Line Points", "Checked Out"')
+    .select('"Cart ID", "Customer ID", "Product ID", Qty, "Line Total", "Line Points", "Store ID"')
     .eq('Customer ID', customerID)
     .eq('Checked Out', 'FALSE');
 
     const productIds = [...new Set((cartRows||[]).map(r => r['Product ID']).filter(Boolean))];
+    const storeIds = [...new Set((cartRows||[]).map(r => r['Store ID']).filter(Boolean))];
 
     let productsMap = {};
+    let storesMap = {};
+    
     if (productIds.length > 0) {
       const { data: productsRows } = await supabase.from('products')
-      .select('"Product ID", "Product Name", Image')
+      .select('"Product ID", "Product Name", Image, "Store ID"')
       .in('Product ID', productIds);
       (productsRows||[]).forEach(p => productsMap[p['Product ID']] = p);
     }
 
+    if (storeIds.length > 0) {
+      const { data: storesRows } = await supabase.from('stores')
+      .select('"Store ID", coverage_type')
+      .in('Store ID', storeIds);
+      (storesRows||[]).forEach(s => storesMap[s['Store ID']] = s.coverage_type || 'geofence');
+    }
+
+    // حدد نوع السلة
+    let cartCoverage = 'geofence';
+    if (storeIds.length > 0) {
+      const firstStoreCoverage = storesMap[storeIds[0]] || 'geofence';
+      cartCoverage = firstStoreCoverage;
+    }
+
     const [{ data: ratesRows }, { data: customerRow }] = await Promise.all([
-      supabase.from('delivery_rates').select('"Min Points", "Max Points", "Delivery Fee"'),
+      supabase.from('delivery_rates').select('"Min Points", "Max Points", "Delivery Fee", coverage_type'),
       supabase.from('customers').select('"Free Delivery Remaining", "Last Free Delivery Date"').eq('Customer ID', customerID).maybeSingle(),
     ]);
 
@@ -76,10 +91,12 @@ export async function GET(req) {
         productID: productID,
         name: product? product["Product Name"] : "منتج محذوف",
         image: product? product["Image"] : "",
+        storeID: row["Store ID"],
         unitPrice: qty? lineTotal / qty : 0,
         qty,
         lineTotal,
         linePoints: Number(row["Line Points"] || 0),
+        coverage_type: storesMap[row["Store ID"]] || 'geofence',
       };
     });
 
@@ -91,14 +108,22 @@ export async function GET(req) {
     const today = new Date().toLocaleDateString("en-GB");
 
     let baseDeliveryFee = 0;
-    const rateRow = (ratesRows||[]).find((r) => {
+    
+    // فلتر حسب نوع السلة + الوزن
+    const filteredRates = (ratesRows||[]).filter(r => {
+      const rc = r.coverage_type || 'geofence';
+      return rc === cartCoverage;
+    });
+    
+    const rateRow = filteredRates.find((r) => {
       const min = Number(r["Min Points"] || 0);
       const max = Number(r["Max Points"] || 999999);
       return totalWeight >= min && totalWeight <= max;
     });
+    
     if (rateRow) baseDeliveryFee = Number(rateRow["Delivery Fee"] || 0);
 
-    const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
+    const isFreeDelivery = cartCoverage === 'geofence' && freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
     const finalDeliveryFee = isFreeDelivery? 0 : baseDeliveryFee;
 
     return NextResponse.json({
@@ -112,6 +137,8 @@ export async function GET(req) {
       lastFreeDeliveryDate,
       today,
       isFreeDelivery,
+      coverage_type: cartCoverage,
+      order_type: cartCoverage,
     });
   } catch (err) {
     console.error(err);
