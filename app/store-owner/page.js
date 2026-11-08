@@ -3,6 +3,32 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
+// ضغط لـ 200x200 webp - متل الطلب الخاص بس أصغر
+async function compressToWebp200(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 200; canvas.height = 200;
+      const ctx = canvas.getContext('2d');
+      // قص مربع من النص عشان ما تتشوه الصورة
+      const size = Math.min(img.width, img.height);
+      const sx = (img.width - size) / 2;
+      const sy = (img.height - size) / 2;
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
+      canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.75);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// مقاسات حسب القسم
+const SIZE_OPTIONS = {
+  clothes: ['S','M','L','XL','XXL','One Size'],
+  shoes: ['36','37','38','39','40','41','42','43','44','45','46'],
+  default: []
+};
+
 export default function StoreDashboard(){
   const [supabase, setSupabase] = useState(null)
   const [me, setMe] = useState(null)
@@ -14,7 +40,7 @@ export default function StoreDashboard(){
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showBarcode, setShowBarcode] = useState({})
-  const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:''}])
+  const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}])
   const [priceReq, setPriceReq] = useState({code:'', newPrice:''})
   // --- محفظة ---
   const [wallet, setWallet] = useState(0)
@@ -127,22 +153,51 @@ export default function StoreDashboard(){
   }
 
   const addProducts = async ()=>{
-    const toInsert = newProds.filter(n=>n.name && n.price).map(n=>({
-      'Store ID': me.storeId, 
-    'Product Name': n.name, 
-    'Unit': n.unit || 'حبة', 
-    'Price': Number(n.price), 
-    'Image': n.image || null,
-    'Active': 'FALSE',      // هون صارت نص كبير
-    'Available': 'Yes',
-    'Stock Qty': '1',       // نص
-    'Weight Points': 0
-    }))
-    if(!toInsert.length) return alert('عبي اسم وسعر')
-    const { error } = await supabase.from('products').insert(toInsert)
-    if(error) alert(error.message)
-    else { alert('انضافو للمراجعة'); setNewProds([{name:'', unit:'حبة', price:'', image:''}]); location.reload() }
+  const toInsert = newProds.filter(n=>n.name && n.price);
+  if(!toInsert.length) return alert('عبي اسم وسعر');
+  for(const n of toInsert){
+    // 1. ارفع كل الصور مضغوطة 200x200
+    let uploadedUrls = [];
+    for(const f of (n.images || [])){
+      const compressed = await compressToWebp200(f);
+      const fd = new FormData();
+      fd.append('file', compressed, 'product.webp');
+      const up = await fetch('/api/upload', { method:'POST', body: fd });
+      const upData = await up.json();
+      if(upData.url) uploadedUrls.push(upData.url);
+    }
+    const mainImage = uploadedUrls[0] || n.image || null;
+
+    // 2. انشئ المنتج
+    const { data: prod, error } = await supabase.from('products').insert([{
+      'Store ID': me.storeId,
+      'Product Name': n.name,
+      'Unit': n.unit || 'حبة',
+      'Price': Number(n.price),
+      'Image': mainImage,
+      'Size': n.size || null,
+      'Active': 'FALSE',
+      'Available': 'Yes',
+      'Stock Qty': '1',
+      'Weight Points': 0
+    }]).select().single();
+    if(error){ alert(error.message); continue; }
+
+    // 3. احفظ كل الصور بـ product_images
+    if(uploadedUrls.length){
+      const rows = uploadedUrls.map((url, idx)=>({
+        product_id: prod['Product ID'],
+        image_url: url,
+        sort_order: idx,
+        is_main: idx===0
+      }));
+      await supabase.from('product_images').insert(rows);
+    }
   }
+  alert('انضافو للمراجعة');
+  setNewProds([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}]);
+  location.reload();
+}
 
   const logout = async ()=>{ await fetch('/api/admin/logout',{method:'POST'}); window.location.href='/admin/login' }
   if(!me) return <div style={{padding:20, background:'radial-gradient(1200px at 20% -10%, #1a0b2e 0%, #0a0a14 45%, #080811 100%)', color:'white', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>تحميل...</div>
@@ -276,10 +331,12 @@ export default function StoreDashboard(){
                   <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:12, width:'100%', boxSizing:'border-box'}}>
                     {filteredProducts.map(p=>(
                       <div key={p['Product ID']} style={{...glassCard, borderRadius:14, padding:10, display:'flex', flexDirection:'column', width:'100%', boxSizing:'border-box', overflow:'hidden'}}>
+                      
                         <div style={{background:'rgba(255,255,255,0.05)', borderRadius:10, height:110, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden'}}>
                           {p.Image? <img src={p.Image} style={{maxWidth:'100%', maxHeight:'100%', objectFit:'contain'}} /> : <span style={{opacity:0.3, color:'white'}}>لا صورة</span>}
                         </div>
                         <div style={{fontWeight:700, fontSize:12, marginTop:8, lineHeight:1.3, minHeight:32, color:'white', wordBreak:'break-word'}}>{p['Product Name']}</div>
+                        {p['Size'] && <div style={{fontSize:10, color:'#fde68a', marginTop:2}}>مقاس: {p['Size']}</div>}
                         <div style={{fontSize:10, opacity:0.5, color:'rgba(255,255,255,0.5)'}}>{p.Unit}</div>
                         <div style={{marginTop:6, display:'flex', alignItems:'center', justifyContent:'space-between'}}>
                           <div style={{fontWeight:900, fontSize:13, color:'white'}}>{Number(p.Price||0).toLocaleString('ar-LB')} ل.ل</div>
@@ -323,22 +380,50 @@ export default function StoreDashboard(){
               )}
 
               {tab==='add' && (
-                <div style={{...glassCard, padding:14, borderRadius:16, width:'100%', boxSizing:'border-box', overflowX:'hidden'}}>
-                  <div style={{fontWeight:900, marginBottom:12, color:'white'}}>إضافة منتجات - Active FALSE للمراجعة</div>
-                  {newProds.map((np,i)=>(
-                    <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 80px 110px 1fr', gap:6, marginBottom:8, width:'100%', boxSizing:'border-box'}}>
-                      <input placeholder="اسم" value={np.name} onChange={e=>{const c=[...newProds]; c[i].name=e.target.value; setNewProds(c)}} style={{padding:10, borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0}} />
-                      <input placeholder="وحدة" value={np.unit} onChange={e=>{const c=[...newProds]; c[i].unit=e.target.value; setNewProds(c)}} style={{padding:10, borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0}} />
-                      <input placeholder="سعر" value={np.price} onChange={e=>{const c=[...newProds]; c[i].price=e.target.value; setNewProds(c)}} style={{padding:10, borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0}} />
-                      <input placeholder="رابط الصورة" value={np.image} onChange={e=>{const c=[...newProds]; c[i].image=e.target.value; setNewProds(c)}} style={{padding:10, borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0}} />
-                    </div>
-                  ))}
-                  <div style={{display:'flex', gap:8, marginTop:10, flexWrap:'wrap'}}>
-                    <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:''}])} style={{padding:'8px 14px', borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.08)', color:'white'}}> + منتج</button>
-                    <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900}}>إرسال للمراجعة</button>
-                  </div>
-                </div>
-              )}
+  <div style={{...glassCard, padding:14, borderRadius:16}}>
+    <div style={{fontWeight:900, marginBottom:12}}>إضافة منتجات - Active FALSE للمراجعة</div>
+    {newProds.map((np,i)=>(
+      <div key={i} style={{border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:10, marginBottom:10}}>
+        <div style={{display:'grid', gridTemplateColumns:'1fr 80px 110px', gap:6, marginBottom:8}}>
+          <input placeholder="اسم" value={np.name} onChange={e=>{const c=[...newProds]; c[i].name=e.target.value; setNewProds(c)}} style={inputStyle} />
+          <input placeholder="وحدة" value={np.unit} onChange={e=>{const c=[...newProds]; c[i].unit=e.target.value; setNewProds(c)}} style={inputStyle} />
+          <input placeholder="سعر" value={np.price} onChange={e=>{const c=[...newProds]; c[i].price=e.target.value; setNewProds(c)}} style={inputStyle} />
+        </div>
+
+        {/* Size - بس للتياب والأحذية */}
+        <div style={{display:'flex', gap:6, marginBottom:8}}>
+          <select value={np.category} onChange={e=>{const c=[...newProds]; c[i].category=e.target.value; c[i].size=''; setNewProds(c)}} style={inputStyle}>
+            <option value="">اختر نوع - Size اختياري</option>
+            <option value="clothes">👕 تياب</option>
+            <option value="shoes">👟 أحذية</option>
+            <option value="other">🍔 أكل / غيره - بدون Size</option>
+          </select>
+          {np.category==='clothes' && (
+            <select value={np.size} onChange={e=>{const c=[...newProds]; c[i].size=e.target.value; setNewProds(c)}} style={inputStyle}>
+              <option value="">اختر المقاس</option>
+              {SIZE_OPTIONS.clothes.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {np.category==='shoes' && (
+            <select value={np.size} onChange={e=>{const c=[...newProds]; c[i].size=e.target.value; setNewProds(c)}} style={inputStyle}>
+              <option value="">اختر المقاس</option>
+              {SIZE_OPTIONS.shoes.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+        </div>
+
+        {/* رفع كزا صورة - بتنضغط 200x200 */}
+        <input type="file" accept="image/*" multiple onChange={e=>{const c=[...newProds]; c[i].images=[...e.target.files]; setNewProds(c)}} style={inputStyle} />
+        <p style={{fontSize:11, opacity:0.5, marginTop:4}}>تقدر تختار كزا صورة - بتنضغط لـ webp 200x200 قبل الرفع - أول صورة هي الرئيسية</p>
+        {np.images?.length>0 && <p style={{fontSize:12, color:'#4ade80'}}>✅ {np.images.length} صور جاهزة للرفع</p>}
+      </div>
+    ))}
+    <div style={{display:'flex', gap:8, marginTop:10}}>
+      <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}])} style={{padding:'8px 14px', borderRadius:8, background:'rgba(255,255,255,0.08)', color:'white'}}>+ منتج</button>
+      <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900}}>إرسال للمراجعة</button>
+    </div>
+  </div>
+)}
 
               {/* --- تابات جديدة فقط - بدون لمس القديم --- */}
               {tab==='attendance' && (
