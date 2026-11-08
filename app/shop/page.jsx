@@ -222,8 +222,8 @@ const handleFastDelivery = () => {
     style={{ touchAction: 'manipulation' }}
   >
     <Sparkles className="w-6 h-6 text-yellow-400 mx-auto mb-1" />
-    <h3 className="text-white font-bold text-xs">توصيل سريع</h3>
-    <p className="text-white/60 text-">واتساب المسؤول</p>
+    <h3 className="text-white font-bold text-xs">لأي استعلام</h3>
+    <p className="text-white/60 text-">تواصل مع مسؤول المنطقة</p>
   </button>
           ) : (
             <button onClick={() => router.push('/login')} className="glass rounded-2xl p-3 text-center border border-yellow-500/30 active:scale-95 relative">
@@ -232,6 +232,20 @@ const handleFastDelivery = () => {
               <h3 className="text-white font-bold text-xs">طلب خاص</h3>
             </button>
           )}
+          {user ? (
+  <Link href="/special-order" className="glass rounded-2xl p-3 text-center hover:bg-white/10 transition-all border border-pink-500/30 active:scale-95 relative">
+    <Sparkles className="w-6 h-6 text-pink-400 mx-auto mb-1" />
+    <h3 className="text-white font-bold text-xs">اطلب أي شي تريده</h3>
+    <p className="text-white/60 text-xs">من أي محل - نجبلك ياه</p>
+  </Link>
+) : (
+  <button onClick={() => router.push('/login')} className="glass rounded-2xl p-3 text-center border border-pink-500/30 active:scale-95 relative">
+    <LockBadge />
+    <Sparkles className="w-6 h-6 text-pink-400 mx-auto mb-1" />
+    <h3 className="text-white font-bold text-xs">اطلب أي شي تريده</h3>
+    <p className="text-white/60 text-xs">من أي محل</p>
+  </button>
+)}
 
           {user? (
             user.taxi === 'yes'? (
