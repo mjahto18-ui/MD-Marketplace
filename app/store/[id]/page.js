@@ -4,6 +4,50 @@ import { useParams, useRouter } from "next/navigation";
 import { ChevronRight, Search, ShoppingCart, Package, Check, Lock } from "lucide-react";
 import Image from 'next/image';
 
+// === كومبوننت صورة بسوايب + مقاس ===
+function ProductImage({ product }) {
+  const [idx, setIdx] = useState(0)
+  const [startX, setStartX] = useState(null)
+  const images = product.images?.length ? product.images : (product.image ? [product.image] : [])
+  if (!images.length) return <div className="w-full h-[140px] md:h-[180px] bg-white flex items-center justify-center text-gray-400 text-xs">لا صورة</div>
+  const next = () => setIdx(i => (i + 1) % images.length)
+  const prev = () => setIdx(i => (i - 1 + images.length) % images.length)
+  return (
+    <div
+      className="relative w-full h-[140px] md:h-[180px] bg-white flex items-center justify-center overflow-hidden"
+      onTouchStart={e => setStartX(e.touches[0].clientX)}
+      onTouchEnd={e => {
+        if (startX === null) return
+        const diff = e.changedTouches[0].clientX - startX
+        if (diff < -30) next()
+        if (diff > 30) prev()
+        setStartX(null)
+      }}
+    >
+      <Image src={images[idx]} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-3" loading="lazy" />
+      {images.length > 1 && (
+        <>
+          <button onClick={(e)=>{e.stopPropagation(); prev()}} className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/60 text-white w-6 h-6 rounded-full text-xs z-10">‹</button>
+          <button onClick={(e)=>{e.stopPropagation(); next()}} className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/60 text-white w-6 h-6 rounded-full text-xs z-10">›</button>
+        </>
+      )}
+      {images.length > 1 && (
+        <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full z-10">{idx+1}/{images.length}</span>
+      )}
+      {product.size && (
+        <span className="absolute bottom-2 right-2 bg-amber-300 text-black text-[11px] font-black px-2 py-1 rounded-full z-10">مقاس: {product.size}</span>
+      )}
+      {images.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+          {images.map((_, i) => (
+            <span key={i} onClick={(e)=>{e.stopPropagation(); setIdx(i)}} className={`w-1.5 h-1.5 rounded-full cursor-pointer ${i===idx ? 'bg-pink-500' : 'bg-gray-300'}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function StorePage() {
   const { id: storeID } = useParams();
   const router = useRouter();
@@ -160,18 +204,10 @@ export default function StorePage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filteredProducts.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              <div className="relative w-full h-[140px] md:h-[180px] bg-white flex items-center justify-center overflow-hidden">
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  sizes="(max-width: 768px) 50vw, 25vw"
-                  className="object-contain p-3"
-                  loading="lazy"
-                />
-              </div>
+              <ProductImage product={product} />
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-2 truncate">{product.name}</h3>
+                {product.size && <p className="text-[11px] text-amber-300 font-bold mb-1">مقاس: {product.size}</p>}               
                 {product.description && (
                   <p className="text-[11px] text-purple-200/80 mb-2 line-clamp-2">{product.description}</p>
                 )}
