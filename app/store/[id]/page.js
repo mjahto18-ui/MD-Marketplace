@@ -29,15 +29,32 @@ export default function StorePage() {
 
   useEffect(() => {
     if (!storeID) return;
-    fetch(`/api/products/by-store?id=${storeID}`)
- .then(res => res.json())
- .then(data => {
-        if (data.success) {
-          setProducts(data.products);
-          setFilteredProducts(data.products);
-        }
-        setLoading(false);
-      });
+    
+    const loadProducts = (lat, lng) => {
+      const url = lat && lng 
+        ? `/api/products/by-store?id=${storeID}&lat=${lat}&lng=${lng}`
+        : `/api/products/by-store?id=${storeID}`;
+      
+      fetch(url, { cache: 'no-store' })
+       .then(res => res.json())
+       .then(data => {
+          if (data.success) {
+            setProducts(data.products);
+            setFilteredProducts(data.products);
+          }
+          setLoading(false);
+        });
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => loadProducts(pos.coords.latitude, pos.coords.longitude),
+        () => loadProducts(null, null),
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      loadProducts(null, null);
+    }
   }, [storeID]);
 
   useEffect(() => {
@@ -45,7 +62,8 @@ export default function StorePage() {
       setFilteredProducts(products);
     } else {
       const filtered = products.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()))
       );
       setFilteredProducts(filtered);
     }
@@ -131,7 +149,7 @@ export default function StorePage() {
       </header>
 
       <div className="px-4 pb-6">
-        {filteredProducts.length === 0 &&!loading && (
+        {filteredProducts.length === 0 && !loading && (
           <div className="text-center py-20">
             <Package className="w-16 h-16 text-purple-400 mx-auto mb-4" />
             <p className="text-xl font-bold mb-2">ما لقينا منتجات</p>
@@ -154,6 +172,9 @@ export default function StorePage() {
               </div>
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-2 truncate">{product.name}</h3>
+                {product.description && (
+                  <p className="text-[11px] text-purple-200/80 mb-2 line-clamp-2">{product.description}</p>
+                )}
                 <div className="space-y-1 text-xs mb-3">
                   <p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p>
                   <p className="text-purple-300">الوزن: {product.weightPoint} نقطة</p>

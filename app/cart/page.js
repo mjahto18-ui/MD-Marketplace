@@ -16,6 +16,7 @@ export default function CartPage() {
   const [customerID, setCustomerID] = useState(null);
   const [globalCfg, setGlobalCfg] = useState(null);
   const [configLoading, setConfigLoading] = useState(true);
+  const [coverageType, setCoverageType] = useState('geofence');
   const hasRedirected = useRef(false);
 
   useEffect(() => {
@@ -70,16 +71,18 @@ export default function CartPage() {
         setCart(data.cart || []);
         setTotalWeight(data.totalWeight);
         setSubtotal(data.subtotal);
+        setCoverageType(data.coverage_type || 'geofence');
 
-        // نفس منطق الـ API بالضبط - 3 شروط
+        // منطق التوصيل - بس للـ geofence
         const totalPoints = data.totalWeight;
         const freeRemaining = data.freeDeliveryRemaining || 0;
         const lastDate = data.lastFreeDeliveryDate || "";
         const today = new Date().toLocaleDateString("en-GB");
         const baseFee = data.baseDeliveryFee || 0;
+        const cartCoverage = data.coverage_type || 'geofence';
 
         let finalFee;
-        if (freeRemaining > 0 && totalPoints > 0 && totalPoints <= 10 && lastDate!== today) {
+        if (cartCoverage === 'geofence' && freeRemaining > 0 && totalPoints > 0 && totalPoints <= 10 && lastDate !== today) {
           finalFee = 0;
         } else {
           finalFee = baseFee;
@@ -90,7 +93,7 @@ export default function CartPage() {
     setLoading(false);
   };
 
-  useEffect(()=>{ if(customerID &&!globalCfg?.isCartClosed && globalCfg?.isCartInHours!== false) fetchCart(); }, [customerID, globalCfg]);
+  useEffect(()=>{ if(customerID && !globalCfg?.isCartClosed && globalCfg?.isCartInHours!== false) fetchCart(); }, [customerID, globalCfg]);
 
   const updateQty = async (cartID, newQty) => {
     if (globalCfg?.isCartClosed || globalCfg?.isCartInHours === false) return;
@@ -266,7 +269,14 @@ export default function CartPage() {
           <div className="text-center"><h1 className="text-xl font-bold">MD Marketplace</h1></div>
         </header>
         <div className="px-4 pb-6">
-          <h2 className="text-2xl font-bold mb-6">إتمام الطلب</h2>
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            إتمام الطلب
+            {coverageType === 'global' ? (
+              <span className="text-xs bg-blue-500/20 border border-blue-500/30 px-2 py-1 rounded-full">🚚 توصيل لكل لبنان خلال 48-72 ساعة</span>
+            ) : (
+              <span className="text-xs bg-green-500/20 border border-green-500/30 px-2 py-1 rounded-full">⚡ توصيل سريع خلال 25 دقيقة</span>
+            )}
+          </h2>
           <div className="flex flex-col gap-3 mb-6">
             {cart.map(item => (
               <div key={item.cartID} className="bg-white/5 backdrop-blur-xl p-3 rounded-2xl border border-white/10 flex gap-3 items-center">
@@ -289,7 +299,7 @@ export default function CartPage() {
             <h3 className="text-lg font-bold mb-4 text-center">ملخص الطلب</h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center"><span className="text-purple-200">المجموع الفرعي</span><span>{subtotal.toLocaleString()} LBP</span></div>
-              <div className="flex justify-between items-center"><span className="text-purple-200">رسوم التوصيل</span><span>{deliveryFee.toLocaleString()} LBP</span></div>
+              <div className="flex justify-between items-center"><span className="text-purple-200">رسوم التوصيل {coverageType === 'global' ? '(كل لبنان)' : '(سريع)'}</span><span>{deliveryFee.toLocaleString()} LBP</span></div>
               <div className="border-t border-dashed border-white/20 my-3"></div>
               <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
             </div>

@@ -35,7 +35,16 @@ export async function GET(req) {
     // === 1. اذا في موقع، حدد الأبراج يلي بتغطي الزبون ===
     let allowedStoreIds = null; // null = ما في فلتر
     let coveringCenters = [];
+    let globalStoreIds = [];
     
+    // جيب كل متاجر Global مرة وحدة - بتوصل لكل لبنان
+    const { data: globalStoresRaw } = await supabase
+      .from('stores')
+      .select('"Store ID"')
+      .eq('Status', 'Active')
+      .eq('coverage_type', 'global');
+    globalStoreIds = (globalStoresRaw||[]).map(s => s['Store ID']);
+
     if (lat && lng) {
       const { data: centersRaw } = await supabase
         .from('geofence_centers')
@@ -45,51 +54,56 @@ export async function GET(req) {
       // أي برج بيغطي الزبون؟
       for (let c of (centers||[])) {
         const dist = getDistance(lat, lng, c.center_lat, c.center_lng);
-        if (dist <= c.radius_cart) { // كيلو <= كيلو
+        if (dist <= c.radius_cart) {
           coveringCenters.push(c);
         }
       }
 
-      // الزبون برا التغطية - ما بيشوف ولا منتج
+      // الزبون برا التغطية - رجع بس منتجات Global
       if (coveringCenters.length === 0) {
-        const res = NextResponse.json({
-          success: true,
-          products: [],
-          total: 0,
-          page,
-          hasMore: false,
-          filtered: true,
-          allowed: false,
-          message: 'خارج نطاق التغطية - ما في منتجات بالقبة اذا انت بالمينا'
-        });
-        res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-        res.headers.set('CDN-Cache-Control', 'no-store');
-        res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
-        return res;
-      }
+        // اذا ما في Global كمان، رجع فاضي
+        if (globalStoreIds.length === 0) {
+          const res = NextResponse.json({
+            success: true,
+            products: [],
+            total: 0,
+            page,
+            hasMore: false,
+            filtered: true,
+            allowed: false,
+            message: 'خارج نطاق التغطية '
+          });
+          res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+          res.headers.set('CDN-Cache-Control', 'no-store');
+          res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
+          return res;
+        }
+        // برا التغطية بس في Global - كمل لتحت والفلتر رح يكون بس Global
+        allowedStoreIds = [...globalStoreIds];
+      } else {
+        // جوا التغطية: جيب المتاجر النشطة اللي ضمن نفس البرج
+        const { data: allStores } = await supabase
+          .from('stores')
+          .select('"Store ID", "Current Latitude", "Current Longitude", coverage_type')
+          .eq('Status', 'Active');
 
-      // جيب كل المتاجر النشطة وشوف أي متجر ضمن نفس البرج
-      const { data: allStores } = await supabase
-        .from('stores')
-        .select('"Store ID", "Current Latitude", "Current Longitude"')
-        .eq('Status', 'Active');
-
-      const allowed = [];
-      for (let s of (allStores||[])) {
-        const sLat = parseFloat(s['Current Latitude']);
-        const sLng = parseFloat(s['Current Longitude']);
-        if (!sLat || !sLng) continue;
-
-        for (let center of coveringCenters) {
-          const d = getDistance(sLat, sLng, center.center_lat, center.center_lng);
-          if (d <= center.radius_cart) {
-            allowed.push(s['Store ID']);
-            break;
+        const nearby = [];
+        for (let s of (allStores||[])) {
+          if (s.coverage_type === 'global') continue; // Global منضيفو بعدين لحالو
+          const sLat = parseFloat(s['Current Latitude']);
+          const sLng = parseFloat(s['Current Longitude']);
+          if (!sLat || !sLng) continue;
+          for (let center of coveringCenters) {
+            const d = getDistance(sLat, sLng, center.center_lat, center.center_lng);
+            if (d <= center.radius_cart) {
+              nearby.push(s['Store ID']);
+              break;
+            }
           }
         }
+        // ادمج: القريبين + كل Global
+        allowedStoreIds = [...new Set([...nearby, ...globalStoreIds])];
       }
-
-      allowedStoreIds = allowed; // حتى لو فاضي
     }
 
     // === 2. ابنِ كويري المنتجات ===
@@ -117,7 +131,7 @@ export async function GET(req) {
     }
 
     if (storeID) {
-      // اذا المتجر المطلوب مش ضمن نطاق الزبون، رجع فاضي
+      // اذا المتجر المطلوب مش ضمن نطاق الزبون وغير Global، رجع فاضي
       if (allowedStoreIds !== null && !allowedStoreIds.includes(String(storeID).trim())) {
         const res = NextResponse.json({
           success: true,
@@ -127,7 +141,7 @@ export async function GET(req) {
           hasMore: false,
           filtered: true,
           allowed: false,
-          message: 'هالمتجر مش ضمن برجك - انت بالقبة والمتجر بالمينا'
+          message: 'هالمتجر مش ضمن برجك '
         });
         res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         res.headers.set('CDN-Cache-Control', 'no-store');
@@ -148,17 +162,18 @@ export async function GET(req) {
 
     if (error) throw error;
 
-    // جلب اسماء المتاجر للمنتجات المعروضة فقط
+    // جلب اسماء المتاجر وانواعها للمنتجات المعروضة فقط
     const storeIds = [...new Set((productsRows||[]).map(r => r['Store ID']).filter(Boolean))];
     let storesMap = {};
     if (storeIds.length > 0) {
-      const { data: storesValues } = await supabase.from('stores').select('"Store ID", "Store Name"').in('Store ID', storeIds);
+      const { data: storesValues } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type').in('Store ID', storeIds);
       (storesValues||[]).forEach(s => {
-        storesMap[s['Store ID']] = s['Store Name'];
+        storesMap[s['Store ID']] = { name: s['Store Name'], coverage_type: s.coverage_type || 'geofence' };
       });
     }
 
     const products = (productsRows||[]).map((row) => {
+      const sInfo = storesMap[row['Store ID']] || { name: "متجر محذوف", coverage_type: 'geofence' };
       return {
         productID: row['Product ID'],
         storeID: row['Store ID'],
@@ -172,7 +187,8 @@ export async function GET(req) {
         stock: Number(row['Stock Qty']),
         active: row['Active'],
         weightPoint: Number(row['Weight Points']),
-        storeName: storesMap[row['Store ID']] || "متجر محذوف",
+        storeName: sInfo.name,
+        coverage_type: sInfo.coverage_type,
       };
     });
 
