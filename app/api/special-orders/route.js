@@ -13,21 +13,24 @@ export async function POST(req) {
     const { customerID, orderText, storeHint, quantity, note, addressType, areaID, deliveryAddress, lat, lng, imageUrl } = await req.json();
     if (!customerID || !orderText) return Response.json({ success: false, message: 'ناقص بيانات' }, { status: 400 });
 
-    // جيب الزبون - للعنوان الثابت منجيب موقعه من جدول customers
-    const { data: cust } = await supabase.from('customers').select('*').eq('"Customer ID"', customerID).single();
-    // جرب اسماء مختلفة للعمود حسب جدولك - اذا ما لقيت، استعمل اللي فوق
+    // جيب الزبون - صححنا اسم العمود هون
+    const { data: cust } = await supabase.from('customers').select('*').eq('Customer ID', customerID).single();
+
     let finalLat = lat, finalLng = lng, finalAddress = deliveryAddress, finalArea = areaID;
+
     if (addressType === 'fixed') {
       if (cust) {
-        finalLat = cust['Customer Latitude'] || cust['Latitude'] || "";
-        finalLng = cust['Customer Longitude'] || cust['Longitude'] || "";
-        finalAddress = cust['Delivery Adress'] || cust['Address'] || deliveryAddress;
+        // الثابت = Current اولاً، اذا فاضي مناخد Registration
+        finalLat = cust['Current Latitude'] || cust['Registration Latitude'] || "";
+        finalLng = cust['Current Longtitude'] || cust['Registration Longitude'] || "";
+        finalAddress = cust['Adress'] || deliveryAddress;
         finalArea = cust['Area'] || areaID;
       }
     }
-    if (!finalLat || !finalLng) return Response.json({ success: false, message: 'ما قدرنا نجيب موقعك' }, { status: 400 });
 
-    // فحص الجيو فينس - نفس API اللي بعتو - cart service
+    if (!finalLat || !finalLng) return Response.json({ success: false, message: 'ما قدرنا نجيب موقعك - عنوانك الثابت ما فيه GPS، جرب عنوان جديد' }, { status: 400 });
+
+    // فحص الجيو فينس
     const centersRes = await supabase.from('geofence_centers').select('*').eq('is_active', true).eq('cart_enabled', true);
     let centerId = null, allowed = false;
     for (let c of (centersRes.data || [])) {
@@ -38,8 +41,8 @@ export async function POST(req) {
 
     const { data, error } = await supabase.from('special_orders').insert([{
       "customer ID": customerID,
-      "Customer Name": cust?.['Customer Name'] || cust?.Name || "",
-      "Mobile": cust?.Mobile || "",
+      "Customer Name": cust?.['Name'] || "",
+      "Mobile": cust?.['Mobile'] || "",
       "الطلب": orderText,
       "Store Hint": storeHint || null,
       "Quantity": quantity || 1,
