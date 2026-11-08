@@ -8,6 +8,8 @@ export default function ProductDetailPage({ params }) {
   const id = params.id;
   const router = useRouter();
   const [product, setProduct] = useState(null);
+  const [idx, setIdx] = useState(0)
+  const [startX, setStartX] = useState(null)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
@@ -138,13 +140,59 @@ export default function ProductDetailPage({ params }) {
 
       <div className="px-4 md:px-8 lg:px-12 pb-28 max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden p-4 md:p-6 lg:p-8">
-          <div className="relative w-full aspect-square md:aspect-[4/3] lg:aspect-square bg-white rounded-2xl overflow-hidden flex items-center justify-center">
-            <Image src={product.image} alt={product.name} fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-contain p-6 md:p-8" priority />
-          </div>
+                    {/* جاليري - سوايب */}
+          {(() => {
+            const images = product.images?.length ? product.images : (product.image ? [product.image] : [])
+            if (!images.length) return <div className="w-full aspect-square bg-white rounded-2xl flex items-center justify-center text-gray-400">لا صورة</div>
+            return (
+              <div
+                className="relative w-full aspect-square md:aspect-[4/3] lg:aspect-square bg-white rounded-2xl overflow-hidden flex items-center justify-center"
+                onTouchStart={e => setStartX(e.touches[0].clientX)}
+                onTouchEnd={e => {
+                  if (startX === null) return
+                  const diff = e.changedTouches[0].clientX - startX
+                  if (diff < -30) setIdx(i => (i + 1) % images.length)
+                  if (diff > 30) setIdx(i => (i - 1 + images.length) % images.length)
+                  setStartX(null)
+                }}
+              >
+                <Image src={images[idx]} alt={product.name} fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-contain p-6 md:p-8" priority />
+
+                {images.length > 1 && (
+                  <>
+                    <button onClick={()=>setIdx(i => (i - 1 + images.length) % images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 text-white w-9 h-9 rounded-full text-lg z-10">‹</button>
+                    <button onClick={()=>setIdx(i => (i + 1) % images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 text-white w-9 h-9 rounded-full text-lg z-10">›</button>
+                  </>
+                )}
+
+                {images.length > 1 && (
+                  <span className="absolute top-3 left-3 bg-black/60 text-white text-[11px] px-2.5 py-1 rounded-full z-10">{idx+1}/{images.length}</span>
+                )}
+
+                {product.size && (
+                  <span className="absolute top-3 right-3 bg-amber-300 text-black text-[12px] font-black px-3 py-1.5 rounded-full z-10">مقاس: {product.size}</span>
+                )}
+
+                {/* صور مصغرة تحت */}
+                {images.length > 1 && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/30 p-1.5 rounded-full">
+                    {images.map((img, i) => (
+                      <img key={i} src={img} onClick={()=>setIdx(i)} className={`w-10 h-10 object-cover rounded-full cursor-pointer border-2 ${i===idx ? 'border-pink-500' : 'border-white/50'}`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
           <div className="flex flex-col justify-between py-2">
             <div>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 leading-tight">{product.name}</h2>
               <p className="text-sm md:text-base text-purple-300 mb-6">المتجر: {product.storeName} • {product.category}</p>
+              {product.size && (
+  <div className="inline-flex items-center gap-2 text-sm bg-amber-300/20 text-amber-300 border border-amber-300/30 px-3 py-1.5 rounded-full mb-4 font-bold">
+    📏 المقاس: {product.size}
+  </div>
+)}
               {/* زيد هون */}
               {product.coverage_type === 'global' ? (
              <div className="inline-flex items-center gap-2 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1.5 rounded-full mb-6">
@@ -168,6 +216,7 @@ export default function ProductDetailPage({ params }) {
               )}
               <div className="flex flex-wrap gap-2 text-xs md:text-sm text-purple-300 mb-8">
                 <span className="bg-white/5 px-4 py-2 rounded-full border border-white/10">الوحدة: {product.unit}</span>
+                {product.size && <span className="bg-amber-300/20 text-amber-300 px-4 py-2 rounded-full border border-amber-300/30 font-bold">مقاس: {product.size}</span>}
                 {product.available === false && <span className="bg-red-500/20 text-red-300 px-4 py-2 rounded-full">غير متوفر</span>}
                 {product.available!== false && <span className="bg-green-500/20 text-green-300 px-4 py-2 rounded-full">متوفر</span>}
               </div>
