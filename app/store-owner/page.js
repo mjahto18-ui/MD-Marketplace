@@ -390,7 +390,6 @@ export default function StoreDashboard(){
           <input placeholder="سعر" value={np.price} onChange={e=>{const c=[...newProds]; c[i].price=e.target.value; setNewProds(c)}} style={inputStyle} />
         </div>
 
-        {/* Size - بس للتياب والأحذية */}
         <div style={{display:'flex', gap:6, marginBottom:8}}>
           <select value={np.category} onChange={e=>{const c=[...newProds]; c[i].category=e.target.value; c[i].size=''; setNewProds(c)}} style={inputStyle}>
             <option value="">اختر نوع - Size اختياري</option>
@@ -412,10 +411,21 @@ export default function StoreDashboard(){
           )}
         </div>
 
-        {/* رفع كزا صورة - بتنضغط 200x200 */}
-        <input type="file" accept="image/*" multiple onChange={e=>{const c=[...newProds]; c[i].images=[...e.target.files]; setNewProds(c)}} style={inputStyle} />
-        <p style={{fontSize:11, opacity:0.5, marginTop:4}}>تقدر تختار كزا صورة - بتنضغط لـ webp 200x200 قبل الرفع - أول صورة هي الرئيسية</p>
-        {np.images?.length>0 && <p style={{fontSize:12, color:'#4ade80'}}>✅ {np.images.length} صور جاهزة للرفع</p>}
+        {/* رفع كزا صورة - بيضيف مش بيستبدل */}
+        <input type="file" accept="image/*" multiple onChange={e=>{const c=[...newProds]; c[i].images=[...(c[i].images||[]), ...e.target.files]; setNewProds(c); e.target.value='';}} style={inputStyle} />
+        <p style={{fontSize:11, opacity:0.5, marginTop:4}}>اختار صورة، وبعدين ارجع اختار تانية - بتنضاف على الأولى - 200x200 webp - أول وحدة رئيسية</p>
+        {np.images?.length>0 && (
+          <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
+            {np.images.map((f, idx)=>(
+              <div key={idx} style={{position:'relative', width:60, height:60}}>
+                <img src={URL.createObjectURL(f)} style={{width:60, height:60, objectFit:'cover', borderRadius:8}} />
+                <span style={{position:'absolute', top:-4, right:-4, background:'#ec4899', color:'white', fontSize:9, padding:'1px 5px', borderRadius:10}}>{idx===0 ? 'رئيسية' : idx+1}</span>
+                <button onClick={()=>{const c=[...newProds]; c[i].images=c[i].images.filter((_,j)=>j!==idx); setNewProds(c);}} style={{position:'absolute', bottom:-4, left:-4, background:'red', color:'white', border:'none', borderRadius:'50%', width:18, height:18, fontSize:10}}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {np.images?.length>0 && <p style={{fontSize:12, color:'#4ade80', marginTop:4}}>✅ {np.images.length} صور جاهزة</p>}
       </div>
     ))}
     <div style={{display:'flex', gap:8, marginTop:10}}>
