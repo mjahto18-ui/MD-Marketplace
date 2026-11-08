@@ -40,6 +40,8 @@ export default function StoreDashboard(){
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showBarcode, setShowBarcode] = useState({})
+  const [editingPrice, setEditingPrice] = useState(null)
+  const [newPrice, setNewPrice] = useState('')
   const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}])
   const [priceReq, setPriceReq] = useState({code:'', newPrice:''})
   // --- محفظة ---
@@ -151,6 +153,21 @@ export default function StoreDashboard(){
     await supabase.from('products').update({Active: newVal}).eq('Product ID', p['Product ID'])
     setProducts(prev=>prev.map(x=> x['Product ID']===p['Product ID']? {...x, Active:newVal}:x))
   }
+
+  const savePrice = async (p)=>{
+  const price = Number(String(newPrice).replace(/,/g,''))
+  if(!price || price <= 0) return alert('حط سعر صحيح')
+  if(price === Number(p.Price)) return alert('نفس السعر القديم - ما تغير شي')
+  const { error } = await supabase.from('products').update({
+    Price: price,
+    Active: 'FALSE'
+  }).eq('Product ID', p['Product ID'])
+  if(error) return alert(error.message)
+  setProducts(prev=>prev.map(x=> x['Product ID']===p['Product ID'] ? {...x, Price: price, Active: 'FALSE'} : x))
+  setEditingPrice(null)
+  setNewPrice('')
+  alert('تم - رجع للمراجعة، انتظر موافقة الادمن')
+}
 
   const addProducts = async ()=>{
   const toInsert = newProds.filter(n=>n.name && n.price);
@@ -342,14 +359,30 @@ export default function StoreDashboard(){
                           <div style={{fontWeight:900, fontSize:13, color:'white'}}>{Number(p.Price||0).toLocaleString('ar-LB')} ل.ل</div>
                           <button onClick={()=>setShowBarcode(s=>({...s, [p['Product ID']]:!s[p['Product ID']]}))} style={{background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:14, borderRadius:6, padding:'2px 6px', color:'white'}}>👁</button>
                         </div>
+
                         {showBarcode[p['Product ID']] && (
-                          <div style={{marginTop:6, background:'rgba(0,0,0,0.4)', border:'1px dashed rgba(255,255,255,0.2)', padding:6, borderRadius:8, fontSize:10, wordBreak:'break-all', color:'rgba(255,255,255,0.7)'}}>
-                            باركود: {p['Product ID']}<br/>Base: {p['Products_Base_ID']||'-'}
-                          </div>
-                        )}
-                        <button onClick={()=>toggleActive(p)} style={{marginTop:8, width:'100%', padding:'7px', borderRadius:8, border:'none', background: p.Active?'linear-gradient(135deg,#16a34a,#15803d)':'rgba(255,255,255,0.15)', color:'white', fontSize:11, fontWeight:700}}>
-                          {p.Active? 'Active' : 'INACTIVE'}
-                        </button>
+                       <div style={{marginTop:6, background:'rgba(0,0,0,0.4)', border:'1px dashed rgba(255,255,255,0.2)', padding:6, borderRadius:8, fontSize:10, wordBreak:'break-all', color:'rgba(255,255,255,0.7)'}}>
+                       باركود: {p['Product ID']}<br/>Base: {p['Products_Base_ID']||'-'}
+                      </div>
+                       )}
+                       {/* ← هون بيبلش الجديد - بعد الباركود، وقبل قفلة الكارت </div> */}
+                       {editingPrice === p['Product ID'] ? (
+                      <div style={{marginTop:8, background:'rgba(0,0,0,0.4)', padding:8, borderRadius:8}}>
+                     <div style={{fontSize:10, opacity:0.6}}>السعر القديم: {Number(p.Price||0).toLocaleString('ar-LB')} ل.ل</div>
+                    <input placeholder="حط السعر الجديد" inputMode="numeric" value={newPrice} onChange={e=>setNewPrice(e.target.value)} style={{...inputStyle, width:'100%', marginTop:6}} />
+                  <div style={{display:'flex', gap:6, marginTop:6}}>
+                <button onClick={()=>savePrice(p)} style={{flex:1, padding:'7px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900, fontSize:11}}>إرسال للمراجعة</button>
+               <button onClick={()=>{setEditingPrice(null); setNewPrice('')}} style={{padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.15)', color:'white', fontSize:11}}>إلغاء</button>
+              </div>
+             <div style={{fontSize:10, color:'#fca5a5', marginTop:4}}>⚠️ رح يرجع INACTIVE لحتى الادمن يوافق</div>
+            </div>
+          ) : (
+          <>
+        <button onClick={()=>{setEditingPrice(p['Product ID']); setNewPrice('')}} style={{marginTop:8, width:'100%', padding:'7px', borderRadius:8, border:'none', background:'rgba(251,191,36,0.15)', color:'#fde68a', fontSize:11, fontWeight:700}}>✏️ تعديل السعر</button>
+      <button onClick={()=>toggleActive(p)} style={{marginTop:6, width:'100%', padding:'7px', borderRadius:8, border:'none', background: p.Active?'linear-gradient(135deg,#16a34a,#15803d)':'rgba(255,255,255,0.15)', color:'white', fontSize:11, fontWeight:700}}>{p.Active? 'Active' : 'INACTIVE'}</button>
+  </>
+)}
+                        
                       </div>
                     ))}
                   </div>
