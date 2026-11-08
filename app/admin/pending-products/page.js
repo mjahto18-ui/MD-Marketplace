@@ -10,7 +10,8 @@ export default function PendingProductsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [edit, setEdit] = useState(null) // المنتج يلي عم تعدل عليه
-
+  const [imagesMap, setImagesMap] = useState({})
+  
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
   const fetchData = async () => {
@@ -31,6 +32,21 @@ export default function PendingProductsPage() {
 
     setProducts(filtered)
 
+        // جيب الصور المتعددة لكل المنتجات
+    if (filtered.length) {
+      const pIds = filtered.map(p => p['Product ID']).filter(Boolean)
+      const { data: imgs } = await supabase
+        .from('product_images')
+        .select('product_id, image_url, sort_order')
+        .in('product_id', pIds)
+        .order('sort_order', { ascending: true })
+      const map = {}
+      ;(imgs||[]).forEach(im => {
+        if (!map[im.product_id]) map[im.product_id] = []
+        map[im.product_id].push(im.image_url)
+      })
+      setImagesMap(map)
+    }
     if(filtered.length){
       const storeIds = [...new Set(filtered.map(p=>p['Store ID']).filter(Boolean))]
       if(storeIds.length){
@@ -93,11 +109,21 @@ export default function PendingProductsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {list.map(p=>(
           <div key={p['Product ID']} className="bg-white rounded-xl shadow border p-3 flex flex-col">
-            <div className="bg-gray-50 rounded-lg h-32 flex items-center justify-center overflow-hidden mb-2">
+                        <div className="bg-gray-50 rounded-lg h-32 flex items-center justify-center overflow-hidden mb-2 relative">
               {p['Image']? <img src={p['Image']} className="max-h-full object-contain"/> : <span className="text-gray-400 text-xs">بلا صورة</span>}
+              {p['Size'] && <span className="absolute top-2 right-2 bg-amber-300 text-black text-[11px] font-black px-2 py-1 rounded-full">مقاس: {p['Size']}</span>}
+              {(imagesMap[p['Product ID']]?.length > 1) && <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full">{imagesMap[p['Product ID']].length} صور</span>}
             </div>
+            {/* صور مصغرة - كل الصور */}
+            {imagesMap[p['Product ID']]?.length > 1 && (
+              <div className="flex gap-1 mb-2 overflow-x-auto">
+                {imagesMap[p['Product ID']].map((img, i) => (
+                  <img key={i} src={img} className="w-10 h-10 object-cover rounded border" />
+                ))}
+              </div>
+            )}
             <div className="font-bold text-sm truncate">{p['Product Name']}</div>
-            <div className="text-xs text-gray-500">{stores[p['Store ID']] || p['Store ID']} | {p['Category'] || '-'} | {p['Unit']}</div>
+            <div className="text-xs text-gray-500">{stores[p['Store ID']] || p['Store ID']} | {p['Category'] || '-'} | {p['Unit']} {p['Size'] ? `| مقاس: ${p['Size']}` : ''}</div>
             <div className="text-xs mt-1">سعر: {p['Price']} | وزن: {p['Weight Points'] || 'ما في'} | باركود: <span className="font-mono">{p['Product ID'].slice(0,8)}</span></div>
             <div className="flex gap-2 mt-3">
               <button onClick={()=>setEdit(p)} className="flex-1 bg-black text-white text-xs py-2 rounded-lg font-bold">مراجعة وتفعيل ✓</button>
@@ -126,6 +152,22 @@ export default function PendingProductsPage() {
             <label className="text-xs font-bold">Category</label>
             <input value={edit['Category']||''} onChange={e=>setEdit({...edit, Category:e.target.value})} className="w-full p-2 border rounded mb-2" />
 
+                        {/* مقاس + صور المتجر */}
+            {edit['Size'] && <div className="mb-2"><span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">📏 المقاس اللي بعتو المتجر: {edit['Size']}</span></div>}
+            {imagesMap[edit['Product ID']]?.length > 0 && (
+              <div className="mb-3">
+                <label className="text-xs font-bold">صور المتجر ({imagesMap[edit['Product ID']].length})</label>
+                <div className="flex gap-2 mt-1 flex-wrap">
+                  {imagesMap[edit['Product ID']].map((img, i) => (
+                    <div key={i} className="relative">
+                      <img src={img} className="w-16 h-16 object-cover rounded border" />
+                      <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[9px] px-1.5 rounded-full">{i===0 ? 'رئيسية' : i+1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <label className="text-xs font-bold">رابط الصورة Image (انت بتحطا)</label>
             <input value={edit['Image']||''} onChange={e=>setEdit({...edit, Image:e.target.value})} className="w-full p-2 border rounded mb-2" />
             {edit['Image'] && <img src={edit['Image']} className="h-24 object-contain border rounded mb-2" />}
@@ -137,7 +179,7 @@ export default function PendingProductsPage() {
               <button onClick={()=>setEdit(null)} className="flex-1 py-2.5 border rounded-xl text-sm">إلغاء</button>
               <button onClick={saveApprove} className="flex-[2] py-2.5 bg-green-600 text-white rounded-xl text-sm font-black">حط وزن وصورة + فعّل TRUE ✓</button>
             </div>
-            <p className="text- text-gray-400 mt-2">بعد الكبسة الـ trigger trg_product_approved رح يشتغل لحالو</p>
+            <p className="text-xs text-gray-400 mt-2">بعد الكبسة الـ trigger trg_product_approved رح يشتغل لحالو</p>
           </div>
         </div>
       )}
