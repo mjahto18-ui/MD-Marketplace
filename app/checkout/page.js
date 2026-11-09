@@ -168,10 +168,23 @@ export default function CheckoutPage() {
               <label className="text-sm text-purple-200 mb-2 block">العنوان التفصيلي</label>
               <input type="text" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-xl p-3.5 text-white" />
             </div>
-            <div>
-              <label className="text-sm text-purple-200 mb-2 block">ملاحظة للسائق</label>
-              <textarea value={note} onChange={(e) => setNote(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-xl p-3.5 text-white h-28 resize-none" />
-            </div>
+            
+          </div>
+        </div>
+      )}
+
+      {/* ملاحظة للسائق - دايماً ظاهرة - ثابت أو جديد */}
+      {addressType && (
+        <div className="px-4 pb-2">
+          <div className="glass p-5 rounded-2xl border border-white/10">
+            <label className="text-sm text-purple-200 mb-2 block">💬 ملاحظة للسائق / للمتجر (اختياري)</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="مثال: بلا خس، بندورة قليل، حكيني بس يوصل الدرايفر، البيت عاليمين..."
+              className="w-full bg-white/10 border border-white/20 rounded-xl p-3.5 text-white h-28 resize-none placeholder:text-white/40"
+            />
+            <p className="text-[11px] text-purple-300 mt-2">بتنبعت للمتجر والسائق مع الطلب</p>
           </div>
         </div>
       )}

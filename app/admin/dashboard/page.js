@@ -117,7 +117,7 @@ export default function Dashboard(){
       }catch{}
     }
 
-     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}, {data: geofenceData}, {data: taxiPendingData}, {data: storesPendingData}, {data: driversPendingData}] = await Promise.all([
+     const [{data: customers}, {data: orders}, {data: menus}, {data: acs}, {data: guestlogs}, {data: protectionCases}, {data: pendingOverpay}, {data: pendingReviews}, {data: pendingProducts}, {data: sosOpen}, {data: geofenceData}, {data: taxiPendingData}, {data: storesPendingData}, {data: driversPendingData}, {data: specialOrdersPending}] = await Promise.all([
       supabase.from('customers').select('*').limit(1000),
       supabase.from('order_requuest').select('*').limit(2000),
       supabase.from('menu').select('*').order('supa_id', {ascending:true}).limit(100),
@@ -133,6 +133,8 @@ export default function Dashboard(){
       supabase.from('taxi_drivers').select('Taxi_ID').eq('status', 'pending').limit(2000),
       supabase.from('stores').select('*').eq('Status', 'inactive').neq('Store ID', 'MD_HQ_001').limit(2000),
       supabase.from('drivers').select('*').eq('Status', 'Inactive').limit(2000),
+       // بآخر الـ Promise.all، بعد driversPendingData
+      supabase.from('special_orders').select('*').eq('Status', 'Pending').limit(2000),
     ])
 
     const today = new Date().toISOString().split('T')[0]
@@ -160,6 +162,7 @@ export default function Dashboard(){
       taxiPending: taxiPendingData?.length || 0,
       storesPending: storesPendingData?.length || 0,
       driversPending: driversPendingData?.length || 0,
+      specialPending: specialOrdersPending?.length || 0,
 
     })
     // SOS count
@@ -575,6 +578,7 @@ export default function Dashboard(){
             <Item label="MAPPING CUSTOMERS" count={0} href="/admin/mapping-customers" />
             <Item label="GUEST STATS" count={counts.guestToday} href="/admin/guest-stats" />
             <Item label="BROADCAST" count={0} href="/admin/broadcasts" />
+            <Item label="SPECIAL ORDERS - طلبات خاصة" count={counts.specialPending} href="/admin/special-orders" />
 
             {/* === الكروت الجديدة يلي طلبتا - ما انمحى شي قديم === */}
             <Item label="PROTECTION PENDING" count={counts.protectionPending} href="/admin/protection-cases" />

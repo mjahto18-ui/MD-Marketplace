@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
 
     const supabase = getSupabase();
 
-    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points"').eq('Product ID', productID).limit(1);
+    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size"').eq('Product ID', productID).limit(1);
     let product = products?.[0];
 
     if (!product) {
@@ -67,6 +67,8 @@ export async function GET(req, { params }) {
       const storeId = product['Store ID'];
       const { data: storeRows } = await supabase.from('stores').select('"Store ID", coverage_type, "Current Latitude", "Current Longitude"').eq('Store ID', storeId).limit(1);
       const storeLoc = storeRows?.[0];
+
+         
       
       // اذا المتجر Global - اسمح دايماً حتى لو برا التغطية
       if (storeLoc && storeLoc.coverage_type === 'global') {
@@ -110,9 +112,18 @@ export async function GET(req, { params }) {
       }
     }
 
+    
     const storeId = product['Store ID'];
     const { data: stores } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type').eq('Store ID', storeId).limit(1);
     let store = stores?.[0];
+
+     // === جيب الصور المتعددة ===
+       const { data: imgs } = await supabase
+      .from('product_images')
+      .select('image_url, sort_order')
+      .eq('product_id', productID)
+      .order('sort_order', { ascending: true })
+      const images = (imgs||[]).map(i => i.image_url)
     
 
     const productData = {
@@ -123,6 +134,8 @@ export async function GET(req, { params }) {
       unit: product['Unit'],
       price: Number(product['Price']),
       image: product['Image'],
+      images: images.length ? images : (product['Image'] ? [product['Image']] : []),
+      size: product['Size'] || null,
       description: product['Description'],
       available: product['Available'],
       stock: Number(product['Stock Qty']),

@@ -91,13 +91,30 @@ export async function GET(req) {
       }
     }
 
-    const { data: rows } = await supabase.from('products').select('"Product ID", "Product Name", Image, Price, Unit, Category, "Weight Points", Available, "Stock Qty", Description').eq('Store ID', String(storeID).trim());
+    const { data: rows } = await supabase.from('products').select('"Product ID", "Product Name", Image, Price, Unit, Category, "Weight Points", Available, "Stock Qty", Description, "Size"').eq('Store ID', String(storeID).trim());
+
+        // === جيب الصور المتعددة ===
+    let imagesMap = {}
+    const pIds = (rows||[]).map(r => r['Product ID']).filter(Boolean)
+    if (pIds.length) {
+      const { data: imgs } = await supabase
+        .from('product_images')
+        .select('product_id, image_url, sort_order')
+        .in('product_id', pIds)
+        .order('sort_order', { ascending: true })
+      ;(imgs||[]).forEach(im => {
+        if (!imagesMap[im.product_id]) imagesMap[im.product_id] = []
+        imagesMap[im.product_id].push(im.image_url)
+      })
+    }
 
     const products = (rows||[]).map(row => ({
       id: row['Product ID'],
       productID: row['Product ID'],
       name: row['Product Name'] || "",
       image: row['Image'] || "",
+      images: imagesMap[row['Product ID']]?.length ? imagesMap[row['Product ID']] : (row['Image'] ? [row['Image']] : []),
+      size: row['Size'] || null,
       price: Number(row['Price'] || 0),
       unit: row['Unit'] || "",
       category: row['Category'] || "",

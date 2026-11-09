@@ -4,6 +4,61 @@ import { useRouter } from 'next/navigation';
 import { ChevronRight, Search, ShoppingCart, Package, Check } from 'lucide-react';
 import Image from 'next/image';
 
+// === كومبوننت صورة بسوايب + مقاس ===
+function ProductImage({ product }) {
+  const [idx, setIdx] = useState(0)
+  const [startX, setStartX] = useState(null)
+  const images = product.images?.length ? product.images : (product.image ? [product.image] : [])
+
+  const next = () => setIdx(i => (i + 1) % images.length)
+  const prev = () => setIdx(i => (i - 1 + images.length) % images.length)
+
+  if (!images.length) return <div className="w-full h-44 bg-white rounded-t-2xl flex items-center justify-center text-gray-400 text-xs">لا صورة</div>
+
+  return (
+    <div
+      className="relative w-full h-44 bg-white rounded-t-2xl overflow-hidden"
+      onTouchStart={e => setStartX(e.touches[0].clientX)}
+      onTouchEnd={e => {
+        if (startX === null) return
+        const diff = e.changedTouches[0].clientX - startX
+        if (diff < -30) next()
+        if (diff > 30) prev()
+        setStartX(null)
+      }}
+    >
+      <Image src={images[idx]} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" />
+
+      {/* أسهم */}
+      {images.length > 1 && (
+        <>
+          <button onClick={(e)=>{e.stopPropagation(); prev()}} className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/60 text-white w-6 h-6 rounded-full text-xs z-10">‹</button>
+          <button onClick={(e)=>{e.stopPropagation(); next()}} className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/60 text-white w-6 h-6 rounded-full text-xs z-10">›</button>
+        </>
+      )}
+
+      {/* عداد */}
+      {images.length > 1 && (
+        <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full z-10">{idx+1}/{images.length}</span>
+      )}
+
+      {/* مقاس */}
+      {product.size && (
+        <span className="absolute bottom-2 right-2 bg-amber-300 text-black text-[11px] font-black px-2 py-1 rounded-full z-10">مقاس: {product.size}</span>
+      )}
+
+      {/* نقاط */}
+      {images.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+          {images.map((_, i) => (
+            <span key={i} onClick={(e)=>{e.stopPropagation(); setIdx(i)}} className={`w-1.5 h-1.5 rounded-full cursor-pointer ${i===idx ? 'bg-pink-500' : 'bg-gray-300'}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState([]);
@@ -219,10 +274,11 @@ export default function ProductsPage() {
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
           {filtered.map(product => (
             <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-              <div className="relative w-full h-44 bg-white rounded-t-2xl overflow-hidden"><Image src={product.image} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" /></div>
+              <ProductImage product={product} />
               <div className="p-3">
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-1 truncate">المتجر: {product.storeName}</p>
+                {product.size && <p className="text- text-amber-300 font-bold mb-1">مقاس: {product.size}</p>}
                  {/* هون زيد التوصيل */}
                 {product.coverage_type === 'global' ? (
               <span className="inline-block text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full mb-2">

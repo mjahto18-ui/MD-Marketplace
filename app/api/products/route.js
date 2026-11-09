@@ -107,7 +107,7 @@ export async function GET(req) {
     }
 
     // === 2. ابنِ كويري المنتجات ===
-    let query = supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points"', { count: 'exact' });
+    let query = supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size"', { count: 'exact' });
 
     // اذا في فلتر أبراج - طبقو
     if (allowedStoreIds !== null) {
@@ -162,6 +162,21 @@ export async function GET(req) {
 
     if (error) throw error;
 
+    // === جيب الصور المتعددة من product_images ===
+let imagesMap = {}
+const pIds = (productsRows||[]).map(r => r['Product ID']).filter(Boolean)
+if (pIds.length) {
+  const { data: imgs } = await supabase
+    .from('product_images')
+    .select('product_id, image_url, sort_order')
+    .in('product_id', pIds)
+    .order('sort_order', { ascending: true })
+  ;(imgs||[]).forEach(im => {
+    if (!imagesMap[im.product_id]) imagesMap[im.product_id] = []
+    imagesMap[im.product_id].push(im.image_url)
+  })
+}
+
     // جلب اسماء المتاجر وانواعها للمنتجات المعروضة فقط
     const storeIds = [...new Set((productsRows||[]).map(r => r['Store ID']).filter(Boolean))];
     let storesMap = {};
@@ -182,6 +197,8 @@ export async function GET(req) {
         unit: row['Unit'],
         price: Number(row['Price']),
         image: row['Image'],
+        images: imagesMap[row['Product ID']]?.length ? imagesMap[row['Product ID']] : (row['Image'] ? [row['Image']] : []),
+        size: row['Size'] || null,
         description: row['Description'],
         available: row['Available'],
         stock: Number(row['Stock Qty']),

@@ -105,7 +105,7 @@ export async function GET(req) {
 
     const freeDeliveryRemaining = customerRow? Number(customerRow["Free Delivery Remaining"] || 0) : 0;
     const lastFreeDeliveryDate = customerRow? customerRow["Last Free Delivery Date"] || "" : "";
-    const today = new Date().toLocaleDateString("en-GB");
+    const today = new Date().toISOString().split('T')[0];
 
     let baseDeliveryFee = 0;
     
