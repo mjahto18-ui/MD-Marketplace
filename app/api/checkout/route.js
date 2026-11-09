@@ -30,7 +30,7 @@ export async function POST(req) {
       supabase.from('customers').select('*'),
       supabase.from('delivery_rates').select('*'),
       supabase.from('areas').select('"Area ID", "Area Name", "Active"'),
-      supabase.from('stores').select('"Store ID", "Commission Rate"'),
+      supabase.from('stores').select('"Store ID", "Commission Rate", coverage_type'),
     ]);
 
     // سلة الزبون
@@ -72,14 +72,30 @@ export async function POST(req) {
     const today = new Date().toISOString().split('T')[0];
 
 
-    const rateRow = (deliveryRatesRows||[]).find((row) => {
+        // نفس مبدأ السلة - حدد نوع السلة من أول متجر
+    const storesCoverageMap = {};
+    (storesRows||[]).forEach(s => {
+      storesCoverageMap[String(s["Store ID"]).trim()] = s.coverage_type || 'geofence';
+    });
+    let cartCoverage = 'geofence';
+    if (cartWithProducts.length > 0) {
+      cartCoverage = storesCoverageMap[String(cartWithProducts[0].storeID).trim()] || 'geofence';
+    }
+
+    // فلتر حسب نوع السلة + الوزن - متل السلة
+    const filteredRates = (deliveryRatesRows||[]).filter(r => {
+      const rc = r.coverage_type || 'geofence';
+      return rc === cartCoverage;
+    });
+
+    const rateRow = filteredRates.find((row) => {
       const min = Number(row["Min Points"] || 0);
       const max = Number(row["Max Points"] || 999999);
       return totalWeight >= min && totalWeight <= max;
     });
 
     const baseDeliveryFee = rateRow? Number(rateRow["Delivery Fee"] || 0) : 0;
-    const isFreeDelivery = freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
+    const isFreeDelivery = cartCoverage === 'geofence' && freeDeliveryRemaining > 0 && totalWeight > 0 && totalWeight <= 10 && lastFreeDeliveryDate!== today;
     const deliveryFee = isFreeDelivery? 0 : baseDeliveryFee;
 
     // === هون الزيادة اللي اتفقنا عليها ===
@@ -130,7 +146,6 @@ export async function POST(req) {
 
       finalAreaID = customerArea;
       finalAddress = customerAddress;
-      finalNote = "";
       finalLat = customerLat;
       finalLng = customerLng;
     } else if (addressType === "new") {
