@@ -160,7 +160,7 @@ export default function StoreDashboard(){
 }
 
   const savePrice = async (p)=>{
-  const price = Number(String(newPrice).replace(/,/g,''))
+  const price = cleanPriceNum(newPrice)
   if(!price || price <= 0) return alert('حط سعر صحيح')
   if(price === Number(p.Price)) return alert('نفس السعر القديم - ما تغير شي')
   const { error } = await supabase.from('products').update({
@@ -172,6 +172,12 @@ export default function StoreDashboard(){
   setEditingPrice(null)
   setNewPrice('')
   alert('تم - رجع للمراجعة، انتظر موافقة الادمن')
+}
+  const cleanPriceNum = (v)=>{
+  let s = String(v||'').replace(/,/g,'').replace(/،/g,'').replace(/\s/g,'');
+  // حوّل أرقام عربية لإنجليزية
+  s = s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+  return Number(s);
 }
 
   const addProducts = async ()=>{
@@ -190,12 +196,15 @@ export default function StoreDashboard(){
     }
     const mainImage = uploadedUrls[0] || n.image || null;
 
+    const cleanPrice = cleanPriceNum(n.price);
+    if(!cleanPrice || cleanPrice <= 0){ alert('السعر غلط لـ ' + n.name + ' - كتبت: ' + n.price); continue; }
+
     // 2. انشئ المنتج
     const { data: prod, error } = await supabase.from('products').insert([{
       'Store ID': me.storeId,
       'Product Name': n.name,
       'Unit': n.unit || 'حبة',
-      'Price': Number(n.price),
+      'Price': cleanPrice,
       'Image': mainImage,
       'Size': n.size || null,
       'Description': n.description || null,
