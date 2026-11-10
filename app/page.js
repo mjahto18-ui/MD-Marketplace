@@ -442,6 +442,79 @@ export default function HomePage() {
 
       </section>
 
+{/* ===== MD-Group - خدماتنا ===== */}
+<section className="bg-[#faf9fd] py-14 md:py-20" dir="rtl">
+  <div className="max-w-6xl mx-auto px-5 md:px-8">
+    <div className="text-center mb-10">
+      <div className="inline-block bg-purple-50 text-purple-600 px-4 py-2 rounded-full text-[11px] font-black mb-4">
+        MD-GROUP
+      </div>
+      <h2 className="text-[25px] md:text-4xl font-black text-[#13113a]">
+        8 خدمات، غروب واحد
+      </h2>
+      <p className="text-gray-500 text-[13px] md:text-sm mt-3">
+        MD-Marketplace هي MD-Group - كل شي بدك ياه بموقع واحد
+      </p>
+    </div>
+
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded-[24px] p-5 text-center border border-gray-100">
+        <div className="text-3xl mb-2">🛍️</div>
+        <h3 className="font-black text-[#17144d]">Marketplace</h3>
+        <p className="text-gray-500 text-xs mt-2">تسوق من 50+ محل بطرابلس</p>
+      </div>
+
+      <div className="bg-white rounded-[24px] p-5 text-center border border-gray-100">
+        <div className="text-3xl mb-2">🚕</div>
+        <h3 className="font-black text-[#17144d]">Taxi</h3>
+        <p className="text-gray-500 text-xs mt-2">توصيلة آمنة مع SOS وتتبع مباشر</p>
+      </div>
+
+      <div className="bg-white rounded-[24px] p-5 text-center border border-gray-100">
+        <div className="text-3xl mb-2">🛵</div>
+        <h3 className="font-black text-[#17144d]">Delivery</h3>
+        <p className="text-gray-500 text-xs mt-2">توصيل سريع 25 دقيقة </p>
+      </div>
+
+      <div className="bg-white rounded-[24px] p-5 text-center border border-gray-100">
+        <div className="text-3xl mb-2">🚚</div>
+        <h3 className="font-black text-[#17144d]">Express</h3>
+        <p className="text-gray-500 text-xs mt-2">توصيل سريع طرود او اوردرات خلال 72 ساعة لكل لبنان</p>
+      </div>
+
+      <div className="bg-white rounded-[24px] p-5 text-center border border-gray-100">
+        <div className="text-3xl mb-2">📦</div>
+        <h3 className="font-black text-[#17144d]">Cargo</h3>
+        <p className="text-gray-500 text-xs mt-2">نقل بضائع ثقيلة او شحن بضائع</p>
+      </div>
+
+      <div className="bg-white rounded-[24px] p-5 text-center border border-gray-100">
+        <div className="text-3xl mb-2">❤️</div>
+        <h3 className="font-black text-[#17144d]">Donate</h3>
+        <p className="text-gray-500 text-xs mt-2">تبرع شفاف لعائلات محتاجة</p>
+      </div>
+
+      <div className="bg-white rounded-[24px] p-5 text-center border border-gray-100">
+        <div className="text-3xl mb-2">📢</div>
+        <h3 className="font-black text-[#17144d]">Ads</h3>
+        <p className="text-gray-500 text-xs mt-2">إعلان لمنتج او لعرض لكل الزباين حدك </p>
+      </div>
+
+      <div className="bg-white rounded-[24px] p-5 text-center border border-gray-100">
+        <div className="text-3xl mb-2">🕐</div>
+        <h3 className="font-black text-[#17144d]">Attendance</h3>
+        <p className="text-gray-500 text-xs mt-2">حضور ودوام ورواتب للسائقين والموظفين</p>
+      </div>
+    </div>
+
+    {/* اطلب واستريح - تحت الخدمات */}
+    <div className="mt-6 bg-gradient-to-br from-purple-600 to-pink-500 rounded- p-6 text-center text-white">
+      <h3 className="font-black text-lg">ما لقيت متجرك؟</h3>
+      <p className="text-white/85 text-sm mt-1">ادخل على خدمة "اطلب أي شي بدك ياه" - اطلب من أي محل بطرابلس ونحنا منجيبو لعندك وانت استريح</p>
+    </div>
+  </div>
+</section>
+
 
       {/* =====================================================
           BRAND / DELIVERY IMAGE
