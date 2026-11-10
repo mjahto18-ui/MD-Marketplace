@@ -109,6 +109,11 @@ export async function GET(req) {
     // === 2. ابنِ كويري المنتجات ===
     let query = supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size"', { count: 'exact' });
 
+    // بس المقبول - للزبون
+    query = query.eq('Active', 'TRUE');
+    query = query.eq('Available', 'Yes');
+    query = query.gt('Price', 0);
+
     // اذا في فلتر أبراج - طبقو
     if (allowedStoreIds !== null) {
       if (allowedStoreIds.length === 0) {
