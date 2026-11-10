@@ -10,6 +10,8 @@ export default function ProductDetailPage({ params }) {
   const [product, setProduct] = useState(null);
   const [idx, setIdx] = useState(0)
   const [startX, setStartX] = useState(null)
+  const [zoomOpen, setZoomOpen] = useState(false)
+  const [zoomStartX, setZoomStartX] = useState(null)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
@@ -27,22 +29,16 @@ export default function ProductDetailPage({ params }) {
   useEffect(() => {
     const load = async () => {
       try {
-        // جيب الموقع بصمت من الكاش
         const lat = localStorage.getItem('user_lat');
         const lng = localStorage.getItem('user_lng');
         let url = `/api/products/${id}`;
         if (lat && lng) url += `?lat=${lat}&lng=${lng}`;
-
         const res = await fetch(url);
         const json = await res.json();
-
         if (!json.success) {
-          // اذا مش مسموح - الـ API بيرجع رسالة عامة، مش قبة ومينا
           setError(json.message || "المنتج غير متاح في منطقتك");
         }
         else setProduct(json.product);
-
-        // حدث الموقع بالخلفية بصمت
         if (!lat ||!lng) {
           navigator.geolocation.getCurrentPosition(
             pos => {
@@ -53,7 +49,6 @@ export default function ProductDetailPage({ params }) {
             { enableHighAccuracy: false, timeout: 3000 }
           );
         }
-
       } catch (e) {
         setError(e.message);
       }
@@ -70,7 +65,6 @@ export default function ProductDetailPage({ params }) {
       return;
     }
     setAdding(true);
-
     const doAdd = async (lat, lng) => {
       try {
         const res = await fetch('/api/cart/add', {
@@ -86,20 +80,14 @@ export default function ProductDetailPage({ params }) {
       }
       setTimeout(()=>{ setToast(null); setAdding(false); }, 2000);
     };
-
     const cachedLat = localStorage.getItem('user_lat');
     const cachedLng = localStorage.getItem('user_lng');
-    if (cachedLat && cachedLng) {
-      doAdd(cachedLat, cachedLng);
-      return;
-    }
-
+    if (cachedLat && cachedLng) { doAdd(cachedLat, cachedLng); return; }
     if (!navigator.geolocation) {
       setToast("متصفحك ما بيدعم تحديد الموقع");
       setTimeout(()=>{ setToast(null); setAdding(false); }, 3000);
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         localStorage.setItem('user_lat', pos.coords.latitude);
@@ -140,13 +128,13 @@ export default function ProductDetailPage({ params }) {
 
       <div className="px-4 md:px-8 lg:px-12 pb-28 max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden p-4 md:p-6 lg:p-8">
-                    {/* جاليري - سوايب */}
           {(() => {
             const images = product.images?.length ? product.images : (product.image ? [product.image] : [])
             if (!images.length) return <div className="w-full aspect-square bg-white rounded-2xl flex items-center justify-center text-gray-400">لا صورة</div>
             return (
               <div
-                className="relative w-full aspect-square md:aspect-[4/3] lg:aspect-square bg-white rounded-2xl overflow-hidden flex items-center justify-center"
+                onClick={() => setZoomOpen(true)}
+                className="relative w-full aspect-square md:aspect-[4/3] lg:aspect-square bg-white rounded-2xl overflow-hidden flex items-center justify-center cursor-zoom-in"
                 onTouchStart={e => setStartX(e.touches[0].clientX)}
                 onTouchEnd={e => {
                   if (startX === null) return
@@ -160,24 +148,23 @@ export default function ProductDetailPage({ params }) {
 
                 {images.length > 1 && (
                   <>
-                    <button onClick={()=>setIdx(i => (i - 1 + images.length) % images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 text-white w-9 h-9 rounded-full text-lg z-10">‹</button>
-                    <button onClick={()=>setIdx(i => (i + 1) % images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 text-white w-9 h-9 rounded-full text-lg z-10">›</button>
+                    <button onClick={(e)=>{e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length)}} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 text-white w-9 h-9 rounded-full text-lg z-10">‹</button>
+                    <button onClick={(e)=>{e.stopPropagation(); setIdx(i => (i + 1) % images.length)}} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 text-white w-9 h-9 rounded-full text-lg z-10">›</button>
                   </>
                 )}
 
                 {images.length > 1 && (
-                  <span className="absolute top-3 left-3 bg-black/60 text-white text-[11px] px-2.5 py-1 rounded-full z-10">{idx+1}/{images.length}</span>
+                  <span className="absolute top-3 left-3 bg-black/60 text-white text- px-2.5 py-1 rounded-full z-10">{idx+1}/{images.length}</span>
                 )}
 
                 {product.size && (
-                  <span className="absolute top-3 right-3 bg-amber-300 text-black text-[12px] font-black px-3 py-1.5 rounded-full z-10">مقاس: {product.size}</span>
+                  <span className="absolute top-3 right-3 bg-amber-300 text-black text- font-black px-3 py-1.5 rounded-full z-10">مقاس: {product.size}</span>
                 )}
 
-                {/* صور مصغرة تحت */}
                 {images.length > 1 && (
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/30 p-1.5 rounded-full">
                     {images.map((img, i) => (
-                      <img key={i} src={img} onClick={()=>setIdx(i)} className={`w-10 h-10 object-cover rounded-full cursor-pointer border-2 ${i===idx ? 'border-pink-500' : 'border-white/50'}`} />
+                      <img key={i} src={img} onClick={(e)=>{e.stopPropagation(); setIdx(i)}} className={`w-10 h-10 object-cover rounded-full cursor-pointer border-2 ${i===idx ? 'border-pink-500' : 'border-white/50'}`} />
                     ))}
                   </div>
                 )}
@@ -189,20 +176,19 @@ export default function ProductDetailPage({ params }) {
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 leading-tight">{product.name}</h2>
               <p className="text-sm md:text-base text-purple-300 mb-6">المتجر: {product.storeName} • {product.category}</p>
               {product.size && (
-  <div className="inline-flex items-center gap-2 text-sm bg-amber-300/20 text-amber-300 border border-amber-300/30 px-3 py-1.5 rounded-full mb-4 font-bold">
-    📏 المقاس: {product.size}
-  </div>
-)}
-              {/* زيد هون */}
+                <div className="inline-flex items-center gap-2 text-sm bg-amber-300/20 text-amber-300 border border-amber-300/30 px-3 py-1.5 rounded-full mb-4 font-bold">
+                  📏 المقاس: {product.size}
+                </div>
+              )}
               {product.coverage_type === 'global' ? (
-             <div className="inline-flex items-center gap-2 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1.5 rounded-full mb-6">
-             🚚 توصيل خلال 72 ساعة - لكل لبنان
-             </div>
-             ) : (
-            <div className="inline-flex items-center gap-2 text-xs bg-green-500/20 text-green-300 border border-green-500/30 px-3 py-1.5 rounded-full mb-6">
-          ⚡ توصيل فوري - خلال 25 دقيقة  
-          </div>
-          )}
+                <div className="inline-flex items-center gap-2 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1.5 rounded-full mb-6">
+                  🚚 توصيل خلال 72 ساعة - لكل لبنان
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 text-xs bg-green-500/20 text-green-300 border border-green-500/30 px-3 py-1.5 rounded-full mb-6">
+                  ⚡ توصيل فوري - خلال 25 دقيقة
+                </div>
+              )}
               <div className="bg-white/5 rounded-2xl p-4 md:p-5 mb-6 border border-white/5">
                 <p className="text-purple-200 text-sm mb-1">السعر:</p>
                 <p className="text-3xl md:text-4xl font-bold text-white">{Number(product.price).toLocaleString()} <span className="text-lg font-normal">ل.ل</span></p>
@@ -245,6 +231,34 @@ export default function ProductDetailPage({ params }) {
           <button onClick={()=>router.push('/login')} className="w-full bg-white/10 backdrop-blur-xl border border-white/10 py-4 rounded-2xl font-bold">سجل دخول للطلب</button>
         )}
       </div>
+
+      {zoomOpen && (() => {
+        const images = product.images?.length ? product.images : (product.image ? [product.image] : [])
+        return (
+          <div
+            onClick={() => setZoomOpen(false)}
+            onTouchStart={e => setZoomStartX(e.touches[0].clientX)}
+            onTouchEnd={e => {
+              if (zoomStartX === null) return
+              const diff = e.changedTouches[0].clientX - zoomStartX
+              if (diff < -30) setIdx(i => (i + 1) % images.length)
+              if (diff > 30) setIdx(i => (i - 1 + images.length) % images.length)
+              setZoomStartX(null)
+            }}
+            className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center p-2"
+          >
+            <button onClick={() => setZoomOpen(false)} className="absolute top-4 right-4 bg-white/20 text-white w-10 h-10 rounded-full text-xl z-10">✕</button>
+            <img src={images[idx]} alt={product.name} className="max-w-full max-h-full object-contain" />
+            {images.length > 1 && (
+              <>
+                <button onClick={(e)=>{e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length)}} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/20 text-white w-10 h-10 rounded-full">‹</button>
+                <button onClick={(e)=>{e.stopPropagation(); setIdx(i => (i + 1) % images.length)}} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 text-white w-10 h-10 rounded-full">›</button>
+              </>
+            )}
+            <span className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/20 text-white text-xs px-3 py-1 rounded-full">{idx+1}/{images.length}</span>
+          </div>
+        )
+      })()}
 
       {toast && (<div className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 bg-white text-black px-5 py-3 rounded-full shadow-2xl z-[999] flex items-center gap-2"><div className="bg-green-500 rounded-full p-1"><Check className="w-3 h-3 text-white" /></div><span className="text-sm font-bold whitespace-nowrap">{toast}</span></div>)}
     </div>
