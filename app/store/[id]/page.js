@@ -203,10 +203,12 @@ export default function StorePage() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {filteredProducts.map(product => (
-            <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition">
-              <ProductImage product={product} />
-              <div className="p-3">
-                <h3 className="font-bold text-sm mb-2 truncate">{product.name}</h3>
+            <div key={product.productID} className="bg-white/5 ... rounded-2xl overflow-hidden ...">
+  <div onClick={() => router.push(`/products/${product.productID}`)} className="cursor-pointer">
+    <ProductImage product={product} />
+  </div>
+  <div className="p-3">
+    <h3 onClick={() => router.push(`/products/${product.productID}`)} className="font-bold text-sm mb-2 truncate cursor-pointer">{product.name}</h3>
                 {product.size && <p className="text-[11px] text-amber-300 font-bold mb-1">مقاس: {product.size}</p>}               
                 {product.description && (
                   <p className="text-[11px] text-purple-200/80 mb-2 line-clamp-2">{product.description}</p>
