@@ -46,7 +46,7 @@ export default function StoreDashboard(){
   const [showBarcode, setShowBarcode] = useState({})
   const [editingPrice, setEditingPrice] = useState(null)
   const [newPrice, setNewPrice] = useState('')
-  const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}])
+  const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:'', description:''}])
   const [priceReq, setPriceReq] = useState({code:'', newPrice:''})
   // --- محفظة ---
   const [wallet, setWallet] = useState(0)
@@ -153,9 +153,10 @@ export default function StoreDashboard(){
   const inputStyle = {padding:'10px', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0, fontSize:13}
 
   const toggleActive = async (p)=>{
-    const newVal =!p.Active
-    await supabase.from('products').update({Active: newVal}).eq('Product ID', p['Product ID'])
-    setProducts(prev=>prev.map(x=> x['Product ID']===p['Product ID']? {...x, Active:newVal}:x))
+  const isActive = p.Active === 'TRUE' || p.Active === true || p.Active === 'true';
+  const newVal = isActive ? 'FALSE' : 'TRUE';
+  await supabase.from('products').update({Active: newVal}).eq('Product ID', p['Product ID'])
+  setProducts(prev=>prev.map(x=> x['Product ID']===p['Product ID']? {...x, Active:newVal}:x))
   }
 
   const savePrice = async (p)=>{
@@ -197,6 +198,7 @@ export default function StoreDashboard(){
       'Price': Number(n.price),
       'Image': mainImage,
       'Size': n.size || null,
+      'Description': n.description || null,
       'Active': 'FALSE',
       'Available': 'Yes',
       'Stock Qty': '1',
@@ -216,7 +218,7 @@ export default function StoreDashboard(){
     }
   }
   alert('انضافو للمراجعة');
-  setNewProds([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}]);
+  setNewProds([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:'', description:''}]);
   location.reload();
 }
 
@@ -383,7 +385,7 @@ export default function StoreDashboard(){
           ) : (
           <>
         <button onClick={()=>{setEditingPrice(p['Product ID']); setNewPrice('')}} style={{marginTop:8, width:'100%', padding:'7px', borderRadius:8, border:'none', background:'rgba(251,191,36,0.15)', color:'#fde68a', fontSize:11, fontWeight:700}}>✏️ تعديل السعر</button>
-      <button onClick={()=>toggleActive(p)} style={{marginTop:6, width:'100%', padding:'7px', borderRadius:8, border:'none', background: p.Active?'linear-gradient(135deg,#16a34a,#15803d)':'rgba(255,255,255,0.15)', color:'white', fontSize:11, fontWeight:700}}>{p.Active? 'Active' : 'INACTIVE'}</button>
+      <button onClick={()=>toggleActive(p)} style={{marginTop:6, width:'100%', padding:'7px', borderRadius:8, border:'none', background: (p.Active==='TRUE'||p.Active===true)?'linear-gradient(135deg,#16a34a,#15803d)':'rgba(255,255,255,0.15)', color:'white', fontSize:11, fontWeight:700}}>{(p.Active==='TRUE'||p.Active===true)? 'Active' : 'INACTIVE'}</button>
   </>
 )}
                         
@@ -449,6 +451,7 @@ export default function StoreDashboard(){
         </div>
 
         {/* رفع كزا صورة - بيضيف مش بيستبدل */}
+        <textarea placeholder="وصف المنتج - اكتب اللي بدك ياه - مثلا: كنزة قطن تقيلة - خامة ممتازة..." value={np.description || ''} onChange={e=>{const c=[...newProds]; c[i].description=e.target.value; setNewProds(c)}} style={{...inputStyle, width:'100%', minHeight:60, marginBottom:8, resize:'vertical'}} />
         <input type="file" accept="image/*" multiple onChange={e=>{const c=[...newProds]; c[i].images=[...(c[i].images||[]), ...e.target.files]; setNewProds(c); e.target.value='';}} style={inputStyle} />
         <p style={{fontSize:11, opacity:0.5, marginTop:4}}>اختار صورة، وبعدين ارجع اختار تانية - بتنضاف على الأولى - تياب 800 / أكل 400 - أول وحدة رئيسية</p>
         {np.images?.length>0 && (
@@ -466,7 +469,7 @@ export default function StoreDashboard(){
       </div>
     ))}
     <div style={{display:'flex', gap:8, marginTop:10}}>
-      <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}])} style={{padding:'8px 14px', borderRadius:8, background:'rgba(255,255,255,0.08)', color:'white'}}>+ منتج</button>
+     <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:'', description:''}])} style={{padding:'8px 14px', borderRadius:8, background:'rgba(255,255,255,0.08)', color:'white'}}>+ منتج</button>
       <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900}}>إرسال للمراجعة</button>
     </div>
   </div>
