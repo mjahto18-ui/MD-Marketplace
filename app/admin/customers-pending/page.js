@@ -7,6 +7,7 @@ import BackToDashboard from "@/components/BackToDashboard"
 export default function CustomersPendingPage() {
   const [customers, setCustomers] = useState([])
   const [areaNames, setAreaNames] = useState({})
+  const [expandedId, setExpandedId] = useState(null)
   
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -138,26 +139,41 @@ https://md-marketplace.store/
       <h1 className="text-2xl font-bold mb-6">Customers Pending - {customers.length}</h1>
       <div className="grid gap-4">
         {customers.map(c => {
-          const areaName = areaNames[c['Area']] || c['Area'] || '-'
-          return (
-            <div key={c['Customer ID']} className="bg-white p-4 rounded-lg shadow border flex justify-between items-center">
-              <div>
-                <div className="font-bold">#{c['Customer ID']} - {c['Name']} <span className="text-sm font-normal text-gray-500">📞 {c['Mobile']}</span></div>
-                <div className="text-sm text-gray-600">{c['Adress']} - {areaName}</div>
-                <div className="text-xs mt-1 text-gray-400">
-                 Lat: {c['Current Latitude']||c['Registration Latitude']} , Lng: {c['Current Longtitude']||c['Registration Longitude']} | PIN: {c['New PIN'] || c['PIN']}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => handleAction(c, 'Active')} className="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 font-bold">
-                  ✅ قبول
-                </button>
-                <button onClick={() => handleAction(c, 'Inactive')} className="bg-red-600 text-white px-5 py-2 rounded hover:bg-red-700 font-bold">
-                  ❌ رفض
-                </button>
-              </div>
-            </div>
-          )
+  const areaName = areaNames[c['Area']] || c['Area'] || '-'
+  const lat = c['Current Latitude'] || c['Registration Latitude']
+  const lng = c['Current Longtitude'] || c['Registration Longitude']
+  const isOpen = expandedId === c['Customer ID']
+    return (
+    <div key={c['Customer ID']} className="bg-white p-4 rounded-lg shadow border">
+      <div className="flex justify-between items-center">
+        <div>
+          <div className="font-bold">#{c['Customer ID']} - {c['Name']} <span className="text-sm font-normal text-gray-500">📞 {c['Mobile']}</span></div>
+          <div className="text-sm text-gray-600">{c['Adress']} - {areaName}</div>
+          <div className="text-xs mt-1 text-gray-400">
+            Lat: {c['Current Latitude']||c['Registration Latitude']} , Lng: {c['Current Longtitude']||c['Registration Longitude']} | PIN: {c['New PIN'] || c['PIN']}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {lat && lng && (
+            <button onClick={() => setExpandedId(isOpen ? null : c['Customer ID'])} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-bold">
+              {isOpen ? '🔽 سكّر الخريطة' : '🗺 خريطة التسجيل'}
+            </button>
+          )}
+          <button onClick={() => handleAction(c, 'Active')} className="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 font-bold">✅ قبول</button>
+          <button onClick={() => handleAction(c, 'Inactive')} className="bg-red-600 text-white px-5 py-2 rounded hover:bg-red-700 font-bold">❌ رفض</button>
+        </div>
+      </div>
+      {isOpen && lat && lng && (
+        <div className="mt-3 rounded-lg overflow-hidden border">
+          <iframe title="map" width="100%" height="280" style={{border:0}} loading="lazy" src={`https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`} />
+          <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 flex justify-between">
+            <span>Lat: {lat} , Lng: {lng}</span>
+            <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" className="text-blue-600 font-bold">فتح بـ Google Maps ↗</a>
+          </div>
+        </div>
+      )}
+    </div>
+  ))
         })}
         {customers.length === 0 && <p className="text-gray-500">ما في عملا معلقين 👌</p>}
       </div>
