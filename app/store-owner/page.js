@@ -152,12 +152,12 @@ export default function StoreDashboard(){
   }
   const inputStyle = {padding:'10px', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0, fontSize:13}
 
-  const toggleActive = async (p)=>{
-  const isActive = p.Active === 'TRUE' || p.Active === true || p.Active === 'true';
-  const newVal = isActive ? 'FALSE' : 'TRUE';
-  await supabase.from('products').update({Active: newVal}).eq('Product ID', p['Product ID'])
-  setProducts(prev=>prev.map(x=> x['Product ID']===p['Product ID']? {...x, Active:newVal}:x))
-  }
+  const toggleAvailable = async (p)=>{
+  const isAvailable = p.Available === 'Yes' || p.Available === true;
+  const newVal = isAvailable ? 'No' : 'Yes';
+  await supabase.from('products').update({Available: newVal}).eq('Product ID', p['Product ID'])
+  setProducts(prev=>prev.map(x=> x['Product ID']===p['Product ID']? {...x, Available:newVal}:x))
+}
 
   const savePrice = async (p)=>{
   const price = Number(String(newPrice).replace(/,/g,''))
@@ -385,7 +385,7 @@ export default function StoreDashboard(){
           ) : (
           <>
         <button onClick={()=>{setEditingPrice(p['Product ID']); setNewPrice('')}} style={{marginTop:8, width:'100%', padding:'7px', borderRadius:8, border:'none', background:'rgba(251,191,36,0.15)', color:'#fde68a', fontSize:11, fontWeight:700}}>✏️ تعديل السعر</button>
-      <button onClick={()=>toggleActive(p)} style={{marginTop:6, width:'100%', padding:'7px', borderRadius:8, border:'none', background: (p.Active==='TRUE'||p.Active===true)?'linear-gradient(135deg,#16a34a,#15803d)':'rgba(255,255,255,0.15)', color:'white', fontSize:11, fontWeight:700}}>{(p.Active==='TRUE'||p.Active===true)? 'Active' : 'INACTIVE'}</button>
+      <button onClick={()=>toggleAvailable(p)} style={{marginTop:6, width:'100%', padding:'7px', borderRadius:8, border:'none', background: (p.Available==='Yes'||p.Available===true)?'linear-gradient(135deg,#16a34a,#15803d)':'rgba(255,255,255,0.15)', color:'white', fontSize:11, fontWeight:700}}>{(p.Available==='Yes'||p.Available===true)? 'متوفر ✅' : 'غير متوفر ⛔'}</button>
   </>
 )}
                         
