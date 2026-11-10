@@ -273,10 +273,12 @@ export default function ProductsPage() {
         )}
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
           {filtered.map(product => (
-            <div key={product.productID} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+            <div key={product.productID} className="bg-white/5 ... rounded-2xl overflow-hidden ...">
+              <div onClick={() => router.push(`/products/${product.productID}`)} className="cursor-pointer">
               <ProductImage product={product} />
+               </div>
               <div className="p-3">
-                <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
+               <h3 onClick={() => router.push(`/products/${product.productID}`)} className="font-bold text-sm mb-2 truncate cursor-pointer">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-1 truncate">المتجر: {product.storeName}</p>
                 {product.size && <p className="text- text-amber-300 font-bold mb-1">مقاس: {product.size}</p>}
                  {/* هون زيد التوصيل */}
