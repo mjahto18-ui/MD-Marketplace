@@ -173,7 +173,7 @@ https://md-marketplace.store/
         </div>
       )}
     </div>
-  ))
+  )
         })}
         {customers.length === 0 && <p className="text-gray-500">ما في عملا معلقين 👌</p>}
       </div>
