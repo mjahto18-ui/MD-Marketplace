@@ -3,20 +3,24 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
-// ضغط لـ 200x200 webp - متل الطلب الخاص بس أصغر
-async function compressToWebp200(file) {
+// ضغط حسب القسم - تياب 800 / أكل 400
+const HIGH_RES_CATS = ['clothes', 'shoes', 'bags', 'watches', 'phones', 'تياب', 'احذية', 'شنط', 'ساعات'];
+
+async function compressByCategory(file, category) {
+  const cat = String(category || '').toLowerCase();
+  const size = HIGH_RES_CATS.some(c => cat.includes(c)) ? 800 : 400;
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = 200; canvas.height = 200;
+      canvas.width = size; canvas.height = size;
       const ctx = canvas.getContext('2d');
       // قص مربع من النص عشان ما تتشوه الصورة
-      const size = Math.min(img.width, img.height);
-      const sx = (img.width - size) / 2;
-      const sy = (img.height - size) / 2;
-      ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
-      canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.75);
+      const s = Math.min(img.width, img.height);
+      const sx = (img.width - s) / 2;
+      const sy = (img.height - s) / 2;
+      ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+      canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.82);
     };
     img.src = URL.createObjectURL(file);
   });
@@ -176,7 +180,7 @@ export default function StoreDashboard(){
     // 1. ارفع كل الصور مضغوطة 200x200
     let uploadedUrls = [];
     for(const f of (n.images || [])){
-      const compressed = await compressToWebp200(f);
+     const compressed = await compressByCategory(f, n.category);
       const fd = new FormData();
       fd.append('file', compressed, 'product.webp');
       const up = await fetch('/api/upload', { method:'POST', body: fd });
@@ -446,7 +450,7 @@ export default function StoreDashboard(){
 
         {/* رفع كزا صورة - بيضيف مش بيستبدل */}
         <input type="file" accept="image/*" multiple onChange={e=>{const c=[...newProds]; c[i].images=[...(c[i].images||[]), ...e.target.files]; setNewProds(c); e.target.value='';}} style={inputStyle} />
-        <p style={{fontSize:11, opacity:0.5, marginTop:4}}>اختار صورة، وبعدين ارجع اختار تانية - بتنضاف على الأولى - 200x200 webp - أول وحدة رئيسية</p>
+        <p style={{fontSize:11, opacity:0.5, marginTop:4}}>اختار صورة، وبعدين ارجع اختار تانية - بتنضاف على الأولى - تياب 800 / أكل 400 - أول وحدة رئيسية</p>
         {np.images?.length>0 && (
           <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
             {np.images.map((f, idx)=>(
