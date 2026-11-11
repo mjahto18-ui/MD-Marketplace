@@ -9,7 +9,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-// حط الاسماء الحقيقية هون
 const TABLE_MANAGERS = "geofence_center_managers";
 const TABLE_CENTERS = "geofence_centers";
 const COL_TOWER_ID = "geofence_center_id";
@@ -30,89 +29,128 @@ export default function TowerDashboardPage() {
   const [storesMap, setStoresMap] = useState({});
   const [driversMap, setDriversMap] = useState({});
   const [selectedDriver, setSelectedDriver] = useState({});
+  const [errorMsg, setErrorMsg] = useState("");
+  const [debugMe, setDebugMe] = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/admin/me");
-    const data = await res.json();
-    if (!data?.user) return;
-    if (data.user.role !== "Assistant Admin") {
-      window.location.href = "/admin/dashboard";
-      
-      return;
+    try {
+      const res = await fetch("/api/admin/me");
+      const data = await res.json();
+      console.log("ME:", data);
+      setDebugMe(JSON.stringify(data).slice(0, 800));
+
+      if (!data?.user) {
+        setErrorMsg("api/admin/me ما رجع user - اللي رجع: " + JSON.stringify(data).slice(0, 500));
+        setLoading(false);
+        return;
+      }
+      if (data.user.role !== "Assistant Admin") {
+        window.location.href = "/admin/dashboard";
+        return;
+      }
+      setMe(data.user);
+
+      // 1 - جيب برج المساعد
+      const { data: mRows, error: mErr } = await supabase
+        .from(TABLE_MANAGERS)
+        .select("*")
+        .eq("manager_user_id", data.user.id)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (mErr) {
+        console.log("MANAGER ERROR:", mErr, "USER ID:", data.user.id);
+        setErrorMsg("خطأ بجيب المسؤول: " + mErr.message + " - ID تبعك: " + data.user.id);
+        setLoading(false);
+        return;
+      }
+
+      const m = mRows?.[0];
+      if (!m) {
+        console.log("NO MANAGER FOR USER:", data.user.id);
+        setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID تبعك: " + data.user.id + " - احكي الادارة تربطك على برج");
+        setLoading(false);
+        return;
+      }
+      setManager(m);
+
+      const towerId = m[COL_TOWER_ID];
+      if (!towerId) {
+        console.log("MANAGER WITHOUT TOWER:", m);
+        setErrorMsg("لقيت مسؤول بس معرف البرج فاضي - احكي الادارة");
+        setLoading(false);
+        return;
+      }
+
+      // 2 - جيب بيانات البرج
+      const { data: cRows } = await supabase
+        .from(TABLE_CENTERS)
+        .select("*")
+        .eq(COL_CENTER_ID, towerId)
+        .limit(1);
+
+      if (!cRows?.[0]) {
+        setErrorMsg("لقيت مسؤول و معرف برج: " + towerId + " - بس هيدا البرج مش موجود بجدول الابراج");
+        setLoading(false);
+        return;
+      }
+      setTower(cRows[0]);
+
+      // 3 - جيب الاوردرات تبع هيدا البرج بس
+      const { data: oRows } = await supabase
+        .from("order_requuest")
+        .select("*")
+        .eq(COL_TOWER_ID, towerId)
+        .order("Cerated Date", { ascending: false })
+        .limit(200);
+      setOrders(oRows || []);
+
+      const { data: tRows } = await supabase
+        .from("taxi_orders")
+        .select("*")
+        .eq(COL_TOWER_ID, towerId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      setTaxiOrders(tRows || []);
+
+      const { data: sRows } = await supabase
+        .from("special_orders")
+        .select("*")
+        .eq(COL_TOWER_ID, towerId)
+        .order("Cerated Date", { ascending: false })
+        .limit(200);
+      setSpecials(sRows || []);
+
+      // 4 - خرايط الاسماء
+      const custIds = [...new Set((oRows || []).map(x => x["customer ID"]).filter(Boolean))];
+      if (custIds.length) {
+        const { data: c } = await supabase.from("customers").select("*").in("Customer ID", custIds);
+        const map = {};
+        (c || []).forEach(x => map[x["Customer ID"]] = x);
+        setCustomersMap(map);
+      }
+
+      const { data: dRows } = await supabase.from("drivers").select("*").eq("Status", "Active").limit(200);
+      setDrivers(dRows || []);
+      const dMap = {};
+      (dRows || []).forEach(x => dMap[x["Driver ID"]] = x);
+      setDriversMap(dMap);
+
+      const { data: tdRows } = await supabase.from("taxi_drivers").select("*").eq("status", "active").limit(200);
+      setTaxiDrivers(tdRows || []);
+
+      const { data: stRows } = await supabase.from("stores").select("*").eq("Status", "Active").limit(200);
+      setStores(stRows || []);
+      const sMap = {};
+      (stRows || []).forEach(x => sMap[x["Store ID"]] = x);
+      setStoresMap(sMap);
+
+      setLoading(false);
+    } catch (e) {
+      console.log("LOAD ERROR:", e);
+      setErrorMsg("خطأ بالتحميل: " + e.message);
+      setLoading(false);
     }
-    setMe(data.user);
-
-    // 1 - جيب برج المساعد من جدول المسؤولين
-    const { data: mRows } = await supabase
-  .from(TABLE_MANAGERS)
-  .select("*")
-  .eq("manager_user_id", data.user.id)
-  .eq("is_active", true)
-  .limit(1);
-
-const m = mRows?.[0];
-if (!m) { setLoading(false); return; }
-setManager(m);
-const towerId = m[COL_TOWER_ID];
-
-    // 2 - جيب بيانات البرج
-    const { data: cRows } = await supabase
-      .from(TABLE_CENTERS)
-      .select("*")
-      .eq("id", towerId)
-      .limit(1);
-    setTower(cRows?.[0] || null);
-
-    // 3 - جيب الاوردرات تبع هيدا البرج بس
-    const { data: oRows } = await supabase
-      .from("order_requuest")
-      .select("*")
-      .eq(COL_TOWER_ID, towerId)
-      .order("Cerated Date", { ascending: false })
-      .limit(200);
-    setOrders(oRows || []);
-
-    const { data: tRows } = await supabase
-      .from("taxi_orders")
-      .select("*")
-      .eq(COL_TOWER_ID, towerId)
-      .order("created_at", { ascending: false })
-      .limit(200);
-    setTaxiOrders(tRows || []);
-
-    const { data: sRows } = await supabase
-      .from("special_orders")
-      .select("*")
-      .eq(COL_TOWER_ID, towerId)
-      .order("Cerated Date", { ascending: false })
-      .limit(200);
-    setSpecials(sRows || []);
-
-    // 4 - خرايط الاسماء
-    const custIds = [...new Set((oRows || []).map(x => x["customer ID"]).filter(Boolean))];
-    if (custIds.length) {
-      const { data: c } = await supabase.from("customers").select("*").in("Customer ID", custIds);
-      const map = {};
-      (c || []).forEach(x => map[x["Customer ID"]] = x);
-      setCustomersMap(map);
-    }
-
-    const { data: dRows } = await supabase.from("drivers").select("*").eq("Status", "Active").limit(200);
-    setDrivers(dRows || []);
-    const dMap = {};
-    (dRows || []).forEach(x => dMap[x["Driver ID"]] = x);
-    setDriversMap(dMap);
-
-    const { data: tdRows } = await supabase.from("taxi_drivers").select("*").eq("status", "active").limit(200);
-    setTaxiDrivers(tdRows || []);
-
-    const { data: stRows } = await supabase.from("stores").select("*").eq("Status", "Active").limit(200);
-    setStores(stRows || []);
-    const sMap = {};
-    (stRows || []).forEach(x => sMap[x["Store ID"]] = x);
-    setStoresMap(sMap);
-
-    setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -144,8 +182,22 @@ const towerId = m[COL_TOWER_ID];
     load();
   };
 
-  if (loading) return <div style={{ padding: 20, color: "#fff", background: "#0F0F0F", minHeight: "100vh" }}>عم يحمل...</div>;
-  if (!tower) return <div style={{ padding: 20, color: "#fff", background: "#0F0F0F", minHeight: "100vh" }}>ما عندك برج مربوط - احكي الادارة</div>;
+  if (loading) return (
+    <div style={{ padding: 20, color: "#fff", background: "#0F0F0F", minHeight: "100vh" }}>
+      <div>عم يحمل...</div>
+      <div style={{ color: "#FFD700", marginTop: 12, fontSize: 13 }}>{errorMsg}</div>
+      <div style={{ color: "#aaa", marginTop: 8, fontSize: 12, wordBreak: "break-all" }}>ME: {debugMe}</div>
+    </div>
+  );
+
+  if (!tower) return (
+    <div style={{ padding: 20, color: "#fff", background: "#0F0F0F", minHeight: "100vh" }}>
+      <div style={{ fontSize: 18, fontWeight: 800 }}>ما عندك برج مربوط</div>
+      <div style={{ color: "#FFD700", marginTop: 10 }}>{errorMsg || "احكي الادارة"}</div>
+      <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>ID تبعك: {me?.id || "-"}</div>
+      <div style={{ color: "#aaa", fontSize: 12, marginTop: 4, wordBreak: "break-all" }}>ME: {debugMe}</div>
+    </div>
+  );
 
   const pendingOrders = orders.filter(o => o["Approval Status"] === "Pending");
   const activeOrders = orders.filter(o => ["Approved", "Admin Review", "New Order Delivery"].includes(o["Approval Status"]));
@@ -166,7 +218,6 @@ const towerId = m[COL_TOWER_ID];
 
   return (
     <div dir="rtl" style={{ background: "#0F0F0F", minHeight: "100vh", color: "#fff", padding: 16, fontFamily: "Andika" }}>
-      {/* فوق - بيانات البرج */}
       <div style={{ background: "#1A1A1A", borderRadius: 20, padding: 18, border: "1px solid #FFD70033", marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <div>
@@ -182,7 +233,6 @@ const towerId = m[COL_TOWER_ID];
         </div>
       </div>
 
-      {/* الكروت - زايدة */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
         <Card title="اوردرات بندينغ" value={pendingOrders.length} sub="بدا قبول و تعيين" color="#FFD700" />
         <Card title="تاكسي بندينغ" value={pendingTaxi.length} sub="بانتظار سائق" color="#00BFFF" />
@@ -195,7 +245,6 @@ const towerId = m[COL_TOWER_ID];
         <Card title="متاجر نشطة" value={stores.length} sub="Active" color="#FF69B4" />
       </div>
 
-      {/* بندينغ - اوردرات */}
       <h2 style={{ fontSize: 18, margin: "18px 0 10px" }}>اوردرات بندينغ - {pendingOrders.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingOrders.map(o => {
@@ -207,7 +256,6 @@ const towerId = m[COL_TOWER_ID];
                 <span style={{ color: "#FFD700" }}>{o["Total Amount"] || 0} ل.ل</span>
               </div>
               <div style={{ color: "#aaa", fontSize: 12 }}>{o["Area"]} - {o["Delivery Adress"]}</div>
-              {/* Note - دايما بالقسم الاول - صندوق اصفر */}
               <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
                 <b>ملاحظة: </b>{o["Note"] || "لا يوجد ملاحظات"}
               </div>
@@ -232,7 +280,6 @@ const towerId = m[COL_TOWER_ID];
         {pendingOrders.length === 0 && <div style={{ color: "#aaa" }}>ما في اوردرات بندينغ هلق</div>}
       </div>
 
-      {/* بندينغ - تاكسي */}
       <h2 style={{ fontSize: 18, margin: "22px 0 10px" }}>تاكسي بندينغ - {pendingTaxi.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingTaxi.map(t => (
@@ -248,7 +295,6 @@ const towerId = m[COL_TOWER_ID];
         {pendingTaxi.length === 0 && <div style={{ color: "#aaa" }}>ما في تاكسي بندينغ</div>}
       </div>
 
-      {/* بندينغ - خاص */}
       <h2 style={{ fontSize: 18, margin: "22px 0 10px" }}>طلبات خاصة بندينغ - {pendingSpecial.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingSpecial.map(s => (
@@ -265,7 +311,6 @@ const towerId = m[COL_TOWER_ID];
         {pendingSpecial.length === 0 && <div style={{ color: "#aaa" }}>ما في طلبات خاصة</div>}
       </div>
 
-      {/* نشطة */}
       <h2 style={{ fontSize: 18, margin: "22px 0 10px" }}>اوردرات نشطة - {activeOrders.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
         {activeOrders.map(o => {
