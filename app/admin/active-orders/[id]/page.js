@@ -119,6 +119,29 @@ export default function OrderDetailPage() {
     }
   }
 
+  // --- واتساب - فاتورة الكترونية - لينك ---
+  const cleanWa = (num)=>{
+    if(!num) return ''
+    let n = String(num).replace(/[^0-9]/g,'')
+    if(n.startsWith('00961')) n = n.slice(2)
+    if(n.startsWith('961')) return n
+    if(n.startsWith('0')) n = n.slice(1) // 03 -> 3
+    if(n.length === 8) return '961' + n
+    return n
+  }
+
+  const waNumber = cleanWa(names.customerRow?.['WhatsApp'] || names.customerRow?.['WhatsApp Number'] || customerMobile)
+
+  const handleShareWhatsApp = ()=>{
+    if(!waNumber){
+      alert('ما عندو رقم واتساب - هيدا الزبون')
+      return
+    }
+    const invoiceLink = `${window.location.origin}/invoice/${order['Request ID']}`
+    const text = `مرحبا ${customerName} ❤️\nفاتورتك من MD Marketplace - #${String(order['Request ID']).slice(0,8)}\nالاجمالي: ${totalAmount} ل.ل\nشوف فاتورتك هون:\n${invoiceLink}`
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <style>{`
@@ -131,9 +154,12 @@ export default function OrderDetailPage() {
       `}</style>
 
       <div className="p-6 max-w-2xl mx-auto">
-        <div className="no-print flex justify-between items-center mb-4">
+        <div className="no-print flex justify-between items-center mb-4 gap-2">
           <Link href="/admin/active-orders" className="text-blue-600">← Back</Link>
-          <button onClick={()=>window.print()} className="bg-black text-white px-6 py-2 rounded-full font-bold hover:bg-gray-800">🖨️ طباعة الفاتورة / PDF</button>
+          <div className="flex gap-2">
+            <button onClick={handleShareWhatsApp} disabled={!waNumber} className="bg-[#25D366] text-white px-5 py-2 rounded-full font-bold hover:bg-[#1eb856] disabled:opacity-50 disabled:cursor-not-allowed text-sm">💬 واتساب للزبون - فاتورة الكترونية</button>
+            <button onClick={()=>window.print()} className="bg-black text-white px-6 py-2 rounded-full font-bold hover:bg-gray-800">🖨 طباعة الفاتورة / PDF</button>
+          </div>
         </div>
 
         <div id="invoice-print">
@@ -144,8 +170,10 @@ export default function OrderDetailPage() {
                 <p className="text-gray-500 text-sm mt-1">التاريخ: {formatDate(order['Request Date'] || order['Cerated Date'])}</p>
                 <p className="text- text-gray-400 mt-1">#{order['Request ID']}</p>
               </div>
-              <div className="text-right">
-                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center font-black">MD</div>
+              {/* اللوغو الرسمي - بدال MD */}
+              <div className="text-right shrink-0">
+                <img src="/logo.png" alt="MD Marketplace" className="w-16 h-16 object-contain ml-auto" />
+                <div className="text- text-gray-500 text-center mt-1">MD Marketplace</div>
               </div>
             </div>
 
@@ -206,7 +234,7 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="hidden print:block mt-10 text-center text-xs text-gray-500 border-t pt-4">
-            MD Marketplace - كشف حساب رقمي - {new Date().toLocaleString('ar-EG')}
+            MD Marketplace - فاتورة الكترونية - {new Date().toLocaleString('ar-LB')}
           </div>
         </div>
       </div>
