@@ -36,39 +36,44 @@ export default function TowerDashboardPage() {
     try {
       const res = await fetch("/api/admin/me");
       const data = await res.json();
-      console.log("ME:", data);
-      setDebugMe(JSON.stringify(data).slice(0, 800));
+console.log("ME:", data);
+setDebugMe(JSON.stringify(data).slice(0, 800));
 
-      if (!data?.user) {
-        setErrorMsg("api/admin/me ما رجع user - اللي رجع: " + JSON.stringify(data).slice(0, 500));
-        setLoading(false);
-        return;
-      }
-      if (data.user.role !== "Assistant Admin") {
-        window.location.href = "/admin/dashboard";
-        return;
-      }
-      setMe(data.user);
+// هون - بنظبط شكل الـ user - سواء اجا مسطح او جواة user
+const user = data?.user || data;
+const userId = user?.id || user?.userId || user?.relatedId || null;
+const userRole = user?.role || null;
+
+if (!user || !userId) {
+  setErrorMsg("api/admin/me ما رجع user - اللي رجع: " + JSON.stringify(data).slice(0, 500));
+  setLoading(false);
+  return;
+}
+if (userRole !== "Assistant Admin") {
+  window.location.href = "/admin/dashboard";
+  return;
+}
+setMe({ ...user, id: userId, name: user?.name || "", role: userRole });
 
       // 1 - جيب برج المساعد
       const { data: mRows, error: mErr } = await supabase
         .from(TABLE_MANAGERS)
         .select("*")
-        .eq("manager_user_id", data.user.id)
+        .eq("manager_user_id", userId)
         .eq("is_active", true)
         .limit(1);
 
       if (mErr) {
-        console.log("MANAGER ERROR:", mErr, "USER ID:", data.user.id);
-        setErrorMsg("خطأ بجيب المسؤول: " + mErr.message + " - ID تبعك: " + data.user.id);
+        console.log("MANAGER ERROR:", mErr, "USER ID:", userId);
+setErrorMsg("خطأ بجيب المسؤول: " + mErr.message + " - ID تبعك: " + userId);
         setLoading(false);
         return;
       }
 
       const m = mRows?.[0];
       if (!m) {
-        console.log("NO MANAGER FOR USER:", data.user.id);
-        setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID تبعك: " + data.user.id + " - احكي الادارة تربطك على برج");
+        console.log("NO MANAGER FOR USER:", userId);
+setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID تبعك: " + userId + " - احكي الادارة تربطك على برج");
         setLoading(false);
         return;
       }
