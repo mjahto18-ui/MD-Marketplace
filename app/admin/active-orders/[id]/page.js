@@ -138,7 +138,7 @@ export default function OrderDetailPage() {
       return
     }
     const invoiceLink = `${window.location.origin}/invoice/${order['Request ID']}`
-    const text = `مرحبا ${customerName} ❤️\nفاتورتك من MD Marketplace - #${String(order['Request ID']).slice(0,8)}\nالاجمالي: ${totalAmount} ل.ل\nشوف فاتورتك هون:\n${invoiceLink}`
+    const text = `مرحبا ${customerName} ❤️\nفاتورتك من MD Marketplace - #${String(order['Request ID']).slice(0,8)}\nالاجمالي: ${totalAmount} ل.ل\nتفاصيل فاتورتك الالكترونية:\n${invoiceLink}`
     window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, '_blank')
   }
 
@@ -205,7 +205,7 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow border print:shadow-none print:border">
-            <h2 className="font-bold mb-4">تفاصيل البضاعة ({details.length}) - بالاسم بدال الرمز</h2>
+            <h2 className="font-bold mb-4">تفاصيل البضاعة ({details.length}) - مع اسم المتجر</h2>
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr className="text-gray-500 text-xs">
