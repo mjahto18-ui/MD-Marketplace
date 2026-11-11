@@ -165,6 +165,11 @@ export default function InvoicePage() {
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">رسوم التوصيل</span><span className="font-bold">{deliveryFee} ل.ل</span></div>
               </div>
             </div>
+            {/* Note - دايماً - بالقسم الأول - سبيسيال و عادي - للزبون - برا الـ grid */}
+<div className="mt-4 bg-yellow-50 border border-yellow-200 p-3 rounded-xl">
+  <div className="font-bold text-yellow-700 text-sm mb-1">📝 ملاحظة - Note:</div>
+  <div className="text-sm text-gray-800 leading-relaxed">{order['Note'] || 'لا يوجد ملاحظات'}</div>
+</div>
             <div className="flex justify-between items-center mt-4 bg-gray-50 p-3 rounded-xl print:bg-gray-100">
               <span className="font-bold">الاجمالي النهائي (بضاعة + توصيل)</span>
               <span className="font-black text-lg">{totalAmount} ل.ل</span>
