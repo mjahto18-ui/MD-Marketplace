@@ -154,7 +154,7 @@ export default function OrderDetailPage() {
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">الزبون</span><span className="font-bold">{customerName}</span></div>
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">المنطقة</span><span className="font-medium">{areaName}</span></div>
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">العنوان</span><span className="font-medium truncate max-w-">{order['Delivery Adress']}</span></div>
-                <div className="flex justify-between border-b py-2"><span className="text-gray-500">الجوال</span><span className="font-medium">{customerMobile}</span></div>
+                <div className="flex justify-between border-b py-2"><span className="text-gray-500">هاتف</span><span className="font-medium">{customerMobile}</span></div>
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">السائق</span><span className="font-bold text-blue-600">{driverName}</span></div>
               </div>
               <div className="space-y-3">
@@ -179,7 +179,7 @@ export default function OrderDetailPage() {
                   <th className="p-3 text-right">اسم المنتج</th>
                   <th className="p-3 text-right">المتجر</th>
                   <th className="p-3 text-center">الكمية</th>
-                  <th className="p-3 text-center">سعر الوحدة</th>
+                  <th className="p-3 text-center">سعر القطعة</th>
                   <th className="p-3 text-left">الاجمالي</th>
                 </tr>
               </thead>
@@ -206,7 +206,7 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="hidden print:block mt-10 text-center text-xs text-gray-500 border-t pt-4">
-            MD Marketplace - كشف حساب نظامي - {new Date().toLocaleString('ar-EG')}
+            MD Marketplace - كشف حساب رقمي - {new Date().toLocaleString('ar-EG')}
           </div>
         </div>
       </div>
