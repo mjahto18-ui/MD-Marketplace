@@ -31,128 +31,81 @@ export default function TowerDashboardPage() {
   const [selectedDriver, setSelectedDriver] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [debugMe, setDebugMe] = useState("");
+  const [openBox, setOpenBox] = useState("");
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/me");
       const data = await res.json();
-console.log("ME:", data);
-setDebugMe(JSON.stringify(data).slice(0, 800));
-
-// هون - بنظبط شكل الـ user - سواء اجا مسطح او جواة user
-const user = data?.user || data;
-const userId = user?.id || user?.userId || user?.relatedId || null;
-const userRole = user?.role || null;
-
-if (!user || !userId) {
-  setErrorMsg("api/admin/me ما رجع user - اللي رجع: " + JSON.stringify(data).slice(0, 500));
-  setLoading(false);
-  return;
-}
-if (userRole !== "Assistant Admin") {
-  window.location.href = "/admin/dashboard";
-  return;
-}
-setMe({ ...user, id: userId, name: user?.name || "", role: userRole });
-
-      // 1 - جيب برج المساعد
-      const { data: mRows, error: mErr } = await supabase
-        .from(TABLE_MANAGERS)
-        .select("*")
-        .eq("manager_user_id", userId)
-        .eq("is_active", true)
-        .limit(1);
-
-      if (mErr) {
-        console.log("MANAGER ERROR:", mErr, "USER ID:", userId);
-setErrorMsg("خطأ بجيب المسؤول: " + mErr.message + " - ID تبعك: " + userId);
+      setDebugMe(JSON.stringify(data).slice(0, 800));
+      const user = data?.user || data;
+      const userId = user?.id || user?.userId || user?.relatedId || null;
+      const userRole = user?.role || null;
+      if (!user || !userId) {
+        setErrorMsg("api/admin/me ما رجع user - اللي رجع: " + JSON.stringify(data).slice(0, 500));
         setLoading(false);
         return;
       }
+      if (userRole !== "Assistant Admin") {
+        window.location.href = "/admin/dashboard";
+        return;
+      }
+      setMe({ ...user, id: userId, name: user?.name || "", role: userRole });
 
+      const { data: mRows, error: mErr } = await supabase
+        .from(TABLE_MANAGERS).select("*")
+        .eq("manager_user_id", userId).eq("is_active", true).limit(1);
+      if (mErr) {
+        setErrorMsg("خطأ بجيب المسؤول: " + mErr.message + " - ID تبعك: " + userId);
+        setLoading(false); return;
+      }
       const m = mRows?.[0];
       if (!m) {
-        console.log("NO MANAGER FOR USER:", userId);
-setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID تبعك: " + userId + " - احكي الادارة تربطك على برج");
-        setLoading(false);
-        return;
+        setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID تبعك: " + userId);
+        setLoading(false); return;
       }
       setManager(m);
-
       const towerId = m[COL_TOWER_ID];
       if (!towerId) {
-        console.log("MANAGER WITHOUT TOWER:", m);
-        setErrorMsg("لقيت مسؤول بس معرف البرج فاضي - احكي الادارة");
-        setLoading(false);
-        return;
+        setErrorMsg("لقيت مسؤول بس معرف البرج فاضي");
+        setLoading(false); return;
       }
-
-      // 2 - جيب بيانات البرج
-      const { data: cRows } = await supabase
-        .from(TABLE_CENTERS)
-        .select("*")
-        .eq(COL_CENTER_ID, towerId)
-        .limit(1);
-
+      const { data: cRows } = await supabase.from(TABLE_CENTERS).select("*").eq(COL_CENTER_ID, towerId).limit(1);
       if (!cRows?.[0]) {
-        setErrorMsg("لقيت مسؤول و معرف برج: " + towerId + " - بس هيدا البرج مش موجود بجدول الابراج");
-        setLoading(false);
-        return;
+        setErrorMsg("لقيت مسؤول و معرف برج: " + towerId + " - بس هيدا البرج مش موجود");
+        setLoading(false); return;
       }
       setTower(cRows[0]);
 
-      // 3 - جيب الاوردرات تبع هيدا البرج بس
-      const { data: oRows } = await supabase
-        .from("order_requuest")
-        .select("*")
-        .eq(COL_TOWER_ID, towerId)
-        .order("Cerated Date", { ascending: false })
-        .limit(200);
+      const { data: oRows } = await supabase.from("order_requuest").select("*").eq(COL_TOWER_ID, towerId).order("Cerated Date", { ascending: false }).limit(200);
       setOrders(oRows || []);
-
-      const { data: tRows } = await supabase
-        .from("taxi_orders")
-        .select("*")
-        .eq(COL_TOWER_ID, towerId)
-        .order("created_at", { ascending: false })
-        .limit(200);
+      const { data: tRows } = await supabase.from("taxi_orders").select("*").eq(COL_TOWER_ID, towerId).order("created_at", { ascending: false }).limit(200);
       setTaxiOrders(tRows || []);
-
-      const { data: sRows } = await supabase
-        .from("special_orders")
-        .select("*")
-        .eq(COL_TOWER_ID, towerId)
-        .order("Cerated Date", { ascending: false })
-        .limit(200);
+      const { data: sRows } = await supabase.from("special_orders").select("*").eq(COL_TOWER_ID, towerId).order("Cerated Date", { ascending: false }).limit(200);
       setSpecials(sRows || []);
 
-      // 4 - خرايط الاسماء
       const custIds = [...new Set((oRows || []).map(x => x["customer ID"]).filter(Boolean))];
       if (custIds.length) {
         const { data: c } = await supabase.from("customers").select("*").in("Customer ID", custIds);
         const map = {};
         (c || []).forEach(x => map[x["Customer ID"]] = x);
         setCustomersMap(map);
-      }
+      } else { setCustomersMap({}); }
 
       const { data: dRows } = await supabase.from("drivers").select("*").eq("Status", "Active").limit(200);
       setDrivers(dRows || []);
       const dMap = {};
       (dRows || []).forEach(x => dMap[x["Driver ID"]] = x);
       setDriversMap(dMap);
-
       const { data: tdRows } = await supabase.from("taxi_drivers").select("*").eq("status", "active").limit(200);
       setTaxiDrivers(tdRows || []);
-
       const { data: stRows } = await supabase.from("stores").select("*").eq("Status", "Active").limit(200);
       setStores(stRows || []);
       const sMap = {};
       (stRows || []).forEach(x => sMap[x["Store ID"]] = x);
       setStoresMap(sMap);
-
       setLoading(false);
     } catch (e) {
-      console.log("LOAD ERROR:", e);
       setErrorMsg("خطأ بالتحميل: " + e.message);
       setLoading(false);
     }
@@ -160,7 +113,6 @@ setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID ت
 
   useEffect(() => { load(); }, [load]);
 
-  // لايف - بلا كاش
   useEffect(() => {
     if (!tower) return;
     const ch = supabase.channel("tower-live")
@@ -176,14 +128,9 @@ setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID ت
     await supabase.from("order_requuest").update({ "Approval Status": "Approved" }).eq("Request ID", id);
     load();
   };
-
   const assignDriver = async (orderId, driverId) => {
     if (!driverId) return;
-    await supabase.from("order_requuest").update({
-      "Assigned Driver": driverId,
-      "Approval Status": "Approved",
-      "Delivery Status": "Assigned"
-    }).eq("Request ID", orderId);
+    await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Assigned" }).eq("Request ID", orderId);
     load();
   };
 
@@ -194,13 +141,11 @@ setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID ت
       <div style={{ color: "#aaa", marginTop: 8, fontSize: 12, wordBreak: "break-all" }}>ME: {debugMe}</div>
     </div>
   );
-
   if (!tower) return (
     <div style={{ padding: 20, color: "#fff", background: "#0F0F0F", minHeight: "100vh" }}>
       <div style={{ fontSize: 18, fontWeight: 800 }}>ما عندك برج مربوط</div>
       <div style={{ color: "#FFD700", marginTop: 10 }}>{errorMsg || "احكي الادارة"}</div>
       <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>ID تبعك: {me?.id || "-"}</div>
-      <div style={{ color: "#aaa", fontSize: 12, marginTop: 4, wordBreak: "break-all" }}>ME: {debugMe}</div>
     </div>
   );
 
@@ -211,14 +156,30 @@ setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID ت
   const activeTaxi = taxiOrders.filter(o => ["accepted", "on_the_way", "arrived"].includes(o.status));
   const pendingSpecial = specials.filter(o => o["Status"] === "Pending");
 
-  const Card = ({ title, value, sub, color = "#FFD700", href }) => (
-    <Link href={href || "#"} style={{ textDecoration: "none" }}>
-      <div style={{ background: "#1A1A1A", border: `1px solid ${color}33`, borderRadius: 20, padding: 18, minHeight: 130 }}>
-        <div style={{ color: "#999", fontSize: 13 }}>{title}</div>
-        <div style={{ color: "#fff", fontSize: 38, fontWeight: 800, lineHeight: 1.1 }}>{value}</div>
-        <div style={{ color, fontSize: 12, marginTop: 6 }}>{sub}</div>
-      </div>
-    </Link>
+  const boxTitles = {
+    pendingOrders: "اوردرات بندينغ - تفاصيل",
+    pendingTaxi: "تاكسي بندينغ - تفاصيل",
+    pendingSpecial: "طلبات خاصة بندينغ - تفاصيل",
+    activeOrders: "اوردرات نشطة - تفاصيل",
+    activeTaxi: "تاكسي نشط - تفاصيل",
+    completed: "اوردرات مكتملة - تفاصيل",
+    drivers: "سائقين توصيل - تفاصيل",
+    taxiDrivers: "سائقين تاكسي - تفاصيل",
+    stores: "متاجر نشطة - تفاصيل",
+    customers: "عملاء هيدا البرج - تفاصيل",
+  };
+
+  const Card = ({ title, value, sub, color = "#FFD700", box }) => (
+    <div onClick={() => setOpenBox(openBox === box ? "" : box)}
+      style={{ background: "#1A1A1A", border: `1px solid ${color}33`, borderRadius: 20, padding: 18, minHeight: 130, cursor: "pointer" }}>
+      <div style={{ color: "#999", fontSize: 13 }}>{title}</div>
+      <div style={{ color: "#fff", fontSize: 38, fontWeight: 800, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ color, fontSize: 12, marginTop: 6 }}>{sub} - كبس لتشوف التفاصيل ↓</div>
+    </div>
+  );
+
+  const Row = ({ children }) => (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "10px 0", borderBottom: "1px solid #222", flexWrap: "wrap" }}>{children}</div>
   );
 
   return (
@@ -239,16 +200,71 @@ setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID ت
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
-        <Card title="اوردرات بندينغ" value={pendingOrders.length} sub="بدا قبول و تعيين" color="#FFD700" />
-        <Card title="تاكسي بندينغ" value={pendingTaxi.length} sub="بانتظار سائق" color="#00BFFF" />
-        <Card title="طلبات خاصة بندينغ" value={pendingSpecial.length} sub="بدا تسعير" color="#FF8C00" />
-        <Card title="اوردرات نشطة" value={activeOrders.length} sub="قيد التوصيل" color="#7CFC00" />
-        <Card title="تاكسي نشط" value={activeTaxi.length} sub="على الطريق" color="#00FA9A" />
-        <Card title="اوردرات مكتملة" value={completedToday.length} sub="هيدا البرج" color="#aaa" />
-        <Card title="سائقين توصيل" value={drivers.length} sub="Active" color="#FFD700" />
-        <Card title="سائقين تاكسي" value={taxiDrivers.length} sub="Active" color="#00BFFF" />
-        <Card title="متاجر نشطة" value={stores.length} sub="Active" color="#FF69B4" />
+        <Card title="اوردرات بندينغ" value={pendingOrders.length} sub="بدا قبول و تعيين" color="#FFD700" box="pendingOrders" />
+        <Card title="تاكسي بندينغ" value={pendingTaxi.length} sub="بانتظار سائق" color="#00BFFF" box="pendingTaxi" />
+        <Card title="طلبات خاصة بندينغ" value={pendingSpecial.length} sub="بدا تسعير" color="#FF8C00" box="pendingSpecial" />
+        <Card title="اوردرات نشطة" value={activeOrders.length} sub="قيد التوصيل" color="#7CFC00" box="activeOrders" />
+        <Card title="تاكسي نشط" value={activeTaxi.length} sub="على الطريق" color="#00FA9A" box="activeTaxi" />
+        <Card title="اوردرات مكتملة" value={completedToday.length} sub="هيدا البرج" color="#aaa" box="completed" />
+        <Card title="سائقين توصيل" value={drivers.length} sub="Active" color="#FFD700" box="drivers" />
+        <Card title="سائقين تاكسي" value={taxiDrivers.length} sub="Active" color="#00BFFF" box="taxiDrivers" />
+        <Card title="متاجر نشطة" value={stores.length} sub="Active" color="#FF69B4" box="stores" />
+        <Card title="عملاء هيدا البرج" value={Object.keys(customersMap).length} sub="اللي طلبو من برجك" color="#FFD700" box="customers" />
       </div>
+
+      {openBox !== "" && (
+        <div style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, marginBottom: 16, border: "1px solid #FFD70033" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <b style={{ fontSize: 17 }}>{boxTitles[openBox]}</b>
+            <button onClick={() => setOpenBox("")} style={{ background: "#222", color: "#fff", border: 0, padding: "6px 14px", borderRadius: 999, cursor: "pointer" }}>سكر ✕</button>
+          </div>
+
+          {openBox === "stores" && stores.map(s => (
+            <Row key={s["Store ID"]}><span>🏪 {s["Store Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{s["Category"] || ""} - {s["Area"]} - {s["Mobile"]} - {s["Adress"]}</span></Row>
+          ))}
+          {openBox === "drivers" && drivers.map(d => (
+            <Row key={d["Driver ID"]}><span>🛵 {d["Driver Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{d["Status"]} - {d["VehicleTyp"]} - {d["Area"]} - {d["Mobile"]}</span></Row>
+          ))}
+          {openBox === "taxiDrivers" && taxiDrivers.map(d => (
+            <Row key={d["Taxi_ID"]}><span>🚕 {d.full_name}</span><span style={{ color: "#aaa", fontSize: 12 }}>{d.status} - {d.vehicle_type} - {d.plate_number} - {d.phone}</span></Row>
+          ))}
+          {openBox === "customers" && Object.values(customersMap).map(c => (
+            <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{c["Area"]} - {c["Mobile"]} - {c["Adress"]}</span></Row>
+          ))}
+          {openBox === "customers" && Object.keys(customersMap).length === 0 && <div style={{ color: "#aaa" }}>بعد ما في عملاء طلبو من هيدا البرج - بس يفوت اول اوردر - رح يبين هون</div>}
+
+          {(openBox === "pendingOrders" || openBox === "activeOrders" || openBox === "completed") && (openBox === "pendingOrders" ? pendingOrders : openBox === "activeOrders" ? activeOrders : completedToday).map(o => {
+            const cust = customersMap[o["customer ID"]];
+            const drv = driversMap[o["Assigned Driver"]];
+            return (
+              <div key={o["Request ID"]} style={{ borderBottom: "1px solid #222", padding: "12px 0" }}>
+                <Row><span><b>{cust?.["Name"] || "زبون"}</b> - {o["Request ID"]?.slice(0, 8)}</span><span style={{ color: "#FFD700" }}>{o["Total Amount"] || 0} ل.ل - {o["Approval Status"]}</span></Row>
+                <div style={{ color: "#aaa", fontSize: 12 }}>{o["Area"]} - {o["Delivery Adress"]} - السائق: {drv?.["Driver Name"] || o["Assigned Driver"] || "-"}</div>
+                <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 8, fontSize: 13 }}><b>ملاحظة: </b>{o["Note"] || "لا يوجد ملاحظات"}</div>
+                <Link href={`/admin/active-orders/${o["Request ID"]}`} style={{ color: "#FFD700", fontSize: 13 }}>فتح تفاصيل الاوردر →</Link>
+              </div>
+            );
+          })}
+
+          {openBox === "pendingTaxi" && pendingTaxi.map(t => (
+            <div key={t.id} style={{ borderBottom: "1px solid #222", padding: "12px 0" }}>
+              <Row><span><b>{t.customer_name}</b> - {t.phone || t.customer_phone}</span><span style={{ color: "#00BFFF" }}>{t.total_amount || 0} ل.ل</span></Row>
+              <div style={{ color: "#aaa", fontSize: 12 }}>{t.origin_name} ← {t.dest_name}</div>
+              <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 8, fontSize: 13 }}><b>ملاحظة: </b>{t.customer_notes || "لا يوجد ملاحظات"}</div>
+            </div>
+          ))}
+          {openBox === "activeTaxi" && activeTaxi.map(t => (
+            <Row key={t.id}><span>🚕 {t.customer_name} - {t.origin_name} ← {t.dest_name}</span><span style={{ color: "#aaa", fontSize: 12 }}>{t.status} - {t.taxi_name || "-"}</span></Row>
+          ))}
+          {openBox === "pendingSpecial" && pendingSpecial.map(s => (
+            <div key={s["Request ID"]} style={{ borderBottom: "1px solid #222", padding: "12px 0" }}>
+              <Row><span><b>{s["Customer Name"]}</b></span><span style={{ color: "#aaa", fontSize: 12 }}>{s["Store Hint"] || ""} - كمية: {s["Quantity"]}</span></Row>
+              <div style={{ marginTop: 4 }}>{s["الطلب"]}</div>
+              <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 8, fontSize: 13 }}><b>ملاحظة: </b>{s["ملاحظات عامة"] || "لا يوجد ملاحظات"}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <h2 style={{ fontSize: 18, margin: "18px 0 10px" }}>اوردرات بندينغ - {pendingOrders.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
@@ -269,11 +285,8 @@ setErrorMsg("ما لقيت مسؤول مربوط بهيدا الحساب - ID ت
                 <Link href={`/admin/active-orders/${o["Request ID"]}`} style={{ flex: 1, textAlign: "center", background: "#222", color: "#fff", padding: 10, borderRadius: 12, textDecoration: "none" }}>تفاصيل</Link>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <select
-                  value={selectedDriver[o["Request ID"]] || ""}
-                  onChange={e => setSelectedDriver(p => ({ ...p, [o["Request ID"]]: e.target.value }))}
-                  style={{ flex: 1, background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9 }}
-                >
+                <select value={selectedDriver[o["Request ID"]] || ""} onChange={e => setSelectedDriver(p => ({ ...p, [o["Request ID"]]: e.target.value }))}
+                  style={{ flex: 1, background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9 }}>
                   <option value="">اختر سائق - من هيدا البرج</option>
                   {drivers.map(d => <option key={d["Driver ID"]} value={d["Driver ID"]}>{d["Driver Name"]} - {d["Status"]}</option>)}
                 </select>
