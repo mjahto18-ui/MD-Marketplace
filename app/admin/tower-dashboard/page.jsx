@@ -139,8 +139,8 @@ function distKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-const towerLat = Number(cRows[0].lat || cRows[0].latitude || 0);
-const towerLng = Number(cRows[0].lng || cRows[0].longitude || 0);
+const towerLat = Number(cRows[0].center_lat || 0);
+const towerLng = Number(cRows[0].center_lng || 0);
 const filtered = (allCust || []).filter(c => {
   const co = getCoords(c);
   if (!co || !towerLat || !towerLng) return false;
