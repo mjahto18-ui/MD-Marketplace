@@ -375,7 +375,12 @@ export default function DriverDashboard(){
                 </div>
               </div>
               {isPending? (
+                <>
                 <div style={{marginTop:8, fontSize:12, color:'rgba(255,255,255,0.7)'}}>السعر: {formatLBP(r['Total Amount'])} - {prods.length} منتج - مخفي حتى القبول</div>
+               <div style={{background:'#FFF3B0', color:'#000', borderRadius:8, padding:10, marginTop:8, fontSize:13}}>
+                <b>ملاحظة الزبون: </b>{r['Note'] || 'لا يوجد ملاحظات'}
+               </div>
+                </>
               ) : (
                 <>
                   <div style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:10, padding:10, marginTop:10, width:'100%', boxSizing:'border-box'}}>
@@ -410,6 +415,9 @@ export default function DriverDashboard(){
                   <div style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:10, padding:10, marginTop:8, width:'100%', boxSizing:'border-box'}}>
                     <div style={{fontWeight:900, fontSize:11, opacity:0.5, color:'white'}}>🏠 قسم الزبون</div>
                     <div style={{fontSize:13, marginTop:4, color:'white', wordBreak:'break-word'}}>{r['Delivery Adress'] || '-'}</div>
+                      <div style={{background:'#FFF3B0', color:'#000', borderRadius:8, padding:10, marginTop:8, fontSize:13}}>
+                       <b>ملاحظة الزبون: </b>{r['Note'] || 'لا يوجد ملاحظات'}
+                     </div>
                     <div style={{display:'flex', gap:6, marginTop:8, alignItems:'center', flexWrap:'wrap'}}>
                       <div style={{fontSize:12, background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.2)', padding:'8px', borderRadius:6, flex:1, color:'white', minWidth:0, wordBreak:'break-all'}}>📞 {customerPhone}</div>
                       <a href={waLink} target="_blank" style={{background:'#25D366', color:'white', padding:'8px 12px', borderRadius:6, textDecoration:'none', fontWeight:900, fontSize:12, flexShrink:0}}>واتساب</a>
