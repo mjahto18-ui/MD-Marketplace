@@ -167,6 +167,11 @@ setTowerCustomers(filtered);
     return () => { supabase.removeChannel(ch); clearInterval(iv); };
   }, [tower, load]);
 
+  const logout = async () => {
+  await fetch('/api/admin/logout', {method:'POST', credentials:'include'});
+  window.location.href = '/admin/login';
+};
+
   const acceptOrder = async (id) => {
     await supabase.from("order_requuest").update({ "Approval Status": "Approved" }).eq("Request ID", id);
     load();
@@ -232,13 +237,14 @@ setTowerCustomers(filtered);
         <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <div>
             <div style={{ fontSize: 24, fontWeight: 800 }}>{tower.name} - برج {manager?.manager_name || me?.name}</div>
-            <div style={{ color: "#aaa", fontSize: 13 }}>الخدمة: {manager?.assigned_service || "كل الخدمات"} - لايف - بلا كاش</div>
+            <div style={{ color: "#aaa", fontSize: 13 }}>الخدمة: {manager?.assigned_service || "كل الخدمات"} - مباشر - دون كاش</div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <span style={{ background: "#222", padding: "6px 12px", borderRadius: 999 }}>كارت: {tower.radius_cart} كم</span>
             <span style={{ background: "#222", padding: "6px 12px", borderRadius: 999 }}>تاكسي: {tower.radius_taxi} كم</span>
             <span style={{ background: "#222", padding: "6px 12px", borderRadius: 999 }}>بوت: {tower.radius_bot} كم</span>
-            <span style={{ background: "#1a3a1a", color: "#7CFC00", padding: "6px 12px", borderRadius: 999 }}>● لايف</span>
+            <span style={{ background: "#1a3a1a", color: "#7CFC00", padding: "6px 12px", borderRadius: 999 }}>● مباشر</span>
+            <button onClick={logout} style={{ background: "#ef4444", color: "#fff", border: 0, padding: "6px 14px", borderRadius: 999, fontWeight: 800, cursor: "pointer" }}>خروج ⏻</button>
           </div>
         </div>
       </div>
