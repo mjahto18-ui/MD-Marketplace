@@ -32,6 +32,9 @@ export default function TowerDashboardPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [debugMe, setDebugMe] = useState("");
   const [openBox, setOpenBox] = useState("");
+  const [towerCustomers, setTowerCustomers] = useState([]);
+  const [areasMap, setAreasMap] = useState({});
+  const [categoriesMap, setCategoriesMap] = useState({});
 
   const load = useCallback(async () => {
     try {
@@ -44,6 +47,7 @@ export default function TowerDashboardPage() {
       if (!user || !userId) {
         setErrorMsg("api/admin/me ما رجع user - اللي رجع: " + JSON.stringify(data).slice(0, 500));
         setLoading(false);
+        
         return;
       }
       if (userRole !== "Assistant Admin") {
@@ -104,6 +108,45 @@ export default function TowerDashboardPage() {
       const sMap = {};
       (stRows || []).forEach(x => sMap[x["Store ID"]] = x);
       setStoresMap(sMap);
+      // areas + categories - كرمال يطلع اسم مش كود
+const { data: arRows } = await supabase.from("areas").select("*").limit(500);
+const aMap = {};
+(arRows || []).forEach(x => aMap[x["Area ID"]] = x);
+setAreasMap(aMap);
+
+const { data: catRows } = await supabase.from("categories").select("*").limit(500);
+const cMap = {};
+(catRows || []).forEach(x => cMap[x["Category ID"]] = x);
+setCategoriesMap(cMap);
+
+// عملاء البرج - من الاحداثيات الصح
+const { data: allCust } = await supabase.from("customers").select("*").limit(1000);
+
+function getCoords(c) {
+  const uLat = Number(c["Current Latitude"] || 0);
+  const uLng = Number(c["Current Longtitude"] || 0);
+  if (uLat !== 0 && uLng !== 0) return { lat: uLat, lng: uLng };
+  const rLat = Number(c["Registration Latitude"] || 0);
+  const rLng = Number(c["Registration Longitude"] || 0);
+  if (rLat !== 0 && rLng !== 0) return { lat: rLat, lng: rLng };
+  return null;
+}
+function distKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+const towerLat = Number(cRows[0].lat || cRows[0].latitude || 0);
+const towerLng = Number(cRows[0].lng || cRows[0].longitude || 0);
+const filtered = (allCust || []).filter(c => {
+  const co = getCoords(c);
+  if (!co || !towerLat || !towerLng) return false;
+  return distKm(co.lat, co.lng, towerLat, towerLng) <= Number(cRows[0].radius_cart || 0);
+});
+setTowerCustomers(filtered);
       setLoading(false);
     } catch (e) {
       setErrorMsg("خطأ بالتحميل: " + e.message);
@@ -166,7 +209,8 @@ export default function TowerDashboardPage() {
     drivers: "سائقين توصيل - تفاصيل",
     taxiDrivers: "سائقين تاكسي - تفاصيل",
     stores: "متاجر نشطة - تفاصيل",
-    customers: "عملاء هيدا البرج - تفاصيل",
+    customers: "عملاء نشطين - تفاصيل",
+    towerCustomers: "عملاء البرج - تفاصيل",
   };
 
   const Card = ({ title, value, sub, color = "#FFD700", box }) => (
@@ -209,7 +253,8 @@ export default function TowerDashboardPage() {
         <Card title="سائقين توصيل" value={drivers.length} sub="Active" color="#FFD700" box="drivers" />
         <Card title="سائقين تاكسي" value={taxiDrivers.length} sub="Active" color="#00BFFF" box="taxiDrivers" />
         <Card title="متاجر نشطة" value={stores.length} sub="Active" color="#FF69B4" box="stores" />
-        <Card title="عملاء هيدا البرج" value={Object.keys(customersMap).length} sub="اللي طلبو من برجك" color="#FFD700" box="customers" />
+        <Card title="عملاء نشطين" value={Object.keys(customersMap).length} sub="اللي طلبو من برجك" color="#FFD700" box="customers" />
+        <Card title="عملاء البرج" value={towerCustomers.length} sub="ساكنين بمنطقة برجك" color="#00FA9A" box="towerCustomers" />
       </div>
 
       {openBox !== "" && (
@@ -220,7 +265,7 @@ export default function TowerDashboardPage() {
           </div>
 
           {openBox === "stores" && stores.map(s => (
-            <Row key={s["Store ID"]}><span>🏪 {s["Store Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{s["Category"] || ""} - {s["Area"]} - {s["Mobile"]} - {s["Adress"]}</span></Row>
+          <Row key={s["Store ID"]}><span>🏪 {s["Store Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{categoriesMap[s["Category"]]?.["Category Name"] || s["Category"] || ""} - {areasMap[s["Area"]]?.["Area Name"] || s["Area"]} - {s["Mobile"]} - {s["Adress"]}</span></Row>
           ))}
           {openBox === "drivers" && drivers.map(d => (
             <Row key={d["Driver ID"]}><span>🛵 {d["Driver Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{d["Status"]} - {d["VehicleTyp"]} - {d["Area"]} - {d["Mobile"]}</span></Row>
@@ -232,6 +277,11 @@ export default function TowerDashboardPage() {
             <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{c["Area"]} - {c["Mobile"]} - {c["Adress"]}</span></Row>
           ))}
           {openBox === "customers" && Object.keys(customersMap).length === 0 && <div style={{ color: "#aaa" }}>بعد ما في عملاء طلبو من هيدا البرج - بس يفوت اول اوردر - رح يبين هون</div>}
+
+          {openBox === "towerCustomers" && towerCustomers.map(c => (
+         <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{areasMap[c["Area"]]?.["Area Name"] || c["Area"]} - {c["Mobile"]} - {c["Adress"]}</span></Row>
+         ))}
+         {openBox === "towerCustomers" && towerCustomers.length === 0 && <div style={{ color: "#aaa" }}>ما في عملاء عندن احداثيات بمنطقة البرج</div>}
 
           {(openBox === "pendingOrders" || openBox === "activeOrders" || openBox === "completed") && (openBox === "pendingOrders" ? pendingOrders : openBox === "activeOrders" ? activeOrders : completedToday).map(o => {
             const cust = customersMap[o["customer ID"]];
@@ -246,7 +296,7 @@ export default function TowerDashboardPage() {
             );
           })}
 
-          {openBox === "pendingTaxi" && pendingTaxi.map(t => (
+            {openBox === "pendingTaxi" && pendingTaxi.map(t => (
             <div key={t.id} style={{ borderBottom: "1px solid #222", padding: "12px 0" }}>
               <Row><span><b>{t.customer_name}</b> - {t.phone || t.customer_phone}</span><span style={{ color: "#00BFFF" }}>{t.total_amount || 0} ل.ل</span></Row>
               <div style={{ color: "#aaa", fontSize: 12 }}>{t.origin_name} ← {t.dest_name}</div>
