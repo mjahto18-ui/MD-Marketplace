@@ -306,6 +306,25 @@ const handleFastDelivery = () => {
           )}
         </div>
 
+                {/* === بوكس العروض - منفرد - فوق الاقسام === */}
+        <Link href="/product-offers" className="block rounded-3xl p-5 mb-8 relative overflow-hidden active:scale-[0.98] transition-all" style={{ background: 'linear-gradient(135deg, #ef4444 0%, #f97316 50%, #FFD700 100%)', boxShadow: '0 10px 30px rgba(239,68,68,0.4)' }}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-lg shrink-0">🔥</div>
+              <div>
+                <h3 className="text-white font-black text-xl md:text-2xl leading-tight">العروض - خصومات اليوم</h3>
+                <p className="text-white/90 text-xs md:text-sm font-bold mt-1">كل المنتجات اللتي عليها عروض و خصومات - من كل المتاجر - </p>
+              </div>
+            </div>
+            <div className="shrink-0 flex flex-col items-center gap-1">
+              <span className="bg-white text-red-600 font-black text-xs md:text-sm px-4 py-2 rounded-full shadow-lg">شاهد العروض ←</span>
+              <span className="bg-black/30 text-white text- font-bold px-3 py-1 rounded-full">وفر اليوم</span>
+            </div>
+          </div>
+        </Link>
+
+        
+
         <h2 className="text-white font-bold text-lg mb-4">تصفح حسب القسم</h2>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-8">
           {categories.map((cat, index) => (
