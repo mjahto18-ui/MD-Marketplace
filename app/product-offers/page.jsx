@@ -96,14 +96,14 @@ export default function OffersPage() {
           <h1 style={{ fontSize: 26, fontWeight: 800 }}>🔥 العروض</h1>
           <span style={{ background: "#FFD700", color: "#000", padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 800 }}>{filtered.length} عرض</span>
         </div>
-        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginBottom: 16 }}>كل المنتجات اللي عليها عرض هلق - من كل المتاجر - اللي خلص وقتو بيختفي لحالو</p>
+        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginBottom: 16 }}>كل المنتجات اللتي عليها عروض حاليا - من كل المتاجر - </p>
 
         <div style={{ display: "flex", gap: 8, background: "rgba(255,255,255,0.08)", borderRadius: 14, padding: "10px 12px", marginBottom: 16, alignItems: "center" }}>
           <Search size={18} color="#aaa" />
-          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="دور على عرض او متجر..." style={{ flex: 1, background: "transparent", border: 0, outline: "none", color: "#fff", fontSize: 14 }} />
+          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="ابحث عن عرض او متجر..." style={{ flex: 1, background: "transparent", border: 0, outline: "none", color: "#fff", fontSize: 14 }} />
         </div>
 
-        {filtered.length === 0 && <div style={{ textAlign: "center", color: "#aaa", padding: 40 }}>ما في عروض هلق - جرب بعد شوي</div>}
+        {filtered.length === 0 && <div style={{ textAlign: "center", color: "#aaa", padding: 40 }}>لايوجد عروض حاليا - جرب لاحقا</div>}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
                     {filtered.map((p) => (
@@ -120,7 +120,7 @@ export default function OffersPage() {
                 </span>
                 {p.offerEnd && (
                   <span style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(0,0,0,0.75)", color: "#FFD700", fontSize: 11, fontWeight: 700, padding: "4px 9px", borderRadius: 999, zIndex: 2 }}>
-                    بيخلص بـ {formatDate(p.offerEnd)}
+                    ينتهي بـ {formatDate(p.offerEnd)}
                   </span>
                 )}
               </div>
