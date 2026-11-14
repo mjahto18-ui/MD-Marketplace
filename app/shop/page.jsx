@@ -70,7 +70,7 @@ const handleFastDelivery = () => {
   
   if (isMobile) {
     // تلفون - افتح التطبيق مباشرة
-    window.location.href = `whatsapp://send?phone=${clean}&text=${text}`;
+    window.location.href = `https://wa.me/${clean}&text=${text}`;
   } else {
     // لابتوب - افتح wa.me
     const waMe = `https://wa.me/${clean}?text=${text}`;
@@ -105,7 +105,7 @@ const handleFastDelivery = () => {
       }
     },
     () => openWhatsApp(FALLBACK, '', ''),
-    { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 }
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
   );
 };
   useEffect(() => {
