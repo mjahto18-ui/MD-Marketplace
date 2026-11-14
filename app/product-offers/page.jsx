@@ -106,8 +106,8 @@ export default function OffersPage() {
         {filtered.length === 0 && <div style={{ textAlign: "center", color: "#aaa", padding: 40 }}>ما في عروض هلق - جرب بعد شوي</div>}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
-          {filtered.map((p) => (
-            <div key={p.productID} style={{ background: "#1A1A1A", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 20, overflow: "hidden" }}>
+                    {filtered.map((p) => (
+            <div key={p.productID} onClick={() => router.push(`/product/${p.productID}`)} style={{ background: "#1A1A1A", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 20, overflow: "hidden", cursor: "pointer" }}>
               <div style={{ position: "relative", background: "#fff", height: 170 }}>
                 {p.images?.[0] || p.image ? (
                   <Image src={p.images?.[0] || p.image} alt={p.name} fill style={{ objectFit: "cover" }} unoptimized />
@@ -132,11 +132,11 @@ export default function OffersPage() {
                   {p.oldPrice > 0 && <span style={{ color: "#999", textDecoration: "line-through", fontSize: 13 }}>{Number(p.oldPrice).toLocaleString()} ل.ل</span>}
                   <span style={{ color: "#7CFC00", fontWeight: 800, fontSize: 18 }}>{Number(p.price).toLocaleString()} ل.ل</span>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => addToCart(p)} disabled={addingId === p.productID} style={{ flex: 1, background: "linear-gradient(to right,#a855f7,#ec4899)", border: 0, color: "#fff", padding: 10, borderRadius: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={(e) => { e.stopPropagation(); addToCart(p); }} disabled={addingId === p.productID} style={{ flex: 1, background: "linear-gradient(to right,#a855f7,#ec4899)", border: 0, color: "#fff", padding: 10, borderRadius: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                     <ShoppingCart size={16} /> {addingId === p.productID ? "..." : "اضف للسلة"}
                   </button>
-                  <Link href={`/store/${p.storeID}`} style={{ background: "#222", color: "#fff", padding: "10px 12px", borderRadius: 12, textDecoration: "none", fontSize: 13, display: "flex", alignItems: "center" }}>المتجر</Link>
+                                    <Link onClick={(e) => e.stopPropagation()} href={`/store/${p.storeID}`} style={{ background: "#222", color: "#fff", padding: "10px 12px", borderRadius: 12, textDecoration: "none", fontSize: 13, display: "flex", alignItems: "center" }}>المتجر</Link>
                 </div>
               </div>
             </div>
