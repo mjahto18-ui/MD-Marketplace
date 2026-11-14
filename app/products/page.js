@@ -72,6 +72,11 @@ export default function ProductsPage() {
   const [customerID, setCustomerID] = useState(null);
   const [isCustomer, setIsCustomer] = useState(false);
   const [globalCfg, setGlobalCfg] = useState(null);
+    // === دولار للعرض بس - قسمة من قلب الصفحة - على 90000 ===
+  const toDollar = (lbp) => {
+    const v = Number(lbp || 0) / 90000;
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+  };
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const firstLoad = useRef(true);
@@ -297,7 +302,7 @@ export default function ProductsPage() {
                 {product.description}
                 </p>
                 )}
-                <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p></div>
+                <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span> <span className="text-white/70 font-bold">≈ ${toDollar(product.price)}</span></p></div>
                 {isCustomer? (
                   <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
                     {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
