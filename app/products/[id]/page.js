@@ -19,6 +19,12 @@ export default function ProductDetailPage({ params }) {
   const [isCustomer, setIsCustomer] = useState(false);
   const [globalCfg, setGlobalCfg] = useState(null);
 
+    // === دولار للعرض بس - قسمة من قلب الصفحة - على 90000 ===
+  const toDollar = (lbp) => {
+    const v = Number(lbp || 0) / 90000;
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+  };
+  
   useEffect(() => {
     fetch('/api/global-config', { next: { revalidate: 10 } }).then(r=>r.json()).then(d=>setGlobalCfg(d)).catch(()=>{});
     fetch('/api/me', { credentials: 'include' }).then(r=>r.json()).then(d=>{
@@ -206,13 +212,14 @@ export default function ProductDetailPage({ params }) {
                   <>
                     <div className="flex items-center gap-3 flex-wrap">
                       <p className="text-3xl md:text-4xl font-bold text-green-400">{Number(product.price).toLocaleString()} <span className="text-lg font-normal">ل.ل</span></p>
+                      <span className="text-white/70 text-base font-bold">≈ ${toDollar(product.price)}</span>
                       <span className="bg-red-500 text-white text-xs font-black px-3 py-1 rounded-full">وفر {product.discountPercent}% 🔥</span>
                     </div>
                     <p className="text-gray-400 line-through text-lg mt-1">{Number(product.oldPrice).toLocaleString()} ل.ل</p>
-                    {product.offerEnd && <p className="text-yellow-300 text-xs font-bold mt-2">⏰ العرض بيخلص بـ {new Date(product.offerEnd).toLocaleDateString("ar-LB", { day: "numeric", month: "short", year: "numeric" })}</p>}
+                    {product.offerEnd && <p className="text-yellow-300 text-xs font-bold mt-2">⏰ العرض ينتهي بـ {new Date(product.offerEnd).toLocaleDateString("ar-LB", { day: "numeric", month: "short", year: "numeric" })}</p>}
                   </>
                 ) : (
-                  <p className="text-3xl md:text-4xl font-bold text-white">{Number(product.price).toLocaleString()} <span className="text-lg font-normal">ل.ل</span></p>
+                                    <p className="text-3xl md:text-4xl font-bold text-white">{Number(product.price).toLocaleString()} <span className="text-lg font-normal">ل.ل</span> <span className="text-white/70 text-base font-bold">≈ ${toDollar(product.price)}</span></p>
                 )}
                 {product.stock!== undefined && <p className="text-xs md:text-sm text-gray-400 mt-2">الكمية المتاحة: {product.stock}</p>}
               </div>
