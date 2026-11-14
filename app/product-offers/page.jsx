@@ -86,6 +86,12 @@ export default function OffersPage() {
     try { return new Date(d).toLocaleDateString("ar-LB", { day: "numeric", month: "short" }); } catch { return d; }
   };
 
+  // === دولار للعرض بس - قسمة من قلب الصفحة - على 90000 ===
+const toDollar = (lbp) => {
+  const v = Number(lbp || 0) / 90000;
+  return Number.isInteger(v) ? String(v) : v.toFixed(2);
+};
+
   if (loading) return <div style={{ minHeight: "100vh", background: "#0F0F0F", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>عم يحمل العروض...</div>;
 
   return (
@@ -128,11 +134,12 @@ export default function OffersPage() {
                 <div style={{ fontSize: 12, color: "#FFD700", marginBottom: 4 }}>🏪 {p.storeName}</div>
                 <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{p.name}</div>
                 <div style={{ fontSize: 12, color: "#aaa", marginBottom: 8 }}>{p.size ? `مقاس: ${p.size}` : ""} {p.unit ? ` - ${p.unit}` : ""}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                   {p.oldPrice > 0 && <span style={{ color: "#999", textDecoration: "line-through", fontSize: 13 }}>{Number(p.oldPrice).toLocaleString()} ل.ل</span>}
                   <span style={{ color: "#7CFC00", fontWeight: 800, fontSize: 18 }}>{Number(p.price).toLocaleString()} ل.ل</span>
-                </div>
-                                <div style={{ display: "flex", gap: 8 }}>
+                  <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700 }}>≈ ${toDollar(p.price)}</span>
+                 </div>
+                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={(e) => { e.stopPropagation(); addToCart(p); }} disabled={addingId === p.productID} style={{ flex: 1, background: "linear-gradient(to right,#a855f7,#ec4899)", border: 0, color: "#fff", padding: 10, borderRadius: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                     <ShoppingCart size={16} /> {addingId === p.productID ? "..." : "اضف للسلة"}
                   </button>
