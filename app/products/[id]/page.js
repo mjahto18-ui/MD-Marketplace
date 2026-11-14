@@ -160,6 +160,17 @@ export default function ProductDetailPage({ params }) {
                 {product.size && (
                   <span className="absolute top-3 right-3 bg-amber-300 text-black text- font-black px-3 py-1.5 rounded-full z-10">مقاس: {product.size}</span>
                 )}
+                {/* === بادج العرض - على الصورة === */}
+{product.isOfferActive && (
+    <span className="absolute top-12 left-3 bg-red-500 text-white text-xs font-black px-3 py-1.5 rounded-full z-10 shadow-lg">
+    عرض 🔥 {product.discountPercent > 0 ? `-${product.discountPercent}%` : ""}
+  </span>
+)}
+{product.isOfferActive && product.offerEnd && (
+  <span className="absolute bottom-3 right-3 bg-black/75 text-yellow-300 text-[11px] font-bold px-3 py-1 rounded-full z-10">
+    ينتهي بـ {new Date(product.offerEnd).toLocaleDateString("ar-LB", { day: "numeric", month: "short" })}
+  </span>
+)}
 
                 {images.length > 1 && (
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/30 p-1.5 rounded-full">
@@ -189,9 +200,20 @@ export default function ProductDetailPage({ params }) {
                   ⚡ توصيل فوري - خلال 25 دقيقة
                 </div>
               )}
-              <div className="bg-white/5 rounded-2xl p-4 md:p-5 mb-6 border border-white/5">
+                            <div className="bg-white/5 rounded-2xl p-4 md:p-5 mb-6 border border-white/5">
                 <p className="text-purple-200 text-sm mb-1">السعر:</p>
-                <p className="text-3xl md:text-4xl font-bold text-white">{Number(product.price).toLocaleString()} <span className="text-lg font-normal">ل.ل</span></p>
+                {product.isOfferActive && product.oldPrice > 0 && product.oldPrice > Number(product.price) ? (
+                  <>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="text-3xl md:text-4xl font-bold text-green-400">{Number(product.price).toLocaleString()} <span className="text-lg font-normal">ل.ل</span></p>
+                      <span className="bg-red-500 text-white text-xs font-black px-3 py-1 rounded-full">وفر {product.discountPercent}% 🔥</span>
+                    </div>
+                    <p className="text-gray-400 line-through text-lg mt-1">{Number(product.oldPrice).toLocaleString()} ل.ل</p>
+                    {product.offerEnd && <p className="text-yellow-300 text-xs font-bold mt-2">⏰ العرض بيخلص بـ {new Date(product.offerEnd).toLocaleDateString("ar-LB", { day: "numeric", month: "short", year: "numeric" })}</p>}
+                  </>
+                ) : (
+                  <p className="text-3xl md:text-4xl font-bold text-white">{Number(product.price).toLocaleString()} <span className="text-lg font-normal">ل.ل</span></p>
+                )}
                 {product.stock!== undefined && <p className="text-xs md:text-sm text-gray-400 mt-2">الكمية المتاحة: {product.stock}</p>}
               </div>
               {product.description && (
