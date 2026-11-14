@@ -119,6 +119,29 @@ export default function OrderDetailPage() {
     }
   }
 
+  // --- واتساب - فاتورة الكترونية - لينك ---
+  const cleanWa = (num)=>{
+    if(!num) return ''
+    let n = String(num).replace(/[^0-9]/g,'')
+    if(n.startsWith('00961')) n = n.slice(2)
+    if(n.startsWith('961')) return n
+    if(n.startsWith('0')) n = n.slice(1) // 03 -> 3
+    if(n.length === 8) return '961' + n
+    return n
+  }
+
+  const waNumber = cleanWa(names.customerRow?.['WhatsApp'] || names.customerRow?.['WhatsApp Number'] || customerMobile)
+
+  const handleShareWhatsApp = ()=>{
+    if(!waNumber){
+      alert('ما عندو رقم واتساب - هيدا الزبون')
+      return
+    }
+    const invoiceLink = `${window.location.origin}/invoice/${order['Request ID']}`
+    const text = `مرحبا ${customerName} ❤️\nفاتورتك من MD Marketplace - #${String(order['Request ID']).slice(0,8)}\nالاجمالي: ${totalAmount} ل.ل\nتفاصيل فاتورتك الالكترونية:\n${invoiceLink}`
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <style>{`
@@ -131,9 +154,12 @@ export default function OrderDetailPage() {
       `}</style>
 
       <div className="p-6 max-w-2xl mx-auto">
-        <div className="no-print flex justify-between items-center mb-4">
+        <div className="no-print flex justify-between items-center mb-4 gap-2">
           <Link href="/admin/active-orders" className="text-blue-600">← Back</Link>
-          <button onClick={()=>window.print()} className="bg-black text-white px-6 py-2 rounded-full font-bold hover:bg-gray-800">🖨️ طباعة الفاتورة / PDF</button>
+          <div className="flex gap-2">
+            <button onClick={handleShareWhatsApp} disabled={!waNumber} className="bg-[#25D366] text-white px-5 py-2 rounded-full font-bold hover:bg-[#1eb856] disabled:opacity-50 disabled:cursor-not-allowed text-sm">💬 واتساب للزبون - فاتورة الكترونية</button>
+            <button onClick={()=>window.print()} className="bg-black text-white px-6 py-2 rounded-full font-bold hover:bg-gray-800">🖨 طباعة الفاتورة / PDF</button>
+          </div>
         </div>
 
         <div id="invoice-print">
@@ -144,8 +170,10 @@ export default function OrderDetailPage() {
                 <p className="text-gray-500 text-sm mt-1">التاريخ: {formatDate(order['Request Date'] || order['Cerated Date'])}</p>
                 <p className="text- text-gray-400 mt-1">#{order['Request ID']}</p>
               </div>
-              <div className="text-right">
-                <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center font-black">MD</div>
+              {/* اللوغو الرسمي - بدال MD */}
+              <div className="text-right shrink-0">
+                <img src="/logo.png" alt="MD Marketplace" className="w-16 h-16 object-contain ml-auto" />
+                <div className="text- text-gray-500 text-center mt-1">MD Marketplace</div>
               </div>
             </div>
 
@@ -154,7 +182,7 @@ export default function OrderDetailPage() {
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">الزبون</span><span className="font-bold">{customerName}</span></div>
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">المنطقة</span><span className="font-medium">{areaName}</span></div>
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">العنوان</span><span className="font-medium truncate max-w-">{order['Delivery Adress']}</span></div>
-                <div className="flex justify-between border-b py-2"><span className="text-gray-500">الجوال</span><span className="font-medium">{customerMobile}</span></div>
+                <div className="flex justify-between border-b py-2"><span className="text-gray-500">هاتف</span><span className="font-medium">{customerMobile}</span></div>
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">السائق</span><span className="font-bold text-blue-600">{driverName}</span></div>
               </div>
               <div className="space-y-3">
@@ -165,6 +193,11 @@ export default function OrderDetailPage() {
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">رسوم التوصيل</span><span className="font-bold">{deliveryFee} ل.ل</span></div>
               </div>
             </div>
+                {/* Note - دايماً - بالقسم الأول - سبيسيال و عادي - برا الـ grid - مش جواتو */}
+<div className="mt-4 bg-yellow-50 border border-yellow-200 p-3 rounded-xl">
+  <div className="font-bold text-yellow-700 text-sm mb-1">📝 ملاحظة - Note:</div>
+  <div className="text-sm text-gray-800 leading-relaxed">{order['Note'] || 'لا يوجد ملاحظات'}</div>
+</div>
             <div className="flex justify-between items-center mt-4 bg-gray-50 p-3 rounded-xl print:bg-gray-100">
               <span className="font-bold">الاجمالي النهائي (بضاعة + توصيل)</span>
               <span className="font-black text-lg">{totalAmount} ل.ل</span>
@@ -172,14 +205,14 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow border print:shadow-none print:border">
-            <h2 className="font-bold mb-4">تفاصيل البضاعة ({details.length}) - بالاسم بدال الرمز</h2>
+            <h2 className="font-bold mb-4">تفاصيل البضاعة ({details.length}) - مع اسم المتجر</h2>
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr className="text-gray-500 text-xs">
                   <th className="p-3 text-right">اسم المنتج</th>
                   <th className="p-3 text-right">المتجر</th>
                   <th className="p-3 text-center">الكمية</th>
-                  <th className="p-3 text-center">سعر الوحدة</th>
+                  <th className="p-3 text-center">سعر القطعة</th>
                   <th className="p-3 text-left">الاجمالي</th>
                 </tr>
               </thead>
@@ -206,7 +239,7 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="hidden print:block mt-10 text-center text-xs text-gray-500 border-t pt-4">
-            MD Marketplace - كشف حساب نظامي - {new Date().toLocaleString('ar-EG')}
+            MD Marketplace - فاتورة الكترونية - {new Date().toLocaleString('ar-LB')}
           </div>
         </div>
       </div>

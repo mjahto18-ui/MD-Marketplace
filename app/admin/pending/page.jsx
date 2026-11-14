@@ -13,6 +13,18 @@ export default function PendingPage(){
   const [drivers, setDrivers] = useState([])
   const [detailsMap, setDetailsMap] = useState({})
 
+  const cleanWaForLink = (raw) => {
+  let m = String(raw || '').replace(/\D/g, '')
+  if(!m) return null
+  if(m.startsWith('00961')) m = m.slice(2)
+  else if(m.startsWith('00')) m = m.slice(2)
+  else if(m.startsWith('961')) m = m
+  else if(m.startsWith('0')) m = '961' + m.slice(1)
+  else if(m.length === 8) m = '961' + m
+  if(m.length < 10) return null
+  return m
+}
+
   useEffect(()=>{
     fetch('/api/admin/pending-orders').then(r=>r.json()).then(setOrders)
   },[])
@@ -52,17 +64,37 @@ export default function PendingPage(){
     }
   }
 
-  const handleAssign = async(driver)=>{
+    const handleAssign = async(driver)=>{
     if(!selected) return
     const reqID = selected.requestID
-    const driverId = driver['Driver ID']
+    const driverId = String(driver['Driver ID'])
     const res = await fetch('/api/admin/assign-driver',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestID:reqID,driverId})})
     const result = await res.json()
     if(!res.ok){ alert(result.error); return }
+
+    try{
+      const { createClient } = await import('@supabase/supabase-js')
+      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      const { data: u } = await sb.from('users')
+        .select('"WhatsApp Number", "Mobile", "Related ID", "Role"')
+        .eq('"Related ID"', driverId)
+        .eq('"Role"', 'Driver')
+        .limit(1)
+        .maybeSingle()
+      const rawWa = u?.['WhatsApp Number'] || u?.['Mobile'] || ''
+      const waClean = cleanWaForLink(rawWa)
+      if(waClean){
+        const msg = `لديك اوردر جديد يرجى الدخول الى التطبيق 🚨\n\nطلب رقم: #${String(reqID).slice(-6)}\nالزبون: ${selected?.customerName || ''}\nالعنوان: ${selected?.deliveryAddress || ''}\n\nافتح التطبيق و اقبل الطلب.`
+        window.open(`https://wa.me/${waClean}?text=${encodeURIComponent(msg)}`, '_blank')
+      } else {
+        alert(`تم تعيين ${driver['Driver Name']} - بس ما لقيت رقم واتساب - Related ID: ${driverId}`)
+      }
+    }catch(e){ console.log('wa driver error', e) }
+
     alert(`تم تعيين ${driver['Driver Name']}`)
     setOrders(o=>o.filter(x=>x.requestID!==reqID)); setSelected(null); setExpandedId(null)
   }
-
+  
   return (
     <div className="p-6 grid grid-cols-4 gap-6 min-h-screen bg-slate-950 text-white" style={{direction:'rtl'}}>
       <div className="col-span-1 bg-white/5 rounded-2xl p-4 overflow-y-auto">

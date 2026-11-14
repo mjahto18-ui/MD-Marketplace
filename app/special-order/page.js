@@ -126,11 +126,11 @@ export default function SpecialOrderPage() {
         <div className="glass p-5 rounded-2xl border border-white/10 flex flex-col gap-4">
           <div>
             <label className="text-sm text-purple-200 mb-2 block">شو بدك؟ *</label>
-            <textarea value={orderText} onChange={(e)=>setOrderText(e.target.value)} placeholder="مثلا: علبة سيدرز أزرق كرتون" className="w-full bg-white/10 border border-white/20 rounded-xl p-3.5 text-white h-24 resize-none" />
+            <textarea value={orderText} onChange={(e)=>setOrderText(e.target.value)} placeholder="مثلا: بدي كيلو لحمة" className="w-full bg-white/10 border border-white/20 rounded-xl p-3.5 text-white h-24 resize-none" />
           </div>
           <div>
             <label className="text-sm text-purple-200 mb-2 block">من أي محل؟ (اختياري)</label>
-            <input value={storeHint} onChange={(e)=>setStoreHint(e.target.value)} placeholder="مثلا: دكان أبو أحمد - اذا بتعرف" className="w-full bg-white/10 border border-white/20 rounded-xl p-3.5 text-white" />
+            <input value={storeHint} onChange={(e)=>setStoreHint(e.target.value)} placeholder="مثلا: من ملحمة ... - اذا بتعرف" className="w-full bg-white/10 border border-white/20 rounded-xl p-3.5 text-white" />
             <p className="text-xs text-purple-300 mt-1">اذا ما بتعرف، اتركها فاضية ونحنا منلاقيلك</p>
           </div>
           <div>
@@ -142,10 +142,10 @@ export default function SpecialOrderPage() {
             </div>
           </div>
           <div>
-            <label className="text-sm text-purple-200 mb-2 block">صورة (اختياري) - للتجربة</label>
+            <label className="text-sm text-purple-200 mb-2 block">صورة (اختياري)  </label>
             <input type="file" accept="image/*" onChange={handleImage} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white" />
             {imagePreview && <img src={imagePreview} className="w-32 h-32 object-cover rounded-xl mt-2" />}
-            <p className="text-xs text-purple-300 mt-1">بتنضغط لـ webp 800x800 قبل الرفع</p>
+            <p className="text-xs text-purple-300 mt-1">ارفاق صورة اذا شيء خاص او محدد</p>
           </div>
           <div>
             <label className="text-sm text-purple-200 mb-2 block">ملاحظات عامة</label>

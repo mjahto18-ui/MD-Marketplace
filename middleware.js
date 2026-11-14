@@ -29,6 +29,8 @@ export async function middleware(request) {
           if(role === 'Store Owner') return NextResponse.redirect(new URL('/store-owner', request.url));
           if(role === 'Driver') return NextResponse.redirect(new URL('/driver-owner', request.url));
           if(role === 'Taxi Driver') return NextResponse.redirect(new URL('/taxi-driver', request.url));
+          if(role === 'Assistant Admin') return NextResponse.redirect(new URL('/admin/tower-dashboard', request.url));
+
           return NextResponse.redirect(new URL('/admin/dashboard', request.url));
         } catch {}
       }
@@ -57,6 +59,23 @@ export async function middleware(request) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
 
+    // جديد - Assistant بيروح بس على صفحتو
+try {
+  const data = JSON.parse(adminSession.value);
+  const role = data.role;
+  if (role === 'Assistant Admin') {
+    if (
+      pathname.startsWith('/admin/tower-dashboard') ||
+      pathname.startsWith('/admin/active-orders')
+    ) {
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(new URL('/admin/tower-dashboard', request.url));
+  }
+} catch {
+  return NextResponse.redirect(new URL('/admin/login', request.url));
+}
+
     if (pathname === '/admin' || pathname === '/admin/') {
       try {
         const data = JSON.parse(adminSession.value);
@@ -64,6 +83,8 @@ export async function middleware(request) {
         if(role === 'Store Owner') return NextResponse.redirect(new URL('/store-owner', request.url));
         if(role === 'Driver') return NextResponse.redirect(new URL('/driver-owner', request.url));
         if(role === 'Taxi Driver') return NextResponse.redirect(new URL('/taxi-driver', request.url));
+        if(role === 'Assistant Admin') return NextResponse.redirect(new URL('/admin/tower-dashboard', request.url));
+
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));
       } catch {
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));

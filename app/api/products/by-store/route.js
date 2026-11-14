@@ -91,7 +91,7 @@ export async function GET(req) {
       }
     }
 
-    const { data: rows } = await supabase.from('products').select('"Product ID", "Product Name", Image, Price, Unit, Category, "Weight Points", Available, "Stock Qty", Description, "Size"').eq('Store ID', String(storeID).trim());
+    const { data: rows } = await supabase.from('products').select('"Product ID", "Product Name", Image, Price, Unit, Category, "Weight Points", Available, "Stock Qty", Description, "Size", Active').eq('Store ID', String(storeID).trim()).eq('Active', 'TRUE').eq('Available', 'Yes').gt('Price', 0);
 
         // === جيب الصور المتعددة ===
     let imagesMap = {}

@@ -71,7 +71,7 @@ export default function ActiveOrdersPage() {
             <Link
               key={order['Request ID']}
               href={`/admin/active-orders/${order['Request ID']}`}
-              className="bg-white p-4 rounded-lg shadow hover:shadow-md border"
+              className="bg-white p-4 rounded-lg shadow hover:shadow-md border block"
             >
               <div className="flex justify-between items-center">
                 <span className="font-bold">#{order['Request ID']} - {customerName}</span>
@@ -82,6 +82,11 @@ export default function ActiveOrdersPage() {
               <p className="text-sm text-gray-500 mt-2">
                 {order['Delivery Adress']} - {areaName} - {order['Total Amount']}
               </p>
+              {/* Note - دايماً - بالقسم الأول - سبيسيال و عادي - برا الـ p - مش جواتو */}
+              <div className="text-sm mt-2 bg-yellow-50 border border-yellow-200 p-2 rounded-lg">
+                <span className="font-bold text-yellow-700">📝 ملاحظة: </span>
+                <span className="text-gray-800">{order['Note'] || 'لا يوجد ملاحظات'}</span>
+              </div>
               <p className="text-xs mt-2">
                 <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">🚚 {driverName}</span>
               </p>
@@ -90,5 +95,5 @@ export default function ActiveOrdersPage() {
         })}
       </div>
     </div>
-  ) // 👈 هيدا تسكيرة الـ return
-} // 👈 هيدا تسكيرة الـ function
+  )
+}

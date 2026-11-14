@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
 
     const supabase = getSupabase();
 
-    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size"').eq('Product ID', productID).limit(1);
+    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size"').eq('Product ID', productID).eq('Active', 'TRUE').eq('Available', 'Yes').gt('Price', 0).limit(1);
     let product = products?.[0];
 
     if (!product) {

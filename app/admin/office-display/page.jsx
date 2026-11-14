@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import BackToDashboard from "@/components/BackToDashboard"
+// شلنا BackToDashboard نهائياً من هون
 
 function OfficeDisplayInner(){
   const searchParams = useSearchParams()
@@ -14,6 +14,7 @@ function OfficeDisplayInner(){
   const [loading, setLoading] = useState(true)
   const [selectedEmp, setSelectedEmp] = useState(null)
   const [origin, setOrigin] = useState("")
+  const [closed, setClosed] = useState(false)
   const selectedRef = useRef(null)
 
   // مشان ما نستخدم window بالـ SSR
@@ -52,7 +53,6 @@ function OfficeDisplayInner(){
       const res = await fetch(`/api/admin/attendance/today?store_id=${storeId}`)
       const j = await res.json()
       if(j.success){
-        // لغينا الفلتر - صار للتنين
         setEmployees(j.employees || [])
       }
     }catch(e){ console.log(e) }
@@ -63,7 +63,6 @@ function OfficeDisplayInner(){
     if(!storeId) return
     generateQR()
     loadEmployees()
-    // صلحنا الـ interval - ما عاد يمسح الـ ID
     const interval = setInterval(()=>generateQR(), 5*60*1000)
     const poll = setInterval(loadEmployees, 5000)
     const cd = setInterval(()=> setCountdown(c => c>0? c-1 : 0), 1000)
@@ -82,6 +81,35 @@ function OfficeDisplayInner(){
     }
   }
 
+  // --- رجوع + كلوز - بدال BackToDashboard ---
+  const handleBack = ()=>{
+    // اذا كان في شي قبل - بيرجع لورا
+    // اذا كان فاتحها من رابط متشارك - و ما في شي قبل - ما بيعمل شي - بيضل عالشاشة
+    if(window.history.length > 1){
+      window.history.back()
+    }
+  }
+
+  const handleClose = ()=>{
+    // منجرب نسكر التاب
+    window.close()
+    // اذا المتصفح ما سمح يسكّر - لأنو ما نحنا فتحناه بسكريبت
+    // منبين شاشة مسكرة - بدل ما يضل معلق
+    setTimeout(()=>{
+      setClosed(true)
+    }, 300)
+  }
+
+  if(closed){
+    return (
+      <div style={{minHeight:'40vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'12px', textAlign:'center'}}>
+        <div style={{fontSize:'40px'}}>🖥</div>
+        <div style={{fontSize:'22px', fontWeight:'800'}}>شاشة الدوام مسكرة</div>
+        <div style={{color:'rgba(255,255,255,0.6)', fontSize:'14px'}}>فيك تسكّر هالتبويب من المتصفح</div>
+      </div>
+    )
+  }
+
   const minutes = Math.floor(countdown/60)
   const seconds = countdown%60
   const unbound = employees.filter(e =>!e.device_fingerprint)
@@ -98,7 +126,17 @@ function OfficeDisplayInner(){
 
   return (
     <>
-      <BackToDashboard />
+      {/* --- بدال BackToDashboard - كبستين بس --- */}
+      <div style={{width:'100%', maxWidth:'700px', display:'flex', gap:'10px', marginBottom:'16px'}}>
+        <button onClick={handleBack} style={{
+          background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)',
+          color:'white', padding:'8px 16px', borderRadius:'10px', cursor:'pointer', fontWeight:'700', fontSize:'13px'
+        }}>← رجوع</button>
+        <button onClick={handleClose} style={{
+          background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)',
+          color:'#fca5a5', padding:'8px 16px', borderRadius:'10px', cursor:'pointer', fontWeight:'700', fontSize:'13px', marginLeft:'auto'
+        }}>✕ كلوز - سكّر الشاشة</button>
+      </div>
 
       <h1 style={{fontSize:'28px', fontWeight:'800', marginBottom:'8px'}}>شاشة المكتب - ربط {storeId}</h1>
       <div style={{width:'60px', height:'3px', background:'linear-gradient(90deg, #ec4899, #8b5cf6)', borderRadius:'10px', marginBottom:'20px'}}></div>

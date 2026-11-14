@@ -3,20 +3,24 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
-// ضغط لـ 200x200 webp - متل الطلب الخاص بس أصغر
-async function compressToWebp200(file) {
+// ضغط حسب القسم - تياب 800 / أكل 400
+const HIGH_RES_CATS = ['clothes', 'shoes', 'bags', 'watches', 'phones', 'تياب', 'احذية', 'شنط', 'ساعات'];
+
+async function compressByCategory(file, category) {
+  const cat = String(category || '').toLowerCase();
+  const size = HIGH_RES_CATS.some(c => cat.includes(c)) ? 800 : 400;
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = 200; canvas.height = 200;
+      canvas.width = size; canvas.height = size;
       const ctx = canvas.getContext('2d');
       // قص مربع من النص عشان ما تتشوه الصورة
-      const size = Math.min(img.width, img.height);
-      const sx = (img.width - size) / 2;
-      const sy = (img.height - size) / 2;
-      ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
-      canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.75);
+      const s = Math.min(img.width, img.height);
+      const sx = (img.width - s) / 2;
+      const sy = (img.height - s) / 2;
+      ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+      canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.82);
     };
     img.src = URL.createObjectURL(file);
   });
@@ -42,7 +46,7 @@ export default function StoreDashboard(){
   const [showBarcode, setShowBarcode] = useState({})
   const [editingPrice, setEditingPrice] = useState(null)
   const [newPrice, setNewPrice] = useState('')
-  const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}])
+  const [newProds, setNewProds] = useState([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:'', description:''}])
   const [priceReq, setPriceReq] = useState({code:'', newPrice:''})
   // --- محفظة ---
   const [wallet, setWallet] = useState(0)
@@ -148,14 +152,15 @@ export default function StoreDashboard(){
   }
   const inputStyle = {padding:'10px', borderRadius:'8px', border:'1px solid rgba(255,255,255,0.1)', background:'rgba(0,0,0,0.3)', color:'white', outline:'none', minWidth:0, fontSize:13}
 
-  const toggleActive = async (p)=>{
-    const newVal =!p.Active
-    await supabase.from('products').update({Active: newVal}).eq('Product ID', p['Product ID'])
-    setProducts(prev=>prev.map(x=> x['Product ID']===p['Product ID']? {...x, Active:newVal}:x))
-  }
+  const toggleAvailable = async (p)=>{
+  const isAvailable = p.Available === 'Yes' || p.Available === true;
+  const newVal = isAvailable ? 'No' : 'Yes';
+  await supabase.from('products').update({Available: newVal}).eq('Product ID', p['Product ID'])
+  setProducts(prev=>prev.map(x=> x['Product ID']===p['Product ID']? {...x, Available:newVal}:x))
+}
 
   const savePrice = async (p)=>{
-  const price = Number(String(newPrice).replace(/,/g,''))
+  const price = cleanPriceNum(newPrice)
   if(!price || price <= 0) return alert('حط سعر صحيح')
   if(price === Number(p.Price)) return alert('نفس السعر القديم - ما تغير شي')
   const { error } = await supabase.from('products').update({
@@ -168,6 +173,12 @@ export default function StoreDashboard(){
   setNewPrice('')
   alert('تم - رجع للمراجعة، انتظر موافقة الادمن')
 }
+  const cleanPriceNum = (v)=>{
+  let s = String(v||'').replace(/,/g,'').replace(/،/g,'').replace(/\s/g,'');
+  // حوّل أرقام عربية لإنجليزية
+  s = s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+  return Number(s);
+}
 
   const addProducts = async ()=>{
   const toInsert = newProds.filter(n=>n.name && n.price);
@@ -176,7 +187,7 @@ export default function StoreDashboard(){
     // 1. ارفع كل الصور مضغوطة 200x200
     let uploadedUrls = [];
     for(const f of (n.images || [])){
-      const compressed = await compressToWebp200(f);
+     const compressed = await compressByCategory(f, n.category);
       const fd = new FormData();
       fd.append('file', compressed, 'product.webp');
       const up = await fetch('/api/upload', { method:'POST', body: fd });
@@ -185,14 +196,18 @@ export default function StoreDashboard(){
     }
     const mainImage = uploadedUrls[0] || n.image || null;
 
+    const cleanPrice = cleanPriceNum(n.price);
+    if(!cleanPrice || cleanPrice <= 0){ alert('السعر غلط لـ ' + n.name + ' - كتبت: ' + n.price); continue; }
+
     // 2. انشئ المنتج
     const { data: prod, error } = await supabase.from('products').insert([{
       'Store ID': me.storeId,
       'Product Name': n.name,
       'Unit': n.unit || 'حبة',
-      'Price': Number(n.price),
+      'Price': cleanPrice,
       'Image': mainImage,
       'Size': n.size || null,
+      'Description': n.description || null,
       'Active': 'FALSE',
       'Available': 'Yes',
       'Stock Qty': '1',
@@ -212,7 +227,7 @@ export default function StoreDashboard(){
     }
   }
   alert('انضافو للمراجعة');
-  setNewProds([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}]);
+  setNewProds([{name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:'', description:''}]);
   location.reload();
 }
 
@@ -379,7 +394,7 @@ export default function StoreDashboard(){
           ) : (
           <>
         <button onClick={()=>{setEditingPrice(p['Product ID']); setNewPrice('')}} style={{marginTop:8, width:'100%', padding:'7px', borderRadius:8, border:'none', background:'rgba(251,191,36,0.15)', color:'#fde68a', fontSize:11, fontWeight:700}}>✏️ تعديل السعر</button>
-      <button onClick={()=>toggleActive(p)} style={{marginTop:6, width:'100%', padding:'7px', borderRadius:8, border:'none', background: p.Active?'linear-gradient(135deg,#16a34a,#15803d)':'rgba(255,255,255,0.15)', color:'white', fontSize:11, fontWeight:700}}>{p.Active? 'Active' : 'INACTIVE'}</button>
+      <button onClick={()=>toggleAvailable(p)} style={{marginTop:6, width:'100%', padding:'7px', borderRadius:8, border:'none', background: (p.Available==='Yes'||p.Available===true)?'linear-gradient(135deg,#16a34a,#15803d)':'rgba(255,255,255,0.15)', color:'white', fontSize:11, fontWeight:700}}>{(p.Available==='Yes'||p.Available===true)? 'متوفر ✅' : 'غير متوفر ⛔'}</button>
   </>
 )}
                         
@@ -445,8 +460,9 @@ export default function StoreDashboard(){
         </div>
 
         {/* رفع كزا صورة - بيضيف مش بيستبدل */}
+        <textarea placeholder="وصف المنتج - اكتب اللي بدك ياه - مثلا: كنزة قطن تقيلة - خامة ممتازة..." value={np.description || ''} onChange={e=>{const c=[...newProds]; c[i].description=e.target.value; setNewProds(c)}} style={{...inputStyle, width:'100%', minHeight:60, marginBottom:8, resize:'vertical'}} />
         <input type="file" accept="image/*" multiple onChange={e=>{const c=[...newProds]; c[i].images=[...(c[i].images||[]), ...e.target.files]; setNewProds(c); e.target.value='';}} style={inputStyle} />
-        <p style={{fontSize:11, opacity:0.5, marginTop:4}}>اختار صورة، وبعدين ارجع اختار تانية - بتنضاف على الأولى - 200x200 webp - أول وحدة رئيسية</p>
+        <p style={{fontSize:11, opacity:0.5, marginTop:4}}>اختار صورة، وبعدين ارجع اختار تانية - بتنضاف على الأولى - تياب 800 / أكل 400 - أول وحدة رئيسية</p>
         {np.images?.length>0 && (
           <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
             {np.images.map((f, idx)=>(
@@ -462,7 +478,7 @@ export default function StoreDashboard(){
       </div>
     ))}
     <div style={{display:'flex', gap:8, marginTop:10}}>
-      <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:''}])} style={{padding:'8px 14px', borderRadius:8, background:'rgba(255,255,255,0.08)', color:'white'}}>+ منتج</button>
+     <button onClick={()=>setNewProds([...newProds, {name:'', unit:'حبة', price:'', image:'', images:[], size:'', category:'', description:''}])} style={{padding:'8px 14px', borderRadius:8, background:'rgba(255,255,255,0.08)', color:'white'}}>+ منتج</button>
       <button onClick={addProducts} style={{padding:'8px 16px', borderRadius:8, background:'linear-gradient(135deg,#ec4899,#8b5cf6)', color:'white', fontWeight:900}}>إرسال للمراجعة</button>
     </div>
   </div>
