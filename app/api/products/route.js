@@ -21,6 +21,26 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c; // كيلو
 }
 
+// === عروض - هل العرض شغال هلق؟ حسب التاريخ ===
+function isOfferActiveNow(row) {
+  const raw = row["Is Offer"];
+  const isOffer = String(raw || "").toUpperCase() === "TRUE" || raw === true;
+  if (!isOffer) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (row["Offer Start"]) {
+    const s = new Date(row["Offer Start"]);
+    s.setHours(0, 0, 0, 0);
+    if (today < s) return false;
+  }
+  if (row["Offer End"]) {
+    const e = new Date(row["Offer End"]);
+    e.setHours(0, 0, 0, 0);
+    if (today > e) return false;
+  }
+  return true;
+}
+
 export async function GET(req) {
   try {
     const storeID = req.nextUrl.searchParams.get("storeID");
@@ -29,6 +49,7 @@ export async function GET(req) {
     const page = parseInt(req.nextUrl.searchParams.get("page") || "1", 10);
     const lat = parseFloat(req.nextUrl.searchParams.get("lat"));
     const lng = parseFloat(req.nextUrl.searchParams.get("lng"));
+    const onlyOffers = req.nextUrl.searchParams.get("onlyOffers") === "1" || req.nextUrl.searchParams.get("onlyOffers") === "true";
 
     const supabase = getSupabase();
 
@@ -107,12 +128,16 @@ export async function GET(req) {
     }
 
     // === 2. ابنِ كويري المنتجات ===
-    let query = supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size"', { count: 'exact' });
+        let query = supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size", "Old Price", "Offer Price", "Is Offer", "Offer Start", "Offer End"', { count: 'exact' });
 
     // بس المقبول - للزبون
     query = query.eq('Active', 'TRUE');
     query = query.eq('Available', 'Yes');
     query = query.gt('Price', 0);
+        // === جديد: بس العروض ===
+    if (onlyOffers) {
+      query = query.eq('Is Offer', 'TRUE');
+    }
 
     // اذا في فلتر أبراج - طبقو
     if (allowedStoreIds !== null) {
@@ -209,15 +234,25 @@ if (pIds.length) {
         stock: Number(row['Stock Qty']),
         active: row['Active'],
         weightPoint: Number(row['Weight Points']),
+        oldPrice: Number(row["Old Price"] || 0),
+        offerPrice: Number(row["Offer Price"] || 0),
+        isOffer: String(row["Is Offer"] || "").toUpperCase() === "TRUE" || row["Is Offer"] === true,
+        offerStart: row["Offer Start"] || null,
+        offerEnd: row["Offer End"] || null,
+        discountPercent: (isOfferActiveNow(row) && Number(row["Old Price"] || 0) > 0 && Number(row['Price']) > 0 && Number(row["Old Price"]) > Number(row['Price'])) ? Math.round(((Number(row["Old Price"]) - Number(row['Price'])) / Number(row["Old Price"])) * 100) : 0,
+        isOfferActive: isOfferActiveNow(row),
         storeName: sInfo.name,
         coverage_type: sInfo.coverage_type,
       };
     });
 
+    // === جديد: اذا طلبنا بس العروض - منفلتر حسب التاريخ ===
+    const finalProducts = onlyOffers ? products.filter(p => p.isOfferActive) : products;
+
     const res = NextResponse.json({
       success: true,
-      products,
-      total: count || 0,
+      products: finalProducts,
+      total: onlyOffers ? finalProducts.length : (count || 0),
       page,
       hasMore: from + products.length < (count || 0),
       filtered: allowedStoreIds !== null,
