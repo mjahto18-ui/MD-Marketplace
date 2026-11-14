@@ -21,6 +21,26 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c; // كيلو
 }
 
+// === عروض - هل العرض شغال هلق؟ حسب التاريخ ===
+function isOfferActiveNow(row) {
+  const raw = row["Is Offer"];
+  const isOffer = String(raw || "").toUpperCase() === "TRUE" || raw === true;
+  if (!isOffer) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (row["Offer Start"]) {
+    const s = new Date(row["Offer Start"]);
+    s.setHours(0, 0, 0, 0);
+    if (today < s) return false;
+  }
+  if (row["Offer End"]) {
+    const e = new Date(row["Offer End"]);
+    e.setHours(0, 0, 0, 0);
+    if (today > e) return false;
+  }
+  return true;
+}
+
 export async function GET(req, { params }) {
   try {
     const productID = params.id;
@@ -38,7 +58,7 @@ export async function GET(req, { params }) {
 
     const supabase = getSupabase();
 
-    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size"').eq('Product ID', productID).eq('Active', 'TRUE').eq('Available', 'Yes').gt('Price', 0).limit(1);
+    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size", "Old Price", "Offer Price", "Is Offer", "Offer Start", "Offer End"').eq('Product ID', productID).eq('Active', 'TRUE').eq('Available', 'Yes').gt('Price', 0).limit(1);
     let product = products?.[0];
 
     if (!product) {
@@ -141,6 +161,14 @@ export async function GET(req, { params }) {
       stock: Number(product['Stock Qty']),
       active: product['Active'],
       weightPoint: Number(product['Weight Points']),
+      // === جديد - العروض ===
+      oldPrice: Number(product["Old Price"] || 0),
+      offerPrice: Number(product["Offer Price"] || 0),
+      isOffer: String(product["Is Offer"] || "").toUpperCase() === "TRUE" || product["Is Offer"] === true,
+      offerStart: product["Offer Start"] || null,
+      offerEnd: product["Offer End"] || null,
+      discountPercent: (isOfferActiveNow(product) && Number(product["Old Price"] || 0) > 0 && Number(product['Price']) > 0 && Number(product["Old Price"]) > Number(product['Price'])) ? Math.round(((Number(product["Old Price"]) - Number(product['Price'])) / Number(product["Old Price"])) * 100) : 0,
+      isOfferActive: isOfferActiveNow(product),
       storeName: store? store['Store Name'] : "متجر محذوف",
       coverage_type: store ? (store.coverage_type || 'geofence') : 'geofence',
     };
