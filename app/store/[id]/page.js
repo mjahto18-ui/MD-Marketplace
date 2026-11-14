@@ -59,6 +59,11 @@ export default function StorePage() {
   const [checkingUser, setCheckingUser] = useState(true);
   const [addingId, setAddingId] = useState(null);
   const [toast, setToast] = useState(null);
+    // === دولار للعرض بس - قسمة من قلب الصفحة - على 90000 ===
+  const toDollar = (lbp) => {
+    const v = Number(lbp || 0) / 90000;
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+  };
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include', cache: 'no-store' })
@@ -214,8 +219,8 @@ export default function StorePage() {
                   <p className="text-[11px] text-purple-200/80 mb-2 line-clamp-2">{product.description}</p>
                 )}
                 <div className="space-y-1 text-xs mb-3">
-                  <p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p>
-                  <p className="text-purple-300">الوزن: {product.weightPoint} نقطة</p>
+                                    <p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span> <span className="text-white/70 font-bold">≈ ${toDollar(product.price)}</span></p>
+                  <p className="text-purple-300">الوزن: {product.weightPoint} كيلو</p>
                 </div>
                 {user? (
                   <button onClick={() => addToCart(product.productID)} disabled={!!addingId} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60">
