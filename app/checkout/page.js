@@ -15,6 +15,11 @@ export default function CheckoutPage() {
   const [customerID, setCustomerID] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [cartData, setCartData] = useState(null);
+    // === دولار للعرض بس - قسمة من قلب الصفحة - على 90000 ===
+  const toDollar = (lbp) => {
+    const v = Number(lbp || 0) / 90000;
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+  };
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
@@ -189,8 +194,20 @@ export default function CheckoutPage() {
         </div>
       )}
 
+            {/* === ملخص الطلب - لبناني + دولار === */}
+      {cartData && (
+        <div className="px-4">
+          <div className="glass p-5 rounded-2xl border border-white/10 flex flex-col gap-3 mt-2">
+            <div className="flex justify-between text-sm"><span className="text-purple-200">المجموع الفرعي</span><span>{Number(cartData.subtotal || 0).toLocaleString()} ل.ل <span className="text-white/70 text-xs">≈ ${toDollar(cartData.subtotal)}</span></span></div>
+            <div className="flex justify-between text-sm"><span className="text-purple-200">رسوم التوصيل</span><span>{Number(cartData.baseDeliveryFee || 0).toLocaleString()} ل.ل <span className="text-white/70 text-xs">≈ ${toDollar(cartData.baseDeliveryFee)}</span></span></div>
+            <div className="border-t border-dashed border-white/20"></div>
+            <div className="flex justify-between text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{Number((cartData.subtotal || 0) + (cartData.baseDeliveryFee || 0)).toLocaleString()} ل.ل <span className="text-white/70 text-sm">≈ ${toDollar((cartData.subtotal || 0) + (cartData.baseDeliveryFee || 0))}</span></span></div>
+          </div>
+        </div>
+      )}
+
       <div className="px-4">
-        <button onClick={handleConfirm} disabled={loading} className="w-full bg-pink-600 py-4 rounded-2xl text-white font-bold text-lg mt-6">{loading? "جاري الإرسال..." : "تأكيد الطلب"}</button>
+        <button onClick={handleConfirm} disabled={loading} className="w-full bg-pink-600 py-4 rounded-2xl text-white font-bold text-lg mt-6">{loading? "جاري الإرسال..." : cartData ? `تأكيد الطلب ${Number((cartData.subtotal || 0) + (cartData.baseDeliveryFee || 0)).toLocaleString()} ل.ل • ≈ $${toDollar((cartData.subtotal || 0) + (cartData.baseDeliveryFee || 0))}` : "تأكيد الطلب"}</button>
       </div>
     </div>
   );
