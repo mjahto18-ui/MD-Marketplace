@@ -18,6 +18,11 @@ export default function CartPage() {
   const [configLoading, setConfigLoading] = useState(true);
   const [coverageType, setCoverageType] = useState('geofence');
   const hasRedirected = useRef(false);
+    // === دولار للعرض بس - قسمة من قلب الصفحة - على 90000 ===
+  const toDollar = (lbp) => {
+    const v = Number(lbp || 0) / 90000;
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+  };
 
   useEffect(() => {
     fetch('/api/global-config', { cache: 'no-store' })
@@ -283,7 +288,7 @@ export default function CartPage() {
                 <img src={item.image} className="w-16 h-16 rounded-xl object-cover" alt="" />
                 <div className="flex-1">
                   <h3 className="font-bold text-sm">{item.name}</h3>
-                  <p className="text-xs text-purple-300">{item.unitPrice.toLocaleString()} LBP • الكمية {item.qty}</p>
+                                    <p className="text-xs text-purple-300">{item.unitPrice.toLocaleString()} LBP • ≈ ${toDollar(item.unitPrice)} • الكمية {item.qty}</p>
                   <div className="flex items-center gap-2 mt-2">
                     <button onClick={() => updateQty(item.cartID, item.qty - 1)} className="bg-white/10 p-1.5 rounded-lg active:scale-90"><Minus className="w-3.5 h-3.5" /></button>
                     <span className="font-bold text-sm w-6 text-center">{item.qty}</span>
@@ -291,20 +296,20 @@ export default function CartPage() {
                     <button onClick={() => removeItem(item.productID)} className="mr-auto text-red-400 p-1.5"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
-                <div className="text-left font-bold">{item.lineTotal.toLocaleString()} LBP</div>
+               <div className="text-left font-bold">{item.lineTotal.toLocaleString()} LBP <div className="text-xs text-white/70 font-bold">≈ ${toDollar(item.lineTotal)}</div></div>
               </div>
             ))}
           </div>
           <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 mb-6">
             <h3 className="text-lg font-bold mb-4 text-center">ملخص الطلب</h3>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between items-center"><span className="text-purple-200">المجموع الفرعي</span><span>{subtotal.toLocaleString()} LBP</span></div>
-              <div className="flex justify-between items-center"><span className="text-purple-200">رسوم التوصيل {coverageType === 'global' ? '(كل لبنان)' : '(سريع)'}</span><span>{deliveryFee.toLocaleString()} LBP</span></div>
+             <div className="flex justify-between items-center"><span className="text-purple-200">المجموع الفرعي</span><span>{subtotal.toLocaleString()} LBP <span className="text-white/70 text-xs">≈ ${toDollar(subtotal)}</span></span></div>
+              <div className="flex justify-between items-center"><span className="text-purple-200">رسوم التوصيل {coverageType === 'global' ? '(كل لبنان)' : '(سريع)'}</span><span>{deliveryFee.toLocaleString()} LBP <span className="text-white/70 text-xs">≈ ${toDollar(deliveryFee)}</span></span></div>
               <div className="border-t border-dashed border-white/20 my-3"></div>
-              <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP</span></div>
+              <div className="flex justify-between items-center text-lg font-bold"><span>الإجمالي</span><span className="text-fuchsia-400">{total.toLocaleString()} LBP <span className="text-white/70 text-sm">≈ ${toDollar(total)}</span></span></div>
             </div>
           </div>
-          <button onClick={handleConfirmOrder} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP</button>
+          <button onClick={handleConfirmOrder} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-lg shadow-lg shadow-purple-500/50 active:scale-95 transition">تأكيد الطلب {total.toLocaleString()} LBP • ≈ ${toDollar(total)}</button>
         </div>
       </GeofenceGate>
     </div>
