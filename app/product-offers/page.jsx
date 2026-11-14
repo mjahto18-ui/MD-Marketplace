@@ -107,7 +107,7 @@ export default function OffersPage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
                     {filtered.map((p) => (
-            <div key={p.productID} onClick={() => router.push(`/product/${p.productID}`)} style={{ background: "#1A1A1A", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 20, overflow: "hidden", cursor: "pointer" }}>
+            <div key={p.productID} onClick={() => router.push(`/products/${p.productID}`)} style={{ background: "#1A1A1A", border: "1px solid rgba(255,215,0,0.25)", borderRadius: 20, overflow: "hidden", cursor: "pointer" }}>
               <div style={{ position: "relative", background: "#fff", height: 170 }}>
                 {p.images?.[0] || p.image ? (
                   <Image src={p.images?.[0] || p.image} alt={p.name} fill style={{ objectFit: "cover" }} unoptimized />
