@@ -11,6 +11,8 @@ export default function PendingProductsPage() {
   const [search, setSearch] = useState('')
   const [edit, setEdit] = useState(null) // المنتج يلي عم تعدل عليه
   const [imagesMap, setImagesMap] = useState({})
+  const [storesCategory, setStoresCategory] = useState({}) // Store ID -> Category ID - مثلا 3002
+  const [subCats, setSubCats] = useState([]) // التجزيء - تبع متجر المنتج اللي عم تراجعو
   
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
@@ -50,16 +52,35 @@ export default function PendingProductsPage() {
     if(filtered.length){
       const storeIds = [...new Set(filtered.map(p=>p['Store ID']).filter(Boolean))]
       if(storeIds.length){
-        const { data: storeData } = await supabase.from('stores').select('"Store ID","Store Name"').in('Store ID', storeIds)
-        const map = {}
-        storeData?.forEach(s => map[s['Store ID']] = s['Store Name'])
-        setStores(map)
+       const { data: storeData } = await supabase.from('stores').select('"Store ID","Store Name","Category"').in('Store ID', storeIds)
+       const map = {}
+       const mapCat = {}
+      storeData?.forEach(s => {
+      map[s['Store ID']] = s['Store Name']
+      mapCat[s['Store ID']] = s['Category'] // هون - 3002 / 3006 / 3010 / ...
+     })
+    setStores(map)
+    setStoresCategory(mapCat)
       }
     }
     setLoading(false)
   }
 
   useEffect(()=>{ fetchData() },[])
+
+  // === جديد - جيب التجزيء - بس - تبع كاتيجوري المتجر - تبع هيدا المنتج ===
+const openEdit = async (p) => {
+  setEdit(p)
+  setSubCats([])
+  const catId = storesCategory[p['Store ID']]
+  if(!catId) return
+  const { data } = await supabase
+    .from('sub_categories')
+    .select('"Sub Category Name"')
+    .eq('Category ID', String(catId))
+    .order('id', { ascending: true })
+  setSubCats((data || []).map(r => r['Sub Category Name']))
+}
 
   const saveApprove = async () => {
     if(!edit) return
@@ -126,7 +147,7 @@ export default function PendingProductsPage() {
             <div className="text-xs text-gray-500">{stores[p['Store ID']] || p['Store ID']} | {p['Category'] || '-'} | {p['Unit']} {p['Size'] ? `| مقاس: ${p['Size']}` : ''}</div>
             <div className="text-xs mt-1">سعر: {p['Price']} | وزن: {p['Weight Points'] || 'ما في'} | باركود: <span className="font-mono">{p['Product ID'].slice(0,8)}</span></div>
             <div className="flex gap-2 mt-3">
-              <button onClick={()=>setEdit(p)} className="flex-1 bg-black text-white text-xs py-2 rounded-lg font-bold">مراجعة وتفعيل ✓</button>
+              <button onClick={()=>openEdit(p)} className="flex-1 bg-black text-white text-xs py-2 rounded-lg font-bold">مراجعة وتفعيل ✓</button>
               <button onClick={()=>reject(p['Product ID'])} className="px-3 bg-red-50 text-red-600 text-xs py-2 rounded-lg">حذف</button>
             </div>
           </div>
@@ -149,8 +170,24 @@ export default function PendingProductsPage() {
               <div><label className="text-xs font-bold">Weight Points (الوزن)</label><input type="number" value={edit['Weight Points']||''} onChange={e=>setEdit({...edit, 'Weight Points':e.target.value})} className="w-full p-2 border rounded mb-2 bg-yellow-50 border-yellow-300" placeholder="مثال 0.5" /></div>
             </div>
 
-            <label className="text-xs font-bold">Category</label>
-            <input value={edit['Category']||''} onChange={e=>setEdit({...edit, Category:e.target.value})} className="w-full p-2 border rounded mb-2" />
+            <label className="text-xs font-bold">Category - تجزيء / Sub Category</label>
+{subCats.length > 0 ? (
+  <>
+    <select
+      value={edit['Category']||''}
+      onChange={e=>setEdit({...edit, Category:e.target.value})}
+      className="w-full p-2 border rounded mb-1 bg-yellow-50 border-yellow-300"
+    >
+      <option value="">-- اختار التجزيء - {storesCategory[edit['Store ID']]} --</option>
+      {subCats.map((s)=>(
+        <option key={s} value={s}>{s}</option>
+      ))}
+    </select>
+    <p className="text-[11px] text-gray-500 mb-2">هيدا المتجر كاتيجوري تبعو {storesCategory[edit['Store ID']]} - عم يطلعلك بس التجزيء تبعو</p>
+  </>
+) : (
+  <input value={edit['Category']||''} onChange={e=>setEdit({...edit, Category:e.target.value})} className="w-full p-2 border rounded mb-2" />
+)}
 
                         {/* مقاس + صور المتجر */}
             {edit['Size'] && <div className="mb-2"><span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">📏 المقاس اللي بعتو المتجر: {edit['Size']}</span></div>}
