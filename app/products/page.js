@@ -79,6 +79,8 @@ export default function ProductsPage() {
   };
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [subCats, setSubCats] = useState([]) // كل التجزيء - من جدول sub_categories
+  const [selectedSub, setSelectedSub] = useState('') // التجزيء اللي نقيه الزبون - فاضي = الكل
   const firstLoad = useRef(true);
 
   useEffect(() => {
@@ -122,6 +124,14 @@ export default function ProductsPage() {
       );
     });
   }
+
+  // === جديد - جيب كل التجزيء - من جدول sub_categories ===
+useEffect(() => {
+  fetch('/api/sub-categories')
+    .then(r => r.json())
+    .then(d => setSubCats(d.data || []))
+    .catch(() => {})
+}, [])
 
   const fetchProducts = useCallback(async (pageNum, searchText, isNewSearch = false) => {
     if (isNewSearch) {
@@ -246,12 +256,17 @@ export default function ProductsPage() {
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+    // === جديد - اذا الزبون نقي تجزيء - صفّي حسب products.Category - نفس العمود القديم ===
+  const visibleProducts = selectedSub
+    ? filtered.filter(p => String(p.category || p.Category || '') === selectedSub)
+    : filtered
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center text-white">
       <div className="text-center"><div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p>جاري التحميل...</p></div>
     </div>
   );
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
@@ -268,8 +283,28 @@ export default function ProductsPage() {
         </div>
         {isSearching && <p className="text-xs text-purple-300 mt-2 mr-2">عم دوّر...</p>}
       </header>
-      <div className="px-4 pb-6">
-        {filtered.length === 0 &&!isSearching && (
+          {/* === جديد - شريط التجزيء === */}
+{subCats.length > 0 && (
+  <div className="flex gap-2 overflow-x-auto px-4 pb-3 -mx-1">
+    <button
+      onClick={() => setSelectedSub('')}
+      className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold ${selectedSub === '' ? 'bg-white text-black' : 'bg-white/10 text-white'}`}
+    >
+      الكل
+    </button>
+    {subCats.map((s) => (
+      <button
+        key={s.id}
+        onClick={() => setSelectedSub(s['Sub Category Name'])}
+        className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold ${selectedSub === s['Sub Category Name'] ? 'bg-white text-black' : 'bg-white/10 text-white'}`}
+      >
+        {s['Sub Category Name']}
+      </button>
+    ))}
+  </div>
+)}
+        <div className="px-4 pb-6">
+         {visibleProducts.length === 0 &&!isSearching && (
           <div className="text-center py-20">
             <Package className="w-16 h-16 text-purple-400 mx-auto mb-4" />
             <p className="text-xl font-bold mb-2">لا يوجد منتجات ضمن نطاقك الجغرافي</p>
@@ -277,7 +312,7 @@ export default function ProductsPage() {
           </div>
         )}
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
-          {filtered.map(product => (
+          {visibleProducts.map(product => (
             <div key={product.productID} className="bg-white/5 ... rounded-2xl overflow-hidden ...">
               <div onClick={() => router.push(`/products/${product.productID}`)} className="cursor-pointer">
               <ProductImage product={product} />
@@ -285,7 +320,7 @@ export default function ProductsPage() {
               <div className="p-3">
                <h3 onClick={() => router.push(`/products/${product.productID}`)} className="font-bold text-sm mb-2 truncate cursor-pointer">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-1 truncate">المتجر: {product.storeName}</p>
-                {product.size && <p className="text- text-amber-300 font-bold mb-1">مقاس: {product.size}</p>}
+                {product.size && <p className="text-[11px] text-amber-300 font-bold mb-1">مقاس: {product.size}</p>}
                  {/* هون زيد التوصيل */}
                 {product.coverage_type === 'global' ? (
               <span className="inline-block text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full mb-2">
