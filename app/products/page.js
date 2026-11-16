@@ -200,6 +200,13 @@ useEffect(() => {
   const addToCart = async (productID) => {
     if (!isCustomer) return;
     if (addingId) return;
+    // === جديد: اذا المتجر Geofence و مسكر - ما بيقدر يطلب - بس من الصفحة ===
+  const prodCheck = [...products, ...filtered].find(p => p.productID === productID);
+  if (prodCheck && prodCheck.storeOpen === false) {
+    setToast(`هذا المتجر مغلق الان - يفتح الساعة ${prodCheck.storeOpenTime ? String(prodCheck.storeOpenTime).slice(0,5) : ''}`);
+    setTimeout(() => setToast(null), 3000);
+    return;
+  }
     if (globalCfg?.isCartClosed) {
       setToast(globalCfg.cart_closed_message || "السلة مغلقة حالياً");
       setTimeout(() => setToast(null), 3000);
@@ -312,8 +319,14 @@ useEffect(() => {
           </div>
         )}
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
-          {visibleProducts.map(product => (
-            <div key={product.productID} className="bg-white/5 ... rounded-2xl overflow-hidden ...">
+           {visibleProducts.map(product => (
+            <div key={product.productID} className={`bg-white/5 ... rounded-2xl overflow-hidden ... relative ${product.storeOpen === false ? 'opacity-50' : ''}`}>
+              {/* === جديد: بانر مغلق الان - بس Geofence و مسكر - Global ما بيطلعلو بانر ابدا لانو دايما فاتح === */}
+              {product.storeOpen === false && (
+                <div className="absolute top-2 right-2 z-20 bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">
+                  مغلق الان - بيفتح {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}
+                </div>
+              )}
               <div onClick={() => router.push(`/products/${product.productID}`)} className="cursor-pointer">
               <ProductImage product={product} />
                </div>
@@ -338,10 +351,14 @@ useEffect(() => {
                 </p>
                 )}
                 <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span> <span className="text-white/70 font-bold">≈ ${toDollar(product.price)}</span></p></div>
-                {isCustomer? (
-                  <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
-                    {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
-                  </button>
+                 {isCustomer? (
+                  product.storeOpen === false ? (
+                    <div className="w-full bg-gray-500 py-2.5 rounded-xl text-center text-white font-bold text-sm">مغلق الان - بيفتح {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}</div>
+                  ) : (
+                    <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
+                      {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
+                    </button>
+                  )
                 ) : (
                   <div className="w-full bg-white/5 py-2.5 rounded-xl text-center text-xs text-purple-300">عرض فقط - للكوستيمر</div>
                 )}
