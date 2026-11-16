@@ -11,8 +11,14 @@ export default function SpecialOrdersPage(){
   const [adminNote, setAdminNote] = useState("")
   const [loading, setLoading] = useState(false)
 
+    const loadOrders = async () => {
+    const r = await fetch('/api/admin/special-orders', { cache: 'no-store' })
+    const d = await r.json()
+    setOrders(d.orders || [])
+  }
+
   useEffect(()=>{
-    fetch('/api/admin/special-orders').then(r=>r.json()).then(d=> setOrders(d.orders || []))
+    loadOrders()
   },[])
 
   const openOrder = (o)=>{
@@ -31,7 +37,7 @@ export default function SpecialOrdersPage(){
     const res = await fetch('/api/admin/special-orders/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ requestId: selected.requestID, price: parseFloat(price), deliveryFee: parseFloat(deliveryFee), adminNote }) })
     const d = await res.json()
     setLoading(false)
-    if(d.success){ alert("تمت الموافقة!"); setOrders(o=>o.filter(x=>x.requestID!==selected.requestID)); setSelected(null); setExpandedId(null); }
+    if(d.success){ alert("تمت الموافقة!"); setSelected(null); setExpandedId(null); loadOrders(); }
     else alert(d.message || "خطأ")
   }
 
@@ -39,14 +45,17 @@ export default function SpecialOrdersPage(){
     if(!selected) return
     if(!confirm("متأكد بدك ترفض؟")) return
     await fetch('/api/admin/special-orders/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ requestId: selected.requestID, reject: true, adminNote }) })
-    setOrders(o=>o.filter(x=>x.requestID!==selected.requestID)); setSelected(null); setExpandedId(null);
+setSelected(null); setExpandedId(null); loadOrders();
   }
 
   return (
     <div className="p-6 grid grid-cols-4 gap-6 min-h-screen bg-slate-950 text-white" style={{direction:'rtl'}}>
       <div className="col-span-1 bg-white/5 rounded-2xl p-4 overflow-y-auto">
         <BackToDashboard />
-        <h2 className="font-bold text-xl mb-4">طلبات خاصة ({orders.length})</h2>
+        <div className="flex items-center justify-between mb-4">
+  <h2 className="font-bold text-xl">طلبات خاصة ({orders.length})</h2>
+  <button onClick={loadOrders} className="bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold">تحديث ↻</button>
+</div>
         {orders.map(o=>{
           const isOpen = expandedId===o.requestID
           return (
