@@ -53,6 +53,7 @@ export default function StorePage() {
   const router = useRouter();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [store, setStore] = useState(null); // === جديد: معلومات المتجر - كرمال بانر مغلق الان ===
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState(null);
@@ -86,10 +87,11 @@ export default function StorePage() {
       
       fetch(url, { cache: 'no-store' })
        .then(res => res.json())
-       .then(data => {
+              .then(data => {
           if (data.success) {
             setProducts(data.products);
             setFilteredProducts(data.products);
+            if (data.store) setStore(data.store); // === جديد: خزن معلومات المتجر ===
           }
           setLoading(false);
         });
@@ -118,8 +120,21 @@ export default function StorePage() {
     }
   }, [searchQuery, products]);
 
-  const addToCart = async (productID) => {
+    const addToCart = async (productID) => {
     if (addingId) return;
+    // === جديد: اذا المتجر Geofence و مسكر - ما بيقدر يطلب - بس من الصفحة ===
+    const prodCheck = products.find(p => p.productID === productID);
+    if (prodCheck && prodCheck.storeOpen === false) {
+      setToast(`هيدا المتجر مغلق الان - بيفتح الساعة ${prodCheck.storeOpenTime ? String(prodCheck.storeOpenTime).slice(0,5) : ''}`);
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+    if (store && store.storeOpen === false) {
+      setToast(`هيدا المتجر مغلق الان - بيفتح الساعة ${store.storeOpenTime ? String(store.storeOpenTime).slice(0,5) : ''}`);
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+    
     if (!user) {
       router.push('/login');
       return;
@@ -196,6 +211,13 @@ export default function StorePage() {
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="ابحث عن منتج..." className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl py-3.5 pr-12 pl-4 text-white placeholder:text-purple-300 focus:border-purple-500 focus:outline-none transition" />
         </div>
       </header>
+  {/* === جديد: بانر مغلق الان - بس Geofence و مسكر - Global ما بيطلعلو بانر ابدا === */}
+{store && store.storeOpen === false && (
+  <div className="mx-4 mb-4 bg-red-600 text-white text-center font-black text-sm md:text-base py-3 px-4 rounded-2xl shadow-lg">
+    مغلق الان - هذا المتجر مغلق الان - يفتح الساعة {store.storeOpenTime ? String(store.storeOpenTime).slice(0,5) : ''}
+  </div>
+)}
+
 
       <div className="px-4 pb-6">
         {filteredProducts.length === 0 && !loading && (
@@ -207,8 +229,14 @@ export default function StorePage() {
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-          {filteredProducts.map(product => (
-            <div key={product.productID} className="bg-white/5 ... rounded-2xl overflow-hidden ...">
+            {filteredProducts.map(product => (
+            <div key={product.productID} className={`bg-white/5 ... rounded-2xl overflow-hidden ... relative ${product.storeOpen === false ? 'opacity-50' : ''}`}>
+              {/* === جديد: بانر مغلق الان - بس Geofence و مسكر === */}
+              {product.storeOpen === false && (
+                <div className="absolute top-2 right-2 z-20 bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">
+                  مغلق الان - بيفتح {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}
+                </div>
+              )}
   <div onClick={() => router.push(`/products/${product.productID}`)} className="cursor-pointer">
     <ProductImage product={product} />
   </div>
@@ -222,11 +250,15 @@ export default function StorePage() {
                                     <p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span> <span className="text-white/70 font-bold">≈ ${toDollar(product.price)}</span></p>
                   <p className="text-purple-300">الوزن: {product.weightPoint} كيلو</p>
                 </div>
-                {user? (
+                                {user? (
+                  product.storeOpen === false ? (
+                    <div className="w-full bg-gray-500 py-2.5 rounded-xl text-center text-white font-bold text-sm">مغلق الان - بيفتح {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}</div>
+                  ) : (
                   <button onClick={() => addToCart(product.productID)} disabled={!!addingId} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-60">
                     {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}
                     {addingId === product.productID? '...' : 'اضف للسلة'}
                   </button>
+                  )
                 ) : (
                   <button onClick={() => router.push('/login')} className="w-full bg-white/10 border border-white/20 py-2.5 rounded-xl text-white font-bold text-sm active:scale-95 transition flex items-center justify-center gap-2">
                     <Lock className="w-4 h-4" />
@@ -242,7 +274,7 @@ export default function StorePage() {
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white text-black px-5 py-3 rounded-full shadow-2xl z-[999] flex items-center gap-2">
           <div className="bg-green-500 rounded-full p-1"><Check className="w-3 h-3 text-white" /></div>
-          <span className="text-sm font-bold">{toast} - تمت الإضافة</span>
+          <span className="text-sm font-bold">{toast && String(toast).includes('مغلق') ? toast : `${toast} - تمت الإضافة`}</span>
         </div>
       )}
     </div>
