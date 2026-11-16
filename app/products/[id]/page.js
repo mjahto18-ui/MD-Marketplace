@@ -65,6 +65,12 @@ export default function ProductDetailPage({ params }) {
 
   const addToCart = async () => {
     if (!isCustomer) { router.push('/login'); return; }
+    // === جديد: اذا المتجر Geofence و مسكر - ما بيقدر يطلب - بس من الصفحة ===
+  if (product && product.storeOpen === false) {
+    setToast(`هيدا المتجر مغلق الان - بيفتح الساعة ${product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}`);
+    setTimeout(()=>setToast(null), 3000);
+    return;
+  }
     if (globalCfg?.isCartClosed) {
       setToast(globalCfg.cart_closed_message || "السلة مغلقة حالياً");
       setTimeout(()=>setToast(null), 3000);
@@ -133,7 +139,13 @@ export default function ProductDetailPage({ params }) {
       </header>
 
       <div className="px-4 md:px-8 lg:px-12 pb-28 max-w-7xl mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden p-4 md:p-6 lg:p-8">
+        {/* === جديد: بانر مغلق الان - بس Geofence و مسكر - Global ما بيطلعلو بانر ابدا === */}
+       {product.storeOpen === false && (
+        <div className="bg-red-600 text-white text-center font-black text-sm md:text-base py-3 px-4 rounded-2xl mb-4 shadow-lg">
+         مغلق الان - هيدا المتجر مغلق الان - بيفتح الساعة {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}
+        </div>
+        )}
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden p-4 md:p-6 lg:p-8 ${product.storeOpen === false ? 'opacity-60' : ''}`}>
           {(() => {
             const images = product.images?.length ? product.images : (product.image ? [product.image] : [])
             if (!images.length) return <div className="w-full aspect-square bg-white rounded-2xl flex items-center justify-center text-gray-400">لا صورة</div>
@@ -236,12 +248,16 @@ export default function ProductDetailPage({ params }) {
                 {product.available!== false && <span className="bg-green-500/20 text-green-300 px-4 py-2 rounded-full">متوفر</span>}
               </div>
             </div>
-            <div className="hidden lg:block">
+                        <div className="hidden lg:block">
               {isCustomer? (
+                product.storeOpen === false ? (
+                  <div className="w-full bg-gray-500 py-4 rounded-2xl text-center text-white font-bold text-base">مغلق الان - بيفتح {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}</div>
+                ) : (
                 <button onClick={addToCart} disabled={adding || product.available === false} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition">
                   {adding? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-5 h-5" />}
                   {adding? 'جاري الإضافة...' : 'اضف للسلة'}
                 </button>
+                )
               ) : (
                 <button onClick={()=>router.push('/login')} className="w-full bg-white/10 py-4 rounded-2xl font-bold hover:bg-white/20 transition">سجل دخول للطلب</button>
               )}
@@ -251,12 +267,17 @@ export default function ProductDetailPage({ params }) {
       </div>
 
       <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent">
-        {isCustomer? (
+                {isCustomer? (
+          product.storeOpen === false ? (
+            <div className="w-full bg-gray-500 py-4 rounded-2xl text-center text-white font-bold text-base shadow-2xl">مغلق الان - بيفتح {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}</div>
+          ) : (
           <button onClick={addToCart} disabled={adding || product.available === false} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-4 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-50 shadow-2xl">
             {adding? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-5 h-5" />}
             {adding? '...' : 'اضف للسلة'}
           </button>
+          )
         ) : (
+       
           <button onClick={()=>router.push('/login')} className="w-full bg-white/10 backdrop-blur-xl border border-white/10 py-4 rounded-2xl font-bold">سجل دخول للطلب</button>
         )}
       </div>
