@@ -20,6 +20,32 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c; // كيلو
 }
+// === جديد: هل المتجر فاتح هلق؟ - بس Geofence - Global دايما فاتح - 72 ساعة ===
+function isStoreOpenNow(store) {
+  if (!store) return true
+  // Global - دايما فاتح - توصيل 72 ساعة - ما بينطبق عليه دوام
+  if (store.coverage_type === 'global') return true
+  // Status inactive - مسكر
+  if (store['Status'] === 'inactive') return false
+
+  const openTime = store['Open Time']
+  const closeTime = store['Close Time']
+  // اذا ما حاطط دوام - منعتبره فاتح
+  if (!openTime || !closeTime) return true
+
+  // وقت هلق - بلبنان - Asia/Beirut
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Beirut' }))
+  const toMin = (t) => {
+    const [h, m] = String(t).split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const openMin = toMin(openTime)
+  const closeMin = toMin(closeTime)
+
+  if (closeMin > openMin) return nowMin >= openMin && nowMin < closeMin // دوام عادي 09:00 - 23:00
+  return nowMin >= openMin || nowMin < closeMin // دوام بيقطع نص الليل 20:00 - 02:00
+}
 
 // === عروض - هل العرض شغال هلق؟ حسب التاريخ ===
 function isOfferActiveNow(row) {
@@ -211,14 +237,14 @@ if (pIds.length) {
     const storeIds = [...new Set((productsRows||[]).map(r => r['Store ID']).filter(Boolean))];
     let storesMap = {};
     if (storeIds.length > 0) {
-      const { data: storesValues } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type').in('Store ID', storeIds);
-      (storesValues||[]).forEach(s => {
-        storesMap[s['Store ID']] = { name: s['Store Name'], coverage_type: s.coverage_type || 'geofence' };
+      const { data: storesValues } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type, "Status", "Open Time", "Close Time"').in('Store ID', storeIds);
+       (storesValues||[]).forEach(s => {
+        storesMap[s['Store ID']] = { name: s['Store Name'], coverage_type: s.coverage_type || 'geofence', status: s['Status'] || 'Active', openTime: s['Open Time'] || null, closeTime: s['Close Time'] || null, storeOpen: isStoreOpenNow(s) };
       });
     }
 
     const products = (productsRows||[]).map((row) => {
-      const sInfo = storesMap[row['Store ID']] || { name: "متجر محذوف", coverage_type: 'geofence' };
+            const sInfo = storesMap[row['Store ID']] || { name: "متجر محذوف", coverage_type: 'geofence', status: 'Active', openTime: null, closeTime: null, storeOpen: true };
       return {
         productID: row['Product ID'],
         storeID: row['Store ID'],
@@ -243,6 +269,10 @@ if (pIds.length) {
         isOfferActive: isOfferActiveNow(row),
         storeName: sInfo.name,
         coverage_type: sInfo.coverage_type,
+        storeOpen: sInfo.storeOpen ?? true,
+        storeOpenTime: sInfo.openTime || null,
+        storeCloseTime: sInfo.closeTime || null,
+        storeStatus: sInfo.status || 'Active',
       };
     });
 
