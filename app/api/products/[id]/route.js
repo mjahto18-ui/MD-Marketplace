@@ -20,6 +20,25 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c; // كيلو
 }
+// === جديد: هل المتجر فاتح هلق؟ - بس Geofence - Global دايما فاتح - 72 ساعة ===
+function isStoreOpenNow(store) {
+  if (!store) return true
+  if (store.coverage_type === 'global') return true // Global - دايما فاتح - 72 ساعة
+  if (store['Status'] === 'inactive') return false
+  const openTime = store['Open Time']
+  const closeTime = store['Close Time']
+  if (!openTime || !closeTime) return true
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Beirut' }))
+  const toMin = (t) => {
+    const [h, m] = String(t).split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const openMin = toMin(openTime)
+  const closeMin = toMin(closeTime)
+  if (closeMin > openMin) return nowMin >= openMin && nowMin < closeMin
+  return nowMin >= openMin || nowMin < closeMin
+}
 
 // === عروض - هل العرض شغال هلق؟ حسب التاريخ ===
 function isOfferActiveNow(row) {
@@ -134,7 +153,7 @@ export async function GET(req, { params }) {
 
     
     const storeId = product['Store ID'];
-    const { data: stores } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type').eq('Store ID', storeId).limit(1);
+    const { data: stores } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type, "Status", "Open Time", "Close Time"').eq('Store ID', storeId).limit(1);
     let store = stores?.[0];
 
      // === جيب الصور المتعددة ===
@@ -171,7 +190,10 @@ export async function GET(req, { params }) {
       isOfferActive: isOfferActiveNow(product),
       storeName: store? store['Store Name'] : "متجر محذوف",
       coverage_type: store ? (store.coverage_type || 'geofence') : 'geofence',
-    };
+      storeOpen: store ? isStoreOpenNow(store) : true,
+      storeOpenTime: store?.['Open Time'] || null,
+      storeCloseTime: store?.['Close Time'] || null,
+     };
 
     const res = NextResponse.json({ success: true, product: productData });
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
