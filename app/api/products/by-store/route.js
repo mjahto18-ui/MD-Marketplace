@@ -20,6 +20,27 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c; // كيلو
 }
+// === جديد: هل المتجر فاتح هلق؟ - بس Geofence - Global دايما فاتح - 72 ساعة ===
+function isStoreOpenNow(store) {
+  if (!store) return true
+  if (store.coverage_type === 'global') return true // Global - دايما فاتح - 72 ساعة
+  if (store['Status'] === 'inactive') return false
+  const openTime = store['Open Time']
+  const closeTime = store['Close Time']
+  if (!openTime || !closeTime) return true
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Beirut' }))
+  const toMin = (t) => {
+    const [h, m] = String(t).split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const openMin = toMin(openTime)
+  const closeMin = toMin(closeTime)
+  if (closeMin > openMin) return nowMin >= openMin && nowMin < closeMin
+  return nowMin >= openMin || nowMin < closeMin
+}
+
+
 
 export async function GET(req) {
   try {
@@ -107,6 +128,12 @@ export async function GET(req) {
         imagesMap[im.product_id].push(im.image_url)
       })
     }
+        // === جديد: جيب دوام المتجر - كرمال نعرف اذا فاتح و الا مسكر ===
+    const { data: storeInfoRows } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type, "Status", "Open Time", "Close Time"').eq('Store ID', String(storeID).trim()).limit(1);
+    const storeInfo = storeInfoRows?.[0] || null;
+    const storeOpenVal = isStoreOpenNow(storeInfo);
+
+   
 
     const products = (rows||[]).map(row => ({
       id: row['Product ID'],
@@ -122,9 +149,15 @@ export async function GET(req) {
       available: row['Available'] || "Yes",
       stockQty: Number(row['Stock Qty'] || 0),
       description: row['Description'] || "",
+      storeOpen: storeOpenVal,
+storeOpenTime: storeInfo?.['Open Time'] || null,
+storeCloseTime: storeInfo?.['Close Time'] || null,
+storeStatus: storeInfo?.['Status'] || 'Active',
+coverage_type: storeInfo?.coverage_type || 'geofence',
+storeName: storeInfo?.['Store Name'] || "",
     }));
 
-    const res = NextResponse.json({ success: true, products });
+    const res = NextResponse.json({ success: true, products, store: storeInfo ? { storeID: storeInfo['Store ID'], storeName: storeInfo['Store Name'], coverage_type: storeInfo.coverage_type || 'geofence', storeOpen: storeOpenVal, storeOpenTime: storeInfo['Open Time'] || null, storeCloseTime: storeInfo['Close Time'] || null, storeStatus: storeInfo['Status'] || 'Active' } : null });
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     res.headers.set('Pragma', 'no-cache');
     res.headers.set('Expires', '0');
