@@ -348,8 +348,36 @@ setTowerCustomers(filtered);
       <h2 style={{ fontSize: 18, margin: "18px 0 10px" }}>اوردرات بندينغ - {pendingOrders.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingOrders.map(o => {
-          const cust = customersMap[o["customer ID"]];
-          return (
+  const cust = customersMap[o["customer ID"]];
+
+  // === الخطوة 2: رتب درايفر البرج من الاقرب للاوردر للابعد ===
+  // احداثيات الاوردر من order_requuest - مش من customers
+  let oLat = Number(o["Customer Latitude"] || 0);
+  let oLng = Number(o["Customer Longitude"] || 0);
+  // احتياط: اذا فاضي - من Current Location "lat,lng"
+  if ((!oLat || !oLng) && o["Current Location"]) {
+    const parts = String(o["Current Location"]).split(",");
+    if (parts.length === 2) {
+      oLat = Number(parts[0] || 0);
+      oLng = Number(parts[1] || 0);
+    }
+  }
+
+  const driversSorted = [...drivers].map(d => {
+    const dLat = Number(d["Current Latitude"] || 0);
+    const dLng = Number(d["Current Longitude"] || 0);
+    let dist = 999999;
+    if (oLat && oLng && dLat && dLng) {
+      const R = 6371;
+      const dLatR = (oLat - dLat) * Math.PI / 180;
+      const dLngR = (oLng - dLng) * Math.PI / 180;
+      const a = Math.sin(dLatR/2) * Math.sin(dLatR/2) + Math.cos(dLat * Math.PI / 180) * Math.cos(oLat * Math.PI / 180) * Math.sin(dLngR/2) * Math.sin(dLngR/2);
+      dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    return { ...d, _dist: dist };
+  }).sort((a,b) => a._dist - b._dist);
+
+  return (
             <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #333" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <b>{cust?.["Name"] || o["customer ID"] || "زبون"}</b>
@@ -365,10 +393,14 @@ setTowerCustomers(filtered);
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <select value={selectedDriver[o["Request ID"]] || ""} onChange={e => setSelectedDriver(p => ({ ...p, [o["Request ID"]]: e.target.value }))}
-                  style={{ flex: 1, background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9 }}>
-                  <option value="">اختر سائق - من هيدا البرج</option>
-                  {drivers.map(d => <option key={d["Driver ID"]} value={d["Driver ID"]}>{d["Driver Name"]} - {d["Status"]}</option>)}
-                </select>
+  style={{ flex: 1, background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9 }}>
+  <option value="">اختر سائق - من هيدا البرج - الاقرب اول واحد</option>
+  {driversSorted.map(d => (
+    <option key={d["Driver ID"]} value={d["Driver ID"]}>
+      {d["Driver Name"]} - {d._dist >= 999999 ? "بلا موقع" : d._dist.toFixed(1) + " كم من الاوردر"}
+    </option>
+  ))}
+</select>
                 <button onClick={() => assignDriver(o["Request ID"], selectedDriver[o["Request ID"]])} style={{ background: "#7CFC00", border: 0, padding: "9px 14px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>تعيين</button>
               </div>
             </div>
