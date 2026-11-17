@@ -294,6 +294,15 @@ setTowerCustomers(filtered);
           </div>
         </div>
       </div>
+      {/* === كارت Generate Code - نفس الادمن - بيفتح نفس الصفحة === */}
+<div onClick={() => window.location.href = "/admin/invite-codes"}
+  style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px solid #FFD70033", marginBottom: 16, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+  <div>
+    <b style={{ fontSize: 17 }}>🎟️ Generate Code - كرت دعوة</b>
+    <div style={{ color: "#aaa", fontSize: 12, marginTop: 4 }}>ولد كود 6 أرقام - بدون عداد - مربوط بالانفايت - متل الادمن بالزبط</div>
+  </div>
+  <span style={{ background: "#FFD700", color: "#000", padding: "8px 16px", borderRadius: 999, fontWeight: 800, fontSize: 13 }}>فتح صفحة الاكواد →</span>
+</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
         <Card title="اوردرات بندينغ" value={pendingOrders.length} sub="بدا قبول و تعيين" color="#FFD700" box="pendingOrders" />
