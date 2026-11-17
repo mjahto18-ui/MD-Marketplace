@@ -99,7 +99,7 @@ export default function TowerDashboardPage() {
         setCustomersMap(map);
       } else { setCustomersMap({}); }
 
-      const { data: dRows } = await supabase.from("drivers").select("*").eq("Status", "Active").limit(200);
+      const { data: dRows } = await supabase.from("drivers").select("*").in("Status", ["Active", "Online"]).limit(200);
 
 // === الخطوة 1: بس درايفر هيدا البرج - جوا radius_cart ===
 const towerLat2 = Number(cRows[0].center_lat || 0);
@@ -301,7 +301,7 @@ setTowerCustomers(filtered);
         <Card title="اوردرات نشطة" value={activeOrders.length} sub="قيد التوصيل" color="#7CFC00" box="activeOrders" />
         <Card title="تاكسي نشط" value={activeTaxi.length} sub="على الطريق" color="#00FA9A" box="activeTaxi" />
         <Card title="اوردرات مكتملة" value={completedToday.length} sub="هيدا البرج" color="#aaa" box="completed" />
-        <Card title="سائقين توصيل" value={drivers.length} sub="Active" color="#FFD700" box="drivers" />
+        <Card title="سائقين توصيل" value={drivers.length} sub="Online" color="#FFD700" box="drivers" />
         <Card title="سائقين تاكسي" value={taxiDrivers.length} sub="Active" color="#00BFFF" box="taxiDrivers" />
         <Card title="متاجر نشطة" value={stores.length} sub="Active" color="#FF69B4" box="stores" />
         <Card title="عملاء نشطين" value={Object.keys(customersMap).length} sub="اللي طلبو من برجك" color="#FFD700" box="customers" />
