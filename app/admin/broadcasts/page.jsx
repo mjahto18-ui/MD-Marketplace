@@ -130,7 +130,7 @@ export default function BroadcastPage() {
 
             <div className="col-span-12">
               <label className="text-xs text-purple-300 mb-2 block">الرسالة - Message</label>
-              <textarea className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl py-3.5 px-4 text-white placeholder:text-purple-300 focus:border-purple-500 focus:outline-none transition min-h-" placeholder="منتج جديد..." value={form.message} onChange={(e) => setForm({...form, message: e.target.value})} required />
+              <textarea className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl py-3.5 px-4 text-white placeholder:text-purple-300 focus:border-purple-500 focus:outline-none transition min-h-[100px]" placeholder="منتج جديد..." value={form.message} onChange={(e) => setForm({...form, message: e.target.value})} required />
             </div>
 
             <div className="col-span-12 md:col-span-4">
@@ -143,13 +143,13 @@ export default function BroadcastPage() {
                     <div className="absolute z-10 bg-slate-900 border border-white/10 w-full mt-2 rounded-xl overflow-hidden max-h-40 overflow-auto">
                       {filteredAreas.map((a) => (
                         <div key={a["Area ID"]} className="p-2.5 hover:bg-white/10 cursor-pointer flex justify-between text-sm" onClick={() => { const newIds = [...new Set([...form.areaIds, a["Area ID"]])]; setForm({...form, areaIds: newIds}); setQArea(a["Area Name"]); }}>
-                          <span>{a["Area Name"]}</span><span className="text- text-gray-400">{a["Area ID"].slice(0, 6)}</span>
+                          <span>{a["Area Name"]}</span><span className="text-[11px] text-gray-400">{a["Area ID"].slice(0, 6)}</span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-                <div className="text- mt-2 bg-white/5 p-2 rounded-xl text-purple-300 truncate">IDs: {form.areaIds.join(", ") || "-"}</div>
+                <div className="text-[11px] mt-2 bg-white/5 p-2 rounded-xl text-purple-300 truncate">IDs: {form.areaIds.join(", ") || "-"}</div>
                 <button type="button" className="text-xs text-red-400 mt-2" onClick={() => setForm({...form, areaIds: []})}>مسح</button>
               </div>
             </div>
@@ -168,7 +168,7 @@ export default function BroadcastPage() {
                     </div>
                   )}
                 </div>
-                <div className="text- mt-2 bg-white/5 p-2 rounded-xl text-purple-300 truncate">ID: {form.storeId || "-"}</div>
+                <div className="text-[11px] mt-2 bg-white/5 p-2 rounded-xl text-purple-300 truncate">ID: {form.storeId || "-"}</div>
               </div>
             </div>
 
@@ -186,7 +186,7 @@ export default function BroadcastPage() {
                     </div>
                   )}
                 </div>
-                <div className="text- mt-2 bg-white/5 p-2 rounded-xl text-purple-300 truncate">ID: {form.productId || "-"}</div>
+                <div className="text-[11px] mt-2 bg-white/5 p-2 rounded-xl text-purple-300 truncate">ID: {form.productId || "-"}</div>
               </div>
             </div>
 
@@ -230,9 +230,9 @@ export default function BroadcastPage() {
               <tbody>
                 {list.map((b) => (
                   <tr key={b["Broadcast ID"]} className="border-t border-white/5 hover:bg-white/[0.03] transition">
-                    <td className="p-3 font-bold truncate max-w-">{b["Title"]}</td>
+                    <td className="p-3 font-bold truncate max-w-[200px]">{b["Title"]}</td>
                     <td className="p-3"><span className="bg-white/10 px-2.5 py-1 rounded-full text-xs">{b["Audience"]}</span></td>
-                    <td className="p-3 text-xs truncate max-w-">{b["Area ID"]?.join(",") || "-"}</td>
+                    <td className="p-3 text-xs truncate max-w-[150px]">{b["Area ID"]?.join(",") || "-"}</td>
                     <td className="p-3"><span className={`px-2.5 py-1 rounded-full text-xs ${b["Status"]==="Sent"?"bg-green-500/20 text-green-300": b["Status"]==="Failed"?"bg-red-500/20 text-red-300":"bg-amber-500/20 text-amber-300"}`}>{b["Status"]}</span></td>
                     <td className="p-3 text-xs">{b["Sent Count"]}/{b["Recipients"]}</td>
                     <td className="p-3 text-xs text-purple-300">{b["Created At"]?.slice(0,16)}</td>
