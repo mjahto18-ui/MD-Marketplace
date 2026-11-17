@@ -42,7 +42,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     async function fetchAreas() {
       try {
-        const res = await fetch('/api/areas');
+        const res = await fetch('/api/areas', { cache: 'no-store' });
         const data = await res.json();
         if (data.areas && data.areas.length > 0) {
           setAreas(data.areas);
