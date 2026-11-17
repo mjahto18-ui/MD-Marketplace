@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -18,9 +19,28 @@ export async function GET() {
       name: r["Area Name"],
     }));
 
-    return NextResponse.json({ areas });
+    return NextResponse.json(
+      { areas },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      }
+    );
   } catch (error) {
     console.error("Areas API Error:", error);
-    return NextResponse.json({ areas: [] }, { status: 500 });
+    return NextResponse.json(
+      { areas: [] },
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      }
+    );
   }
 }
