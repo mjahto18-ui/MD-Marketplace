@@ -66,7 +66,8 @@ try {
   if (role === 'Assistant Admin') {
     if (
       pathname.startsWith('/admin/tower-dashboard') ||
-      pathname.startsWith('/admin/active-orders')
+      pathname.startsWith('/admin/active-orders') ||
+      pathname.startsWith('/admin/invite-codes') // هيدا اللي زدناه
     ) {
       return NextResponse.next();
     }
