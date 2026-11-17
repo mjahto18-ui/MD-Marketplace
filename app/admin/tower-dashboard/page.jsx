@@ -29,6 +29,9 @@ export default function TowerDashboardPage() {
   const [storesMap, setStoresMap] = useState({});
   const [driversMap, setDriversMap] = useState({});
   const [selectedDriver, setSelectedDriver] = useState({});
+  const [specialPrice, setSpecialPrice] = useState({});
+  const [specialFee, setSpecialFee] = useState({});
+  const [specialNote, setSpecialNote] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [debugMe, setDebugMe] = useState("");
   const [openBox, setOpenBox] = useState("");
@@ -204,6 +207,25 @@ setTowerCustomers(filtered);
     await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Assigned" }).eq("Request ID", orderId);
     load();
   };
+
+  const approveSpecial = async (s) => {
+  const price = Number(specialPrice[s["Request ID"]] || 0);
+  const fee = Number(specialFee[s["Request ID"]] || 0);
+  if (!price || !fee) return alert("حط سعر القطعة وتكلفة التوصيل أولاً");
+  const res = await fetch('/api/admin/special-orders/approve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requestId: s["Request ID"],
+      price,
+      deliveryFee: fee,
+      adminNote: specialNote[s["Request ID"]] || ""
+    })
+  });
+  const d = await res.json();
+  if (d.success) { alert("تحول لاوردر"); load(); }
+  else alert(d.message || "ما تحول");
+};
 
   if (loading) return (
     <div style={{ padding: 20, color: "#fff", background: "#0F0F0F", minHeight: "100vh" }}>
@@ -427,16 +449,21 @@ setTowerCustomers(filtered);
       <h2 style={{ fontSize: 18, margin: "22px 0 10px" }}>طلبات خاصة بندينغ - {pendingSpecial.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingSpecial.map(s => (
-          <div key={s["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #FF8C0033" }}>
-            <b>{s["Customer Name"]}</b>
-            <div style={{ color: "#aaa", fontSize: 12 }}>{s["Store Hint"] || ""}</div>
-            <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
-              <b>ملاحظة: </b>{s["ملاحظات عامة"] || s["الطلب"] || "لا يوجد ملاحظات"}
-            </div>
-            <div style={{ marginTop: 8 }}>{s["الطلب"]}</div>
-            <div style={{ color: "#aaa", fontSize: 12 }}>كمية: {s["Quantity"]}</div>
-          </div>
-        ))}
+  <div key={s["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #FF8C0033" }}>
+    <b>{s["Customer Name"]}</b>
+    <div style={{ color: "#aaa", fontSize: 12 }}>{s["Store Hint"] || ""} - {s["Mobile"] || ""}</div>
+    <div style={{ color: "#aaa", fontSize: 12 }}>{s["Delivery Adress"] || ""}</div>
+    <div style={{ marginTop: 8 }}>{s["الطلب"]}</div>
+    <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
+      <b>ملاحظة: </b>{s["ملاحظات عامة"] || "لا يوجد ملاحظات"}
+    </div>
+    <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>كمية: {s["Quantity"]}</div>
+    <input value={specialPrice[s["Request ID"]] || ""} onChange={e => setSpecialPrice(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="سعر القطعة" type="number" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 10 }} />
+    <input value={specialFee[s["Request ID"]] || ""} onChange={e => setSpecialFee(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="اجرة التوصيل" type="number" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 8 }} />
+    <input value={specialNote[s["Request ID"]] || ""} onChange={e => setSpecialNote(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="ملاحظة الادمن" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 8 }} />
+    <button onClick={() => approveSpecial(s)} style={{ width: "100%", background: "#FFD700", border: 0, padding: 10, borderRadius: 12, fontWeight: 800, cursor: "pointer", marginTop: 10 }}>سعر و حول لاوردر</button>
+  </div>
+))}
         {pendingSpecial.length === 0 && <div style={{ color: "#aaa" }}>ما في طلبات خاصة</div>}
       </div>
 
