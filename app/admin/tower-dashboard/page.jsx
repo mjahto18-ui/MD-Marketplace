@@ -198,10 +198,11 @@ setTowerCustomers(filtered);
   window.location.href = '/admin/login';
 };
 
-  const acceptOrder = async (id) => {
-    await supabase.from("order_requuest").update({ "Approval Status": "Approved" }).eq("Request ID", id);
-    load();
-  };
+  const acceptOrder = async (id, driverId) => {
+  if (!driverId) return alert("اختار سائق أولاً - ما فيك تقبل الاوردر بلا سائق");
+  await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Assigned" }).eq("Request ID", id);
+  load();
+};
   const assignDriver = async (orderId, driverId) => {
     if (!driverId) return;
     await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Assigned" }).eq("Request ID", orderId);
@@ -400,7 +401,7 @@ setTowerCustomers(filtered);
   }).sort((a,b) => a._dist - b._dist);
 
   return (
-            <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #333" }}>
+            <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #333", overflow: "hidden", minWidth: 0, boxSizing: "border-box" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <b>{cust?.["Name"] || o["customer ID"] || "زبون"}</b>
                 <span style={{ color: "#FFD700" }}>{o["Total Amount"] || 0} ل.ل</span>
@@ -410,12 +411,12 @@ setTowerCustomers(filtered);
                 <b>ملاحظة: </b>{o["Note"] || "لا يوجد ملاحظات"}
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button onClick={() => acceptOrder(o["Request ID"])} style={{ flex: 1, background: "#FFD700", border: 0, padding: 10, borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>قبول</button>
+                <button onClick={() => acceptOrder(o["Request ID"], selectedDriver[o["Request ID"]])} disabled={!selectedDriver[o["Request ID"]]} style={{ flex: 1, background: selectedDriver[o["Request ID"]] ? "#FFD700" : "#444", color: selectedDriver[o["Request ID"]] ? "#000" : "#aaa", border: 0, padding: 10, borderRadius: 12, fontWeight: 800, cursor: selectedDriver[o["Request ID"]] ? "pointer" : "not-allowed" }}>قبول - مع السائق</button>
                 <Link href={`/admin/active-orders/${o["Request ID"]}`} style={{ flex: 1, textAlign: "center", background: "#222", color: "#fff", padding: 10, borderRadius: 12, textDecoration: "none" }}>تفاصيل</Link>
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <select value={selectedDriver[o["Request ID"]] || ""} onChange={e => setSelectedDriver(p => ({ ...p, [o["Request ID"]]: e.target.value }))}
-  style={{ flex: 1, background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9 }}>
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", width: "100%", boxSizing: "border-box" }}>
+  <select value={selectedDriver[o["Request ID"]] || ""} onChange={e => setSelectedDriver(p => ({ ...p, [o["Request ID"]]: e.target.value }))}
+    style={{ flex: "1 1 100%", minWidth: 0, width: "100%", boxSizing: "border-box", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9 }}>
   <option value="">اختر سائق - من هيدا البرج - الاقرب اول واحد</option>
   {driversSorted.map(d => (
     <option key={d["Driver ID"]} value={d["Driver ID"]}>
@@ -423,7 +424,7 @@ setTowerCustomers(filtered);
     </option>
   ))}
 </select>
-                <button onClick={() => assignDriver(o["Request ID"], selectedDriver[o["Request ID"]])} style={{ background: "#7CFC00", border: 0, padding: "9px 14px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>تعيين</button>
+                
               </div>
             </div>
           );
