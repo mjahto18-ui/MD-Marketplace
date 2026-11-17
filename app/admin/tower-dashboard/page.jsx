@@ -97,10 +97,33 @@ export default function TowerDashboardPage() {
       } else { setCustomersMap({}); }
 
       const { data: dRows } = await supabase.from("drivers").select("*").eq("Status", "Active").limit(200);
-      setDrivers(dRows || []);
-      const dMap = {};
-      (dRows || []).forEach(x => dMap[x["Driver ID"]] = x);
-      setDriversMap(dMap);
+
+// === الخطوة 1: بس درايفر هيدا البرج - جوا radius_cart ===
+const towerLat2 = Number(cRows[0].center_lat || 0);
+const towerLng2 = Number(cRows[0].center_lng || 0);
+const towerRadius = Number(cRows[0].radius_cart || 0);
+
+function distKmDriver(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+const towerDrivers = (dRows || []).filter(d => {
+  const lat = Number(d["Current Latitude"] || 0);
+  const lng = Number(d["Current Longitude"] || 0);
+  if (!lat || !lng || !towerLat2 || !towerLng2 || !towerRadius) return false;
+  return distKmDriver(lat, lng, towerLat2, towerLng2) <= towerRadius;
+});
+
+setDrivers(towerDrivers);
+// الـ Map للعرض - من كل الدرايفر - كرمال الاوردرات القديمة يضل يبين اسمن
+const dMap = {};
+(dRows || []).forEach(x => dMap[x["Driver ID"]] = x);
+setDriversMap(dMap);
+
       const { data: tdRows } = await supabase.from("taxi_drivers").select("*").eq("status", "active").limit(200);
       setTaxiDrivers(tdRows || []);
       const { data: stRows } = await supabase.from("stores").select("*").eq("Status", "Active").limit(200);
