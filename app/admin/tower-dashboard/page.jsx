@@ -200,12 +200,12 @@ setTowerCustomers(filtered);
 
   const acceptOrder = async (id, driverId) => {
   if (!driverId) return alert("اختار سائق أولاً - ما فيك تقبل الاوردر بلا سائق");
-  await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Assigned" }).eq("Request ID", id);
+  await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Pending" }).eq("Request ID", id);
   load();
 };
   const assignDriver = async (orderId, driverId) => {
     if (!driverId) return;
-    await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Assigned" }).eq("Request ID", orderId);
+    await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Pending" }).eq("Request ID", orderId);
     load();
   };
 
