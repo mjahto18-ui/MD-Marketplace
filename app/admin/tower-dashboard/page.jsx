@@ -210,9 +210,17 @@ setTowerCustomers(filtered);
   };
 
   const approveSpecial = async (s) => {
-  const price = Number(specialPrice[s["Request ID"]] || 0);
-  const fee = Number(specialFee[s["Request ID"]] || 0);
-  if (!price || !fee) return alert("حط سعر القطعة وتكلفة التوصيل أولاً");
+  const priceRaw = specialPrice[s["Request ID"]];
+  const feeRaw = specialFee[s["Request ID"]];
+
+  // الفاضي بس هو المرفوض - الصفر مقبول
+  if (priceRaw === undefined || priceRaw === "" || feeRaw === undefined || feeRaw === "") {
+    return alert("حط سعر القطعة وتكلفة التوصيل أولاً - فيك تحط 0 اذا مجاني");
+  }
+
+  const price = Number(priceRaw || 0);
+  const fee = Number(feeRaw || 0);
+
   const res = await fetch('/api/admin/special-orders/approve', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
