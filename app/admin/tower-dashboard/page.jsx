@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -488,11 +490,35 @@ setTowerCustomers(filtered);
       <h2 style={{ fontSize: 18, margin: "22px 0 10px" }}>اوردرات نشطة - {activeOrders.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
         {activeOrders.map(o => {
-          const cust = customersMap[o["customer ID"]];
-          const drv = driversMap[o["Assigned Driver"]];
-          return (
-            <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14 }}>
-              <b>{cust?.["Name"] || "زبون"}</b> - <span style={{ color: "#7CFC00" }}>{o["Approval Status"]}</span>
+  const cust = customersMap[o["customer ID"]];
+  const drv = driversMap[o["Assigned Driver"]];
+
+  // موقع السائق من نفس الاوردر - متل الزبون بالزبط
+  let driverLat = null, driverLng = null;
+  if (o["Current Location"] && String(o["Current Location"]).includes(",")) {
+    const parts = String(o["Current Location"]).split(",");
+    driverLat = parts[0]?.trim() || null;
+    driverLng = parts[1]?.trim() || null;
+  }
+
+  return (
+    <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14 }}>
+      <b>{cust?.["Name"] || "زبون"}</b> - <span style={{ color: "#7CFC00" }}>{o["Approval Status"]}</span>
+
+      {/* خريطة الاوردر - زبون + سائق */}
+      {o["Customer Latitude"] && o["Customer Longitude"] && (
+        <div style={{ height: 180, borderRadius: 12, overflow: "hidden", marginTop: 10, border: "1px solid #333" }}>
+          <Map
+            customerLat={o["Customer Latitude"]}
+            customerLng={o["Customer Longitude"]}
+            driverLat={driverLat}
+            driverLng={driverLng}
+          />
+        </div>
+      )}
+      <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>
+        {driverLat && driverLng ? "السائق في الطريق 🛵" : "بانتظار السائق"}
+      </div>
               <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 8, fontSize: 13 }}>
                 <b>ملاحظة: </b>{o["Note"] || "لا يوجد ملاحظات"}
               </div>
