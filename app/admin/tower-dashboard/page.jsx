@@ -40,6 +40,10 @@ export default function TowerDashboardPage() {
   const [towerCustomers, setTowerCustomers] = useState([]);
   const [areasMap, setAreasMap] = useState({});
   const [categoriesMap, setCategoriesMap] = useState({});
+  // --- المحفظة ---
+  const [wallet, setWallet] = useState({ earned: 0, paid: 0, remaining: 0 });
+  const [payouts, setPayouts] = useState([]);
+  const [walletRows, setWalletRows] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -85,6 +89,17 @@ export default function TowerDashboardPage() {
         setLoading(false); return;
       }
       setTower(cRows[0]);
+
+      // --- المحفظة: اشتغل - اندفع - باقي ---
+const { data: archRows } = await supabase.from("geofence_archive").select("manager_commission, order_date, source_order_id, source_type").eq("manager_user_id", userId).eq("geofence_center_id", towerId).order("order_date", { ascending: false }).limit(2000);
+const earned = (archRows || []).reduce((s, r) => s + Number(r.manager_commission || 0), 0);
+setWalletRows(archRows || []);
+
+const { data: payRows } = await supabase.from("tower_manager_payouts").select("*").eq("manager_user_id", userId).eq("geofence_center_id", towerId).order("paid_at", { ascending: false }).limit(200);
+const paid = (payRows || []).reduce((s, r) => s + Number(r.amount_paid || 0), 0);
+setPayouts(payRows || []);
+
+setWallet({ earned, paid, remaining: earned - paid });
 
       const { data: oRows } = await supabase.from("order_requuest").select("*").eq(COL_TOWER_ID, towerId).order("Cerated Date", { ascending: false }).limit(200);
       setOrders(oRows || []);
@@ -272,6 +287,7 @@ setTowerCustomers(filtered);
     stores: "متاجر نشطة - تفاصيل",
     customers: "عملاء نشطين - تفاصيل",
     towerCustomers: "عملاء البرج - تفاصيل",
+    wallet: "محفظتي - تفاصيل الدفع",
   };
 
   const Card = ({ title, value, sub, color = "#FFD700", box }) => (
@@ -315,6 +331,7 @@ setTowerCustomers(filtered);
 </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
+        <Card title="محفظتي - الباقي" value={wallet.remaining.toLocaleString()} sub={`اشتغلت ${wallet.earned.toLocaleString()} - اندفع ${wallet.paid.toLocaleString()}`} color="#7CFC00" box="wallet" />
         <Card title="اوردرات بندينغ" value={pendingOrders.length} sub="بدا قبول و تعيين" color="#FFD700" box="pendingOrders" />
         <Card title="تاكسي بندينغ" value={pendingTaxi.length} sub="بانتظار سائق" color="#00BFFF" box="pendingTaxi" />
         <Card title="طلبات خاصة بندينغ" value={pendingSpecial.length} sub="بدا تسعير" color="#FF8C00" box="pendingSpecial" />
@@ -353,6 +370,35 @@ setTowerCustomers(filtered);
          <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{areasMap[c["Area"]]?.["Area Name"] || c["Area"]} - {c["Mobile"]} - {c["Adress"]}</span></Row>
          ))}
          {openBox === "towerCustomers" && towerCustomers.length === 0 && <div style={{ color: "#aaa" }}>ما في عملاء عندن احداثيات بمنطقة البرج</div>}
+
+          {openBox === "wallet" && (
+  <>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+      <span style={{ background: "#1a3a1a", color: "#7CFC00", padding: "8px 14px", borderRadius: 999, fontWeight: 800 }}>اشتغلت: {wallet.earned.toLocaleString()} ل.ل</span>
+      <span style={{ background: "#222", padding: "8px 14px", borderRadius: 999 }}>اندفعلك: {wallet.paid.toLocaleString()} ل.ل</span>
+      <span style={{ background: "#FFD700", color: "#000", padding: "8px 14px", borderRadius: 999, fontWeight: 800 }}>باقيلك: {wallet.remaining.toLocaleString()} ل.ل</span>
+    </div>
+
+    <b style={{ fontSize: 15 }}>سجل الدفعات:</b>
+    {payouts.length === 0 && <div style={{ color: "#aaa", margin: "8px 0" }}>بعد ما اندفعلك شي - بس يندفعلك اول دفعة - بتبين هون</div>}
+    {payouts.map(p => (
+      <Row key={p.id}>
+        <span>💰 {Number(p.amount_paid || 0).toLocaleString()} ل.ل - {p.notes || "دفعة"}</span>
+        <span style={{ color: "#aaa", fontSize: 12 }}>
+          {p.period_start ? new Date(p.period_start).toLocaleDateString('en-GB') : "-"} الى {p.period_end ? new Date(p.period_end).toLocaleDateString('en-GB') : "-"} - دفع بتاريخ {p.paid_at ? new Date(p.paid_at).toLocaleDateString('en-GB') : "-"}
+        </span>
+      </Row>
+    ))}
+
+    <b style={{ fontSize: 15, display: "block", marginTop: 16 }}>اخر الطلبات يلي اشتغلتن - حصتك 30%:</b>
+    {walletRows.slice(0, 50).map(r => (
+      <Row key={r.source_order_id + r.order_date}>
+        <span>🧾 {r.source_type} - {String(r.source_order_id || "").slice(0, 8)}</span>
+        <span style={{ color: "#aaa", fontSize: 12 }}>{r.order_date ? new Date(r.order_date).toLocaleDateString('en-GB') : "-"} - حصتك: <b style={{ color: "#7CFC00" }}>{Number(r.manager_commission || 0).toLocaleString()} ل.ل</b></span>
+      </Row>
+    ))}
+  </>
+)}
 
           {(openBox === "pendingOrders" || openBox === "activeOrders" || openBox === "completed") && (openBox === "pendingOrders" ? pendingOrders : openBox === "activeOrders" ? activeOrders : completedToday).map(o => {
             const cust = customersMap[o["customer ID"]];
