@@ -34,6 +34,7 @@ export default function TowerDashboardPage() {
   const [specialPrice, setSpecialPrice] = useState({});
   const [specialFee, setSpecialFee] = useState({});
   const [specialNote, setSpecialNote] = useState({});
+  const [specialCustomersMap, setSpecialCustomersMap] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [debugMe, setDebugMe] = useState("");
   const [openBox, setOpenBox] = useState("");
@@ -107,6 +108,16 @@ setWallet({ earned, paid, remaining: earned - paid });
       setTaxiOrders(tRows || []);
       const { data: sRows } = await supabase.from("special_orders").select("*").eq(COL_TOWER_ID, towerId).order("Cerated Date", { ascending: false }).limit(200);
       setSpecials(sRows || []);
+      // ✅ جيب الفري للـ Special - عرض بس
+const sCustIds = [...new Set((sRows || []).map(x => x["customer ID"]).filter(Boolean))];
+if(sCustIds.length){
+  const { data: sc } = await supabase.from("customers").select("*").in("Customer ID", sCustIds);
+  const scMap = {};
+  (sc || []).forEach(x => scMap[x["Customer ID"]] = x);
+  setSpecialCustomersMap(scMap);
+} else {
+  setSpecialCustomersMap({});
+}
 
       const custIds = [...new Set((oRows || []).map(x => x["customer ID"]).filter(Boolean))];
       if (custIds.length) {
@@ -524,6 +535,26 @@ setTowerCustomers(filtered);
       <b>ملاحظة: </b>{s["ملاحظات عامة"] || "لا يوجد ملاحظات"}
     </div>
     <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>كمية: {s["Quantity"]}</div>
+    {(() => {
+  const sc = specialCustomersMap[s["customer ID"]];
+  const left = sc?.["Free Delivery Remaining"] ?? '-';
+  const last = sc?.["Last Free Delivery Date"] || '-';
+  const today = new Date().toISOString().split('T')[0];
+  const tookToday = last === today;
+  return (
+    <div style={{ background: tookToday ? "#3a1a1a" : "#1a3a1a", border: "1px solid #7CFC00", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
+      <b>🆓 فري دلفري باقي: {left}</b>
+      <div style={{ color: "#aaa", fontSize: 12 }}>آخر فري: {last}</div>
+      {tookToday ? (
+        <div style={{ color: "#ff6b6b", fontWeight: 800, marginTop: 4 }}>❌ أخد فري اليوم - ما بحقلو - ما تحط 0</div>
+      ) : Number(left) > 0 ? (
+        <div style={{ color: "#7CFC00", fontWeight: 800, marginTop: 4 }}>✅ فيك تحط 0 - لأنو معو فري</div>
+      ) : (
+        <div style={{ color: "#ff6b6b", fontWeight: 800, marginTop: 4 }}>❌ ما معو فري - لازم تحط توصيل</div>
+      )}
+    </div>
+  );
+})()}
     <input value={specialPrice[s["Request ID"]] || ""} onChange={e => setSpecialPrice(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="سعر القطعة" type="number" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 10 }} />
     <input value={specialFee[s["Request ID"]] || ""} onChange={e => setSpecialFee(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="اجرة التوصيل" type="number" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 8 }} />
     <input value={specialNote[s["Request ID"]] || ""} onChange={e => setSpecialNote(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="ملاحظة الادمن" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 8 }} />
