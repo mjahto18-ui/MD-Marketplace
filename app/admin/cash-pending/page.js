@@ -7,6 +7,8 @@ import BackToDashboard from "@/components/BackToDashboard"
 export default function CashPendingPage() {
   const [orders, setOrders] = useState([])
   const [names, setNames] = useState({ customers: {}, areas: {}, drivers: {} })
+  const [showReview, setShowReview] = useState(false)
+  const [reviewOrder, setReviewOrder] = useState(null)
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -62,9 +64,11 @@ export default function CashPendingPage() {
   if(error) alert("Error: " + error.message)
   else if(!data || data.length === 0) alert("ما لقى الاوردر! الـ ID ما تطابق")
   else {
-    alert('تم ✅')
-    setOrders(prev => prev.filter(o => o['Request ID']!== orderId))
-  }
+  const doneOrder = data[0]
+  setOrders(prev => prev.filter(o => o['Request ID']!== orderId))
+  setReviewOrder(doneOrder)
+  setShowReview(true) // هون بيطلع بوكس التقييم - بدال الـ alert
+}
 }
 
   const formatLBP = (n)=>{
@@ -143,6 +147,55 @@ export default function CashPendingPage() {
         })}
         {orders.length === 0 && <p className="text-gray-500">ما في شي معلق 👌</p>}
       </div>
+          {/* ✅ بوكس التقييم - بيطلع بس بعد Confirm Cash */}
+{showReview && reviewOrder && (
+<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div className="bg-white rounded-xl max-w-md w-full text-center shadow-2xl overflow-hidden">
+
+    {/* ✅ الهيدر - شعار الشركة + لينك الموقع */}
+    <a href="https://www.md-marketplace.store" target="_blank" className="block bg-[#0A1A2E] py-4 px-4">
+      
+      <div className="text-[#E8C87A] font-bold text-lg">MD-Marketplace</div>
+      <div className="text-white text-xs">www.md-marketplace.store</div>
+    </a>
+
+    <div className="p-6">
+      <h2 className="text-xl font-bold mb-2">كيف كانت تجربتك معنا؟ ⭐⭐⭐⭐⭐</h2>
+      <p className="text-sm text-gray-600 mb-4">
+        رأيك يهمنا ❤ إذا كنت راضي عن تجربتك مع MD-Marketplace، شاركنا تقييمك على Google. دعمك يساعدنا نطوّر خدمتنا أكثر!
+      </p>
+
+      <a
+        href="https://g.page/r/CcOVk0zdXDrZEAE/review"
+        target="_blank"
+        className="block bg-yellow-500 text-white py-3 rounded-lg font-bold mb-3"
+      >
+        ⭐ قيّمنا على Google
+      </a>
+
+      <a
+        href={`https://wa.me/${(() => { let m = String(reviewOrder['Mobile'] || '').replace(/[^0-9]/g, ''); if (m.startsWith('961')) return m; if (m.startsWith('0')) m = m.slice(1); return '961' + m; })()}?text=${encodeURIComponent('مرحبا 👋 شكراً لأنك طلبت من MD-Marketplace\nكيف كانت تجربتك معنا؟\nاذا حبيت - فيك تقيّمنا هون على Google بدقيقة:\nhttps://g.page/r/CcOVk0zdXDrZEAE/review\n\nزورونا: https://www.md-marketplace.store')}`}
+        target="_blank"
+        className="block bg-green-600 text-white py-3 rounded-lg font-bold mb-3"
+      >
+        💬 ابعت للزبون على WhatsApp
+      </a>
+
+      <a href="https://www.md-marketplace.store" target="_blank" className="block text-xs text-blue-600 underline mb-3">
+        🌐 www.md-marketplace.store
+      </a>
+
+      <button
+        onClick={() => { setShowReview(false); setReviewOrder(null) }}
+        className="text-gray-500 text-sm underline"
+      >
+        تخطي - سكّر البوكس
+      </button>
+    </div>
+  </div>
+</div>
+)}
+
     </div>
   )
 }
