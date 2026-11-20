@@ -18,6 +18,20 @@ export async function GET(){
     res.headers.set('Vercel-CDN-Cache-Control', 'no-store');
     return res;
   }
+  // ✅ جيب الفري دلفري من customers - عرض بس
+const custIds = [...new Set((data||[]).map(o=>o['customer ID']).filter(Boolean))];
+let custMap = {};
+if(custIds.length > 0){
+  const { data: custs } = await supabase
+    .from('customers')
+    .select('"Customer ID", "Free Delivery Remaining", "Last Free Delivery Date"')
+    .in('Customer ID', custIds);
+  (custs||[]).forEach(c=>{
+    custMap[c['Customer ID']] = c;
+  });
+}
+
+
   const orders = (data||[]).map(o=>({
     requestID: o['Request ID'],
     customerName: o['Customer Name'],
@@ -35,6 +49,8 @@ export async function GET(){
     deliveryFee: o['اجرة التوصيل'],
     adminNote: o['ملاحظات الادمن'],
     status: o['Status'],
+    freeDeliveryRemaining: custMap[o['customer ID']]?.['Free Delivery Remaining'] ?? null,
+    lastFreeDeliveryDate: custMap[o['customer ID']]?.['Last Free Delivery Date'] ?? null,
   }));
   const res = Response.json({ orders });
   // === شيل الكاش بالمرة ===
