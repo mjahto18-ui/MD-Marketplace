@@ -174,15 +174,11 @@ export default function CashPendingPage() {
       </a>
 
       <a
-        href={`https://wa.me/${(() => { let m = String(reviewOrder['Mobile'] || '').replace(/[^0-9]/g, ''); if (m.startsWith('961')) return m; if (m.startsWith('0')) m = m.slice(1); return '961' + m; })()}?text=${encodeURIComponent('مرحبا 👋 شكراً لأنك طلبت من MD-Marketplace\nكيف كانت تجربتك معنا؟\nاذا حبيت - فيك تقيّمنا هون على Google بدقيقة:\nhttps://g.page/r/CcOVk0zdXDrZEAE/review\n\nزورونا: https://www.md-marketplace.store')}`}
+        href={`https://wa.me/${(() => { let m = String(reviewOrder['Mobile'] || '').replace(/[^0-9]/g, ''); if (m.startsWith('961')) return m; if (m.startsWith('0')) m = m.slice(1); return '961' + m; })()}?text=${encodeURIComponent('مرحبا 👋 شكراً لأنك طلبت من MD-Marketplace\nكيف كانت تجربتك معنا؟\nاذا حبيت - فيك تقيّمنا هون على Google بدقيقة:\nhttps://g.page/r/CcOVk0zdXDrZEAE/review\n\n')}`}
         target="_blank"
         className="block bg-green-600 text-white py-3 rounded-lg font-bold mb-3"
       >
         💬 ابعت للزبون على WhatsApp
-      </a>
-
-      <a href="https://www.md-marketplace.store" target="_blank" className="block text-xs text-blue-600 underline mb-3">
-        🌐 www.md-marketplace.store
       </a>
 
       <button
