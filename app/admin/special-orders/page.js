@@ -69,6 +69,7 @@ setSelected(null); setExpandedId(null); loadOrders();
               {isOpen && (
                 <div className="p-4 bg-black/30 space-y-2 rounded-b-xl border-t border-white/10 text-sm">
                   <p><b>الاسم:</b> {o.customerName}</p>
+                  <p><b>🆓 فري دلفري باقي:</b> {o.freeDeliveryRemaining ?? '-'}</p>
                   <p><b>تلفون:</b> {o.mobile}</p>
                   <p><b>المنطقة:</b> {o.areaName || o.areaCode || '-'}</p>
                   <p><b>العنوان:</b> {o.deliveryAddress || '-'}</p>
@@ -103,6 +104,17 @@ setSelected(null); setExpandedId(null); loadOrders();
               <p className="font-bold">📍 المسافة: {selected.distanceKm ? `${selected.distanceKm} كيلو` : 'رح تنحسب عند اختيار المتجر'}</p>
               <p className="text-xs text-slate-500 mt-1">السيستم بيحسبها من موقع المتجر لموقع الزبون - انت بس بتشوفها وبتحط التوصيل</p>
             </div>
+
+              {/* ✅ فري دلفري - عرض بس */}
+<div className="bg-green-50 border border-green-300 rounded-xl p-4 mt-4">
+  <p className="font-bold">🆓 فري دلفري باقي مع هيدا الزبون: <span className="text-green-700 text-lg">{selected.freeDeliveryRemaining ?? '-'}</span></p>
+  <p className="text-xs text-slate-500 mt-1">آخر فري دلفري: {selected.lastFreeDeliveryDate || '-'}</p>
+  {parseInt(selected.freeDeliveryRemaining || '0') > 0 ? (
+    <p className="text-xs text-green-700 font-bold mt-1">✅ فيك تحط تكلفة التوصيل 0 - لأنو معو فري</p>
+  ) : (
+    <p className="text-xs text-red-600 font-bold mt-1">❌ ما معو فري - لازم تحط تكلفة توصيل</p>
+  )}
+</div>
 
             <div className="mt-4 space-y-3">
               <div><label className="text-sm font-bold">سعر القطعة *</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="w-full border rounded-xl p-3 mt-1" placeholder="مثلا 300000" /></div>
