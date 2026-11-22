@@ -52,3 +52,13 @@ jobs:
         with:
           name: MD-Marketplace-AAB
           path: android/app/build/outputs/bundle/release/app-release.aab
+
+      - name: Build APK for Testing
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MD-Marketplace-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
