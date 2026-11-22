@@ -53,7 +53,7 @@ jobs:
           name: MD-Marketplace-AAB
           path: android/app/build/outputs/bundle/release/app-release.aab
 
-       - name: Build APK for Testing
+      - name: Build APK for Testing
         working-directory: android
         run: ./gradlew assembleDebug
 
