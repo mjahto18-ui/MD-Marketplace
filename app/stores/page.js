@@ -193,8 +193,15 @@ export default function StoresPage() {
             return (
               <Link key={store.storeID} href={`/store/${store.storeID}`}>
                 <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden active:scale-95 transition cursor-pointer hover:border-purple-500/50">
-                  <div className="relative w-full h-28 md:h-32 bg-white flex items-center justify-center overflow-hidden">
-                    <Image src={store.image} alt={store.storeName} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" />
+                    <div className="relative w-full h-28 md:h-32 bg-white flex items-center justify-center overflow-hidden">
+                    {store.image ? (
+                      <Image src={store.image} alt={store.storeName} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-contain p-2" loading="lazy" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-gray-400">
+                        <Store className="w-10 h-10 mb-1" />
+                        <span className="text-[11px] font-bold">{store.storeName}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-3">
                     <h3 className="font-bold text-sm mb-1 truncate">{store.storeName}</h3>

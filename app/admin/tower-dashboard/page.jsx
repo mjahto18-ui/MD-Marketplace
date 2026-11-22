@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -29,12 +31,20 @@ export default function TowerDashboardPage() {
   const [storesMap, setStoresMap] = useState({});
   const [driversMap, setDriversMap] = useState({});
   const [selectedDriver, setSelectedDriver] = useState({});
+  const [specialPrice, setSpecialPrice] = useState({});
+  const [specialFee, setSpecialFee] = useState({});
+  const [specialNote, setSpecialNote] = useState({});
+  const [specialCustomersMap, setSpecialCustomersMap] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [debugMe, setDebugMe] = useState("");
   const [openBox, setOpenBox] = useState("");
   const [towerCustomers, setTowerCustomers] = useState([]);
   const [areasMap, setAreasMap] = useState({});
   const [categoriesMap, setCategoriesMap] = useState({});
+  // --- المحفظة ---
+  const [wallet, setWallet] = useState({ earned: 0, paid: 0, remaining: 0 });
+  const [payouts, setPayouts] = useState([]);
+  const [walletRows, setWalletRows] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -81,12 +91,33 @@ export default function TowerDashboardPage() {
       }
       setTower(cRows[0]);
 
+      // --- المحفظة: اشتغل - اندفع - باقي ---
+const { data: archRows } = await supabase.from("geofence_archive").select("manager_commission, order_date, source_order_id, source_type").eq("manager_user_id", userId).eq("geofence_center_id", towerId).order("order_date", { ascending: false }).limit(2000);
+const earned = (archRows || []).reduce((s, r) => s + Number(r.manager_commission || 0), 0);
+setWalletRows(archRows || []);
+
+const { data: payRows } = await supabase.from("tower_manager_payouts").select("*").eq("manager_user_id", userId).eq("geofence_center_id", towerId).order("paid_at", { ascending: false }).limit(200);
+const paid = (payRows || []).reduce((s, r) => s + Number(r.amount_paid || 0), 0);
+setPayouts(payRows || []);
+
+setWallet({ earned, paid, remaining: earned - paid });
+
       const { data: oRows } = await supabase.from("order_requuest").select("*").eq(COL_TOWER_ID, towerId).order("Cerated Date", { ascending: false }).limit(200);
       setOrders(oRows || []);
       const { data: tRows } = await supabase.from("taxi_orders").select("*").eq(COL_TOWER_ID, towerId).order("created_at", { ascending: false }).limit(200);
       setTaxiOrders(tRows || []);
       const { data: sRows } = await supabase.from("special_orders").select("*").eq(COL_TOWER_ID, towerId).order("Cerated Date", { ascending: false }).limit(200);
       setSpecials(sRows || []);
+      // ✅ جيب الفري للـ Special - عرض بس
+const sCustIds = [...new Set((sRows || []).map(x => x["customer ID"]).filter(Boolean))];
+if(sCustIds.length){
+  const { data: sc } = await supabase.from("customers").select("*").in("Customer ID", sCustIds);
+  const scMap = {};
+  (sc || []).forEach(x => scMap[x["Customer ID"]] = x);
+  setSpecialCustomersMap(scMap);
+} else {
+  setSpecialCustomersMap({});
+}
 
       const custIds = [...new Set((oRows || []).map(x => x["customer ID"]).filter(Boolean))];
       if (custIds.length) {
@@ -96,11 +127,34 @@ export default function TowerDashboardPage() {
         setCustomersMap(map);
       } else { setCustomersMap({}); }
 
-      const { data: dRows } = await supabase.from("drivers").select("*").eq("Status", "Active").limit(200);
-      setDrivers(dRows || []);
-      const dMap = {};
-      (dRows || []).forEach(x => dMap[x["Driver ID"]] = x);
-      setDriversMap(dMap);
+      const { data: dRows } = await supabase.from("drivers").select("*").in("Status", ["Active", "Online"]).limit(200);
+
+// === الخطوة 1: بس درايفر هيدا البرج - جوا radius_cart ===
+const towerLat2 = Number(cRows[0].center_lat || 0);
+const towerLng2 = Number(cRows[0].center_lng || 0);
+const towerRadius = Number(cRows[0].radius_cart || 0);
+
+function distKmDriver(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+const towerDrivers = (dRows || []).filter(d => {
+  const lat = Number(d["Current Latitude"] || 0);
+  const lng = Number(d["Current Longitude"] || 0);
+  if (!lat || !lng || !towerLat2 || !towerLng2 || !towerRadius) return false;
+  return distKmDriver(lat, lng, towerLat2, towerLng2) <= towerRadius;
+});
+
+setDrivers(towerDrivers);
+// الـ Map للعرض - من كل الدرايفر - كرمال الاوردرات القديمة يضل يبين اسمن
+const dMap = {};
+(dRows || []).forEach(x => dMap[x["Driver ID"]] = x);
+setDriversMap(dMap);
+
       const { data: tdRows } = await supabase.from("taxi_drivers").select("*").eq("status", "active").limit(200);
       setTaxiDrivers(tdRows || []);
       const { data: stRows } = await supabase.from("stores").select("*").eq("Status", "Active").limit(200);
@@ -172,15 +226,43 @@ setTowerCustomers(filtered);
   window.location.href = '/admin/login';
 };
 
-  const acceptOrder = async (id) => {
-    await supabase.from("order_requuest").update({ "Approval Status": "Approved" }).eq("Request ID", id);
-    load();
-  };
+  const acceptOrder = async (id, driverId) => {
+  if (!driverId) return alert("اختار سائق أولاً - ما فيك تقبل الاوردر بلا سائق");
+  await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Pending" }).eq("Request ID", id);
+  load();
+};
   const assignDriver = async (orderId, driverId) => {
     if (!driverId) return;
-    await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Assigned" }).eq("Request ID", orderId);
+    await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Pending" }).eq("Request ID", orderId);
     load();
   };
+
+  const approveSpecial = async (s) => {
+  const priceRaw = specialPrice[s["Request ID"]];
+  const feeRaw = specialFee[s["Request ID"]];
+
+  // الفاضي بس هو المرفوض - الصفر مقبول
+  if (priceRaw === undefined || priceRaw === "" || feeRaw === undefined || feeRaw === "") {
+    return alert("حط سعر القطعة وتكلفة التوصيل أولاً - فيك تحط 0 اذا مجاني");
+  }
+
+  const price = Number(priceRaw || 0);
+  const fee = Number(feeRaw || 0);
+
+  const res = await fetch('/api/admin/special-orders/approve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requestId: s["Request ID"],
+      price,
+      deliveryFee: fee,
+      adminNote: specialNote[s["Request ID"]] || ""
+    })
+  });
+  const d = await res.json();
+  if (d.success) { alert("تحول لاوردر"); load(); }
+  else alert(d.message || "ما تحول");
+};
 
   if (loading) return (
     <div style={{ padding: 20, color: "#fff", background: "#0F0F0F", minHeight: "100vh" }}>
@@ -216,6 +298,7 @@ setTowerCustomers(filtered);
     stores: "متاجر نشطة - تفاصيل",
     customers: "عملاء نشطين - تفاصيل",
     towerCustomers: "عملاء البرج - تفاصيل",
+    wallet: "محفظتي - تفاصيل الدفع",
   };
 
   const Card = ({ title, value, sub, color = "#FFD700", box }) => (
@@ -248,15 +331,25 @@ setTowerCustomers(filtered);
           </div>
         </div>
       </div>
+      {/* === كارت Generate Code - نفس الادمن - بيفتح نفس الصفحة === */}
+<div onClick={() => window.location.href = "/admin/invite-codes"}
+  style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px solid #FFD70033", marginBottom: 16, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+  <div>
+    <b style={{ fontSize: 17 }}>🎟️ Generate Code - كرت دعوة</b>
+    <div style={{ color: "#aaa", fontSize: 12, marginTop: 4 }}>ولد كود 6 أرقام - بدون عداد - مربوط بالانفايت - متل الادمن بالزبط</div>
+  </div>
+  <span style={{ background: "#FFD700", color: "#000", padding: "8px 16px", borderRadius: 999, fontWeight: 800, fontSize: 13 }}>فتح صفحة الاكواد →</span>
+</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
+        <Card title="محفظتي - الباقي" value={wallet.remaining.toLocaleString()} sub={`اشتغلت ${wallet.earned.toLocaleString()} - اندفع ${wallet.paid.toLocaleString()}`} color="#7CFC00" box="wallet" />
         <Card title="اوردرات بندينغ" value={pendingOrders.length} sub="بدا قبول و تعيين" color="#FFD700" box="pendingOrders" />
         <Card title="تاكسي بندينغ" value={pendingTaxi.length} sub="بانتظار سائق" color="#00BFFF" box="pendingTaxi" />
         <Card title="طلبات خاصة بندينغ" value={pendingSpecial.length} sub="بدا تسعير" color="#FF8C00" box="pendingSpecial" />
         <Card title="اوردرات نشطة" value={activeOrders.length} sub="قيد التوصيل" color="#7CFC00" box="activeOrders" />
         <Card title="تاكسي نشط" value={activeTaxi.length} sub="على الطريق" color="#00FA9A" box="activeTaxi" />
         <Card title="اوردرات مكتملة" value={completedToday.length} sub="هيدا البرج" color="#aaa" box="completed" />
-        <Card title="سائقين توصيل" value={drivers.length} sub="Active" color="#FFD700" box="drivers" />
+        <Card title="سائقين توصيل" value={drivers.length} sub="Online" color="#FFD700" box="drivers" />
         <Card title="سائقين تاكسي" value={taxiDrivers.length} sub="Active" color="#00BFFF" box="taxiDrivers" />
         <Card title="متاجر نشطة" value={stores.length} sub="Active" color="#FF69B4" box="stores" />
         <Card title="عملاء نشطين" value={Object.keys(customersMap).length} sub="اللي طلبو من برجك" color="#FFD700" box="customers" />
@@ -288,6 +381,35 @@ setTowerCustomers(filtered);
          <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{areasMap[c["Area"]]?.["Area Name"] || c["Area"]} - {c["Mobile"]} - {c["Adress"]}</span></Row>
          ))}
          {openBox === "towerCustomers" && towerCustomers.length === 0 && <div style={{ color: "#aaa" }}>ما في عملاء عندن احداثيات بمنطقة البرج</div>}
+
+          {openBox === "wallet" && (
+  <>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+      <span style={{ background: "#1a3a1a", color: "#7CFC00", padding: "8px 14px", borderRadius: 999, fontWeight: 800 }}>اشتغلت: {wallet.earned.toLocaleString()} ل.ل</span>
+      <span style={{ background: "#222", padding: "8px 14px", borderRadius: 999 }}>اندفعلك: {wallet.paid.toLocaleString()} ل.ل</span>
+      <span style={{ background: "#FFD700", color: "#000", padding: "8px 14px", borderRadius: 999, fontWeight: 800 }}>باقيلك: {wallet.remaining.toLocaleString()} ل.ل</span>
+    </div>
+
+    <b style={{ fontSize: 15 }}>سجل الدفعات:</b>
+    {payouts.length === 0 && <div style={{ color: "#aaa", margin: "8px 0" }}>بعد ما اندفعلك شي - بس يندفعلك اول دفعة - بتبين هون</div>}
+    {payouts.map(p => (
+      <Row key={p.id}>
+        <span>💰 {Number(p.amount_paid || 0).toLocaleString()} ل.ل - {p.notes || "دفعة"}</span>
+        <span style={{ color: "#aaa", fontSize: 12 }}>
+          {p.period_start ? new Date(p.period_start).toLocaleDateString('en-GB') : "-"} الى {p.period_end ? new Date(p.period_end).toLocaleDateString('en-GB') : "-"} - دفع بتاريخ {p.paid_at ? new Date(p.paid_at).toLocaleDateString('en-GB') : "-"}
+        </span>
+      </Row>
+    ))}
+
+    <b style={{ fontSize: 15, display: "block", marginTop: 16 }}>اخر الطلبات يلي اشتغلتن - حصتك 30%:</b>
+    {walletRows.slice(0, 50).map(r => (
+      <Row key={r.source_order_id + r.order_date}>
+        <span>🧾 {r.source_type} - {String(r.source_order_id || "").slice(0, 8)}</span>
+        <span style={{ color: "#aaa", fontSize: 12 }}>{r.order_date ? new Date(r.order_date).toLocaleDateString('en-GB') : "-"} - حصتك: <b style={{ color: "#7CFC00" }}>{Number(r.manager_commission || 0).toLocaleString()} ل.ل</b></span>
+      </Row>
+    ))}
+  </>
+)}
 
           {(openBox === "pendingOrders" || openBox === "activeOrders" || openBox === "completed") && (openBox === "pendingOrders" ? pendingOrders : openBox === "activeOrders" ? activeOrders : completedToday).map(o => {
             const cust = customersMap[o["customer ID"]];
@@ -325,9 +447,37 @@ setTowerCustomers(filtered);
       <h2 style={{ fontSize: 18, margin: "18px 0 10px" }}>اوردرات بندينغ - {pendingOrders.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingOrders.map(o => {
-          const cust = customersMap[o["customer ID"]];
-          return (
-            <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #333" }}>
+  const cust = customersMap[o["customer ID"]];
+
+  // === الخطوة 2: رتب درايفر البرج من الاقرب للاوردر للابعد ===
+  // احداثيات الاوردر من order_requuest - مش من customers
+  let oLat = Number(o["Customer Latitude"] || 0);
+  let oLng = Number(o["Customer Longitude"] || 0);
+  // احتياط: اذا فاضي - من Current Location "lat,lng"
+  if ((!oLat || !oLng) && o["Current Location"]) {
+    const parts = String(o["Current Location"]).split(",");
+    if (parts.length === 2) {
+      oLat = Number(parts[0] || 0);
+      oLng = Number(parts[1] || 0);
+    }
+  }
+
+  const driversSorted = [...drivers].map(d => {
+    const dLat = Number(d["Current Latitude"] || 0);
+    const dLng = Number(d["Current Longitude"] || 0);
+    let dist = 999999;
+    if (oLat && oLng && dLat && dLng) {
+      const R = 6371;
+      const dLatR = (oLat - dLat) * Math.PI / 180;
+      const dLngR = (oLng - dLng) * Math.PI / 180;
+      const a = Math.sin(dLatR/2) * Math.sin(dLatR/2) + Math.cos(dLat * Math.PI / 180) * Math.cos(oLat * Math.PI / 180) * Math.sin(dLngR/2) * Math.sin(dLngR/2);
+      dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    return { ...d, _dist: dist };
+  }).sort((a,b) => a._dist - b._dist);
+
+  return (
+            <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #333", overflow: "hidden", minWidth: 0, boxSizing: "border-box" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <b>{cust?.["Name"] || o["customer ID"] || "زبون"}</b>
                 <span style={{ color: "#FFD700" }}>{o["Total Amount"] || 0} ل.ل</span>
@@ -337,16 +487,20 @@ setTowerCustomers(filtered);
                 <b>ملاحظة: </b>{o["Note"] || "لا يوجد ملاحظات"}
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button onClick={() => acceptOrder(o["Request ID"])} style={{ flex: 1, background: "#FFD700", border: 0, padding: 10, borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>قبول</button>
+                <button onClick={() => acceptOrder(o["Request ID"], selectedDriver[o["Request ID"]])} disabled={!selectedDriver[o["Request ID"]]} style={{ flex: 1, background: selectedDriver[o["Request ID"]] ? "#FFD700" : "#444", color: selectedDriver[o["Request ID"]] ? "#000" : "#aaa", border: 0, padding: 10, borderRadius: 12, fontWeight: 800, cursor: selectedDriver[o["Request ID"]] ? "pointer" : "not-allowed" }}>قبول - مع السائق</button>
                 <Link href={`/admin/active-orders/${o["Request ID"]}`} style={{ flex: 1, textAlign: "center", background: "#222", color: "#fff", padding: 10, borderRadius: 12, textDecoration: "none" }}>تفاصيل</Link>
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <select value={selectedDriver[o["Request ID"]] || ""} onChange={e => setSelectedDriver(p => ({ ...p, [o["Request ID"]]: e.target.value }))}
-                  style={{ flex: 1, background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9 }}>
-                  <option value="">اختر سائق - من هيدا البرج</option>
-                  {drivers.map(d => <option key={d["Driver ID"]} value={d["Driver ID"]}>{d["Driver Name"]} - {d["Status"]}</option>)}
-                </select>
-                <button onClick={() => assignDriver(o["Request ID"], selectedDriver[o["Request ID"]])} style={{ background: "#7CFC00", border: 0, padding: "9px 14px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>تعيين</button>
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", width: "100%", boxSizing: "border-box" }}>
+  <select value={selectedDriver[o["Request ID"]] || ""} onChange={e => setSelectedDriver(p => ({ ...p, [o["Request ID"]]: e.target.value }))}
+    style={{ flex: "1 1 100%", minWidth: 0, width: "100%", boxSizing: "border-box", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9 }}>
+  <option value="">اختر سائق - من هيدا البرج - الاقرب اول واحد</option>
+  {driversSorted.map(d => (
+    <option key={d["Driver ID"]} value={d["Driver ID"]}>
+      {d["Driver Name"]} - {d._dist >= 999999 ? "بلا موقع" : d._dist.toFixed(1) + " كم من الاوردر"}
+    </option>
+  ))}
+</select>
+                
               </div>
             </div>
           );
@@ -372,27 +526,76 @@ setTowerCustomers(filtered);
       <h2 style={{ fontSize: 18, margin: "22px 0 10px" }}>طلبات خاصة بندينغ - {pendingSpecial.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingSpecial.map(s => (
-          <div key={s["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #FF8C0033" }}>
-            <b>{s["Customer Name"]}</b>
-            <div style={{ color: "#aaa", fontSize: 12 }}>{s["Store Hint"] || ""}</div>
-            <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
-              <b>ملاحظة: </b>{s["ملاحظات عامة"] || s["الطلب"] || "لا يوجد ملاحظات"}
-            </div>
-            <div style={{ marginTop: 8 }}>{s["الطلب"]}</div>
-            <div style={{ color: "#aaa", fontSize: 12 }}>كمية: {s["Quantity"]}</div>
-          </div>
-        ))}
+  <div key={s["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #FF8C0033" }}>
+    <b>{s["Customer Name"]}</b>
+    <div style={{ color: "#aaa", fontSize: 12 }}>{s["Store Hint"] || ""} - {s["Mobile"] || ""}</div>
+    <div style={{ color: "#aaa", fontSize: 12 }}>{s["Delivery Adress"] || ""}</div>
+    <div style={{ marginTop: 8 }}>{s["الطلب"]}</div>
+    <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
+      <b>ملاحظة: </b>{s["ملاحظات عامة"] || "لا يوجد ملاحظات"}
+    </div>
+    <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>كمية: {s["Quantity"]}</div>
+    {(() => {
+  const sc = specialCustomersMap[s["customer ID"]];
+  const left = sc?.["Free Delivery Remaining"] ?? '-';
+  const last = sc?.["Last Free Delivery Date"] || '-';
+  const today = new Date().toISOString().split('T')[0];
+  const tookToday = last === today;
+  return (
+    <div style={{ background: tookToday ? "#3a1a1a" : "#1a3a1a", border: "1px solid #7CFC00", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
+      <b>🆓 فري دلفري باقي: {left}</b>
+      <div style={{ color: "#aaa", fontSize: 12 }}>آخر فري: {last}</div>
+      {tookToday ? (
+        <div style={{ color: "#ff6b6b", fontWeight: 800, marginTop: 4 }}>❌ أخد فري اليوم - ما بحقلو - ما تحط 0</div>
+      ) : Number(left) > 0 ? (
+        <div style={{ color: "#7CFC00", fontWeight: 800, marginTop: 4 }}>✅ فيك تحط 0 - لأنو معو فري</div>
+      ) : (
+        <div style={{ color: "#ff6b6b", fontWeight: 800, marginTop: 4 }}>❌ ما معو فري - لازم تحط توصيل</div>
+      )}
+    </div>
+  );
+})()}
+    <input value={specialPrice[s["Request ID"]] || ""} onChange={e => setSpecialPrice(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="سعر القطعة" type="number" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 10 }} />
+    <input value={specialFee[s["Request ID"]] || ""} onChange={e => setSpecialFee(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="اجرة التوصيل" type="number" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 8 }} />
+    <input value={specialNote[s["Request ID"]] || ""} onChange={e => setSpecialNote(p => ({ ...p, [s["Request ID"]]: e.target.value }))} placeholder="ملاحظة الادمن" style={{ width: "100%", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: 12, padding: 9, marginTop: 8 }} />
+    <button onClick={() => approveSpecial(s)} style={{ width: "100%", background: "#FFD700", border: 0, padding: 10, borderRadius: 12, fontWeight: 800, cursor: "pointer", marginTop: 10 }}>سعر و حول لاوردر</button>
+  </div>
+))}
         {pendingSpecial.length === 0 && <div style={{ color: "#aaa" }}>ما في طلبات خاصة</div>}
       </div>
 
       <h2 style={{ fontSize: 18, margin: "22px 0 10px" }}>اوردرات نشطة - {activeOrders.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
         {activeOrders.map(o => {
-          const cust = customersMap[o["customer ID"]];
-          const drv = driversMap[o["Assigned Driver"]];
-          return (
-            <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14 }}>
-              <b>{cust?.["Name"] || "زبون"}</b> - <span style={{ color: "#7CFC00" }}>{o["Approval Status"]}</span>
+  const cust = customersMap[o["customer ID"]];
+  const drv = driversMap[o["Assigned Driver"]];
+
+  // موقع السائق من نفس الاوردر - متل الزبون بالزبط
+  let driverLat = null, driverLng = null;
+  if (o["Current Location"] && String(o["Current Location"]).includes(",")) {
+    const parts = String(o["Current Location"]).split(",");
+    driverLat = parts[0]?.trim() || null;
+    driverLng = parts[1]?.trim() || null;
+  }
+
+  return (
+    <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14 }}>
+      <b>{cust?.["Name"] || "زبون"}</b> - <span style={{ color: "#7CFC00" }}>{o["Approval Status"]}</span>
+
+      {/* خريطة الاوردر - زبون + سائق */}
+      {o["Customer Latitude"] && o["Customer Longitude"] && (
+        <div style={{ height: 180, borderRadius: 12, overflow: "hidden", marginTop: 10, border: "1px solid #333" }}>
+          <Map
+            customerLat={o["Customer Latitude"]}
+            customerLng={o["Customer Longitude"]}
+            driverLat={driverLat}
+            driverLng={driverLng}
+          />
+        </div>
+      )}
+      <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>
+        {driverLat && driverLng ? "السائق في الطريق 🛵" : "بانتظار السائق"}
+      </div>
               <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 8, fontSize: 13 }}>
                 <b>ملاحظة: </b>{o["Note"] || "لا يوجد ملاحظات"}
               </div>

@@ -71,7 +71,7 @@ export default function CustomersPendingPage() {
 لديك 5 توصيلات مجانية 🎁
 
 اضغط هنا للدخول مباشرة:
-https://md-marketplace.store/
+https://www.md-marketplace.store/
 
 نتمنى لك تجربة ممتعة مع MD‑Marketplace.`
     

@@ -72,8 +72,15 @@ export default function ProductsPage() {
   const [customerID, setCustomerID] = useState(null);
   const [isCustomer, setIsCustomer] = useState(false);
   const [globalCfg, setGlobalCfg] = useState(null);
+    // === دولار للعرض بس - قسمة من قلب الصفحة - على 90000 ===
+  const toDollar = (lbp) => {
+    const v = Number(lbp || 0) / 90000;
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+  };
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [subCats, setSubCats] = useState([]) // كل التجزيء - من جدول sub_categories
+  const [selectedSub, setSelectedSub] = useState('') // التجزيء اللي نقيه الزبون - فاضي = الكل
   const firstLoad = useRef(true);
 
   useEffect(() => {
@@ -117,6 +124,14 @@ export default function ProductsPage() {
       );
     });
   }
+
+  // === جديد - جيب كل التجزيء - من جدول sub_categories ===
+useEffect(() => {
+  fetch('/api/sub-categories')
+    .then(r => r.json())
+    .then(d => setSubCats(d.data || []))
+    .catch(() => {})
+}, [])
 
   const fetchProducts = useCallback(async (pageNum, searchText, isNewSearch = false) => {
     if (isNewSearch) {
@@ -185,6 +200,13 @@ export default function ProductsPage() {
   const addToCart = async (productID) => {
     if (!isCustomer) return;
     if (addingId) return;
+    // === جديد: اذا المتجر Geofence و مسكر - ما بيقدر يطلب - بس من الصفحة ===
+  const prodCheck = [...products, ...filtered].find(p => p.productID === productID);
+  if (prodCheck && prodCheck.storeOpen === false) {
+    setToast(`هذا المتجر مغلق الان - يفتح الساعة ${prodCheck.storeOpenTime ? String(prodCheck.storeOpenTime).slice(0,5) : ''}`);
+    setTimeout(() => setToast(null), 3000);
+    return;
+  }
     if (globalCfg?.isCartClosed) {
       setToast(globalCfg.cart_closed_message || "السلة مغلقة حالياً");
       setTimeout(() => setToast(null), 3000);
@@ -241,12 +263,17 @@ export default function ProductsPage() {
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+    // === جديد - اذا الزبون نقي تجزيء - صفّي حسب products.Category - نفس العمود القديم ===
+  const visibleProducts = selectedSub
+    ? filtered.filter(p => String(p.category || p.Category || '') === selectedSub)
+    : filtered
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex items-center justify-center text-white">
       <div className="text-center"><div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p>جاري التحميل...</p></div>
     </div>
   );
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white" style={{ direction: 'rtl' }}>
@@ -263,8 +290,28 @@ export default function ProductsPage() {
         </div>
         {isSearching && <p className="text-xs text-purple-300 mt-2 mr-2">عم دوّر...</p>}
       </header>
-      <div className="px-4 pb-6">
-        {filtered.length === 0 &&!isSearching && (
+          {/* === جديد - شريط التجزيء === */}
+{subCats.length > 0 && (
+  <div className="flex gap-2 overflow-x-auto px-4 pb-3 -mx-1">
+    <button
+      onClick={() => setSelectedSub('')}
+      className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold ${selectedSub === '' ? 'bg-white text-black' : 'bg-white/10 text-white'}`}
+    >
+      الكل
+    </button>
+    {subCats.map((s) => (
+      <button
+        key={s.id}
+        onClick={() => setSelectedSub(s['Sub Category Name'])}
+        className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold ${selectedSub === s['Sub Category Name'] ? 'bg-white text-black' : 'bg-white/10 text-white'}`}
+      >
+        {s['Sub Category Name']}
+      </button>
+    ))}
+  </div>
+)}
+        <div className="px-4 pb-6">
+         {visibleProducts.length === 0 &&!isSearching && (
           <div className="text-center py-20">
             <Package className="w-16 h-16 text-purple-400 mx-auto mb-4" />
             <p className="text-xl font-bold mb-2">لا يوجد منتجات ضمن نطاقك الجغرافي</p>
@@ -272,15 +319,21 @@ export default function ProductsPage() {
           </div>
         )}
         <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 transition-opacity ${isSearching? 'opacity-50' : 'opacity-100'}`}>
-          {filtered.map(product => (
-            <div key={product.productID} className="bg-white/5 ... rounded-2xl overflow-hidden ...">
+           {visibleProducts.map(product => (
+            <div key={product.productID} className={`bg-white/5 ... rounded-2xl overflow-hidden ... relative ${product.storeOpen === false ? 'opacity-50' : ''}`}>
+              {/* === جديد: بانر مغلق الان - بس Geofence و مسكر - Global ما بيطلعلو بانر ابدا لانو دايما فاتح === */}
+              {product.storeOpen === false && (
+                <div className="absolute top-2 right-2 z-20 bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">
+                  مغلق الان - بيفتح {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}
+                </div>
+              )}
               <div onClick={() => router.push(`/products/${product.productID}`)} className="cursor-pointer">
               <ProductImage product={product} />
                </div>
               <div className="p-3">
                <h3 onClick={() => router.push(`/products/${product.productID}`)} className="font-bold text-sm mb-2 truncate cursor-pointer">{product.name}</h3>
                 <p className="text-xs text-purple-300 mb-1 truncate">المتجر: {product.storeName}</p>
-                {product.size && <p className="text- text-amber-300 font-bold mb-1">مقاس: {product.size}</p>}
+                {product.size && <p className="text-[11px] text-amber-300 font-bold mb-1">مقاس: {product.size}</p>}
                  {/* هون زيد التوصيل */}
                 {product.coverage_type === 'global' ? (
               <span className="inline-block text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full mb-2">
@@ -297,11 +350,15 @@ export default function ProductsPage() {
                 {product.description}
                 </p>
                 )}
-                <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span></p></div>
-                {isCustomer? (
-                  <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
-                    {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
-                  </button>
+                <div className="space-y-1 text-xs mb-3"><p className="text-purple-200">السعر: <span className="font-bold text-white">{Number(product.price).toLocaleString()} ل.ل</span> <span className="text-white/70 font-bold">≈ ${toDollar(product.price)}</span></p></div>
+                 {isCustomer? (
+                  product.storeOpen === false ? (
+                    <div className="w-full bg-gray-500 py-2.5 rounded-xl text-center text-white font-bold text-sm">مغلق الان - بيفتح {product.storeOpenTime ? String(product.storeOpenTime).slice(0,5) : ''}</div>
+                  ) : (
+                    <button onClick={() => addToCart(product.productID)} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2">
+                      {addingId === product.productID? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <ShoppingCart className="w-4 h-4" />}{addingId === product.productID? '...' : 'اضف للسلة'}
+                    </button>
+                  )
                 ) : (
                   <div className="w-full bg-white/5 py-2.5 rounded-xl text-center text-xs text-purple-300">عرض فقط - للكوستيمر</div>
                 )}

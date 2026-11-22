@@ -20,6 +20,45 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c; // كيلو
 }
+// === جديد: هل المتجر فاتح هلق؟ - بس Geofence - Global دايما فاتح - 72 ساعة ===
+function isStoreOpenNow(store) {
+  if (!store) return true
+  if (store.coverage_type === 'global') return true // Global - دايما فاتح - 72 ساعة
+  if (store['Status'] === 'inactive') return false
+  const openTime = store['Open Time']
+  const closeTime = store['Close Time']
+  if (!openTime || !closeTime) return true
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Beirut' }))
+  const toMin = (t) => {
+    const [h, m] = String(t).split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const openMin = toMin(openTime)
+  const closeMin = toMin(closeTime)
+  if (closeMin > openMin) return nowMin >= openMin && nowMin < closeMin
+  return nowMin >= openMin || nowMin < closeMin
+}
+
+// === عروض - هل العرض شغال هلق؟ حسب التاريخ ===
+function isOfferActiveNow(row) {
+  const raw = row["Is Offer"];
+  const isOffer = String(raw || "").toUpperCase() === "TRUE" || raw === true;
+  if (!isOffer) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (row["Offer Start"]) {
+    const s = new Date(row["Offer Start"]);
+    s.setHours(0, 0, 0, 0);
+    if (today < s) return false;
+  }
+  if (row["Offer End"]) {
+    const e = new Date(row["Offer End"]);
+    e.setHours(0, 0, 0, 0);
+    if (today > e) return false;
+  }
+  return true;
+}
 
 export async function GET(req, { params }) {
   try {
@@ -38,7 +77,7 @@ export async function GET(req, { params }) {
 
     const supabase = getSupabase();
 
-    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size"').eq('Product ID', productID).eq('Active', 'TRUE').eq('Available', 'Yes').gt('Price', 0).limit(1);
+    const { data: products } = await supabase.from('products').select('"Product ID", "Store ID", "Product Name", Category, Unit, Price, Image, Description, Available, "Stock Qty", Active, "Weight Points", "Size", "Old Price", "Offer Price", "Is Offer", "Offer Start", "Offer End"').eq('Product ID', productID).eq('Active', 'TRUE').eq('Available', 'Yes').gt('Price', 0).limit(1);
     let product = products?.[0];
 
     if (!product) {
@@ -114,7 +153,7 @@ export async function GET(req, { params }) {
 
     
     const storeId = product['Store ID'];
-    const { data: stores } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type').eq('Store ID', storeId).limit(1);
+    const { data: stores } = await supabase.from('stores').select('"Store ID", "Store Name", coverage_type, "Status", "Open Time", "Close Time"').eq('Store ID', storeId).limit(1);
     let store = stores?.[0];
 
      // === جيب الصور المتعددة ===
@@ -141,9 +180,20 @@ export async function GET(req, { params }) {
       stock: Number(product['Stock Qty']),
       active: product['Active'],
       weightPoint: Number(product['Weight Points']),
+      // === جديد - العروض ===
+      oldPrice: Number(product["Old Price"] || 0),
+      offerPrice: Number(product["Offer Price"] || 0),
+      isOffer: String(product["Is Offer"] || "").toUpperCase() === "TRUE" || product["Is Offer"] === true,
+      offerStart: product["Offer Start"] || null,
+      offerEnd: product["Offer End"] || null,
+      discountPercent: (isOfferActiveNow(product) && Number(product["Old Price"] || 0) > 0 && Number(product['Price']) > 0 && Number(product["Old Price"]) > Number(product['Price'])) ? Math.round(((Number(product["Old Price"]) - Number(product['Price'])) / Number(product["Old Price"])) * 100) : 0,
+      isOfferActive: isOfferActiveNow(product),
       storeName: store? store['Store Name'] : "متجر محذوف",
       coverage_type: store ? (store.coverage_type || 'geofence') : 'geofence',
-    };
+      storeOpen: store ? isStoreOpenNow(store) : true,
+      storeOpenTime: store?.['Open Time'] || null,
+      storeCloseTime: store?.['Close Time'] || null,
+     };
 
     const res = NextResponse.json({ success: true, product: productData });
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');

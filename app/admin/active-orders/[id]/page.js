@@ -10,6 +10,11 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState(null)
   const [details, setDetails] = useState([])
   const [names, setNames] = useState({ customers: {}, products: {}, stores: {}, areas: {}, drivers: {}, users: {} })
+    // === دولار للعرض بس - قسمة من قلب الصفحة - على 90000 ===
+  const toDollar = (lbp) => {
+    const v = Number(lbp || 0) / 90000;
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+  };
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -138,7 +143,7 @@ export default function OrderDetailPage() {
       return
     }
     const invoiceLink = `${window.location.origin}/invoice/${order['Request ID']}`
-    const text = `مرحبا ${customerName} ❤️\nفاتورتك من MD Marketplace - #${String(order['Request ID']).slice(0,8)}\nالاجمالي: ${totalAmount} ل.ل\nتفاصيل فاتورتك الالكترونية:\n${invoiceLink}`
+     const text = `مرحبا ${customerName} ❤\nفاتورتك من MD Marketplace - #${String(order['Request ID']).slice(0,8)}\nالاجمالي: ${totalAmount} ل.ل (≈ $${toDollar(totalAmount)})\nتفاصيل فاتورتك الالكترونية:\n${invoiceLink}`
     window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, '_blank')
   }
 
@@ -190,7 +195,7 @@ export default function OrderDetailPage() {
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">حالة التوصيل</span><span className="font-medium">{order['Delivery Status']}</span></div>
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">اجمالي الكمية</span><span className="font-bold">{totalQty}</span></div>
                 <div className="flex justify-between border-b py-2"><span className="text-gray-500">اجمالي الوزن</span><span className="font-bold text-blue-600">{totalWeight}</span></div>
-                <div className="flex justify-between border-b py-2"><span className="text-gray-500">رسوم التوصيل</span><span className="font-bold">{deliveryFee} ل.ل</span></div>
+                <div className="flex justify-between border-b py-2"><span className="text-gray-500">رسوم التوصيل</span><span className="font-bold">{deliveryFee} ل.ل <span className="text-gray-500 text-xs">≈ ${toDollar(deliveryFee)}</span></span></div>
               </div>
             </div>
                 {/* Note - دايماً - بالقسم الأول - سبيسيال و عادي - برا الـ grid - مش جواتو */}
@@ -198,9 +203,9 @@ export default function OrderDetailPage() {
   <div className="font-bold text-yellow-700 text-sm mb-1">📝 ملاحظة - Note:</div>
   <div className="text-sm text-gray-800 leading-relaxed">{order['Note'] || 'لا يوجد ملاحظات'}</div>
 </div>
-            <div className="flex justify-between items-center mt-4 bg-gray-50 p-3 rounded-xl print:bg-gray-100">
+              <div className="flex justify-between items-center mt-4 bg-gray-50 p-3 rounded-xl print:bg-gray-100">
               <span className="font-bold">الاجمالي النهائي (بضاعة + توصيل)</span>
-              <span className="font-black text-lg">{totalAmount} ل.ل</span>
+              <span className="font-black text-lg">{totalAmount} ل.ل <span className="text-gray-500 text-sm font-bold">≈ ${toDollar(totalAmount)}</span></span>
             </div>
           </div>
 
@@ -225,16 +230,16 @@ export default function OrderDetailPage() {
                       <td className="p-3 font-medium">{productName}</td>
                       <td className="p-3 text-gray-600">{storeName}</td>
                       <td className="p-3 text-center">{d['Qty']}</td>
-                      <td className="p-3 text-center">{d['Unit Price']}</td>
-                      <td className="p-3 text-left font-bold">{d['Line Total']}</td>
+                      <td className="p-3 text-center">{d['Unit Price']} <div className="text- text-gray-500">≈ ${toDollar(d['Unit Price'])}</div></td>
+                      <td className="p-3 text-left font-bold">{d['Line Total']} <div className="text- text-gray-500 font-normal">≈ ${toDollar(d['Line Total'])}</div></td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
-            <div className="mt-4 flex justify-between font-bold border-t pt-3">
+               <div className="mt-4 flex justify-between font-bold border-t pt-3">
               <span>المجموع (بضاعة: {itemsCost} + توصيل: {deliveryFee})</span>
-              <span>{totalAmount} ل.ل</span>
+              <span>{totalAmount} ل.ل <span className="text-gray-500 text-sm">≈ ${toDollar(totalAmount)}</span></span>
             </div>
           </div>
 

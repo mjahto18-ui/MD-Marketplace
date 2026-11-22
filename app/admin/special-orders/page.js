@@ -11,8 +11,14 @@ export default function SpecialOrdersPage(){
   const [adminNote, setAdminNote] = useState("")
   const [loading, setLoading] = useState(false)
 
+    const loadOrders = async () => {
+    const r = await fetch('/api/admin/special-orders', { cache: 'no-store' })
+    const d = await r.json()
+    setOrders(d.orders || [])
+  }
+
   useEffect(()=>{
-    fetch('/api/admin/special-orders').then(r=>r.json()).then(d=> setOrders(d.orders || []))
+    loadOrders()
   },[])
 
   const openOrder = (o)=>{
@@ -31,7 +37,7 @@ export default function SpecialOrdersPage(){
     const res = await fetch('/api/admin/special-orders/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ requestId: selected.requestID, price: parseFloat(price), deliveryFee: parseFloat(deliveryFee), adminNote }) })
     const d = await res.json()
     setLoading(false)
-    if(d.success){ alert("تمت الموافقة!"); setOrders(o=>o.filter(x=>x.requestID!==selected.requestID)); setSelected(null); setExpandedId(null); }
+    if(d.success){ alert("تمت الموافقة!"); setSelected(null); setExpandedId(null); loadOrders(); }
     else alert(d.message || "خطأ")
   }
 
@@ -39,14 +45,17 @@ export default function SpecialOrdersPage(){
     if(!selected) return
     if(!confirm("متأكد بدك ترفض؟")) return
     await fetch('/api/admin/special-orders/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ requestId: selected.requestID, reject: true, adminNote }) })
-    setOrders(o=>o.filter(x=>x.requestID!==selected.requestID)); setSelected(null); setExpandedId(null);
+setSelected(null); setExpandedId(null); loadOrders();
   }
 
   return (
     <div className="p-6 grid grid-cols-4 gap-6 min-h-screen bg-slate-950 text-white" style={{direction:'rtl'}}>
       <div className="col-span-1 bg-white/5 rounded-2xl p-4 overflow-y-auto">
         <BackToDashboard />
-        <h2 className="font-bold text-xl mb-4">طلبات خاصة ({orders.length})</h2>
+        <div className="flex items-center justify-between mb-4">
+  <h2 className="font-bold text-xl">طلبات خاصة ({orders.length})</h2>
+  <button onClick={loadOrders} className="bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold">تحديث ↻</button>
+</div>
         {orders.map(o=>{
           const isOpen = expandedId===o.requestID
           return (
@@ -60,6 +69,7 @@ export default function SpecialOrdersPage(){
               {isOpen && (
                 <div className="p-4 bg-black/30 space-y-2 rounded-b-xl border-t border-white/10 text-sm">
                   <p><b>الاسم:</b> {o.customerName}</p>
+                  <p><b>🆓 فري دلفري باقي:</b> {o.freeDeliveryRemaining ?? '-'}</p>
                   <p><b>تلفون:</b> {o.mobile}</p>
                   <p><b>المنطقة:</b> {o.areaName || o.areaCode || '-'}</p>
                   <p><b>العنوان:</b> {o.deliveryAddress || '-'}</p>
@@ -94,6 +104,17 @@ export default function SpecialOrdersPage(){
               <p className="font-bold">📍 المسافة: {selected.distanceKm ? `${selected.distanceKm} كيلو` : 'رح تنحسب عند اختيار المتجر'}</p>
               <p className="text-xs text-slate-500 mt-1">السيستم بيحسبها من موقع المتجر لموقع الزبون - انت بس بتشوفها وبتحط التوصيل</p>
             </div>
+
+              {/* ✅ فري دلفري - عرض بس */}
+<div className="bg-green-50 border border-green-300 rounded-xl p-4 mt-4">
+  <p className="font-bold">🆓 فري دلفري باقي مع هيدا الزبون: <span className="text-green-700 text-lg">{selected.freeDeliveryRemaining ?? '-'}</span></p>
+  <p className="text-xs text-slate-500 mt-1">آخر فري دلفري: {selected.lastFreeDeliveryDate || '-'}</p>
+  {parseInt(selected.freeDeliveryRemaining || '0') > 0 ? (
+    <p className="text-xs text-green-700 font-bold mt-1">✅ فيك تحط تكلفة التوصيل 0 - لأنو معو فري</p>
+  ) : (
+    <p className="text-xs text-red-600 font-bold mt-1">❌ ما معو فري - لازم تحط تكلفة توصيل</p>
+  )}
+</div>
 
             <div className="mt-4 space-y-3">
               <div><label className="text-sm font-bold">سعر القطعة *</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="w-full border rounded-xl p-3 mt-1" placeholder="مثلا 300000" /></div>

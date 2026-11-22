@@ -17,6 +17,12 @@ export default function TowerReportPage() {
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  // --- الجديد: الدفعات ---
+  const [payouts, setPayouts] = useState([])
+  const [payAmount, setPayAmount] = useState("")
+  const [payNotes, setPayNotes] = useState("")
+  const [paying, setPaying] = useState(false)
+
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
   const searchCenters = async () => {
@@ -32,9 +38,7 @@ export default function TowerReportPage() {
     const { data: mgrs } = await supabase.from('geofence_center_managers').select('*').eq('geofence_center_id', centerId).eq('is_active', true)
     if(!mgrs?.length){ setManagers([]); return }
     
-    // هون بنجيب اسم صاحب البرج من جدول اليوزر User ID/Name
     const ids = mgrs.map(m=> m.manager_user_id)
-    // اذا جدولك اسمو users
     let usersMap = {}
     try {
       const { data: users } = await supabase.from('users').select('*').in('id', ids)
@@ -61,8 +65,49 @@ export default function TowerReportPage() {
     const totalAmount = data?.reduce((s,r)=> s + Number(r.order_total_calc||0),0)||0
     const totalCommission = data?.reduce((s,r)=> s + Number(r.platform_commission_calc||0),0)||0
     const totalManager = data?.reduce((s,r)=> s + Number(r.manager_commission||0),0)||0
-    setReport({ rows: data||[], summary:{ totalOrders, totalAmount, totalCommission, totalManager } })
+
+    // --- الجديد: جيب الدفعات تبع نفس البرج + المسؤول + نفس الفترة ---
+    let payoutQuery = supabase.from('tower_manager_payouts').select('*').eq('geofence_center_id', selectedCenter)
+    if(selectedManager) payoutQuery = payoutQuery.eq('manager_user_id', selectedManager)
+    // الدفعة بتنحسب على الفترة يلي دفعت عنها - مش على تاريخ الدفع
+    // يعني اذا اخترت من 1-11 الى 30-11 - بيجيب الدفعات يلي period تبعن جوات هالفترة
+    if(from) payoutQuery = payoutQuery.gte('period_start', new Date(from).toISOString())
+    if(to){ const d=new Date(to); d.setHours(23,59,59,999); payoutQuery = payoutQuery.lte('period_end', d.toISOString()) }
+    const { data: payoutsData } = await payoutQuery.order('paid_at', {ascending:false})
+    setPayouts(payoutsData || [])
+
+    const totalPaid = (payoutsData||[]).reduce((s,r)=> s + Number(r.amount_paid||0),0)||0
+    const remaining = totalManager - totalPaid
+
+    setReport({ rows: data||[], summary:{ totalOrders, totalAmount, totalCommission, totalManager, totalPaid, remaining } })
+    setPayAmount(String(remaining > 0 ? remaining : 0))
     setLoading(false)
+  }
+
+  // --- الجديد: تنفيذ الدفع ---
+  const doPay = async () => {
+    if(!selectedCenter || !selectedManager) return alert("اختار برج ومسؤول اول")
+    if(!payAmount || Number(payAmount) <= 0) return alert("حط المبلغ")
+    if(!from || !to) return alert("اختار من / الى - مشان نعرف عن اي فترة عم تدفع")
+    const mgrName = managers.find(m=> m.manager_user_id===selectedManager)?.manager_name || 'المسؤول'
+    if(!confirm(`متأكد بدك تدفع ${Number(payAmount).toLocaleString()} لـ ${mgrName} ؟\nعن فترة ${from} الى ${to}`)) return
+
+    setPaying(true)
+    const { error } = await supabase.from('tower_manager_payouts').insert([{
+      manager_user_id: selectedManager,
+      geofence_center_id: selectedCenter,
+      period_start: new Date(from).toISOString(),
+      period_end: (()=>{ const d=new Date(to); d.setHours(23,59,59,999); return d.toISOString() })(),
+      total_commission: report?.summary?.totalManager || 0,
+      amount_paid: Number(payAmount),
+      paid_by: 'Admin',
+      notes: payNotes || `دفعة ${from} الى ${to}`
+    }])
+    setPaying(false)
+    if(error) return alert("خطأ: " + error.message)
+    alert("تم الدفع - تصفرت المحفظة لهالفترة")
+    setPayNotes("")
+    generate()
   }
 
   return (
@@ -98,17 +143,29 @@ export default function TowerReportPage() {
 
         <div className="flex items-center gap-1"><span className="text-sm font-bold">من:</span><input type="date" value={from} onChange={e=> setFrom(e.target.value)} className="border p-2 rounded-lg" /></div>
         <div className="flex items-center gap-1"><span className="text-sm font-bold">الى:</span><input type="date" value={to} onChange={e=> setTo(e.target.value)} className="border p-2 rounded-lg" /></div>
-        <button onClick={generate} className="bg-yellow-400 px-6 py-2 rounded-full font-black">توليد</button>
+        <button onClick={generate} disabled={loading} className="bg-yellow-400 px-6 py-2 rounded-full font-black disabled:opacity-50">{loading ? 'جاري...' : 'توليد'}</button>
       </div>
 
       {report && (
         <>
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          {/* --- الكروت - صارو 5 - ضفنا اندفع + باقي --- */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-white p-4 rounded-xl border"><div className="text-xs">عدد ({sourceType}) للبرج {selectedCenterName}</div><div className="font-black text-xl">{report.summary.totalOrders}</div><div className="text-">ID: {selectedCenter.slice(0,8)}</div></div>
             <div className="bg-white p-4 rounded-xl border"><div className="text-xs">اجمالي</div><div className="font-black">{report.summary.totalAmount.toLocaleString()}</div></div>
-            <div className="bg-white p-4 rounded-xl border"><div className="text-xs">عمولتنا</div><div className="font-bold text-red-600">{report.summary.totalCommission.toLocaleString()}</div></div>
-            <div className="bg-black text-white p-4 rounded-xl"><div className="text-xs">حصة {managers.find(m=> m.manager_user_id===selectedManager)?.manager_name || 'المسؤول'} 30%</div><div className="font-black text-xl text-yellow-400">{report.summary.totalManager.toLocaleString()}</div></div>
+            <div className="bg-black text-white p-4 rounded-xl"><div className="text-xs">اشتغل - حصة {managers.find(m=> m.manager_user_id===selectedManager)?.manager_name || 'المسؤول'} 30%</div><div className="font-black text-xl text-yellow-400">{report.summary.totalManager.toLocaleString()}</div></div>
+            <div className="bg-white p-4 rounded-xl border"><div className="text-xs">اندفعلو قبل - بنفس الفترة</div><div className="font-bold text-green-600 text-xl">{report.summary.totalPaid.toLocaleString()}</div></div>
+            <div className="bg-yellow-400 p-4 rounded-xl"><div className="text-xs">باقيلو - هيدا يلي بدك تدفعو</div><div className="font-black text-xl">{report.summary.remaining.toLocaleString()}</div></div>
           </div>
+
+          {/* --- فورم الدفع --- */}
+          {selectedManager && (
+            <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-wrap gap-3 mb-6 items-end print:hidden">
+              <div><span className="text-sm font-bold">المبلغ للدفع:</span><input type="number" value={payAmount} onChange={e=> setPayAmount(e.target.value)} className="border p-2 rounded-lg w-40 mr-2" /></div>
+              <div><span className="text-sm font-bold">ملاحظة:</span><input value={payNotes} onChange={e=> setPayNotes(e.target.value)} placeholder="كاش / تحويل" className="border p-2 rounded-lg w-48 mr-2" /></div>
+              <button onClick={doPay} disabled={paying || Number(payAmount) <= 0} className="bg-green-600 text-white px-6 py-2 rounded-full font-black disabled:opacity-50">{paying ? 'جاري الدفع...' : 'تأكيد الدفع - تصفير'}</button>
+              <span className="text-xs text-gray-500">بس تدفع - بينزل سطر بسجل الدفعات - والباقي بيصير 0 - بس الطلبات ما بينمحو</span>
+            </div>
+          )}
 
           <div className="bg-white rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
@@ -131,6 +188,28 @@ export default function TowerReportPage() {
               <tfoot className="bg-black text-white font-black"><tr><td colSpan={7} className="p-3">المجموع اخر الفاتورة - {selectedCenterName} - من {from} الى {to}</td><td className="p-3">{report.summary.totalAmount.toLocaleString()}</td><td className="p-3 text-yellow-400">{report.summary.totalManager.toLocaleString()}</td></tr></tfoot>
             </table>
           </div>
+
+          {/* --- سجل الدفعات --- */}
+          {payouts.length > 0 && (
+            <div className="bg-white rounded-xl border overflow-hidden mt-6">
+              <div className="p-3 font-black bg-gray-50">سجل الدفعات - هيدا يلي بيخلي المحفظة تصفر بلا محي</div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50"><tr><th className="p-2">تاريخ الدفع</th><th className="p-2">من</th><th className="p-2">الى</th><th className="p-2">اجمالي الفترة</th><th className="p-2">المبلغ المدفوع</th><th className="p-2">ملاحظة</th></tr></thead>
+                <tbody>
+                  {payouts.map(p=>(
+                    <tr key={p.id} className="border-b">
+                      <td className="p-2">{new Date(p.paid_at).toLocaleString('en-GB')}</td>
+                      <td className="p-2">{p.period_start ? new Date(p.period_start).toLocaleDateString('en-GB') : '-'}</td>
+                      <td className="p-2">{p.period_end ? new Date(p.period_end).toLocaleDateString('en-GB') : '-'}</td>
+                      <td className="p-2">{Number(p.total_commission||0).toLocaleString()}</td>
+                      <td className="p-2 font-bold text-green-600">{Number(p.amount_paid||0).toLocaleString()}</td>
+                      <td className="p-2">{p.notes||'-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>

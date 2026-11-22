@@ -22,6 +22,27 @@ export async function POST(req){
     const itemsCost = unitPrice * qty;
     const total = itemsCost + fee;
 
+// ✅ فحص الفري - متل الـ Checkout - عرض + حماية
+const today = new Date().toISOString().split('T')[0];
+let isFree = false;
+
+if(fee === 0){
+  const { data: cust } = await supabase.from('customers')
+    .select('*')
+    .eq('Customer ID', order['customer ID'])
+    .single();
+
+  const remaining = Number(cust?.['Free Delivery Remaining'] || 0);
+  const lastFree = (cust?.['Last Free Delivery Date'] || '').trim();
+
+  if(lastFree === today){
+    return Response.json({success:false, message:'❌ هيدا الزبون أخد فري دلفري اليوم - ما بحقلو مرة تانية اليوم'}, {status:400});
+  }
+  if(remaining <= 0){
+    return Response.json({success:false, message:'❌ ما معو فري دلفري باقي'}, {status:400});
+  }
+  isFree = true;
+}
     // 1. النسخ على order_requuest - هون كل Triggers القديمة بتشتغل لحالها
     // trg_assign_nearest_geofence, trg_notify_admin_order, trg_notify_customer_pending...
     const { data: newOrder, error: copyError } = await supabase.from('order_requuest').insert([{
@@ -40,7 +61,8 @@ export async function POST(req){
       "Delivery Status": 'Pending',
       "Cash Status": 'Pending',
       "Collected By Driver": 'FALSE',
-      "Free Delivery Used": 'FALSE',
+      "Free Delivery Used": isFree ? 'TRUE' : 'FALSE',
+
       "Payment Method": 'Cash',
       "Cerated Date": new Date().toISOString(),
       "Request Date": new Date().toISOString(),
@@ -51,6 +73,12 @@ export async function POST(req){
       console.error('copyError', copyError);
       return Response.json({success:false, message: copyError.message}, {status:500});
     }
+    // ✅ اكتب تاريخ اليوم - مشان مرة تانية نلاحظ انو أخد اليوم
+if(isFree){
+  await supabase.from('customers').update({
+    "Last Free Delivery Date": today
+  }).eq('Customer ID', order['customer ID']);
+}
 
     // 2. حدّث الطلب الخاص - صار Converted مش Approved
     const { error: updateErr } = await supabase.from('special_orders').update({

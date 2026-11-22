@@ -49,7 +49,7 @@ export default function StoresPendingPage() {
 تم تفعيل متجرك بنجاح! 🎉
 
 تستطيع الدخول الان الى لوحة التحكم:
-https://md-marketplace.store/admin/login
+https://www.md-marketplace.store/admin/login
 
 📱 رقم الهاتف: ${store['Mobile']}
 🔑 رمز الدخول الخاص بك: ${pin}

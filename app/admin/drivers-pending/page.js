@@ -48,7 +48,7 @@ export default function DriversPendingPage() {
 تم تفعيل حسابك بنجاح! 🛵
 
 تستطيع الدخول الان الى التطبيق:
-https://md-marketplace.store/admin/login
+https://www.md-marketplace.store/admin/login
 
 📱 رقم الهاتف: ${driver['Mobile']}
 🔑 رمز الخول الخاص بك: ${pin}

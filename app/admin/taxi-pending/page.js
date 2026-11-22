@@ -52,7 +52,7 @@ export default function TaxiPendingPage() {
 السيارة: ${car} - ${plate}
 
 تستطيع الدخول الى التطبيق:
-https://md-marketplace.store/admin/login
+https://www.md-marketplace.store/admin/login
 
 📱 رقم الهاتف: ${taxi['phone']}
 🔑 رمز الخول الخاص بك: ${pin}

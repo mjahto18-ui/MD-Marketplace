@@ -133,6 +133,31 @@ export default function Dashboard() {
     }
   }, [user, openNotifications, notifications.length]);
 
+  // --- تتبع حي: بس الداتا بتتحدث كل 10 ثواني - مش رفرش للصفحة ---
+useEffect(() => {
+  if (!user?.customerId) return;
+
+  const interval = setInterval(() => {
+    fetch(`/api/my-orders?customerID=${user.customerId}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(o => {
+        const newOrders = o.orders || [];
+        setOrders(newOrders);
+
+        // اذا ما بقى في اوردر Approved ومش مسلّم - وقف التحديث
+        const stillActive = newOrders.some(x =>
+          x.approvalStatus === "Approved" &&
+          x.status !== "Delivered" &&
+          x.status !== "Cancelled"
+        );
+        if (!stillActive) clearInterval(interval);
+      })
+      .catch(() => {});
+  }, 10000);
+
+  return () => clearInterval(interval);
+}, [user?.customerId]);
+
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
     document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
