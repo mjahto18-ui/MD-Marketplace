@@ -1,6 +1,5 @@
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
+/** @type {import('@capacitor/cli').CapacitorConfig} */
+const config = {
   appId: 'com.mdmarketplace.app',
   appName: 'MD-Marketplace',
   webDir: 'out',
@@ -10,4 +9,4 @@ const config: CapacitorConfig = {
   }
 };
 
-export default config;
+module.exports = config;
