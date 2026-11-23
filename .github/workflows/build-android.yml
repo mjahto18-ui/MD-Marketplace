@@ -28,11 +28,10 @@ jobs:
 
       - name: Install Capacitor
         run: |
-          npm install @capacitor/core @capacitor/cli
-          npm install @capacitor/android
-          npm install @capacitor/geolocation @capacitor/push-notifications
-          npm install @capacitor-community/background-geolocation
-
+          npm install @capacitor/core@^8 @capacitor/cli@^8 --legacy-peer-deps
+          npm install @capacitor/android@^8 --legacy-peer-deps
+          npm install @capacitor/geolocation@^8 @capacitor/push-notifications@^8 --legacy-peer-deps
+          npm install @capacitor-community/background-geolocation --legacy-peer-deps
       - name: Make dummy webDir for Capacitor
         run: |
           mkdir -p out
