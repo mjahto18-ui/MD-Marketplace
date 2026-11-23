@@ -3,6 +3,7 @@
 // بيستقبل: الزبون دخل برج جديد - وهو مسكر - وبيبعت OneSignal - بنفس طريقتك القديمة
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { findTowerForLocation, isTowerChange } from "@/lib/geofence-tower-to-tower.js";
@@ -13,13 +14,18 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+const NO_CACHE = { "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate" };
+
 export async function POST(req) {
   try {
     const body = await req.json();
     const { userId, subscriptionId, lat, lng, oldTowerId } = body || {};
 
     if (!lat || !lng) {
-      return NextResponse.json({ success: false, message: "Missing lat/lng" });
+      return NextResponse.json(
+        { success: false, message: "Missing lat/lng" },
+        { headers: NO_CACHE }
+      );
     }
 
     const supabase = getSupabase();
@@ -29,7 +35,10 @@ export async function POST(req) {
     const tower = findTowerForLocation(Number(lat), Number(lng), centers || []);
 
     if (!tower) {
-      return NextResponse.json({ success: true, inside: false, message: "برا كل الأبراج" });
+      return NextResponse.json(
+        { success: true, inside: false, message: "برا كل الأبراج" },
+        { headers: NO_CACHE }
+      );
     }
 
     const newTowerId = tower.id;
@@ -37,7 +46,10 @@ export async function POST(req) {
 
     // 2. اذا ما انتقل من برج لبرج - ما تبعت شي
     if (!isTowerChange(oldTowerId, newTowerId)) {
-      return NextResponse.json({ success: true, changed: false, towerId: newTowerId });
+      return NextResponse.json(
+        { success: true, changed: false, towerId: newTowerId },
+        { headers: NO_CACHE }
+      );
     }
 
     // 3. شوف اذا بعتنا لهيدا الزبون - لهيدا البرج - اليوم - بجدول جديد geofence_events - مشان ما نبعت مرتين
@@ -51,7 +63,10 @@ export async function POST(req) {
       .limit(1);
 
     if (already?.length) {
-      return NextResponse.json({ success: true, changed: true, alreadySent: true, towerId: newTowerId });
+      return NextResponse.json(
+        { success: true, changed: true, alreadySent: true, towerId: newTowerId },
+        { headers: NO_CACHE }
+      );
     }
 
     // 4. سجل الحدث - بجدول جديد
@@ -81,6 +96,7 @@ export async function POST(req) {
     if (subId) {
       await fetch("https://api.onesignal.com/notifications", {
         method: "POST",
+        cache: "no-store",
         headers: {
           Authorization: `Key ${process.env.ONESIGNAL_REST_API_KEY}`,
           "Content-Type": "application/json",
@@ -89,14 +105,20 @@ export async function POST(req) {
           app_id: process.env.ONESIGNAL_APP_ID,
           include_subscription_ids: [subId],
           headings: { en: `وصلت على ${towerName} 📍` },
-          contents: { en: `أهلا فيك ببرج ${towerName} - شوف عروض هيدا البرج اليوم` },
+          contents: { en: `أهلا فيك بمنطقة ${towerName} - شوف عروض هيدا البرج اليوم` },
           data: { type: "TOWER_CHANGE", tower_id: String(newTowerId), tower_name: towerName },
         }),
       });
     }
 
-    return NextResponse.json({ success: true, changed: true, towerId: newTowerId, towerName });
+    return NextResponse.json(
+      { success: true, changed: true, towerId: newTowerId, towerName },
+      { headers: NO_CACHE }
+    );
   } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: e.message },
+      { status: 500, headers: NO_CACHE }
+    );
   }
 }
