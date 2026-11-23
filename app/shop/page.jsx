@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { checkTowerOnOpen } from "@/lib/geofence-on-open.js";
+import { startBackgroundGeofence } from "@/lib/geofence-background.js";
 
 function CartBell() {
   const [hasItems, setHasItems] = useState(false);
@@ -131,10 +132,16 @@ const handleFastDelivery = () => {
           setUser(data.user);
                     // Geofence - بس يفتح الشوب على المتصفح - من دون كبسة
           try {
-            const uid = data.user.id || data.user["User ID"] || data.user.userId || data.user.customerId;
-            const lastTowerId = localStorage.getItem("lastTowerId") || "";
-            if (uid) checkTowerOnOpen(uid, lastTowerId);
-          } catch (e) {}
+  const uid = data.user.id || data.user["User ID"] || data.user.userId || data.user.customerId;
+  const lastTowerId = localStorage.getItem("lastTowerId") || "";
+  if (uid) checkTowerOnOpen(uid, lastTowerId);
+  // باكروند - للتطبيق - حتى وهو مسكر
+  try {
+    if (window.Capacitor) {
+      startBackgroundGeofence(uid);
+    }
+  } catch (e) {}
+} catch (e) {}
           fetch(`/api/my-balance?customerID=${data.user.customerId}`, { credentials: 'include' })
     .then(r=>r.json()).then(b=>{
             fetch('/api/loyalty-tiers').then(r=>r.json()).then(tData=>{
