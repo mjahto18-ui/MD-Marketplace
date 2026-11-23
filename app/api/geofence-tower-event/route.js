@@ -82,47 +82,61 @@ export async function POST(req) {
       },
     ]);
 
-   // 5. ابعت OneSignal - بنفس طريقتك القديمة - اللي بتشتغل
-let subId = subscriptionId;
-if (!subId && userId) {
-  const { data: u } = await supabase
-    .from("users")
-    .select("*")
-    .eq("User ID", String(userId))
-    .maybeSingle();
+    // 5. ابعت OneSignal - بنفس طريقتك القديمة - اللي بتشتغل
+    // هون بس التصحيح - ما شلنا شي - بس زدنا تعريف subId - وصلحنا القوس
+    let subId = subscriptionId;
+    let u = null;
+    if (!subId && userId) {
+      // جرب User ID أول شي - b530c8aa
+      const { data: u1 } = await supabase
+        .from("users")
+        .select("*")
+        .eq("User ID", String(userId))
+        .maybeSingle();
+      u = u1;
 
-  if (u && u["Subscription ID"]) {
-    const isActive = String(u["Active"] || "").toUpperCase() === "TRUE" || String(u["Active"] || "").toLowerCase() === "active";
-    const isStatusActive = String(u["Status"] || "").toLowerCase() === "active";
-    if (isActive && isStatusActive) {
-      subId = u["Subscription ID"];
+      // اذا ما لقى - جرب Customer ID - 5555
+      if (!u) {
+        const { data: u2 } = await supabase
+          .from("users")
+          .select("*")
+          .eq("Customer ID", String(userId))
+          .maybeSingle();
+        u = u2;
+      }
+
+      if (u && u["Subscription ID"]) {
+        const isActive = String(u["Active"] || "").toUpperCase() === "TRUE" || String(u["Active"] || "").toLowerCase() === "active";
+        const isStatusActive = String(u["Status"] || "").toLowerCase() === "active";
+        if (isActive && isStatusActive) {
+          subId = u["Subscription ID"];
+        }
+      }
+      console.log("GEOFENCE_SUBID_FOUND", { userId, hasSub: !!subId, active: u?.["Active"], status: u?.["Status"] });
     }
-  }
-  console.log("GEOFENCE_SUBID_FOUND", { userId, hasSub: !!subId, active: u?.["Active"], status: u?.["Status"] });
-}
 
-if (subId) {
-  const oneRes = await fetch("https://api.onesignal.com/notifications?c=push", {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      Authorization: `Key ${process.env.ONESIGNAL_REST_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      app_id: process.env.ONESIGNAL_APP_ID,
-      include_subscription_ids: [subId],
-      headings: { en: `وصلت على ${towerName} 📍` },
-      contents: { en: `أهلا فيك بمنطقة ${towerName} - شوف عروض هيدا البرج اليوم` },
-      web_url: `https://www.md-marketplace.store/?tower=${newTowerId}`,
-      data: { type: "TOWER_CHANGE", tower_id: String(newTowerId), tower_name: towerName },
-    }),
-  });
-  const oneJson = await oneRes.json();
-  console.log("ONESIGNAL_RES", oneJson);
-} else {
-  console.log("GEOFENCE_NO_SUBID", { userId });
-}
+    if (subId) {
+      const oneRes = await fetch("https://api.onesignal.com/notifications?c=push", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          Authorization: `Key ${process.env.ONESIGNAL_REST_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          app_id: process.env.ONESIGNAL_APP_ID,
+          include_subscription_ids: [subId],
+          headings: { en: `وصلت على ${towerName} 📍` },
+          contents: { en: `أهلا فيك بمنطقة ${towerName} - شوف عروض هيدا البرج اليوم` },
+          web_url: `https://www.md-marketplace.store/?tower=${newTowerId}`,
+          data: { type: "TOWER_CHANGE", tower_id: String(newTowerId), tower_name: towerName },
+        }),
+      });
+      const oneJson = await oneRes.json();
+      console.log("ONESIGNAL_RES", oneJson);
+    } else {
+      console.log("GEOFENCE_NO_SUBID", { userId });
+    }
 
     return NextResponse.json(
       { success: true, changed: true, towerId: newTowerId, towerName },
