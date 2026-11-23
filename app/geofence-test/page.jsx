@@ -26,7 +26,7 @@ export default function GeofenceTestPage() {
       const res = await fetch("/api/geofence-tower-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "TEST-123", lat, lng, oldTowerId: "" }),
+        body: JSON.stringify({ userId: "b530c8aa", lat, lng, oldTowerId: "" }),
       });
       const j = await res.json();
       setResult(JSON.stringify({ tower: c.name, lat, lng, ...j }, null, 2));
