@@ -43,6 +43,12 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
+      - name: Add Background Location Permissions
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -q "ACCESS_BACKGROUND_LOCATION" $MANIFEST || sed -i 's|<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />|<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />|' $MANIFEST
+          cat $MANIFEST
+
       - name: Build AAB
         working-directory: android
         run: ./gradlew bundleRelease
