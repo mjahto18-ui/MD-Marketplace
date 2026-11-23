@@ -21,8 +21,8 @@ export default function GeofenceTestPage() {
     setLoading(true);
     setResult("عم جرب برج " + (c.name || c.id) + "...");
     try {
-      const lat = Number(c.lat ?? c.latitude ?? c.Lat ?? 0);
-      const lng = Number(c.lng ?? c.longitude ?? c.Lng ?? 0);
+      const lat = Number(c.center_lat ?? c.latitude ?? c.Lat ?? 0);
+      const lng = Number(c.center_lng ?? c.longitude ?? c.Lng ?? 0);
       const res = await fetch("/api/geofence-tower-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
