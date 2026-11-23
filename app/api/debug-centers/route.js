@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
@@ -13,12 +14,17 @@ export async function GET() {
   const { data, error } = await supabase.from('geofence_centers').select('*');
   const { data: dataActive, error: errorActive } = await supabase.from('geofence_centers').select('*').eq('is_active', true).eq('cart_enabled', true);
 
-  return NextResponse.json({
-    all_count: data?.length || 0,
-    all: data,
-    error_all: error,
-    active_count: dataActive?.length || 0,
-    active: dataActive,
-    error_active: errorActive,
-  });
+  return NextResponse.json(
+    {
+      all_count: data?.length || 0,
+      all: data,
+      error_all: error,
+      active_count: dataActive?.length || 0,
+      active: dataActive,
+      error_active: errorActive,
+    },
+    {
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate" }
+    }
+  );
 }
