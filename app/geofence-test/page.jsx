@@ -1,26 +1,35 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function GeofenceTestPage() {
+  const [centers, setCenters] = useState([]);
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const testTower = async () => {
+  // جيب الليستة من الجدول القديم - قراية بس
+  useEffect(() => {
+    fetch("/api/debug-centers")
+      .then((r) => r.json())
+      .then((j) => {
+        const list = j.centers || j.data || j || [];
+        setCenters(Array.isArray(list) ? list : []);
+      })
+      .catch(() => setCenters([]));
+  }, []);
+
+  const testTower = async (c) => {
     setLoading(true);
-    setResult("عم جرب...");
+    setResult("عم جرب برج " + (c.name || c.id) + "...");
     try {
+      const lat = Number(c.lat ?? c.latitude ?? c.Lat ?? 0);
+      const lng = Number(c.lng ?? c.longitude ?? c.Lng ?? 0);
       const res = await fetch("/api/geofence-tower-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: "TEST-123",
-          lat: 34.4366,
-          lng: 35.8433,
-          oldTowerId: "",
-        }),
+        body: JSON.stringify({ userId: "TEST-123", lat, lng, oldTowerId: "" }),
       });
       const j = await res.json();
-      setResult(JSON.stringify(j, null, 2));
+      setResult(JSON.stringify({ tower: c.name, lat, lng, ...j }, null, 2));
     } catch (e) {
       setResult("خطأ: " + e.message);
     }
@@ -30,14 +39,19 @@ export default function GeofenceTestPage() {
   return (
     <div style={{ padding: 20 }}>
       <h1>تجربة Geofence - برج لبرج</h1>
-      <p>هيدي صفحة تجربة - على last-update بس - مش على main</p>
-      <button
-        onClick={testTower}
-        style={{ padding: "12px 20px", fontSize: 16, background: "#000", color: "#fff", borderRadius: 10 }}
-      >
-        {loading ? "عم جرب..." : "جرب برج طرابلس"}
-      </button>
+      <p>الليستة من جدول geofence_centers - القديم - مش تخمين</p>
+      {centers.length === 0 && <p>عم جيب الليستة... أو ما لقيت أبراج - شوف /api/debug-centers</p>}
+      {centers.map((c) => (
+        <button
+          key={c.id}
+          onClick={() => testTower(c)}
+          style={{ display: "block", margin: "8px 0", padding: "12px 16px", fontSize: 15, background: "#000", color: "#fff", borderRadius: 10 }}
+        >
+          جرب {c.name || c.id} - lat: {c.lat} - lng: {c.lng}
+        </button>
+      ))}
       <pre style={{ marginTop: 20, background: "#f5f5f5", padding: 15, borderRadius: 10 }}>{result}</pre>
+      {loading && <p>عم جرب...</p>}
     </div>
   );
 }
