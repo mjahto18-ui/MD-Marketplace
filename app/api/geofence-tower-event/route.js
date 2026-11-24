@@ -127,7 +127,7 @@ export async function POST(req) {
           app_id: process.env.ONESIGNAL_APP_ID,
           include_subscription_ids: [subId],
           headings: { en: `أهلا فيك بمنطقة  ${towerName} 📍` },
-          contents: { en: `ما تنسى تطلب اي شي بدك ياه ${towerName} - خدماتنا موجودة حدك وين ما رحت ` },
+          contents: { en: `ما تنسى تطلب اي شي بدك ياه بمنطقة ${towerName} - خدماتنا موجودة حدك وين ما رحت ` },
           web_url: `https://www.md-marketplace.store/?tower=${newTowerId}`,
           data: { type: "TOWER_CHANGE", tower_id: String(newTowerId), tower_name: towerName },
         }),
