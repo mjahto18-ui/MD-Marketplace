@@ -32,7 +32,7 @@ jobs:
           npm install @capacitor/android@^8 --legacy-peer-deps
           npm install @capacitor/geolocation@^8 @capacitor/push-notifications@^8 --legacy-peer-deps
           npm install @capacitor-community/background-geolocation --legacy-peer-deps
-          npm install @onesignal/capacitor@^5 --legacy-peer-deps
+          npm install onesignal-cordova-plugin --legacy-peer-deps
       - name: Make dummy webDir for Capacitor
         run: |
           mkdir -p out
