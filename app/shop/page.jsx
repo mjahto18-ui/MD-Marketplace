@@ -72,7 +72,7 @@ const handleFastDelivery = () => {
   
   if (isMobile) {
     // تلفون - افتح التطبيق مباشرة
-    window.location.href = `https://wa.me/${clean}&text=${text}`;
+    window.location.href = `https://wa.me/${clean}?text=${text}`;
   } else {
     // لابتوب - افتح wa.me
     const waMe = `https://wa.me/${clean}?text=${text}`;
