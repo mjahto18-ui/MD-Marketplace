@@ -135,10 +135,23 @@ const handleFastDelivery = () => {
   const uid = data.user.id || data.user["User ID"] || data.user.userId || data.user.customerId;
   const lastTowerId = localStorage.getItem("lastTowerId") || "";
   if (uid) checkTowerOnOpen(uid, lastTowerId);
-  // باكروند - للتطبيق - حتى وهو مسكر
+ 
+    // باكروند - للتطبيق - حتى وهو مسكر
   try {
     if (window.Capacitor) {
       startBackgroundGeofence(uid);
+    }
+  } catch (e) {}
+  // OneSignal - نيتف - للتطبيق - يسجل التلفون - على نفس App ID
+  try {
+    if (window.Capacitor) {
+      const OS = window.plugins?.OneSignal || window.OneSignal;
+      if (OS) {
+        OS.initialize("8736bcd3-452e-4b06-a3c1-0363071f1254");
+        OS.Notifications.requestPermission(true);
+        // ربط التلفون - باليوزر - مشان الجيوفنس - يعرف لمين يبعت
+        try { OS.login(String(uid)); } catch (e) {}
+      }
     }
   } catch (e) {}
 } catch (e) {}
