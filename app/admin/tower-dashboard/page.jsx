@@ -45,6 +45,9 @@ export default function TowerDashboardPage() {
   const [wallet, setWallet] = useState({ earned: 0, paid: 0, remaining: 0 });
   const [payouts, setPayouts] = useState([]);
   const [walletRows, setWalletRows] = useState([]);
+  // --- كاش بندينغ - برجي ---
+  const [cashPendingCount, setCashPendingCount] = useState(0);
+  const [cashPendingTotal, setCashPendingTotal] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -104,6 +107,10 @@ setWallet({ earned, paid, remaining: earned - paid });
 
       const { data: oRows } = await supabase.from("order_requuest").select("*").eq(COL_TOWER_ID, towerId).order("Cerated Date", { ascending: false }).limit(200);
       setOrders(oRows || []);
+      // --- كاش بندينغ - بس لبرجي ---
+     const { data: cpRows } = await supabase.from("order_requuest").select("Request ID, Total Amount").eq(COL_TOWER_ID, towerId).eq("Final Payment Method", "Cash").eq("Cash Status", "Pending");
+    setCashPendingCount(cpRows?.length || 0);
+    setCashPendingTotal((cpRows || []).reduce((s, r) => s + Number(String(r["Total Amount"] || 0).replace(/,/g, "")) || 0, 0));
       const { data: tRows } = await supabase.from("taxi_orders").select("*").eq(COL_TOWER_ID, towerId).order("created_at", { ascending: false }).limit(200);
       setTaxiOrders(tRows || []);
       const { data: sRows } = await supabase.from("special_orders").select("*").eq(COL_TOWER_ID, towerId).order("Cerated Date", { ascending: false }).limit(200);
@@ -339,6 +346,15 @@ setTowerCustomers(filtered);
     <div style={{ color: "#aaa", fontSize: 12, marginTop: 4 }}>ولد كود 6 أرقام - بدون عداد - مربوط بالانفايت - متل الادمن بالزبط</div>
   </div>
   <span style={{ background: "#FFD700", color: "#000", padding: "8px 16px", borderRadius: 999, fontWeight: 800, fontSize: 13 }}>فتح صفحة الاكواد →</span>
+</div>
+      {/* === كارت كاش بندينغ - برجي - بيفتح صفحة الكاش === */}
+<div onClick={() => window.location.href = "/admin/tower/cash-pending"}
+style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px solid #FF444433", marginBottom: 16, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+<div>
+<b style={{ fontSize: 17 }}>💰 كاش بندينغ - برجي - {cashPendingCount}</b>
+<div style={{ color: "#aaa", fontSize: 12, marginTop: 4 }}>مجموع الكاش اللي بعد ما وصلك: {cashPendingTotal.toLocaleString()} ل.ل - كبس لتشوف التفاصيل وتستلم من السائق</div>
+</div>
+<span style={{ background: "#FF4444", color: "#fff", padding: "8px 16px", borderRadius: 999, fontWeight: 800, fontSize: 13 }}>فتح الكاش بندينغ →</span>
 </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
