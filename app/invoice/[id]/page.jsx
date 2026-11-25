@@ -100,9 +100,10 @@ export default function InvoicePage() {
   if(notFound) return <div className="p-6 text-center">❌ الفاتورة مش موجودة - تأكد من اللينك</div>
   if (!order) return <div className="p-6 text-center">جاري تحميل الفاتورة... {id}</div>
 
-  const totalQty = details.reduce((sum, d) => sum + Number(d['Qty'] || 0), 0)
-  const totalWeight = details.reduce((sum, d) => sum + Number(d['Line Weight'] || d['Qty'] || 0), 0)
-  const itemsCost = details.reduce((sum, d) => sum + Number(d['Line Total'] || 0), 0)
+      const isSpecial = String(order['Note'] || '').includes('طلب خاص')
+  const totalQty = isSpecial ? 1 : details.reduce((sum, d) => sum + Number(d['Qty'] || 0), 0)
+    const totalWeight = isSpecial ? 1 : details.reduce((sum, d) => sum + Number(d['Line Weight'] || d['Qty'] || 0), 0)
+    const itemsCost = Number(order['Items Cost'] || 0) || details.reduce((sum, d) => sum + Number(d['Line Total'] || 0), 0)
   const deliveryFee = Number(order['Delivery Fee'] || 0)
   const totalAmount = Number(order['Total Amount'] || 0) || itemsCost + deliveryFee
 
@@ -182,7 +183,7 @@ export default function InvoicePage() {
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow border print:shadow-none print:border">
-            <h2 className="font-bold mb-4">تفاصيل البضاعة ({details.length})</h2>
+            <h2 className="font-bold mb-4">تفاصيل البضاعة ({isSpecial ? 1 : details.length})</h2>
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr className="text-gray-500 text-xs">
@@ -193,8 +194,17 @@ export default function InvoicePage() {
                   <th className="p-3 text-left">الاجمالي</th>
                 </tr>
               </thead>
-              <tbody>
-                {details.map(d => {
+                            <tbody>
+                {isSpecial ? (
+
+                  <tr className="border-b">
+                    <td className="p-3 font-medium">طلب خاص - {order['Note'] || 'طلب خاص'}</td>
+                    <td className="p-3 text-gray-600">-</td>
+                    <td className="p-3 text-center">1</td>
+                    <td className="p-3 text-center">{itemsCost} <div className="text- text-gray-500">≈ ${toDollar(itemsCost)}</div></td>
+                    <td className="p-3 text-left font-bold">{itemsCost} <div className="text- text-gray-500 font-normal">≈ ${toDollar(itemsCost)}</div></td>
+                  </tr>
+                ) : details.map(d => {
                   const productName = names.products[String(d['Product ID']).trim()] || d['Product ID']
                   const storeName = names.stores[String(d['Store ID']).trim()] || d['Store ID']
                   return (
