@@ -19,31 +19,30 @@ export default function TowerCashPendingPage() {
   useEffect(() => { fetchOrders() }, [])
 
   const fetchOrders = async () => {
-    // 1. جيب مين المدير - وشو برجو - متل TowerDashboard بالزبط
-    const res = await fetch("/api/admin/me")
-    const data = await res.json()
-    const user = data?.user || data
-    const uId = user?.id || user?.userId || user?.relatedId
-    setUserId(uId)
+  const res = await fetch("/api/admin/me")
+  const meData = await res.json()
+  const user = meData?.user || meData
+  const uId = user?.id || user?.userId || user?.relatedId
+  setUserId(uId)
 
-    const { data: mRows } = await supabase
-      .from("geofence_center_managers").select("*")
-      .eq("manager_user_id", uId).eq("is_active", true).limit(1)
-    const m = mRows?.[0]
-    const tId = m?.["geofence_center_id"]
-    if (!tId) { setLoading(false); return }
-    setTowerId(tId)
+  const { data: mRows } = await supabase
+    .from("geofence_center_managers").select("*")
+    .eq("manager_user_id", uId).eq("is_active", true).limit(1)
+  const m = mRows?.[0]
+  const tId = m?.["geofence_center_id"]
+  if (!tId) { setLoading(false); return }
+  setTowerId(tId)
 
-    // 2. جيب الكاش بندينغ - بس لبرجو - مش الكل
-    const { data } = await supabase
-      .from('order_requuest')
-      .select('*')
-      .eq('geofence_center_id', tId)
-      .eq('Final Payment Method', 'Cash')
-      .eq('Cash Status', 'Pending')
-      .order('Request Date', { ascending: false })
+  const { data: ordersData } = await supabase
+    .from('order_requuest')
+    .select('*')
+    .eq('geofence_center_id', tId)
+    .eq('Final Payment Method', 'Cash')
+    .eq('Cash Status', 'Pending')
+    .order('Request Date', { ascending: false })
 
-    setOrders(data || [])
+  setOrders(ordersData || [])
+   
 
     const [cRes, aRes, uRes] = await Promise.all([
       supabase.from('customers').select('*'),
