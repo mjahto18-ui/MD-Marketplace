@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
@@ -25,14 +28,30 @@ export async function GET() {
       .select('id, name, center_lat, center_lng')
       .eq('is_active', true);
 
-    // --- كل مواقع الابراج - بنفس الكرت الذكي ---
+    // --- جديد - جيب رسائل الابراج - من tower_messages ---
+    const { data: msgs } = await supabase
+      .from('tower_messages')
+      .select('geofence_center_id, title, body')
+      .eq('is_active', true);
+
+    // --- جديد - ربط الرسالة - ببرجها ---
+    const msgMap = {};
+    (msgs || []).forEach((m) => {
+      msgMap[m.geofence_center_id] = m;
+    });
+
+    // --- كل مواقع الابراج - بنفس الكرت الذكي - كل واحد - برسالتو ---
     const locations = (towers || [])
       .filter((t) => Number(t.center_lat) && Number(t.center_lng))
-      .map((t) => ({
-        latitude: Number(t.center_lat),
-        longitude: Number(t.center_lng),
-        relevantText: 'انت ببرج ' + (t.name || '') + ' - شو بدك نوصيلك اليوم؟',
-      }));
+      .map((t) => {
+        const m = msgMap[t.id];
+        const text = m ? m.body : 'انت ببرج ' + (t.name || '') + ' - شو بدك نوصيلك اليوم؟';
+        return {
+          latitude: Number(t.center_lat),
+          longitude: Number(t.center_lng),
+          relevantText: text,
+        };
+      });
 
     // --- احتياط - اذا ما لقى ابراج - حط القبة ---
     if (locations.length === 0) {
@@ -68,6 +87,10 @@ export async function GET() {
           header: 'الختم - للتجربة',
           body: '0 من 5 - السادسة توصيل مجاني',
         },
+        {
+          header: 'الابراج',
+          body: 'القبة - و كل الابراج الناشطة - بيشتغل فيهن كرتك',
+        },
       ],
       barcode: {
         type: 'QR_CODE',
@@ -96,7 +119,7 @@ export async function GET() {
     const token = jwt.sign(claims, serviceAccount.private_key, { algorithm: 'RS256' });
     const saveLink = 'https://pay.google.com/gp/v/save/' + token;
 
-    return NextResponse.json({ saveLink, towersCount: locations.length });
+    return NextResponse.json({ saveLink, towersCount: locations.length, messagesCount: (msgs || []).length });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
