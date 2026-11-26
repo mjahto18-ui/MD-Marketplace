@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 
-export async function GET() {
+export async function GET(request) {
   try {
     const issuerId = process.env.GOOGLE_WALLET_ISSUER_ID;
     const serviceAccount = JSON.parse(process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_JSON || '{}');
@@ -119,7 +119,14 @@ export async function GET() {
     const token = jwt.sign(claims, serviceAccount.private_key, { algorithm: 'RS256' });
     const saveLink = 'https://pay.google.com/gp/v/save/' + token;
 
-    return NextResponse.json({ saveLink, towersCount: locations.length, messagesCount: (msgs || []).length });
+    // اذا ?debug=1 - فرجي JSON - للفحص
+    // اذا لا - روح دغري - على غوغل
+    const url = new URL(request.url);
+    if (url.searchParams.get('debug') === '1') {
+      return NextResponse.json({ saveLink, towersCount: locations.length, messagesCount: (msgs || []).length });
+    }
+
+    return NextResponse.redirect(saveLink);
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
