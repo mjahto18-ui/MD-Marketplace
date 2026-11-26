@@ -4,12 +4,15 @@ import { useRouter } from "next/navigation"
 import { ChevronRight } from "lucide-react"
 
 const CHARITIES = [
-  { id:'CHARITY_CARITAS', name:'كاريتاس لبنان', logo:'/charities/karitass.webp' },
-  { id:'CHARITY_RED_CROSS', name:'الصليب الأحمر', logo:'/charities/salib_a7mar.webp' },
-  { id:'CHARITY_DAR_AYTAM', name:'دار الأيتام', logo:'/charities/dar_aytam.webp' },
-  { id:'CHARITY_CIVIL_DEF', name:'الدفاع المدني', logo:'/charities/difa3_madani.webp' },
-  { id:'CHARITY_KAFA', name:'كفى', logo:'/charities/kafa.webp' },
+  { id:'CHARITY_CARITAS', name:'كاريتاس لبنان', logo:'/charities/karitass.webp', enabled:false },
+  { id:'CHARITY_RED_CROSS', name:'الصليب الأحمر', logo:'/charities/salib_a7mar.webp', enabled:false },
+  { id:'CHARITY_DAR_AYTAM', name:'دار الأيتام', logo:'/charities/dar_aytam.webp', enabled:false },
+  { id:'CHARITY_CIVIL_DEF', name:'الدفاع المدني', logo:'/charities/difa3_madani.webp', enabled:false },
+  { id:'CHARITY_KAFA', name:'كفى', logo:'/charities/kafa.webp', enabled:false },
 ]
+
+// كرت السايق - الوحيد الشغال هلق
+const DRIVER_OPTION = { id:'DRIVER_TIP', name:'ادعم السايق اللي وصلك', logo:'/charities/driver.webp', enabled:true }
 
 export default function DonateClient({ pendingId }){
   const router = useRouter()
@@ -79,17 +82,22 @@ export default function DonateClient({ pendingId }){
 
         {/* الجمعيات */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 flex-1 mt-4 lg:mt-0">
-          {CHARITIES.map(c=>{
-            const isSel = sel===c.id
-            return (
-              <div key={c.id} onClick={()=>setSel(isSel? null : c.id)} className={`bg-white rounded- p-5 text-center border-2 cursor-pointer active:scale-95 transition-all ${isSel?'border-black shadow-md':'border-transparent shadow-sm'}`}>
-                <img src={c.logo} alt={c.name} className="w-16 h-16 object-contain mx-auto" />
-                <div className="text- font-bold mt-3 leading-tight">{c.name}</div>
-                {isSel && <div className="mt-2 text- bg-black text-white rounded-full px-2 py-0.5 inline-block">مختار</div>}
-              </div>
-            )
-          })}
-        </div>
+  {[DRIVER_OPTION, ...CHARITIES].map(c=>{
+    const isSel = sel===c.id
+    const isDisabled = !c.enabled
+    return (
+      <div
+        key={c.id}
+        onClick={()=>{ if(isDisabled) return; setSel(isSel? null : c.id) }}
+        className={`bg-white rounded- p-5 text-center border-2 transition-all ${isDisabled ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer active:scale-95'} ${isSel?'border-black shadow-md':'border-transparent shadow-sm'}`}>
+        <img src={c.logo} alt={c.name} className="w-16 h-16 object-contain mx-auto" />
+        <div className="text- font-bold mt-3 leading-tight">{c.name}</div>
+        {isDisabled && <div className="mt-2 text- bg-gray-100 text-gray-500 rounded-full px-2 py-0.5 inline-block">قريبا - بانتظار الموافقة</div>}
+        {isSel && <div className="mt-2 text- bg-black text-white rounded-full px-2 py-0.5 inline-block">مختار</div>}
+      </div>
+    )
+  })}
+</div>
       </div>
 
       {/* أزرار ثابتة عالموبايل */}
