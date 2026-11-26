@@ -73,7 +73,7 @@ export async function GET(request) {
       },
     };
     const genericObject = {
-      id: issuerId + '.smart_card_test_008',
+      id: issuerId + '.smart_card_test_009',
       classId: issuerId + '.smart_card5',
       state: 'ACTIVE',
       cardTitle: {
