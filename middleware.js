@@ -67,7 +67,8 @@ try {
     if (
       pathname.startsWith('/admin/tower-dashboard') ||
       pathname.startsWith('/admin/active-orders') ||
-      pathname.startsWith('/admin/invite-codes') // هيدا اللي زدناه
+      pathname.startsWith('/admin/invite-codes') || // هيدا اللي زدناه
+      pathname.startsWith('/admin/tower/cash-pending') // هيدا الجديد - مشان الكاش بندينغ
     ) {
       return NextResponse.next();
     }
