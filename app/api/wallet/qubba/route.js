@@ -17,53 +17,50 @@ export async function GET(request) {
       return NextResponse.json({ error: 'SERVICE_ACCOUNT_JSON ناقص - Vercel' }, { status: 500 });
     }
 
-    // --- جيب كل الابراج - الناشطة - من Supabase ---
+    // --- جيب المتاجر الناشطة - من Supabase ---
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
-    const { data: towers } = await supabase
-      .from('geofence_centers')
-      .select('id, name, center_lat, center_lng')
-      .eq('is_active', true);
+    const { data: stores } = await supabase
+      .from('stores')
+      .select('"Store ID", "Store Name", "Current Latitude", "Current Longitude", "Status"')
+      .eq('Status', 'Active');
+      
 
-    // --- جديد - جيب رسائل الابراج - من tower_messages ---
+    // --- جيب رسائل المتاجر - من store_messages - بس الناشطة ---
     const { data: msgs } = await supabase
-      .from('tower_messages')
-      .select('geofence_center_id, title, body')
+      .from('store_messages')
+      .select('store_id, title, body')
       .eq('is_active', true);
 
-    // --- جديد - ربط الرسالة - ببرجها ---
+    // --- ربط الرسالة - بمتجرها ---
     const msgMap = {};
     (msgs || []).forEach((m) => {
-      msgMap[m.geofence_center_id] = m;
+      msgMap[m.store_id] = m;
     });
 
-    // --- كل مواقع الابراج - بنفس الكرت الذكي - كل واحد - برسالتو ---
-    const locations = (towers || [])
-      .filter((t) => Number(t.center_lat) && Number(t.center_lng))
-      .map((t) => {
-        const m = msgMap[t.id];
-        const text = m ? m.body : 'انت ببرج ' + (t.name || '') + ' - شو بدك نوصيلك اليوم؟';
+    // --- بس المتاجر اللي عندا مسج true - بينحطو - الباقي صامت - بلا Fallback ---
+    // --- global و geofence - نفس الشي - التنين بيتاخدو - ما منفلتر على coverage_type ---
+    const locations = (stores || [])
+      .filter((s) => {
+        const m = msgMap[s["Store ID"]];
+        return m && Number(s["Current Latitude"]) && Number(s["Current Longitude"]);
+      })
+      .map((s) => {
+        const m = msgMap[s["Store ID"]];
         return {
-          latitude: Number(t.center_lat),
-          longitude: Number(t.center_lng),
-          relevantText: text,
+          latitude: Number(s["Current Latitude"]),
+          longitude: Number(s["Current Longitude"]),
+          relevantText: m.body,
         };
       });
 
-    // --- احتياط - اذا ما لقى ابراج - حط القبة ---
-    if (locations.length === 0) {
-      locations.push({
-        latitude: 34.43515968148,
-        longitude: 35.8571863341421,
-        relevantText: 'انت ببرج القبة - شو بدك نوصيلك اليوم؟',
-      });
-    }
+    // --- ما في احتياط القبة - اذا ما في مسجات - ما في نقاط - و ما في اشعار ---
 
     // --- الكرت الذكي - واحد - للكل ---
-       const genericClass = {
+    const genericClass = {
       id: issuerId + '.smart_card5',
       issuerName: 'MD Marketplace',
       logo: {
@@ -73,7 +70,7 @@ export async function GET(request) {
       },
     };
     const genericObject = {
-      id: issuerId + '.smart_card_test_009',
+      id: issuerId + '.smart_card_test_010',
       classId: issuerId + '.smart_card5',
       state: 'ACTIVE',
       cardTitle: {
@@ -85,27 +82,28 @@ export async function GET(request) {
       textModulesData: [
         {
           header: 'كرتك الذكي',
-          body: 'كرت واحد - لكل الابراج - وين ما فتت على برج - بيطلعلك عرضو',
+          body: 'كرت واحد - لكل المتاجر - وين ما مرقت حد متجر - بيطلعلك عرضو',
         },
         {
           header: 'الختم - للتجربة',
           body: '0 من 5 - السادسة توصيل مجاني',
         },
         {
-          header: 'الابراج',
-          body: 'القبة - و كل الابراج الناشطة - بيشتغل فيهن كرتك',
+          header: 'المتاجر',
+          body: 'كل المتاجر الناشطة - اللي عندا عرض - بيشتغل فيهن كرتك',
         },
       ],
       barcode: {
         type: 'QR_CODE',
         value: 'MD-SMART-001',
       },
-      // --- التنبيه - بس تقرب على أي برج ---
+      // --- التنبيه - بس تقرب على متجر عندو مسج ---
       locations: locations,
       notifyPreference: 'NOTIFY_ON_ENTRY',
+      // --- Default - بس اول مرة - بس تعمل Add ---
       messages: [{
-        header: 'أهلا فيك شرفتنا',
-        body: 'شو بدك نوصيلك اليوم؟ - اطلب و اتمنى نحنا حدك',
+        header: 'أهلا فيك بـ MD-Marketplace',
+        body: 'كرتك صار فعال - العروض بتوصلك بس تقرب على المتاجر',
         messageType: 'TEXT_AND_NOTIFY',
       }],
     };
@@ -127,7 +125,7 @@ export async function GET(request) {
     // اذا لا - روح دغري - على غوغل
     const url = new URL(request.url);
     if (url.searchParams.get('debug') === '1') {
-      return NextResponse.json({ saveLink, towersCount: locations.length, messagesCount: (msgs || []).length });
+      return NextResponse.json({ saveLink, storesCount: locations.length, messagesCount: (msgs || []).length });
     }
 
     return NextResponse.redirect(saveLink);
