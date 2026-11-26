@@ -307,6 +307,29 @@ setTowerCustomers(filtered);
     towerCustomers: "عملاء البرج - تفاصيل",
     wallet: "محفظتي - تفاصيل الدفع",
   };
+    // --- واتساب - دغري ---
+  const openWhatsApp = (phone) => {
+    if (!phone) return;
+    let p = String(phone).replace(/[^0-9+]/g, "");
+    if (p.startsWith("+")) p = p.slice(1);
+    if (p.startsWith("00")) p = p.slice(2);
+    if (p.startsWith("0")) p = "961" + p.slice(1);
+    if (p.length === 8) p = "961" + p;
+    window.open("https://wa.me/" + p, "_blank");
+  };
+
+  const WhatsBtn = ({ phone }) => (
+    phone ? (
+      <button
+        onClick={(e) => { e.stopPropagation(); openWhatsApp(phone); }}
+        style={{ background: "#25D366", color: "#fff", border: 0, padding: "4px 10px", borderRadius: 999, fontWeight: 800, fontSize: 12, cursor: "pointer", marginRight: 6 }}
+      >
+        واتساب 💬
+      </button>
+    ) : null
+  );
+
+  
 
   const Card = ({ title, value, sub, color = "#FFD700", box }) => (
     <div onClick={() => setOpenBox(openBox === box ? "" : box)}
@@ -380,21 +403,21 @@ style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px soli
           </div>
 
           {openBox === "stores" && stores.map(s => (
-          <Row key={s["Store ID"]}><span>🏪 {s["Store Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{categoriesMap[s["Category"]]?.["Category Name"] || s["Category"] || ""} - {areasMap[s["Area"]]?.["Area Name"] || s["Area"]} - {s["Mobile"]} - {s["Adress"]}</span></Row>
+          <Row key={s["Store ID"]}><span>🏪 {s["Store Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{categoriesMap[s["Category"]]?.["Category Name"] || s["Category"] || ""} - {areasMap[s["Area"]]?.["Area Name"] || s["Area"]} - {s["Mobile"]} - {s["Adress"]} <WhatsBtn phone={s["Mobile"]} /></span></Row>
           ))}
           {openBox === "drivers" && drivers.map(d => (
-            <Row key={d["Driver ID"]}><span>🛵 {d["Driver Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{d["Status"]} - {d["VehicleTyp"]} - {d["Area"]} - {d["Mobile"]}</span></Row>
+            <Row key={d["Driver ID"]}><span>🛵 {d["Driver Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{d["Status"]} - {d["VehicleTyp"]} - {d["Area"]} - {d["Mobile"]} <WhatsBtn phone={d["Mobile"]} /></span></Row>
           ))}
-          {openBox === "taxiDrivers" && taxiDrivers.map(d => (
-            <Row key={d["Taxi_ID"]}><span>🚕 {d.full_name}</span><span style={{ color: "#aaa", fontSize: 12 }}>{d.status} - {d.vehicle_type} - {d.plate_number} - {d.phone}</span></Row>
+           {openBox === "taxiDrivers" && taxiDrivers.map(d => (
+            <Row key={d["Taxi_ID"]}><span>🚕 {d.full_name}</span><span style={{ color: "#aaa", fontSize: 12 }}>{d.status} - {d.vehicle_type} - {d.plate_number} - {d.phone} <WhatsBtn phone={d.phone} /></span></Row>
           ))}
-          {openBox === "customers" && Object.values(customersMap).map(c => (
-            <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{c["Area"]} - {c["Mobile"]} - {c["Adress"]}</span></Row>
+           {openBox === "customers" && Object.values(customersMap).map(c => (
+            <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{c["Area"]} - {c["Mobile"]} - {c["Adress"]} <WhatsBtn phone={c["Mobile"]} /></span></Row>
           ))}
           {openBox === "customers" && Object.keys(customersMap).length === 0 && <div style={{ color: "#aaa" }}>بعد ما في عملاء طلبو من هيدا البرج - بس يفوت اول اوردر - رح يبين هون</div>}
 
           {openBox === "towerCustomers" && towerCustomers.map(c => (
-         <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{areasMap[c["Area"]]?.["Area Name"] || c["Area"]} - {c["Mobile"]} - {c["Adress"]}</span></Row>
+         <Row key={c["Customer ID"]}><span>👤 {c["Name"]}</span><span style={{ color: "#aaa", fontSize: 12 }}>{areasMap[c["Area"]]?.["Area Name"] || c["Area"]} - {c["Mobile"]} - {c["Adress"]} <WhatsBtn phone={c["Mobile"]} /></span></Row>
          ))}
          {openBox === "towerCustomers" && towerCustomers.length === 0 && <div style={{ color: "#aaa" }}>ما في عملاء عندن احداثيات بمنطقة البرج</div>}
 
@@ -494,11 +517,11 @@ style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px soli
 
   return (
             <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #333", overflow: "hidden", minWidth: 0, boxSizing: "border-box" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <b>{cust?.["Name"] || o["customer ID"] || "زبون"}</b>
                 <span style={{ color: "#FFD700" }}>{o["Total Amount"] || 0} ل.ل</span>
               </div>
-              <div style={{ color: "#aaa", fontSize: 12 }}>{o["Area"]} - {o["Delivery Adress"]}</div>
+              <div style={{ color: "#aaa", fontSize: 12 }}>{o["Area"]} - {o["Delivery Adress"]} - {cust?.["Mobile"] || ""} <WhatsBtn phone={cust?.["Mobile"]} /></div>
               <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
                 <b>ملاحظة: </b>{o["Note"] || "لا يوجد ملاحظات"}
               </div>
@@ -527,9 +550,9 @@ style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px soli
       <h2 style={{ fontSize: 18, margin: "22px 0 10px" }}>تاكسي بندينغ - {pendingTaxi.length}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingTaxi.map(t => (
-          <div key={t.id} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #00BFFF33" }}>
-            <b>{t.customer_name}</b>
-            <div style={{ color: "#aaa", fontSize: 12 }}>{t.origin_name} ← {t.dest_name}</div>
+           <div key={t.id} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #00BFFF33" }}>
+            <b>{t.customer_name}</b> <WhatsBtn phone={t.phone || t.customer_phone} />
+            <div style={{ color: "#aaa", fontSize: 12 }}>{t.origin_name} ← {t.dest_name} - {t.phone || t.customer_phone || ""}</div>
             <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 10, fontSize: 13 }}>
               <b>ملاحظة: </b>{t.customer_notes || "لا يوجد ملاحظات"}
             </div>
@@ -543,7 +566,7 @@ style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px soli
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
         {pendingSpecial.map(s => (
   <div key={s["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14, border: "1px solid #FF8C0033" }}>
-    <b>{s["Customer Name"]}</b>
+    <b>{s["Customer Name"]}</b> <WhatsBtn phone={s["Mobile"]} />
     <div style={{ color: "#aaa", fontSize: 12 }}>{s["Store Hint"] || ""} - {s["Mobile"] || ""}</div>
     <div style={{ color: "#aaa", fontSize: 12 }}>{s["Delivery Adress"] || ""}</div>
     <div style={{ marginTop: 8 }}>{s["الطلب"]}</div>
@@ -596,7 +619,7 @@ style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px soli
 
   return (
     <div key={o["Request ID"]} style={{ background: "#1A1A1A", borderRadius: 20, padding: 14 }}>
-      <b>{cust?.["Name"] || "زبون"}</b> - <span style={{ color: "#7CFC00" }}>{o["Approval Status"]}</span>
+            <b>{cust?.["Name"] || "زبون"}</b> <WhatsBtn phone={cust?.["Mobile"]} /> - <span style={{ color: "#7CFC00" }}>{o["Approval Status"]}</span>
 
       {/* خريطة الاوردر - زبون + سائق */}
       {o["Customer Latitude"] && o["Customer Longitude"] && (
