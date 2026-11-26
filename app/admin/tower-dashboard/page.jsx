@@ -236,6 +236,18 @@ setTowerCustomers(filtered);
   const acceptOrder = async (id, driverId) => {
   if (!driverId) return alert("اختار سائق أولاً - ما فيك تقبل الاوردر بلا سائق");
   await supabase.from("order_requuest").update({ "Assigned Driver": driverId, "Approval Status": "Approved", "Delivery Status": "Pending" }).eq("Request ID", id);
+
+  // --- واتساب للسائق - دغري - متل الادمن ---
+  const drv = driversMap[driverId] || drivers.find(d => d["Driver ID"] === driverId);
+  const rawWa = drv?.["Mobile"] || "";
+  let wa = String(rawWa).replace(/\D/g, "");
+  if (wa.startsWith("0")) wa = "961" + wa.slice(1);
+  else if (wa.length === 8) wa = "961" + wa;
+  if (wa) {
+    const msg = `لديك اوردر جديد يرجى الدخول الى التطبيق 🚨\n\nطلب رقم: #${String(id).slice(-6)}\nافتح التطبيق و اقبل الطلب.`;
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+  }
+
   load();
 };
   const assignDriver = async (orderId, driverId) => {
@@ -638,7 +650,7 @@ style={{ background: "#1A1A1A", borderRadius: 20, padding: 16, border: "1px soli
               <div style={{ background: "#FFF3B0", color: "#000", borderRadius: 12, padding: 10, marginTop: 8, fontSize: 13 }}>
                 <b>ملاحظة: </b>{o["Note"] || "لا يوجد ملاحظات"}
               </div>
-              <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>السائق: {drv?.["Driver Name"] || o["Assigned Driver"] || "-"}</div>
+              <div style={{ color: "#aaa", fontSize: 12, marginTop: 8 }}>السائق: {drv?.["Driver Name"] || o["Assigned Driver"] || "-"} <WhatsBtn phone={drv?.["Mobile"]} /></div>
             </div>
           );
         })}
