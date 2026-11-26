@@ -64,7 +64,7 @@ export async function GET(request) {
 
     // --- الكرت الذكي - واحد - للكل ---
        const genericClass = {
-      id: issuerId + '.smart_card3',
+      id: issuerId + '.smart_card4',
       issuerName: 'MD Marketplace',
       logo: {
         sourceUri: {
@@ -73,8 +73,8 @@ export async function GET(request) {
       },
     };
     const genericObject = {
-      id: issuerId + '.smart_card_test_005',
-      classId: issuerId + '.smart_card3',
+      id: issuerId + '.smart_card_test_006',
+      classId: issuerId + '.smart_card4',
       state: 'ACTIVE',
       cardTitle: {
         defaultValue: { language: 'ar', value: 'MD-Marketplace - كرتك الذكي' },
@@ -101,13 +101,13 @@ export async function GET(request) {
         value: 'MD-SMART-001',
       },
       // --- التنبيه - بس تقرب على أي برج ---
-      //locations: locations,
-     // notifyPreference: 'NOTIFY_ON_ENTRY',
-     // messages: [{
-       // header: 'أهلا فيك ببرجك',
-       // body: 'شو بدك نوصيلك اليوم؟ - باقيلك 5 و بتربح توصيل مجاني',
-       // messageType: 'TEXT_AND_NOTIFY',
-     // }],
+      locations: locations,
+      notifyPreference: 'NOTIFY_ON_ENTRY',
+      messages: [{
+        header: 'أهلا فيك ببرجك',
+        body: 'شو بدك نوصيلك اليوم؟ - باقيلك 5 و بتربح توصيل مجاني',
+        messageType: 'TEXT_AND_NOTIFY',
+      }],
     };
 
     const claims = {
