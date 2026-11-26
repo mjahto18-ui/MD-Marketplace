@@ -63,14 +63,18 @@ export async function GET(request) {
     }
 
     // --- الكرت الذكي - واحد - للكل ---
-    const genericClass = {
-      id: issuerId + '.smart_card',
+       const genericClass = {
+      id: issuerId + '.smart_card3',
       issuerName: 'MD Marketplace',
+      logo: {
+        sourceUri: {
+          uri: 'https://www.md-marketplace.store/logo.png',
+        },
+      },
     };
-
     const genericObject = {
-      id: issuerId + '.smart_card_test_002',
-      classId: issuerId + '.smart_card',
+      id: issuerId + '.smart_card_test_005',
+      classId: issuerId + '.smart_card3',
       state: 'ACTIVE',
       cardTitle: {
         defaultValue: { language: 'ar', value: 'MD-Marketplace - كرتك الذكي' },
