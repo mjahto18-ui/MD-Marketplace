@@ -321,6 +321,53 @@ useEffect(() => {
             </div>
           )}
         </div>
+              
+
+        {/* --- كرت MD-Marketplace - اسود - نفس الكرت الحقيقي --- */}
+        <div className="rounded-2xl p-4 border border-[#D4AF37]/40" style={{ background: '#000000' }}>
+          <div className="flex justify-between items-center">
+            <p className="text-[#D4AF37] font-bold text-sm">MD-Marketplace</p>
+            <p className="text-[#D4AF37] text-xs">GOLD</p>
+          </div>
+
+          <div className="my-3 w-10 h-7 rounded-md bg-[#D4AF37] flex items-center justify-center text-black text-xs font-black">
+            Chip
+          </div>
+
+          <p className="text-[#D4AF37] text-lg font-bold tracking-widest">{user?.phone || 'PHONE'}</p>
+          <div className="flex justify-between mt-2">
+            <p className="text-[#D4AF37] text-sm">NAME</p>
+            <p className="text-[#D4AF37]/70 text-xs">{user?.name || 'NAME'}</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+            <div>
+              <p className="text-[#D4AF37]/70 text-xs">Wallet</p>
+              <p className="text-white font-bold">{Number(balance.wallet).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-[#D4AF37]/70 text-xs">Points</p>
+              <p className="text-white font-bold">{balance.points}</p>
+            </div>
+            <div>
+              <p className="text-[#D4AF37]/70 text-xs">Free Delivery</p>
+              <p className="text-white font-bold">{user?.freeDeliveries || 0}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={async () => {
+              const r = await fetch(`/api/wallet/loyalty?phone=${user?.phone}`);
+              const d = await r.json();
+              if (d.saveUrl) window.open(d.saveUrl, '_blank');
+            }}
+            className="w-full mt-4 bg-[#D4AF37] text-black py-3 rounded-xl font-black text-sm"
+          >
+            Add To Google Wallet
+          </button>
+        </div>
+
+       
 
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl border border-blue-500/20 rounded-2xl p-4">
