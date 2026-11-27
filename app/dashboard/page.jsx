@@ -351,7 +351,7 @@ useEffect(() => {
 
                     <button
             onClick={async () => {
-              const r = await fetch(`/api/wallet/loyalty?phone=${encodeURIComponent(user?.phone)}`);
+                            const r = await fetch(`/api/wallet/loyalty?phone=${encodeURIComponent(user?.phone)}&debug=1`);
               const d = await r.json();
               console.log('wallet:', d);
                if (d.saveLink || d.saveUrl || d.url) window.open(d.saveLink || d.saveUrl || d.url, '_blank');
