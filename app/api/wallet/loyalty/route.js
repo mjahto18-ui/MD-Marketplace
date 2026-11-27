@@ -68,14 +68,14 @@ export async function GET(request) {
 
     // --- الاوبجكت - Loyalty - للتجربة - زبون واحد ---
     const loyaltyObject = {
-      id: issuerId + '.md_loyalty_test_002',
+      id: issuerId + '.md_loyalty_test_003',
       classId: issuerId + '.md_loyalty1',
       state: 'ACTIVE',
       accountName: {
         defaultValue: { language: 'ar', value: 'Mouhamad Jahto' },
       },
       accountId: {
-        defaultValue: { language: 'ar', value: 'MD-001' },
+        defaultValue: { language: 'ar', value: 'MD-003' },
       },
       loyaltyPoints: {
         label: 'الختم',
@@ -103,7 +103,7 @@ export async function GET(request) {
       ],
       barcode: {
         type: 'QR_CODE',
-        value: 'MD-LOYALTY-001',
+        value: 'MD-LOYALTY-003',
       },
       // --- التنبيه - بس تقرب على متجر عندو مسج - نفسو متل Generic ---
       locations: locations,
