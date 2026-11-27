@@ -17,12 +17,64 @@ export async function GET(request) {
       return NextResponse.json({ error: 'SERVICE_ACCOUNT_JSON ناقص - Vercel' }, { status: 500 });
     }
 
-    // --- جيب المتاجر الناشطة - من Supabase ---
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
+    // --- جيب رقم التلفون - من الرابط - ?phone= ---
+    const url = new URL(request.url);
+    const phone = url.searchParams.get('phone') || '03177653';
+
+    // --- جيب الزبون - من customers - بـ Mobile ---
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('"Customer ID", "Name", "Mobile", "Free Delivery Remaining"')
+      .eq('Mobile', phone)
+      .maybeSingle();
+
+    const custId = customer?.["Customer ID"] || '';
+    const custName = customer?.["Name"] || 'Mouhamad Jahto';
+    const freeRemaining = customer?.["Free Delivery Remaining"] || '5';
+
+    // --- جيب User ID - من users - بـ Customer ID ---
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('"User ID"')
+      .eq('Customer ID', custId)
+      .maybeSingle();
+
+    const ownerUserId = userRow?.["User ID"] || null;
+
+    // --- جيب المحفظة و النقاط - متل API اللي عندك ---
+    const [rewardsRes, walletRes] = await Promise.all([
+      supabase.from('rewards')
+        .select('"Bonus Balance"')
+        .eq('Customer ID', custId)
+        .order('Transaction Date', { ascending: false })
+        .order('supa_id', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      ownerUserId
+        ? supabase.from('wallet_transactions')
+          .select('"Balance After"')
+          .eq('Owner User ID', ownerUserId)
+          .order('Created At', { ascending: false })
+          .order('supa_id', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        : supabase.from('wallet_transactions')
+          .select('"Balance After"')
+          .eq('Owner User ID', custId)
+          .order('Created At', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+    ]);
+
+    const points = Number(rewardsRes.data?.["Bonus Balance"] || 0);
+    const wallet = Number(walletRes.data?.["Balance After"] || 0);
+
+    // --- جيب المتاجر الناشطة - من Supabase ---
     const { data: stores } = await supabase
       .from('stores')
       .select('"Store ID", "Store Name", "Current Latitude", "Current Longitude", "Status"')
@@ -40,7 +92,7 @@ export async function GET(request) {
       msgMap[m.store_id] = m;
     });
 
-    // --- بس المتاجر اللي عندا مسج true - بينحطو - الباقي صامت - بلا Fallback ---
+    // --- بس المتاجر اللي عندا مسج true - بينحطو ---
     const locations = (stores || [])
       .filter((s) => {
         const m = msgMap[s["Store ID"]];
@@ -55,46 +107,35 @@ export async function GET(request) {
         };
       });
 
-    // --- الاوبجكت - Loyalty - للتجربة - زبون واحد ---
-    // --- الكلاس - ما منبعتو - لانو موجود بالكونسول - md_loyalty1 - APPROVED ---
+    // --- الاوبجكت - Loyalty - متل المصرف - بس الضروري ---
     const loyaltyObject = {
-      id: issuerId + '.md_loyalty_test_004',
+      id: issuerId + '.md_loyalty_test_005',
       classId: issuerId + '.md_loyalty1',
       state: 'active',
-      accountName: 'Mouhamad Jahto',
-      accountId: 'MD-004',
+      accountName: custName,
+      accountId: phone,
       loyaltyPoints: {
-        label: 'الختم',
+        label: 'Free Delivery - باقي',
         balance: {
-          string: '0 من 5',
+          string: String(freeRemaining),
         },
       },
       textModulesData: [
         {
-          header: 'كرتك الذكي',
-          body: 'كرت واحد - لكل المتاجر - وين ما مرقت حد متجر - بيطلعلك عرضو',
+          header: 'المحفظة',
+          body: String(wallet),
         },
         {
-          header: 'الرصيد',
-          body: '0 - للتجربة',
-        },
-        {
-          header: 'Free Delivery',
-          body: '0 - السادسة توصيل مجاني',
-        },
-        {
-          header: 'المتاجر',
-          body: 'كل المتاجر الناشطة - اللي عندا عرض - بيشتغل فيهن كرتك',
+          header: 'النقاط',
+          body: String(points),
         },
       ],
       barcode: {
         type: 'qrCode',
-        value: 'MD-LOYALTY-004',
+        value: 'MD-' + phone,
       },
-      // --- التنبيه - بس تقرب على متجر عندو مسج - نفسو متل Generic ---
       locations: locations,
       notifyPreference: 'NOTIFY_ON_ENTRY',
-      // --- Default - بس اول مرة - بس تعمل Add ---
       messages: [{
         header: 'أهلا فيك بـ MD-Marketplace',
         body: 'كرتك صار فعال - العروض بتوصلك بس تقرب على المتاجر',
@@ -114,11 +155,8 @@ export async function GET(request) {
     const token = jwt.sign(claims, serviceAccount.private_key, { algorithm: 'RS256' });
     const saveLink = 'https://pay.google.com/gp/v/save/' + token;
 
-    // اذا ?debug=1 - فرجي JSON - للفحص
-    // اذا لا - روح دغري - على غوغل
-    const url = new URL(request.url);
     if (url.searchParams.get('debug') === '1') {
-      return NextResponse.json({ saveLink, storesCount: locations.length, messagesCount: (msgs || []).length });
+      return NextResponse.json({ saveLink, storesCount: locations.length, messagesCount: (msgs || []).length, custName, phone, wallet, points, freeRemaining });
     }
 
     return NextResponse.redirect(saveLink);
