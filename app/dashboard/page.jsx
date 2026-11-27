@@ -354,7 +354,7 @@ useEffect(() => {
               const r = await fetch(`/api/wallet/loyalty?phone=${encodeURIComponent(user?.phone)}`);
               const d = await r.json();
               console.log('wallet:', d);
-              if (d.saveUrl || d.url) window.open(d.saveUrl || d.url, '_blank');
+               if (d.saveLink || d.saveUrl || d.url) window.open(d.saveLink || d.saveUrl || d.url, '_blank');
               else alert('ما اشتغل: ' + JSON.stringify(d));
             }}
             className="w-full mt-3 bg-[#D4AF37] text-black py-2 rounded-lg font-black text-xs"
