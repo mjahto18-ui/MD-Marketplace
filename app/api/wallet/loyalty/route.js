@@ -121,7 +121,7 @@ export async function GET(request) {
       aud: 'google',
       typ: 'savetowallet',
       payload: {
-        loyaltyClasses: [loyaltyClass],
+        //loyaltyClasses: [loyaltyClass],
         loyaltyObjects: [loyaltyObject],
       },
     };
