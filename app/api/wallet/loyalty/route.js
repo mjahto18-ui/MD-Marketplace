@@ -55,28 +55,14 @@ export async function GET(request) {
         };
       });
 
-    // --- الكلاس - Loyalty - md_loyalty1 ---
-    const loyaltyClass = {
-      id: issuerId + '.md_loyalty1',
-      issuerName: 'MD Marketplace',
-      logo: {
-        sourceUri: {
-          uri: 'https://www.md-marketplace.store/icon.png',
-        },
-      },
-    };
-
     // --- الاوبجكت - Loyalty - للتجربة - زبون واحد ---
+    // --- الكلاس - ما منبعتو - لانو موجود بالكونسول - md_loyalty1 - APPROVED ---
     const loyaltyObject = {
-      id: issuerId + '.md_loyalty_test_003',
+      id: issuerId + '.md_loyalty_test_004',
       classId: issuerId + '.md_loyalty1',
-      state: 'ACTIVE',
-      accountName: {
-        defaultValue: { language: 'ar', value: 'Mouhamad Jahto' },
-      },
-      accountId: {
-        defaultValue: { language: 'ar', value: 'MD-003' },
-      },
+      state: 'active',
+      accountName: 'Mouhamad Jahto',
+      accountId: 'MD-004',
       loyaltyPoints: {
         label: 'الختم',
         balance: {
@@ -102,8 +88,8 @@ export async function GET(request) {
         },
       ],
       barcode: {
-        type: 'QR_CODE',
-        value: 'MD-LOYALTY-003',
+        type: 'qrCode',
+        value: 'MD-LOYALTY-004',
       },
       // --- التنبيه - بس تقرب على متجر عندو مسج - نفسو متل Generic ---
       locations: locations,
@@ -121,7 +107,6 @@ export async function GET(request) {
       aud: 'google',
       typ: 'savetowallet',
       payload: {
-        //loyaltyClasses: [loyaltyClass],
         loyaltyObjects: [loyaltyObject],
       },
     };
