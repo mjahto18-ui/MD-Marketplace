@@ -324,23 +324,17 @@ useEffect(() => {
               
 
         {/* --- كرت MD-Marketplace - اسود - نفس الكرت الحقيقي --- */}
-        <div className="rounded-2xl p-4 border border-[#D4AF37]/40" style={{ background: '#000000' }}>
+          <div className="rounded-xl p-3 border border-[#D4AF37]/40" style={{ background: '#000000' }}>
           <div className="flex justify-between items-center">
-            <p className="text-[#D4AF37] font-bold text-sm">MD-Marketplace</p>
-            <p className="text-[#D4AF37] text-xs">GOLD</p>
+            <p className="text-[#D4AF37] font-bold text-xs">MD-Marketplace</p>
+            <p className="text-[#D4AF37] text-[10px]">GOLD</p>
           </div>
 
-          <div className="my-3 w-10 h-7 rounded-md bg-[#D4AF37] flex items-center justify-center text-black text-xs font-black">
-            Chip
-          </div>
-
-          <p className="text-[#D4AF37] text-lg font-bold tracking-widest">{user?.phone || 'PHONE'}</p>
-          <div className="flex justify-between mt-2">
-            <p className="text-[#D4AF37] text-sm">NAME</p>
+          <p className="text-[#D4AF37] text-sm font-bold tracking-widest mt-2">{user?.phone || 'PHONE'}</p>
             <p className="text-[#D4AF37]/70 text-xs">{user?.name || 'NAME'}</p>
-          </div>
+          
 
-          <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+          <div className="grid grid-cols-3 gap-2 mt-3 text-center">
             <div>
               <p className="text-[#D4AF37]/70 text-xs">Wallet</p>
               <p className="text-white font-bold">{Number(balance.wallet).toLocaleString()}</p>
@@ -355,13 +349,15 @@ useEffect(() => {
             </div>
           </div>
 
-          <button
+                    <button
             onClick={async () => {
-              const r = await fetch(`/api/wallet/loyalty?phone=${user?.phone}`);
+              const r = await fetch(`/api/wallet/loyalty?phone=${encodeURIComponent(user?.phone)}`);
               const d = await r.json();
-              if (d.saveUrl) window.open(d.saveUrl, '_blank');
+              console.log('wallet:', d);
+              if (d.saveUrl || d.url) window.open(d.saveUrl || d.url, '_blank');
+              else alert('ما اشتغل: ' + JSON.stringify(d));
             }}
-            className="w-full mt-4 bg-[#D4AF37] text-black py-3 rounded-xl font-black text-sm"
+            className="w-full mt-3 bg-[#D4AF37] text-black py-2 rounded-lg font-black text-xs"
           >
             Add To Google Wallet
           </button>
