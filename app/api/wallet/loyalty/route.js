@@ -68,7 +68,7 @@ export async function GET(request) {
 
     // --- الاوبجكت - Loyalty - للتجربة - زبون واحد ---
     const loyaltyObject = {
-      id: issuerId + '.md_loyalty_test_001',
+      id: issuerId + '.md_loyalty_test_002',
       classId: issuerId + '.md_loyalty1',
       state: 'ACTIVE',
       accountName: {
