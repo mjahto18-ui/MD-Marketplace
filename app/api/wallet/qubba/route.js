@@ -53,7 +53,7 @@ export async function GET(request) {
         return {
           latitude: Number(s["Current Latitude"]),
           longitude: Number(s["Current Longitude"]),
-          relevantText: m.body,
+          relevantText: m.title + ' - ' + m.body
         };
       });
 
