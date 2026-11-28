@@ -64,12 +64,11 @@ export default function TowerCashPendingPage() {
     const { data, error } = await supabase
       .from('order_requuest')
       .update({
-        'Cash Status': 'Received',
-        'Collected By Driver': true,
-        'Received By Manager': userId,
-        'Manager Received At': new Date().toISOString(),
-        'Archived Date': new Date().toISOString()
-      })
+  'Cash Status': 'Received',
+  'Approval Status': 'Completed',
+  'Collected By Driver': 'TRUE',
+  'Archived Date': new Date().toISOString()
+})
       .eq('Request ID', orderId)
       .eq('geofence_center_id', towerId)
       .select()
