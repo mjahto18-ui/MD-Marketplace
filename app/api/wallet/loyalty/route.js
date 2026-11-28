@@ -108,8 +108,9 @@ export async function GET(request) {
       });
 
     // --- الاوبجكت - Loyalty - متل المصرف - بس الضروري ---
+    const cleanPhone = String(phone).replace(/\D/g, '');
     const loyaltyObject = {
-      id: issuerId + '.md_loyalty_test_005',
+      id: issuerId + '.md_loyalty_' + cleanPhone,
       classId: issuerId + '.md_loyalty1',
       state: 'active',
       accountName: custName,
@@ -154,6 +155,15 @@ export async function GET(request) {
 
     const token = jwt.sign(claims, serviceAccount.private_key, { algorithm: 'RS256' });
     const saveLink = 'https://pay.google.com/gp/v/save/' + token;
+
+    // --- سجل مين نزل الكرت - مشان نشوف كم شخص منزلو ---
+try {
+  await supabase.from('wallet_downloads').insert([{
+    phone: phone,
+    name: custName,
+    created_at: new Date().toISOString()
+  }]);
+} catch (e) {}
 
     if (url.searchParams.get('debug') === '1') {
       return NextResponse.json({ saveLink, storesCount: locations.length, messagesCount: (msgs || []).length, custName, phone, wallet, points, freeRemaining });
