@@ -273,8 +273,23 @@ export default function DriverDashboard(){
   console.log('نجح:', data)
   setDebug(`✅ تم - ${amt}`)
   if(trackRef.current) clearInterval(trackRef.current)
-  location.reload()
+
+   // جديد - تحديث كرت Google Wallet - ما بيوقف التسليم اذا فشل
+try {
+  const custIdForWallet = String(selectedOrder?.['Costumer ID'] || '').trim()
+  const phoneForWallet = String(selectedOrder?.['Mobile'] || usersMap[custIdForWallet]?.['Mobile'] || usersMap[custIdForWallet]?.['Phone'] || '').trim()
+  if (phoneForWallet || custIdForWallet) {
+    await fetch('/api/wallet/update', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ phone: phoneForWallet, customerID: custIdForWallet }),
+  keepalive: true,
+}).catch(() => {})
 }
+} catch (e) {}
+setTimeout(() => { location.reload() }, 800)
+   }
+   
   const openGoogleMaps = ()=>{ if(!selectedPoint) return; window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedPoint.lat},${selectedPoint.lng}&travelmode=driving`,'_blank') }
 
   const glassCard = {
